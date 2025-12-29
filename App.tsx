@@ -69,8 +69,10 @@ const App: React.FC = () => {
   // Arcane Regeneration Logic
   useEffect(() => {
     const regenInterval = setInterval(() => {
-      setArcaneTokens(prev => Math.min(prev + 0.05, 3)); // Full token every 20s
-      setReservoir(prev => Math.min(prev + 1.5, 100)); // Full reservoir in ~66s
+      // Faster regeneration: 0.07 tokens per sec (~14s for full token)
+      setArcaneTokens(prev => Math.min(prev + 0.07, 3)); 
+      // Doubled utility regeneration: 3.0% per sec (~33s for full reservoir)
+      setReservoir(prev => Math.min(prev + 3.0, 100)); 
     }, 1000);
 
     // Listen for AI usage events from gemini.ts
@@ -85,7 +87,8 @@ const App: React.FC = () => {
         setIsExhausted(true);
         setArcaneTokens(0);
         setReservoir(0);
-        setTimeout(() => setIsExhausted(false), 15000);
+        // Reduced lockdown time from 15s to 8s
+        setTimeout(() => setIsExhausted(false), 8000);
       }
     };
 
@@ -268,10 +271,10 @@ const App: React.FC = () => {
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1} />}
-          {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 15} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 15} />}
-          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 15} />}
-          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 15} />}
+          {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 3} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 8} />}
+          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 8} />}
+          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 5} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={handleSyncSelection} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
         </div>
@@ -317,11 +320,11 @@ const App: React.FC = () => {
             <div className={`w-8 h-8 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
               isExhausted 
                 ? 'border-red-900 bg-red-950/20 shadow-[0_0_20px_#7f1d1d] animate-pulse' 
-                : reservoir > 15 
+                : reservoir > 5 
                   ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15px_rgba(178,138,72,0.3)]' 
                   : 'border-neutral-800 bg-black'
             }`}>
-              <span className={`text-[10px] font-black ${isExhausted ? 'text-red-500' : reservoir > 15 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
+              <span className={`text-[10px] font-black ${isExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
                 {isExhausted ? '!' : Math.round(reservoir)}
               </span>
             </div>

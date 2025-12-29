@@ -56,7 +56,7 @@ const handleAIError = (error: any) => {
 
 export const generateImage = async (prompt: string): Promise<string> => {
   return withRetry(async () => {
-    trackUsage('utility', 40); // Image gen is expensive
+    trackUsage('utility', 30); // Reduced cost for images
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -77,7 +77,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
 
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
   return withRetry(async () => {
-    trackUsage('utility', 15);
+    trackUsage('utility', 8); // Reduced from 15
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -127,7 +127,7 @@ export const rerollTraits = async (
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
   return withRetry(async () => {
-    trackUsage('utility', 10);
+    trackUsage('utility', 3); // Reduced from 10 - Nearly free
     try {
       const ai = getAI();
       const locked = existingTraits.filter(t => t.locked);
@@ -178,7 +178,7 @@ export const rerollTraits = async (
 
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
   return withRetry(async () => {
-    trackUsage('utility', 10);
+    trackUsage('utility', 5); // Reduced from 10
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -209,7 +209,7 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
   return withRetry(async () => {
-    trackUsage('utility', 15);
+    trackUsage('utility', 8); // Reduced from 15
     try {
       const ai = getAI();
       const prompt = `Create TTRPG stats for: "${name}". Appearance: ${description}. ${isBoss ? "Make it a Boss encounter." : ""}`;
@@ -255,7 +255,7 @@ export const generateMonsterStats = async (name: string, description: string, is
 
 export const generateItemMechanics = async (name: string, type: string, description: string): Promise<{ mechanics: ItemMechanic[], lore: string }> => {
   return withRetry(async () => {
-    trackUsage('utility', 10);
+    trackUsage('utility', 5); // Reduced from 10
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -293,7 +293,7 @@ export const generateItemMechanics = async (name: string, type: string, descript
 
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
   return withRetry(async () => {
-    trackUsage('utility', 20);
+    trackUsage('utility', 10); // Reduced from 20
     try {
       const ai = getAI();
       const classDescriptions = party.map(p => {
@@ -336,7 +336,7 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
 
 export const generateSummary = async (logs: GameLog[], oldSummary: string): Promise<string> => {
   return withRetry(async () => {
-    trackUsage('utility', 5);
+    trackUsage('utility', 2); // Reduced from 5
     try {
       const ai = getAI();
       const logContext = logs.map(l => `${l.role === 'dm' ? 'DM' : 'Player'}: ${l.content}`).join('\n');

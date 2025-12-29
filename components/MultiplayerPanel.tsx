@@ -32,7 +32,10 @@ const MultiplayerPanel: React.FC<MultiplayerPanelProps> = ({
         <div className="lg:col-span-1 space-y-6">
           <div className={`grim-card p-6 border-2 transition-all duration-500 ${isHost ? 'border-[#b28a48]/40 shadow-lg' : 'border-neutral-900'}`}>
             <h3 className="text-xs font-black fantasy-font text-[#b28a48] tracking-widest uppercase mb-6">Current Sigil</h3>
-            <div className="bg-black/80 border border-neutral-800 p-4 rounded-sm flex items-center justify-between cursor-pointer group" onClick={() => navigator.clipboard.writeText(peerId)}>
+            <div className="bg-black/80 border border-neutral-800 p-4 rounded-sm flex items-center justify-between cursor-pointer group" onClick={() => {
+                navigator.clipboard.writeText(peerId);
+                alert("Sigil copied to clipboard.");
+            }}>
               <code className="text-[#b28a48] font-mono text-xs tracking-wider truncate group-hover:text-white transition-colors">
                 {peerId || 'Summoning...'}
               </code>
@@ -48,8 +51,8 @@ const MultiplayerPanel: React.FC<MultiplayerPanelProps> = ({
                </div>
                
                {isHost && (
-                 <button onClick={forceSync} className="w-full bg-[#1a1a1a] border border-[#b28a48]/20 hover:border-[#b28a48]/60 py-3 text-[9px] font-black uppercase tracking-[0.3em] text-[#b28a48] transition-all">
-                   Force World Sync
+                 <button onClick={forceSync} className="w-full bg-[#1a1a1a] border border-[#b28a48]/20 hover:border-[#b28a48]/60 py-3 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48] transition-all shadow-xl active:scale-95">
+                   Transmit All Knowledge
                  </button>
                )}
             </div>
@@ -76,7 +79,7 @@ const MultiplayerPanel: React.FC<MultiplayerPanelProps> = ({
           <div className={`grim-card p-6 border-2 ${!isHost ? 'border-[#b28a48]/40 shadow-lg' : 'border-neutral-900 opacity-50'}`}>
             <h3 className="text-xs font-black mb-6 fantasy-font text-neutral-300 uppercase tracking-widest">Enter Portal</h3>
             <input value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="ENTER TARGET SIGIL..." className="w-full bg-black border border-neutral-800 p-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] mb-4 outline-none font-mono" />
-            <button onClick={() => joinSession(targetId)} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-4 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48]">Enter Portal</button>
+            <button onClick={() => joinSession(targetId)} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-4 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48] shadow-xl">Enter Portal</button>
           </div>
         </div>
 
@@ -87,13 +90,13 @@ const MultiplayerPanel: React.FC<MultiplayerPanelProps> = ({
                 <span className={`w-2 h-2 rounded-full animate-pulse ${connections.length > 0 ? 'bg-green-500' : 'bg-amber-500'}`}></span>
                 <h3 className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.3em]">Arcane Resonance Logs</h3>
               </div>
-              <span className="text-[9px] text-neutral-600 font-black">{connections.length} Linked Souls</span>
+              <span className="text-[10px] text-neutral-600 font-black">{connections.length} Linked Souls</span>
             </div>
             <div className="flex-1 p-6 font-mono text-[10px] overflow-y-auto bg-black/40 scrollbar-hide">
-              <div className="space-y-2">
-                {serverLogs.length === 0 && <div className="text-neutral-800 italic">The ether is currently silent...</div>}
+              <div className="space-y-3">
+                {serverLogs.length === 0 && <div className="text-neutral-800 italic uppercase tracking-widest">The ether is currently silent...</div>}
                 {serverLogs.map((log) => (
-                  <div key={log.id} className="flex gap-4 border-b border-white/5 pb-1">
+                  <div key={log.id} className="flex gap-4 border-b border-white/5 pb-2">
                     <span className="text-neutral-700 whitespace-nowrap">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
                     <span className={`${log.type === 'error' ? 'text-red-500' : log.type === 'success' ? 'text-green-500' : 'text-neutral-400'}`}>{log.message}</span>
                   </div>

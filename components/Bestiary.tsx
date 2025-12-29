@@ -6,7 +6,6 @@ import { generateMonsterStats, generateImage, rerollTraits } from '../services/g
 interface BestiaryProps {
   monsters: Monster[];
   setMonsters: React.Dispatch<React.SetStateAction<Monster[]>>;
-  // Fix: Added notify prop to interface
   notify: (message: string, type?: any) => void;
 }
 
@@ -72,7 +71,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
       notify(`${name} inscribed into the bestiary.`, "success");
     } catch (e: any) {
       console.error(e);
-      // Fix: Added notify call for error reporting
       notify(e.message || "Failed to summon monster into the codex.", "error");
     } finally {
       setLoading(false);
@@ -109,7 +107,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
       })
       .catch(err => {
         console.error(err);
-        // Fix: Added notify call for error reporting
         notify(err.message || "The spirits refuse to change this creature.", "error");
       })
       .finally(() => setRerolling(null));
@@ -123,26 +120,26 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       <div>
-        <h2 className="text-2xl md:text-3xl font-bold fantasy-font text-[#b28a48]">Ancient Bestiary</h2>
-        <p className="text-sm text-neutral-500 uppercase tracking-widest font-black">Codex of Horrors & Guardians</p>
+        <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48] tracking-widest">Ancient Bestiary</h2>
+        <p className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black mt-2">Codex of Horrors & Guardians</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/3">
-          <div className="grim-card p-4 md:p-6 rounded-sm border border-neutral-800 sticky top-4">
-            <h3 className="text-lg font-bold mb-4 fantasy-font text-neutral-300">Summon Horror</h3>
-            <div className="space-y-4">
+          <div className="grim-card p-6 rounded-sm border-2 border-dashed border-[#b28a48]/20 sticky top-4 shadow-2xl">
+            <h3 className="text-xl font-black mb-6 fantasy-font text-neutral-300">Summon Horror</h3>
+            <div className="space-y-5">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="NAME OF THE BEAST..."
-                className="w-full bg-black/50 border border-neutral-800 rounded-sm px-4 py-2 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none"
+                className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none font-bold"
               />
               <button 
                 onClick={() => setIsBoss(!isBoss)}
-                className={`w-full px-4 py-2 text-[10px] font-black uppercase tracking-widest border transition-all ${isBoss ? 'bg-red-900/40 border-red-500 text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-neutral-900 border-neutral-800 text-neutral-600'}`}
+                className={`w-full px-4 py-3 text-[10px] font-black uppercase tracking-[0.3em] border transition-all ${isBoss ? 'bg-red-950/40 border-red-500 text-red-200 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-black border-neutral-800 text-neutral-600'}`}
               >
                 {isBoss ? '🔥 LEGENDARY THREAT' : 'STANDARD CREATURE'}
               </button>
@@ -150,14 +147,14 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="DESCRIBE ITS NATURE, APPEARANCE, AND DREAD ABILITIES..."
-                className="w-full bg-black/50 border border-neutral-800 rounded-sm px-4 py-2 h-32 text-xs text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic"
+                className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-40 text-xs text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed"
               />
               <button
                 onClick={handleCreate}
                 disabled={loading || !name}
-                className={`px-8 py-4 rounded-sm font-black w-full text-[10px] uppercase tracking-[0.3em] transition-all ${isBoss ? 'bg-red-800 hover:bg-red-700 text-white shadow-xl' : 'bg-[#b28a48] hover:bg-[#cbb07a] text-black shadow-lg'} disabled:opacity-20`}
+                className={`px-8 py-5 rounded-sm font-black w-full text-[11px] uppercase tracking-[0.4em] transition-all shadow-xl ${isBoss ? 'bg-red-800 hover:bg-red-700 text-white' : 'bg-[#b28a48] hover:bg-[#cbb07a] text-black'} disabled:opacity-20 active:scale-95`}
               >
-                {loading ? 'WEAVING FORM...' : 'ENSCRIBE BESTIARY'}
+                {loading ? 'WEAVING FORM...' : 'INSCRIBE BESTIARY'}
               </button>
             </div>
           </div>
@@ -165,25 +162,23 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
 
         <div className="lg:w-2/3 space-y-6">
           <div className="bg-black/60 border border-[#b28a48]/20 p-4 rounded-sm flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <input 
-                type="text" 
-                placeholder="Search Codex..." 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-neutral-900/50 border border-neutral-800 px-4 py-2 text-[10px] uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none"
-              />
-            </div>
+            <input 
+              type="text" 
+              placeholder="Search Codex Entries..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 bg-black border border-neutral-900 px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] outline-none focus:border-[#b28a48]"
+            />
             <button 
               onClick={() => setBossOnly(!bossOnly)}
-              className={`px-3 py-2 text-[10px] uppercase tracking-widest border rounded-sm transition-all ${bossOnly ? 'border-red-500 text-red-500 bg-red-900/10 shadow-[0_0_10px_rgba(239,68,68,0.1)]' : 'border-neutral-800 text-neutral-500'}`}
+              className={`px-4 py-3 text-[10px] uppercase tracking-widest border rounded-sm transition-all font-black ${bossOnly ? 'border-red-500 text-red-500 bg-red-950/20' : 'border-neutral-900 text-neutral-500 hover:border-neutral-800'}`}
             >
               Legendary Only
             </button>
             <select 
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-neutral-900/50 border border-neutral-800 px-3 py-2 text-[10px] uppercase tracking-widest text-neutral-400 outline-none"
+              className="bg-black border border-neutral-900 px-4 py-3 text-[10px] uppercase tracking-widest text-neutral-400 outline-none"
             >
               <option value="name">Order: Alpha</option>
               <option value="hp">Order: Vitality</option>
@@ -191,124 +186,128 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
             </select>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-8">
             {filteredMonsters.map(m => (
               <div 
                 key={m.id} 
                 onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
-                className={`grim-card rounded-sm overflow-hidden group transition-all duration-500 border-2 cursor-pointer ${expandedId === m.id ? (m.isBoss ? 'border-red-600/60 shadow-[0_0_30px_rgba(153,27,27,0.2)]' : 'border-[#b28a48]/60 shadow-[0_0_30px_rgba(178,138,72,0.1)]') : (m.isBoss ? 'border-red-900/30' : 'border-neutral-900')}`}
+                className={`grim-card rounded-sm overflow-hidden group transition-all duration-500 border-2 cursor-pointer ${expandedId === m.id ? (m.isBoss ? 'border-red-600/60 shadow-2xl' : 'border-[#b28a48]/60 shadow-2xl') : (m.isBoss ? 'border-red-900/30' : 'border-neutral-900 hover:border-neutral-800')}`}
               >
-                {/* Compact Header View */}
                 <div className="flex flex-col md:flex-row">
-                  <div className={`h-40 md:h-auto md:w-48 relative flex-shrink-0 transition-all duration-700 ${expandedId === m.id ? 'grayscale-0' : 'grayscale'}`}>
-                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl">🐉</div>}
+                  <div className={`h-48 md:h-auto md:w-56 relative flex-shrink-0 transition-all duration-700 ${expandedId === m.id ? 'grayscale-0' : 'grayscale'}`}>
+                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-black flex items-center justify-center text-6xl">🐉</div>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60"></div>
                     {m.isBoss && (
-                      <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-red-600 text-white text-[8px] font-black uppercase tracking-widest rounded shadow-lg animate-pulse">LEGENDARY</div>
+                      <div className="absolute top-3 left-3 px-2 py-1 bg-red-600 text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-sm shadow-xl animate-pulse">LEGENDARY THREAT</div>
                     )}
                   </div>
                   
-                  <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div className="p-8 flex-1 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className={`text-2xl font-black fantasy-font transition-colors ${m.isBoss ? 'text-red-500' : 'text-[#b28a48]'}`}>{m.name}</h4>
-                        <p className="text-[9px] text-neutral-600 uppercase tracking-widest font-black mt-1">
-                          {m.isBoss ? 'Legendary Threat' : 'Wandering Horror'} • {m.stats.constitution > 14 ? 'Large' : 'Medium'} Monstrosity
+                        <h4 className={`text-3xl font-black fantasy-font tracking-widest ${m.isBoss ? 'text-red-500' : 'text-[#b28a48]'}`}>{m.name}</h4>
+                        <p className="text-[10px] text-neutral-600 uppercase tracking-[0.3em] font-black mt-2">
+                          {m.isBoss ? 'Monstrous Boss' : 'Wild Creature'} • Level {Math.floor(m.hp / 15) + 1}
                         </p>
                       </div>
-                      <div className="flex gap-4 items-center">
-                        <div className="text-right">
-                          <div className="text-[9px] text-neutral-500 font-black uppercase tracking-tighter">AC</div>
-                          <div className="text-lg font-black text-neutral-200">{m.ac}</div>
+                      <div className="flex gap-6 items-center">
+                        <div className="text-center">
+                          <div className="text-[10px] text-neutral-700 font-black uppercase tracking-tighter mb-1">Armor</div>
+                          <div className="text-2xl font-black text-neutral-300">{m.ac}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-[9px] text-neutral-500 font-black uppercase tracking-tighter">HP</div>
-                          <div className={`text-lg font-black ${m.isBoss ? 'text-red-500' : 'text-neutral-200'}`}>{m.hp}</div>
+                        <div className="text-center">
+                          <div className="text-[10px] text-neutral-700 font-black uppercase tracking-tighter mb-1">Health</div>
+                          <div className={`text-2xl font-black ${m.isBoss ? 'text-red-500' : 'text-neutral-300'}`}>{m.hp}</div>
                         </div>
-                        <button onClick={(e) => handleDelete(e, m)} className="ml-4 text-neutral-800 hover:text-red-600 transition-colors p-2">🗑️</button>
+                        <button onClick={(e) => handleDelete(e, m)} className="ml-4 text-neutral-800 hover:text-red-600 transition-all p-2 text-xl active:scale-90">🗑️</button>
                       </div>
                     </div>
 
                     {!expandedId && (
-                      <div className="mt-4 flex items-center justify-between">
-                         <div className="flex gap-2">
+                      <div className="mt-8 flex items-center justify-between">
+                         <div className="flex gap-3">
                            {m.abilities.slice(0, 3).map((a, i) => (
-                             <span key={i} className="text-[8px] px-2 py-0.5 border border-neutral-800 text-neutral-500 uppercase font-black rounded-full">{a.name}</span>
+                             <span key={i} className="text-[10px] px-3 py-1 border border-neutral-900 text-neutral-600 uppercase font-black rounded-sm truncate max-w-[120px]">{a.name}</span>
                            ))}
-                           {m.abilities.length > 3 && <span className="text-[8px] text-neutral-700 font-black">+ {m.abilities.length - 3} MORE</span>}
+                           {m.abilities.length > 3 && <span className="text-[10px] text-neutral-800 font-black self-center uppercase tracking-tighter">+ {m.abilities.length - 3} MORE</span>}
                          </div>
-                         <span className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest animate-pulse">Expand Stat Block †</span>
+                         <span className="text-[10px] font-black text-[#b28a48] uppercase tracking-[0.3em] animate-pulse">Examine Stat Block †</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Collapsible Stat Block */}
                 {expandedId === m.id && (
-                  <div className="border-t-2 border-neutral-900 bg-[#080808] p-6 md:p-10 space-y-8 animate-in slide-in-from-top duration-500">
-                    {/* TTRPG Attribute Grid */}
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2 border-y-2 border-[#b28a48]/20 py-4">
-                      {(Object.keys(m.stats) as Array<keyof Stats>).map(s => (
-                        <div key={s} className="text-center group/stat">
-                          <div className="text-[10px] font-black text-[#b28a48] uppercase tracking-widest mb-1">{s.slice(0, 3)}</div>
-                          <div className="text-xl font-black text-neutral-200">{m.stats[s]}</div>
-                          <div className="text-[10px] font-black text-neutral-500">({getModifier(m.stats[s])})</div>
-                        </div>
-                      ))}
+                  <div className="border-t-2 border-neutral-900 bg-[#060606] p-8 md:p-14 space-y-12 animate-in slide-in-from-top duration-500">
+                    
+                    {/* Refactored High-Visibility Stat Grid */}
+                    <div className="space-y-4">
+                       <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] mb-6 border-b border-neutral-800 pb-2">Sacred Attributes</h5>
+                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {(Object.keys(m.stats) as Array<keyof Stats>).map(s => (
+                          <div key={s} className="bg-black/60 border border-neutral-900 p-6 rounded-sm flex flex-col items-center group/stat hover:border-[#b28a48]/20 transition-all shadow-inner">
+                            <div className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-4 group-hover/stat:text-[#b28a48] transition-colors">{s}</div>
+                            <div className="flex items-center gap-5">
+                              <span className="text-4xl font-black text-[#b28a48] drop-shadow-[0_2px_10px_rgba(178,138,72,0.2)]">{m.stats[s]}</span>
+                              <div className="w-12 h-12 rounded-full border border-amber-950/50 flex items-center justify-center text-sm font-black text-amber-700 bg-amber-950/10 shadow-xl">
+                                {getModifier(m.stats[s])}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      {/* Left: Lore & Traits */}
-                      <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                      <div className="space-y-8">
                         <div>
-                          <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em] mb-2 border-b border-neutral-800 pb-1">Creature Narrative</h5>
-                          <p className="text-xs text-neutral-400 font-serif leading-relaxed italic">{m.description || "A creature of unknown origin, shrouded in myth and terror."}</p>
+                          <h5 className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.4em] mb-4 border-b border-neutral-800 pb-2">Creature Nature</h5>
+                          <p className="text-base text-neutral-400 font-serif leading-relaxed italic pr-4">{m.description || "A creature of unknown origin, shrouded in myth and terror."}</p>
                         </div>
                         
                         <div className="space-y-4">
-                           <div className="flex justify-between items-center">
-                              <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em]">Passive Traits</h5>
-                           </div>
-                           <div className="space-y-3">
+                           <h5 className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.4em] mb-4">Passive Traits</h5>
+                           <div className="space-y-4">
                               {m.abilities.filter(a => a.effect.toLowerCase().includes('passive') || a.effect.toLowerCase().includes('resist')).map((a, i) => (
-                                <div key={i} className="border-l-2 border-[#b28a48]/30 pl-3">
-                                  <div className="text-[10px] font-black text-neutral-300 uppercase">{a.name}</div>
-                                  <div className="text-[10px] text-neutral-500 mt-1">{a.effect}</div>
+                                <div key={i} className="border-l-2 border-amber-900/40 pl-5 py-1">
+                                  <div className="text-sm font-black text-neutral-300 uppercase tracking-wide mb-1">{a.name}</div>
+                                  <div className="text-sm text-neutral-500 font-serif leading-relaxed italic">{a.effect}</div>
                                 </div>
                               ))}
                               {m.abilities.filter(a => a.effect.toLowerCase().includes('passive') || a.effect.toLowerCase().includes('resist')).length === 0 && (
-                                <div className="text-[10px] text-neutral-800 italic uppercase">No passive modifiers present.</div>
+                                <div className="text-[10px] text-neutral-800 italic uppercase font-black">No passive traits found in the ether.</div>
                               )}
                            </div>
                         </div>
                       </div>
 
-                      {/* Right: Actions & Legendary */}
-                      <div className="space-y-6">
-                        <div className="space-y-4">
-                           <div className="flex justify-between items-center border-b border-neutral-800 pb-1">
-                              <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em]">Actions & Attacks</h5>
+                      <div className="space-y-8">
+                        <div className="space-y-6">
+                           <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+                              <h5 className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.4em]">Combat Actions</h5>
                               <button 
                                 onClick={(e) => handleReroll(e, m)} 
                                 disabled={rerolling === m.id} 
-                                className="text-[8px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-widest transition-colors"
+                                className="text-[10px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
                               >
-                                {rerolling === m.id ? 'Reweaving...' : 'Reroll 🎲'}
+                                {rerolling === m.id ? 'REWEAVING...' : 'Reroll 🎲'}
                               </button>
                            </div>
-                           <div className="space-y-4">
+                           <div className="space-y-6">
                               {m.abilities.filter(a => !a.effect.toLowerCase().includes('passive') && !a.effect.toLowerCase().includes('resist')).map((a, i) => (
-                                <div key={i} className="group/ability relative">
-                                  <div className="flex items-start gap-2">
+                                <div key={i} className="group/ability">
+                                  <div className="flex items-start gap-4">
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); toggleLock(m.id, m.abilities.indexOf(a)); }} 
-                                      className={`mt-0.5 text-[10px] transition-all ${a.locked ? 'text-amber-500' : 'text-neutral-800 hover:text-neutral-600'}`}
+                                      className={`mt-1 text-xl transition-all active:scale-90 ${a.locked ? 'text-amber-500' : 'text-neutral-800 hover:text-neutral-600'}`}
                                     >
                                       {a.locked ? '†' : '○'}
                                     </button>
                                     <div>
-                                      <span className="text-[11px] font-black text-[#b28a48] uppercase tracking-tighter mr-2">{a.name}.</span>
-                                      <span className="text-[11px] text-neutral-400 font-serif leading-snug">{a.effect}</span>
+                                      <div className={`text-base font-black uppercase tracking-wider mb-2 ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>
+                                        {a.name}
+                                      </div>
+                                      <p className="text-sm text-neutral-400 font-serif leading-relaxed italic">{a.effect}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -317,22 +316,22 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
                         </div>
 
                         {m.isBoss && (
-                          <div className="p-4 border border-red-900/50 bg-red-900/5 rounded-sm">
-                            <h5 className="text-[9px] font-black text-red-500 uppercase tracking-[0.3em] mb-2">Legendary Presence</h5>
-                            <p className="text-[10px] text-red-200/60 italic font-serif leading-relaxed">
-                              This creature possesses 3 Legendary Resistances per sunrise. It may take up to 3 Legendary Actions at the end of another soul's turn.
+                          <div className="p-8 border border-red-900/40 bg-red-950/10 rounded-sm shadow-xl">
+                            <h5 className="text-[10px] font-black text-red-500 uppercase tracking-[0.4em] mb-4">Legendary Essence</h5>
+                            <p className="text-sm text-red-200/60 italic font-serif leading-relaxed">
+                              This horror possesses 3 Legendary Resistances per sunrise. It may unleash up to 3 Legendary Actions at the conclusion of another soul's turn, choosing from its actions above.
                             </p>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="text-center pt-4 border-t border-neutral-900">
+                    <div className="text-center pt-10 border-t border-neutral-900">
                       <button 
                         onClick={(e) => { e.stopPropagation(); setExpandedId(null); }}
-                        className="text-[9px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.5em] transition-all"
+                        className="text-[11px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.8em] transition-all"
                       >
-                        Collapse Stat Block
+                        Collapse Horror Ledger
                       </button>
                     </div>
                   </div>
@@ -340,9 +339,9 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
               </div>
             ))}
             {filteredMonsters.length === 0 && (
-              <div className="py-20 text-center border-2 border-dashed border-neutral-900 rounded-sm">
-                <div className="text-4xl mb-4 opacity-10">🐉</div>
-                <div className="text-[10px] uppercase tracking-[0.5em] text-neutral-700">The Bestiary is silent...</div>
+              <div className="py-24 text-center border-2 border-dashed border-neutral-900 rounded-sm">
+                <div className="text-6xl mb-8 opacity-10">🐉</div>
+                <div className="text-[12px] uppercase tracking-[0.6em] text-neutral-700 font-black">The Bestiary holds no such horrors.</div>
               </div>
             )}
           </div>

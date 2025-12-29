@@ -100,11 +100,12 @@ const App: React.FC = () => {
     switch (data.type) {
       case 'STATE_UPDATE':
         if (!isHost) {
-          setCampaign(data.payload.campaign);
-          setMonsters(data.payload.monsters);
-          setItems(data.payload.items);
-          setClasses(data.payload.classes);
-          notify("World synced with Host", "success");
+          if (data.payload.campaign) setCampaign(data.payload.campaign);
+          if (data.payload.monsters) setMonsters(data.payload.monsters);
+          if (data.payload.items) setItems(data.payload.items);
+          if (data.payload.classes) setClasses(data.payload.classes);
+          if (data.payload.characters) setCharacters(data.payload.characters);
+          notify("The Grimoire has been synchronized by the Host", "success");
         }
         break;
       case 'NEW_LOG':
@@ -112,6 +113,7 @@ const App: React.FC = () => {
         break;
       case 'GIVE_LOOT':
         setItems(prev => [...prev, data.payload]);
+        notify("The Host has granted you an artifact", "info");
         break;
       case 'SUMMARY_UPDATE':
         setCampaign(prev => ({ ...prev, summary: data.payload }));
@@ -146,7 +148,7 @@ const App: React.FC = () => {
         if (isHost) {
           conn.send({ 
             type: 'STATE_UPDATE', 
-            payload: { campaign, monsters, items, classes },
+            payload: { campaign, monsters, items, classes, characters },
             senderId: peer.id, senderName: playerName
           });
         }
@@ -162,7 +164,7 @@ const App: React.FC = () => {
       if (err.type === 'peer-unavailable') notify("Target Sigil not found", "error");
       if (err.type === 'unavailable-id') notify("Sigil already bound to another portal", "error");
     });
-  }, [isHost, campaign, monsters, items, classes, playerName, handleIncomingData]);
+  }, [isHost, campaign, monsters, items, classes, characters, playerName, handleIncomingData]);
 
   useEffect(() => {
     if (!playerName) return;
@@ -220,7 +222,7 @@ const App: React.FC = () => {
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes, characters } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
         </div>
       </main>

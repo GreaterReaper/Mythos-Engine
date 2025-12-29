@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog } from './types';
 import Sidebar from './components/Sidebar';
@@ -15,7 +14,7 @@ import Peer, { DataConnection } from 'peerjs';
 interface Notification {
   id: string;
   message: string;
-  type: 'error' | 'success' | 'info' | 'quota';
+  type: 'error' | 'success' | 'info';
 }
 
 const App: React.FC = () => {
@@ -56,15 +55,7 @@ const App: React.FC = () => {
 
   const notify = (message: string, type: Notification['type'] = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
-    let finalType = type;
-    let finalMessage = message;
-    
-    if (message.includes("ARCANE_FATIGUE")) {
-      finalType = 'quota';
-      finalMessage = message.replace("ARCANE_FATIGUE: ", "");
-    }
-
-    setNotifications(prev => [...prev, { id, message: finalMessage, type: finalType }]);
+    setNotifications(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 7000);
@@ -263,12 +254,11 @@ const App: React.FC = () => {
           <div key={n.id} className={`p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[280px] ${
             n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : 
             n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 
-            n.type === 'quota' ? 'bg-amber-950/95 border-amber-500 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.2)]' :
             'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'
           }`}>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs">{n.type === 'quota' ? '⏳' : n.type === 'error' ? '💀' : n.type === 'success' ? '✨' : '📜'}</span>
-              <p className="text-[10px] font-black uppercase tracking-widest">{n.type === 'quota' ? 'Rate Limit Reached' : 'System Message'}</p>
+              <span className="text-xs">{n.type === 'error' ? '💀' : n.type === 'success' ? '✨' : '📜'}</span>
+              <p className="text-[10px] font-black uppercase tracking-widest">System Message</p>
             </div>
             <p className="text-[10px] leading-relaxed font-bold opacity-90">{n.message}</p>
           </div>

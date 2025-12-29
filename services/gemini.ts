@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, MonsterAbility, ItemMechanic, Character, GameLog } from "../types";
 
@@ -18,12 +17,26 @@ const getAI = () => {
 };
 
 const handleAIError = (error: any) => {
-  const msg = error?.message || "";
   console.error("AI Error:", error);
-  if (msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("limit")) {
-    throw new Error("ARCANE_FATIGUE: The Forge is cooling down. Please wait 60 seconds before your next ritual.");
-  }
   throw error;
+};
+
+export const generateImage = async (prompt: string): Promise<string> => {
+  try {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts: [{ text: prompt }] },
+    });
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return '';
+  } catch (e) {
+    return handleAIError(e);
+  }
 };
 
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
@@ -284,37 +297,18 @@ export const generateSummary = async (logs: GameLog[], oldSummary: string): Prom
 export const getDMResponse = async (history: {role: string, content: string}[], plot: string, newMessage: string, knownCharacters: Character[], summary: string) => {
   try {
     const ai = getAI();
-    const charList = knownCharacters.map(c => c.name).join(", ");
+    const charContext = knownCharacters.map(c => `${c.name} (${c.race})`).join(", ");
+    const systemPrompt = `You are a dark fantasy Dungeon Master. Plot: ${plot}. Party: ${charContext}. Summary of recent events: ${summary}. Be evocative, descriptive, and respond to player actions. Keep responses under 200 words.`;
+    
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: history.map(h => `${h.role === 'dm' ? 'DM' : 'Player'}: ${h.content}`).join('\n') + `\nPlayer: ${newMessage}`,
+      model: "gemini-3-flash-preview",
+      contents: history.map(h => ({ role: h.role === 'dm' ? 'model' : 'user', parts: [{ text: h.content }] })),
       config: {
-        systemInstruction: `You are the Dungeon Master for a Dark Fantasy TTRPG. Summary so far: ${summary}. Current plot: ${plot}. Party members: ${charList}. Keep descriptions atmospheric, grim, and reactive to player choice.`
+        systemInstruction: systemPrompt,
+        temperature: 0.9,
       }
     });
-    return response.text || '';
-  } catch (e) {
-    return handleAIError(e);
-  }
-};
-
-export const generateImage = async (prompt: string): Promise<string> => {
-  try {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: `Digital high-fantasy oil painting, dark atmosphere: ${prompt}` }]
-      },
-      config: { imageConfig: { aspectRatio: "1:1" } }
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-    return '';
+    return response.text || "The shadows shift, but the path remains unclear...";
   } catch (e) {
     return handleAIError(e);
   }

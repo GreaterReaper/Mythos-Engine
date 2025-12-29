@@ -56,8 +56,6 @@ const App: React.FC = () => {
 
   const notify = (message: string, type: Notification['type'] = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
-    
-    // Check for specific error types
     let finalType = type;
     let finalMessage = message;
     
@@ -69,7 +67,7 @@ const App: React.FC = () => {
     setNotifications(prev => [...prev, { id, message: finalMessage, type: finalType }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 7000); // Quota errors stay longer
+    }, 7000);
   };
 
   const addServerLog = (message: string, type: ServerLog['type'] = 'info') => {
@@ -89,7 +87,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Persistence
   useEffect(() => {
     localStorage.setItem('mythos_chars', JSON.stringify(characters));
     localStorage.setItem('mythos_classes', JSON.stringify(classes));
@@ -98,16 +95,6 @@ const App: React.FC = () => {
     localStorage.setItem('mythos_campaign', JSON.stringify(campaign));
     if (playerName) localStorage.setItem('mythos_player_name', playerName);
   }, [characters, classes, monsters, items, campaign, playerName]);
-
-  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
-    const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
-    connections.forEach(conn => {
-      if (conn.open) conn.send(fullMsg);
-    });
-    if (isHost && msg.type !== 'PULSE') {
-      addServerLog(`Broadcasting ${msg.type}`, 'success');
-    }
-  }, [connections, peerId, playerName, isHost]);
 
   const handleIncomingData = useCallback((data: SyncMessage) => {
     switch (data.type) {
@@ -138,16 +125,18 @@ const App: React.FC = () => {
     }
   }, [isHost]);
 
-  // PeerJS Stable Setup
-  useEffect(() => {
-    if (!playerName) return;
+  const initPeer = useCallback((customId?: string) => {
+    if (peerRef.current) {
+      peerRef.current.destroy();
+    }
 
-    const peer = new Peer();
+    const peer = customId ? new Peer(customId) : new Peer();
     peerRef.current = peer;
 
     peer.on('open', (id) => {
       setPeerId(id);
       addServerLog(`Sigil active: ${id}`, 'success');
+      if (customId) notify(`Ancestral Sigil "${id}" Bound`, "success");
     });
     
     peer.on('connection', (conn) => {
@@ -169,12 +158,32 @@ const App: React.FC = () => {
     });
 
     peer.on('error', (err) => {
-      addServerLog(`Server Error: ${err.type}`, 'error');
+      addServerLog(`Portal Error: ${err.type}`, 'error');
       if (err.type === 'peer-unavailable') notify("Target Sigil not found", "error");
+      if (err.type === 'unavailable-id') notify("Sigil already bound to another portal", "error");
     });
+  }, [isHost, campaign, monsters, items, classes, playerName, handleIncomingData]);
 
-    return () => { peer.destroy(); };
-  }, [playerName]); // Stable peer
+  useEffect(() => {
+    if (!playerName) return;
+    initPeer();
+    return () => { peerRef.current?.destroy(); };
+  }, [playerName]);
+
+  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
+    const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
+    connections.forEach(conn => {
+      if (conn.open) conn.send(fullMsg);
+    });
+    if (isHost && msg.type !== 'PULSE') {
+      addServerLog(`Broadcasting ${msg.type}`, 'success');
+    }
+  }, [connections, peerId, playerName, isHost]);
+
+  const rehostWithSigil = (id: string) => {
+    setIsHost(true);
+    initPeer(id);
+  };
 
   const joinSession = (id: string) => {
     if (!peerRef.current || !id) return;
@@ -211,7 +220,7 @@ const App: React.FC = () => {
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
         </div>
       </main>

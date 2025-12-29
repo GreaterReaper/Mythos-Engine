@@ -140,15 +140,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const selectedChar = characters.find(c => c.id === selectedCharacterId);
   const selectedClass = classes.find(c => c?.id === selectedChar?.classId);
 
-  const toggleItemAssignment = (charId: string, itemId: string) => {
-    setCharacters(prev => prev.map(c => {
-      if (c.id !== charId) return c;
-      const hasItem = c.inventory.includes(itemId);
-      const newInv = hasItem ? c.inventory.filter(id => id !== itemId) : [...c.inventory, itemId];
-      return { ...c, inventory: newInv };
-    }));
-  };
-
   return (
     <div className="space-y-12 pb-12">
       <div className="text-center">
@@ -158,80 +149,80 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/3">
-          <div className="grim-card p-6 border-dashed border-[#b28a48]/20 border-2 rounded-sm sticky top-4">
-            <h3 className="text-lg font-black mb-6 fantasy-font text-neutral-300">Recruit Hero</h3>
-            <div className="space-y-4">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48]" />
-              <div className="grid grid-cols-2 gap-2">
-                <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="bg-black border border-neutral-800 p-2 text-[10px] text-neutral-400 uppercase">
+          <div className="grim-card p-8 border-dashed border-[#b28a48]/20 border-2 rounded-sm sticky top-4 shadow-2xl">
+            <h3 className="text-xl font-black mb-8 fantasy-font text-neutral-300">Recruit Hero</h3>
+            <div className="space-y-6">
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none" />
+              <div className="grid grid-cols-2 gap-4">
+                <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="bg-black border border-neutral-800 p-3 text-[11px] text-neutral-400 uppercase tracking-widest outline-none">
                   <option value="Human">Human</option>
                   <option value="Variant Human">Variant Human</option>
                   <option value="Dwarf">Dwarf</option>
                   <option value="Elf">Elf</option>
                   <option value="Half-Elf">Half-Elf</option>
                 </select>
-                <select value={gender} onChange={(e) => setGender(e.target.value as GenderType)} className="bg-black border border-neutral-800 p-2 text-[10px] text-neutral-400 uppercase">
+                <select value={gender} onChange={(e) => setGender(e.target.value as GenderType)} className="bg-black border border-neutral-800 p-3 text-[11px] text-neutral-400 uppercase tracking-widest outline-none">
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Non-binary</option>
                 </select>
               </div>
-              <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-2 text-[10px] text-neutral-400 uppercase">
-                <option value="">Select Class...</option>
+              <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-3 text-[11px] text-neutral-400 uppercase tracking-widest outline-none">
+                <option value="">Select Archetype...</option>
                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
-              <textarea value={charDescription} onChange={(e) => setCharDescription(e.target.value)} placeholder="APPEARANCE & HISTORY..." className="w-full bg-black border border-neutral-800 p-3 h-24 text-[10px] text-neutral-500 uppercase tracking-tighter" />
+              <textarea value={charDescription} onChange={(e) => setCharDescription(e.target.value)} placeholder="APPEARANCE & HISTORY..." className="w-full bg-black border border-neutral-800 p-4 h-32 text-xs text-neutral-500 uppercase tracking-tight focus:border-[#b28a48] outline-none font-serif italic" />
               
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 {(Object.keys(stats) as Array<keyof Stats>).map((s) => (
-                  <div key={s} className="bg-black border border-neutral-900 p-2 text-center">
-                    <div className="text-[8px] text-neutral-600 font-bold uppercase">{s.slice(0, 3)}</div>
-                    <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => handleStatChange(s, -1)} className="text-neutral-600 hover:text-amber-500 font-black"> - </button>
-                      <span className="text-xs font-black text-[#b28a48]">{stats[s]}</span>
-                      <button onClick={() => handleStatChange(s, 1)} className="text-neutral-600 hover:text-amber-500 font-black"> + </button>
+                  <div key={s} className="bg-black border border-neutral-900 p-3 text-center">
+                    <div className="text-[9px] text-neutral-600 font-bold uppercase mb-1">{s.slice(0, 3)}</div>
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => handleStatChange(s, -1)} className="text-neutral-500 hover:text-amber-500 font-black px-1"> - </button>
+                      <span className="text-sm font-black text-[#b28a48]">{stats[s]}</span>
+                      <button onClick={() => handleStatChange(s, 1)} className="text-neutral-500 hover:text-amber-500 font-black px-1"> + </button>
                     </div>
                   </div>
                 ))}
               </div>
               
-              <div className="text-center p-2 border border-neutral-900 bg-black/40 text-[9px] font-black uppercase text-neutral-600">
-                Points Remaining: <span className="text-amber-700">{pointsRemaining}</span>
+              <div className="text-center p-3 border border-neutral-900 bg-black/40 text-[10px] font-black uppercase text-neutral-600 tracking-widest">
+                Essence Remaining: <span className="text-amber-700">{pointsRemaining}</span>
               </div>
 
-              <button onClick={handleCreate} disabled={generating || !name || !classId} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-4 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48]">
+              <button onClick={handleCreate} disabled={generating || !name || !classId} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all">
                 {generating ? 'SUMMONING...' : 'BIND HERO'}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="lg:w-2/3 space-y-6">
+        <div className="lg:w-2/3 space-y-8">
           <div className="bg-black/60 border border-[#b28a48]/20 p-4 rounded-sm flex flex-wrap items-center gap-4">
-            <input type="text" placeholder="Search hero..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] bg-neutral-900/50 border border-neutral-800 px-4 py-2 text-[10px] uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none" />
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-neutral-900/50 border border-neutral-800 px-3 py-2 text-[10px] uppercase tracking-widest text-neutral-400 outline-none">
-              <option value="name">Name</option>
-              <option value="hp">Vitality</option>
-              <option value="level">Experience</option>
+            <input type="text" placeholder="Search the fellowship..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] bg-neutral-900/50 border border-neutral-800 px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none" />
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-neutral-900/50 border border-neutral-800 px-4 py-3 text-[11px] uppercase tracking-widest text-neutral-400 outline-none">
+              <option value="name">Sort: Alpha</option>
+              <option value="hp">Sort: Vitality</option>
+              <option value="level">Sort: Legend</option>
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             {filteredCharacters.map(char => {
               const charClass = classes.find(c => c.id === char.classId);
               return (
-                <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className="grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer">
-                  <div className="h-48 bg-black relative overflow-hidden grayscale group-hover:grayscale-0">
-                    {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-5xl">👤</div>}
+                <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className="grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden">
+                  <div className="h-64 bg-black relative overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-700">
+                    {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-7xl">👤</div>}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                    <div className="absolute bottom-2 left-2 right-2">
-                       <h4 className="text-lg font-black fantasy-font text-[#b28a48]">{char.name}</h4>
-                       <p className="text-[8px] text-neutral-500 uppercase tracking-widest">{char.race} {charClass?.name}</p>
+                    <div className="absolute bottom-4 left-4 right-4">
+                       <h4 className="text-2xl font-black fantasy-font text-[#b28a48]">{char.name}</h4>
+                       <p className="text-[10px] text-neutral-400 uppercase tracking-widest font-bold">{char.race} {charClass?.name}</p>
                     </div>
                   </div>
-                  <div className="p-4 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-600">LVL {char.level}</span>
-                    <span className="text-[9px] font-black uppercase text-[#b28a48] animate-pulse">Consult Ledger †</span>
+                  <div className="p-6 flex items-center justify-between border-t border-neutral-900">
+                    <span className="text-[11px] font-black uppercase tracking-[0.3em] text-neutral-600">LVL {char.level}</span>
+                    <span className="text-[10px] font-black uppercase text-[#b28a48] animate-pulse">Consult Chronicle †</span>
                   </div>
                 </div>
               );
@@ -241,43 +232,43 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       </div>
 
       {selectedChar && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-8 overflow-y-auto bg-black/95">
-          <div className="relative w-full max-w-5xl bg-[#080808] border border-[#b28a48]/30 shadow-2xl overflow-hidden rounded-sm flex flex-col lg:flex-row min-h-screen md:min-h-[80vh]">
-            <button onClick={() => setSelectedCharacterId(null)} className="absolute top-4 right-4 z-[110] text-neutral-600 hover:text-[#b28a48] text-2xl p-2 transition-colors">✕</button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-8 overflow-y-auto bg-black/98 backdrop-blur-xl">
+          <div className="relative w-full max-w-6xl bg-[#080808] border border-[#b28a48]/30 shadow-2xl overflow-hidden rounded-sm flex flex-col lg:flex-row h-full md:h-[90vh]">
+            <button onClick={() => setSelectedCharacterId(null)} className="absolute top-6 right-6 z-[110] text-neutral-600 hover:text-[#b28a48] text-4xl p-2 transition-all active:scale-90">✕</button>
 
             <div className="lg:w-2/5 relative border-b lg:border-b-0 lg:border-r border-[#b28a48]/10 shrink-0">
-              <div className="h-[300px] lg:h-full relative overflow-hidden">
+              <div className="h-[400px] lg:h-full relative overflow-hidden">
                 {selectedChar.imageUrl ? <img src={selectedChar.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-9xl text-neutral-900">👤</div>}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-8">
-                  <h3 className="text-4xl font-black fantasy-font text-[#b28a48]">{selectedChar.name}</h3>
-                  <p className="text-[10px] uppercase tracking-[0.5em] text-neutral-500 mb-6">{selectedChar.race} {selectedClass?.name}</p>
-                  <div className="space-y-4">
+                <div className="absolute bottom-0 left-0 right-0 p-10">
+                  <h3 className="text-5xl font-black fantasy-font text-[#b28a48] mb-2">{selectedChar.name}</h3>
+                  <p className="text-xs uppercase tracking-[0.6em] text-neutral-500 mb-8 font-black">{selectedChar.race} {selectedClass?.name}</p>
+                  <div className="space-y-5">
                     <div className="flex justify-between items-end">
-                      <span className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">Vitality</span>
-                      <span className="text-sm font-black text-red-700">{selectedChar.hp} / {selectedChar.maxHp} HP</span>
+                      <span className="text-[11px] font-black text-neutral-500 uppercase tracking-widest">Vitality Pool</span>
+                      <span className="text-lg font-black text-red-700">{selectedChar.hp} / {selectedChar.maxHp} HP</span>
                     </div>
-                    <div className="h-1 w-full bg-neutral-900 rounded-full overflow-hidden">
-                      <div className="h-full bg-red-900" style={{ width: `${(selectedChar.hp / selectedChar.maxHp) * 100}%` }}></div>
+                    <div className="h-2 w-full bg-neutral-900 rounded-full overflow-hidden shadow-inner">
+                      <div className="h-full bg-gradient-to-r from-red-950 to-red-800 transition-all duration-1000" style={{ width: `${(selectedChar.hp / selectedChar.maxHp) * 100}%` }}></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 p-6 md:p-12 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="flex-1 p-8 md:p-16 overflow-y-auto scrollbar-hide">
+              <div className="grid grid-cols-1 gap-16">
                 <div className="space-y-8">
-                  <h4 className="text-lg font-black fantasy-font text-neutral-400 border-b border-[#b28a48]/10 pb-2">Attributes</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <h4 className="text-xl font-black fantasy-font text-neutral-400 border-b border-[#b28a48]/20 pb-4 tracking-widest">Sacred Attributes</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
                     {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(stat => (
-                      <div key={stat} className="bg-black/40 border border-[#b28a48]/5 p-4 rounded-sm">
-                        <div className="text-[10px] font-black text-neutral-600 uppercase tracking-widest mb-1">{stat}</div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl font-black text-[#b28a48]">{selectedChar.stats[stat]}</span>
-                          <span className="w-8 h-8 rounded-full border border-amber-950/50 flex items-center justify-center text-[10px] font-black text-amber-700">
+                      <div key={stat} className="bg-black/60 border border-[#b28a48]/10 p-6 rounded-sm flex flex-col items-center">
+                        <div className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-4">{stat}</div>
+                        <div className="flex items-center gap-5">
+                          <span className="text-4xl font-black text-[#b28a48]">{selectedChar.stats[stat]}</span>
+                          <div className="w-12 h-12 rounded-full border border-amber-950/50 flex items-center justify-center text-sm font-black text-amber-700 bg-amber-950/10 shadow-lg">
                             {getModifier(selectedChar.stats[stat])}
-                          </span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -285,19 +276,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
 
                 <div className="space-y-8">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center border-b border-[#b28a48]/10 pb-2">
-                      <h4 className="text-lg font-black fantasy-font text-neutral-400">Traits & Feats</h4>
-                      <button onClick={() => handleRerollFeats(selectedChar)} disabled={rerolling === selectedChar.id} className="text-[9px] font-black text-neutral-600 hover:text-amber-700 uppercase tracking-widest">Reroll 🎲</button>
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center border-b border-[#b28a48]/20 pb-4">
+                      <h4 className="text-xl font-black fantasy-font text-neutral-400 tracking-widest">Heritage & Feats</h4>
+                      <button onClick={() => handleRerollFeats(selectedChar)} disabled={rerolling === selectedChar.id} className="text-[10px] font-black text-neutral-600 hover:text-amber-700 uppercase tracking-[0.3em] transition-all">Reroll Potential 🎲</button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {selectedChar.feats.map((f, i) => (
-                        <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border transition-all rounded-sm cursor-pointer ${f.locked ? 'bg-amber-950/5 border-amber-900/30' : 'bg-black border-neutral-900 hover:border-neutral-800'}`}>
-                          <div className="flex items-start gap-3">
-                             <span className={`text-[10px] mt-0.5 ${f.locked ? 'text-amber-500' : 'text-neutral-700'}`}>{f.locked ? '†' : '○'}</span>
+                        <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-6 border transition-all rounded-sm cursor-pointer shadow-lg flex flex-col justify-center min-h-[120px] ${f.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black border-neutral-900 hover:border-neutral-700'}`}>
+                          <div className="flex items-start gap-5">
+                             <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-500' : 'text-neutral-700'}`}>{f.locked ? '†' : '○'}</span>
                              <div>
-                               <div className="text-[10px] font-black text-neutral-300 uppercase">{f.name}</div>
-                               <div className="text-[10px] text-neutral-500 italic mt-1 leading-relaxed">{f.description}</div>
+                               <div className="text-sm font-black text-neutral-200 uppercase tracking-wide mb-2">{f.name}</div>
+                               <div className="text-sm text-neutral-500 italic leading-relaxed font-serif">{f.description}</div>
                              </div>
                           </div>
                         </div>
@@ -307,8 +298,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
               </div>
               
-              <div className="mt-12 pt-8 border-t border-[#b28a48]/5 text-center">
-                <button onClick={() => setSelectedCharacterId(null)} className="text-[9px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.5em] transition-all">Close Chronicle Ledger</button>
+              <div className="mt-20 pt-12 border-t border-[#b28a48]/10 text-center">
+                <button onClick={() => setSelectedCharacterId(null)} className="text-xs font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.8em] transition-all pb-12">Close Chronicle Ledger</button>
               </div>
             </div>
           </div>

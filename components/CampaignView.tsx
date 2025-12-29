@@ -13,9 +13,12 @@ interface CampaignViewProps {
   playerName: string;
   notify: (message: string, type?: any) => void;
   arcadeReady: boolean;
+  dmModel: string;
+  setDmModel: (val: string) => void;
+  isQuotaExhausted: boolean;
 }
 
-const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName, notify, arcadeReady }) => {
+const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName, notify, arcadeReady, dmModel, setDmModel, isQuotaExhausted }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
@@ -85,7 +88,8 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         campaign.plot,
         input,
         characters,
-        campaign.summary
+        campaign.summary,
+        dmModel
       );
       const dmMsg: GameLog = { role: 'dm', content: dmText, timestamp: Date.now() };
       setCampaign(prev => ({
@@ -182,20 +186,37 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         )}
 
         <div className="flex gap-4 items-center">
+          <div className="flex items-center gap-2 bg-neutral-900/50 p-1 rounded-sm border border-neutral-800">
+            <button 
+              onClick={() => setDmModel('gemini-3-pro-preview')}
+              className={`text-[8px] px-2 py-1 font-black uppercase transition-all ${dmModel.includes('pro') ? 'bg-[#b28a48] text-black' : 'text-neutral-500 hover:text-neutral-300'}`}
+              title="Best Narrative (50 msg/day limit)"
+            >
+              FIDELITY
+            </button>
+            <button 
+              onClick={() => setDmModel('gemini-3-flash-preview')}
+              className={`text-[8px] px-2 py-1 font-black uppercase transition-all ${dmModel.includes('flash') ? 'bg-[#b28a48] text-black' : 'text-neutral-500 hover:text-neutral-300'}`}
+              title="Fast & High Quota (1500 msg/day limit)"
+            >
+              VELOCITY
+            </button>
+          </div>
+
           {isHost && (
             <button 
               onClick={handleGenerateLoot}
               disabled={loading}
               className="text-[9px] text-[#b28a48] hover:text-[#cbb07a] font-black uppercase tracking-widest border border-[#b28a48]/30 px-3 py-1 rounded-sm flex items-center gap-2"
             >
-              GENERATE SMART LOOT <span className="text-amber-600/80">[-8⚡]</span>
+              LOOT
             </button>
           )}
           <button 
             onClick={handleEndChronicle}
             className="text-[9px] text-neutral-600 hover:text-red-500 font-black uppercase tracking-widest underline decoration-neutral-800"
           >
-            END CHRONICLE
+            END
           </button>
         </div>
       </div>
@@ -204,6 +225,20 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         ref={scrollRef}
         className="flex-1 bg-neutral-950/40 rounded-sm border border-[#1a1a1a] overflow-y-auto p-5 md:p-8 space-y-8 scrollbar-hide"
       >
+        {isQuotaExhausted && dmModel.includes('pro') && (
+          <div className="bg-red-950/20 border-2 border-red-900 p-4 text-center mb-4">
+             <p className="text-red-500 font-black text-xs uppercase tracking-widest">
+               Ancestral Quota Exhausted (Daily Pro Limit Hit)
+             </p>
+             <button 
+               onClick={() => setDmModel('gemini-3-flash-preview')}
+               className="mt-2 text-[10px] bg-red-900 text-white px-4 py-1 font-black uppercase hover:bg-red-800 transition-all"
+             >
+               Switch to High Velocity Mode
+             </button>
+          </div>
+        )}
+
         {campaign.logs.map((log, i) => (
           <div key={i} className={`flex ${log.role === 'player' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[92%] md:max-w-[85%] p-5 rounded-sm relative ${
@@ -249,7 +284,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         </div>
         {!arcadeReady && (
           <div className="text-[8px] font-black uppercase text-amber-900 tracking-widest text-center animate-pulse">
-            Resonating with the Ether... (Please wait for a token)
+            {isQuotaExhausted && dmModel.includes('pro') ? 'PRO QUOTA DEPLETED - SWITCH TO VELOCITY MODE' : 'Resonating with the Ether...'}
           </div>
         )}
       </div>

@@ -18,16 +18,18 @@ interface Notification {
   type: 'error' | 'success' | 'info';
 }
 
-const LOCKOUT_DURATION = 65; // Seconds to wait on 429 - strictly 1 minute window + buffer
+const LOCKOUT_DURATION = 65; 
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   // Arcane Resonance (Rate Limit Tracking)
-  const [arcaneTokens, setArcaneTokens] = useState<number>(3); // DM Tokens (Pro)
-  const [reservoir, setReservoir] = useState<number>(100); // Utility Essence (Flash)
+  const [arcaneTokens, setArcaneTokens] = useState<number>(3); 
+  const [reservoir, setReservoir] = useState<number>(100); 
   const [lockoutTime, setLockoutTime] = useState<number>(0);
+  const [isQuotaExhausted, setIsQuotaExhausted] = useState<boolean>(false);
+  const [dmModel, setDmModel] = useState<string>('gemini-3-pro-preview');
   const lastLockoutTriggered = useRef<number>(0);
 
   const [playerName, setPlayerName] = useState<string>(() => {
@@ -73,10 +75,7 @@ const App: React.FC = () => {
   // Arcane Regeneration Logic
   useEffect(() => {
     const regenInterval = setInterval(() => {
-      // Slowed down regeneration to ensure we stay under RPM
-      // 1 token per 60 seconds (Gemini Pro ~1 RPM)
       setArcaneTokens(prev => Math.min(prev + 0.016, 3)); 
-      // 100% per 90 seconds (Gemini Flash ~10 RPM limit safe buffer)
       setReservoir(prev => Math.min(prev + 1.1, 100)); 
       
       setLockoutTime(prev => {
@@ -88,7 +87,6 @@ const App: React.FC = () => {
       });
     }, 1000);
 
-    // Listen for AI usage events
     const handleUsage = (e: any) => {
       const { type, cost } = e.detail;
       if (type === 'dm') setArcaneTokens(prev => Math.max(prev - 1, 0));
@@ -97,8 +95,13 @@ const App: React.FC = () => {
 
     const handleError = (e: any) => {
       if (e.detail.isRateLimit) {
+        if (e.detail.isQuotaExceeded) {
+          setIsQuotaExhausted(true);
+          notify("DAILY QUOTA REACHED: The 'Pro' ley line is exhausted (50 msg limit). Switch to 'High Velocity' in Play tab to continue.", "error");
+          return;
+        }
+
         const now = Date.now();
-        // Throttle lockout triggers to once every 10 seconds to prevent reset-loops
         if (now - lastLockoutTriggered.current > 10000) {
           lastLockoutTriggered.current = now;
           setLockoutTime(LOCKOUT_DURATION);
@@ -202,7 +205,7 @@ const App: React.FC = () => {
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
@@ -227,15 +230,14 @@ const App: React.FC = () => {
 
       {/* Arcane Status Bar (Foci Orb) */}
       <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
-        <div className={`flex items-center gap-4 bg-black/60 backdrop-blur border px-4 py-2 rounded-sm pointer-events-auto transition-colors duration-1000 ${isExhausted ? 'border-red-600' : 'border-[#b28a48]/20'}`}>
-          {/* Arcane Tokens (DM) */}
+        <div className={`flex items-center gap-4 bg-black/60 backdrop-blur border px-4 py-2 rounded-sm pointer-events-auto transition-colors duration-1000 ${isExhausted || isQuotaExhausted ? 'border-red-600' : 'border-[#b28a48]/20'}`}>
           <div className="flex gap-1">
             {[...Array(3)].map((_, i) => (
               <div 
                 key={i} 
                 className={`w-2 h-3 rounded-sm transform rotate-12 transition-all duration-500 ${
                   i < Math.floor(arcaneTokens) 
-                    ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' 
+                    ? (isQuotaExhausted && dmModel.includes('pro') ? 'bg-red-900' : 'bg-amber-500 shadow-[0_0_8px_#f59e0b]') 
                     : 'bg-neutral-800'
                 }`}
               ></div>
@@ -244,27 +246,27 @@ const App: React.FC = () => {
           
           <div className="relative group">
             <div className={`w-10 h-10 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
-              isExhausted 
+              isExhausted || (isQuotaExhausted && dmModel.includes('pro'))
                 ? 'border-red-600 bg-red-950/20 shadow-[0_0_25px_#7f1d1d] animate-pulse' 
                 : reservoir > 5 
                   ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15px_rgba(178,138,72,0.3)]' 
                   : 'border-neutral-800 bg-black'
             }`}>
-              <span className={`text-[12px] font-black ${isExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
-                {isExhausted ? lockoutTime : Math.round(reservoir)}
+              <span className={`text-[12px] font-black ${isExhausted || isQuotaExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
+                {isExhausted ? lockoutTime : isQuotaExhausted && dmModel.includes('pro') ? '!' : Math.round(reservoir)}
               </span>
             </div>
             <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-48 shadow-2xl z-[110]">
                <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
-                 {isExhausted ? 'HARD LOCKOUT' : 'ARCANE STABILITY'}
+                 {isExhausted ? 'RECALIBRATION' : isQuotaExhausted ? 'QUOTA EXHAUSTED' : 'ARCANE STABILITY'}
                </h5>
                <div className="h-1 w-full bg-neutral-900 mb-2">
-                 <div className={`h-full transition-all ${isExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
+                 <div className={`h-full transition-all ${isExhausted || isQuotaExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
                </div>
                <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold">
-                 Pro Capacity: {Math.floor(arcaneTokens)}/3<br/>
-                 Flash Capacity: {Math.round(reservoir)}%<br/>
-                 {isExhausted ? `RECALIBRATING: ${lockoutTime}S` : 'LEY LINES STABLE'}
+                 DM: {dmModel.includes('pro') ? 'High Fidelity (50/day)' : 'High Velocity (1500/day)'}<br/>
+                 Tokens: {Math.floor(arcaneTokens)}/3<br/>
+                 {isQuotaExhausted && dmModel.includes('pro') ? 'DAILY PRO QUOTA HIT' : isExhausted ? `RECALIBRATING: ${lockoutTime}S` : 'LEY LINES STABLE'}
                </p>
             </div>
           </div>
@@ -273,8 +275,8 @@ const App: React.FC = () => {
             <div className="text-[9px] uppercase font-black text-neutral-500">
               Soul: <span className="text-[#b28a48]">{playerName}</span>
             </div>
-            <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
-              {isExhausted ? 'LOCKOUT ACTIVE' : 'RESONANCE ONLINE'}
+            <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted || isQuotaExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
+              {isExhausted ? 'LOCKOUT' : isQuotaExhausted ? 'QUOTA DEPLETED' : 'RESONANCE ONLINE'}
             </div>
           </div>
         </div>

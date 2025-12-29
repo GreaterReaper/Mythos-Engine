@@ -13,8 +13,8 @@ const trackUsage = (type: 'dm' | 'utility', cost: number = 0) => {
   window.dispatchEvent(new CustomEvent('mythos:arcane_use', { detail: { type, cost } }));
 };
 
-const reportError = (isRateLimit: boolean) => {
-  window.dispatchEvent(new CustomEvent('mythos:arcane_error', { detail: { isRateLimit } }));
+const reportError = (isRateLimit: boolean, isQuotaExceeded: boolean = false) => {
+  window.dispatchEvent(new CustomEvent('mythos:arcane_error', { detail: { isRateLimit, isQuotaExceeded } }));
 };
 
 // Check if a hard lockout is currently active in the UI
@@ -33,12 +33,10 @@ const getAI = () => {
 
 /**
  * Resiliency Wrapper: Implements exponential backoff for transient errors (429, 5xx)
- * If it's a 429, we wait significantly longer to ensure the quota window resets.
  */
 async function withRetry<T>(fn: () => Promise<T>, retries = 2, initialDelay = 10000): Promise<T> {
-  // Prevent any new requests if we are already in a hard lockout
   if (isHardLockoutActive()) {
-    throw new Error("RECALIBRATION_IN_PROGRESS: The Ley Lines are currently resetting. Please wait for the timer.");
+    throw new Error("RECALIBRATION_IN_PROGRESS: The Ley Lines are currently resetting.");
   }
 
   try {
@@ -46,21 +44,24 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, initialDelay = 10
   } catch (error: any) {
     const errorStr = error.toString().toLowerCase();
     
-    // Detect true rate limits
     const isRateLimit = errorStr.includes('429') || 
-                       errorStr.includes('too many requests') || 
-                       errorStr.includes('quota exceeded');
+                       errorStr.includes('too many requests');
+    
+    const isQuotaExceeded = errorStr.includes('quota') || errorStr.includes('limit exceeded');
     
     const isServerError = errorStr.includes('500') || errorStr.includes('503') || errorStr.includes('overloaded');
     
+    if (isQuotaExceeded) {
+      reportError(true, true);
+      throw new Error("DAILY_QUOTA_EXHAUSTED: You have used your 50 daily 'Pro' messages. Switch to 'High Velocity' mode to continue.");
+    }
+
     if (isRateLimit) {
-      reportError(true);
-      // Immediately stop background retries if we hit 429 to avoid hammering the API
+      reportError(true, false);
       throw new Error("[429] Ley Lines Overloaded. Initiating Hard Recalibration (65s).");
     }
 
     if (isServerError && retries > 0) {
-      console.warn(`Server busy. Retrying in ${initialDelay}ms...`);
       await new Promise(resolve => setTimeout(resolve, initialDelay));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
@@ -70,7 +71,6 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, initialDelay = 10
 
 const handleAIError = (error: any) => {
   console.error("AI Service Error:", error);
-  const msg = error.message || "The ether is unstable.";
   return error;
 };
 
@@ -104,9 +104,9 @@ export const generateClassMechanics = async (name: string, description: string):
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Design detailed TTRPG mechanics for a custom class named "${name}". Lore: ${description}. Focus on balance and flavor.`,
+        contents: `Design detailed TTRPG mechanics for a custom class named "${name}". Lore: ${description}.`,
         config: {
-          systemInstruction: "You are an expert TTRPG game designer. Always respond with raw JSON. No markdown.",
+          systemInstruction: "You are an expert TTRPG game designer. Always respond with raw JSON.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -168,20 +168,7 @@ export const rerollTraits = async (
           }
         }
       });
-
-      const newTraits = JSON.parse(cleanJson(response.text || '[]'));
-      const result: { name: string; description: string }[] = [];
-      let newIdx = 0;
-
-      existingTraits.forEach(t => {
-        if (t.locked) {
-          result.push({ name: t.name, description: t.description });
-        } else if (newIdx < newTraits.length) {
-          result.push(newTraits[newIdx++]);
-        }
-      });
-
-      return result;
+      return JSON.parse(cleanJson(response.text || '[]'));
     } catch (e) {
       throw handleAIError(e);
     }
@@ -297,13 +284,14 @@ export const generateItemMechanics = async (name: string, type: 'Weapon' | 'Armo
   });
 };
 
-// Get Dungeon Master response using gemini-3-pro-preview
+// Get Dungeon Master response - now accepts model parameter
 export const getDMResponse = async (
   history: { role: string; content: string }[],
   plot: string,
   lastInput: string,
   party: Character[],
-  summary: string
+  summary: string,
+  modelName: string = 'gemini-3-pro-preview'
 ): Promise<string> => {
   trackUsage('dm', 0);
   return withRetry(async () => {
@@ -315,7 +303,7 @@ export const getDMResponse = async (
       }));
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: modelName,
         contents: contents,
         config: {
           systemInstruction: `You are a DM. Plot: ${plot}. Summary: ${summary}. React to player actions narratives. Keep responses relatively concise but atmospheric.`,
@@ -325,7 +313,7 @@ export const getDMResponse = async (
     } catch (e) {
       throw handleAIError(e);
     }
-  }, 0); // NO retries for DM to prevent RPM flooding
+  }, 0); 
 };
 
 // Generate narrative summary using gemini-3-flash-preview

@@ -92,7 +92,6 @@ const App: React.FC = () => {
       const resetDate = new Date(now.getTime() + msUntilReset);
       
       setLocalResetTime(resetDate.toLocaleTimeString([], { 
-        weekday: 'short', 
         hour: '2-digit', 
         minute: '2-digit' 
       }));
@@ -290,6 +289,8 @@ const App: React.FC = () => {
                 {isExhausted ? lockoutTime : isQuotaExhausted && dmModel.includes('pro') ? '!' : Math.round(reservoir)}
               </span>
             </div>
+            
+            {/* Tooltip */}
             <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-56 shadow-2xl z-[110]">
                <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
                  {isExhausted ? 'RECALIBRATION' : isQuotaExhausted ? 'QUOTA EXHAUSTED' : 'ARCANE STABILITY'}
@@ -312,6 +313,10 @@ const App: React.FC = () => {
             </div>
             <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted || isQuotaExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
               {isExhausted ? 'LOCKOUT' : isQuotaExhausted ? 'QUOTA DEPLETED' : 'RESONANCE ONLINE'}
+            </div>
+            {/* Direct visibility of Reset Time in main bar */}
+            <div className="text-[6px] font-black text-[#b28a48]/40 uppercase tracking-widest mt-0.5">
+              RESET: {localResetTime}
             </div>
           </div>
         </div>

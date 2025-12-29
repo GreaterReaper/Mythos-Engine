@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CampaignState, GameLog, Character, ClassDef, SyncMessage } from '../types';
 import { getDMResponse, generateSmartLoot, generateSummary } from '../services/gemini';
@@ -11,11 +10,11 @@ interface CampaignViewProps {
   isHost: boolean;
   classes: ClassDef[];
   playerName: string;
-  // Fix: Added notify prop to interface to match usage in App.tsx
   notify: (message: string, type?: any) => void;
+  arcadeReady: boolean;
 }
 
-const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName, notify }) => {
+const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName, notify, arcadeReady }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
@@ -27,7 +26,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
     }
   }, [campaign.logs]);
 
-  // Narrative Synthesis Trigger: Summarize every 5 player messages
   useEffect(() => {
     const playerLogsCount = campaign.logs.filter(l => l.role === 'player').length;
     if (isHost && playerLogsCount > 0 && playerLogsCount % 5 === 0 && !summarizing) {
@@ -44,7 +42,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
       broadcast({ type: 'SUMMARY_UPDATE', payload: newSummary });
     } catch (error: any) {
       console.error("Failed to synthesize narrative:", error);
-      // Fix: Added notify call for error reporting
       notify(error.message || "Failed to synthesize narrative memory.", "error");
     } finally {
       setSummarizing(false);
@@ -68,7 +65,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !arcadeReady) return;
     const playerMsg: GameLog = { 
       role: 'player', 
       content: input, 
@@ -83,7 +80,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
     setLoading(true);
     try {
       const dmText = await getDMResponse(
-        newLogs.slice(-10).map(l => ({ role: l.role, content: l.content })), // Send a rolling window
+        newLogs.slice(-10).map(l => ({ role: l.role, content: l.content })), 
         campaign.plot,
         input,
         characters,
@@ -97,7 +94,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
       broadcast({ type: 'NEW_LOG', payload: dmMsg });
     } catch (error: any) {
       console.error(error);
-      // Fix: Added notify call for error reporting
       notify(error.message || "The Dungeon Master's connection is unstable.", "error");
     } finally {
       setLoading(false);
@@ -120,7 +116,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
       broadcast({ type: 'GIVE_LOOT', payload: item });
     } catch (error: any) {
       console.error(error);
-      // Fix: Added notify call for error reporting
       notify(error.message || "Failed to forge smart loot artifact.", "error");
     } finally {
       setLoading(false);
@@ -232,23 +227,31 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         )}
       </div>
 
-      <div className="flex gap-3 pb-4">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          placeholder="Type your action..."
-          className="flex-1 bg-black border-b border-[#1a1a1a] p-4 text-sm focus:border-[#b28a48] outline-none text-neutral-300 font-serif italic"
-        />
-        <button
-          onClick={handleSendMessage}
-          className="bg-[#1a1a1a] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-12 h-12 flex items-center justify-center transition-colors border border-[#333]"
-        >
-          ⚔️
-        </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-3">
+          <input
+            value={input}
+            disabled={!arcadeReady || loading}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+            placeholder={arcadeReady ? "Type your action..." : "Arcane Foci Cooling Down..."}
+            className={`flex-1 bg-black border-b border-[#1a1a1a] p-4 text-sm focus:border-[#b28a48] outline-none text-neutral-300 font-serif italic ${!arcadeReady ? 'opacity-30 cursor-not-allowed' : ''}`}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!arcadeReady || loading || !input.trim()}
+            className={`bg-[#1a1a1a] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-12 h-12 flex items-center justify-center transition-colors border border-[#333] disabled:opacity-20`}
+          >
+            ⚔️
+          </button>
+        </div>
+        {!arcadeReady && (
+          <div className="text-[8px] font-black uppercase text-amber-900 tracking-widest text-center animate-pulse">
+            Resonating with the Ether... (Please wait for a token)
+          </div>
+        )}
       </div>
 
-      {/* Persistence / Memory Hint */}
       {campaign.summary && (
         <div className="text-[8px] text-neutral-700 uppercase tracking-widest text-center opacity-50 hover:opacity-100 transition-opacity cursor-help" title={campaign.summary}>
           Saga Memory Engaged: {campaign.summary.length} Arcane Fragments Bound

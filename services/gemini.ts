@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, MonsterAbility, ItemMechanic, Character, GameLog } from "../types";
 
@@ -6,6 +5,15 @@ import { Stats, ClassDef, Monster, Item, Trait, MonsterAbility, ItemMechanic, Ch
 const cleanJson = (text: string) => {
   if (!text) return '{}';
   return text.replace(/```json/g, "").replace(/```/g, "").trim();
+};
+
+// Event dispatchers for UI Mana system
+const trackUsage = (type: 'dm' | 'utility', cost: number = 0) => {
+  window.dispatchEvent(new CustomEvent('mythos:arcane_use', { detail: { type, cost } }));
+};
+
+const reportError = (isRateLimit: boolean) => {
+  window.dispatchEvent(new CustomEvent('mythos:arcane_error', { detail: { isRateLimit } }));
 };
 
 // Helper to get AI instance safely
@@ -28,6 +36,8 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 20
     const isRateLimit = errorStr.includes('429') || errorStr.includes('rate limit') || errorStr.includes('quota');
     const isServerError = errorStr.includes('500') || errorStr.includes('503') || errorStr.includes('overloaded');
     
+    if (isRateLimit) reportError(true);
+
     if ((isRateLimit || isServerError) && retries > 0) {
       console.warn(`Resonance interference detected. Retrying in ${initialDelay}ms... (${retries} attempts left)`);
       await new Promise(resolve => setTimeout(resolve, initialDelay));
@@ -39,7 +49,6 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 20
 
 const handleAIError = (error: any) => {
   console.error("AI Error:", error);
-  // Strip complex technical details from the UI error message
   const msg = error.message || "The ether is unstable.";
   if (msg.includes("429")) return new Error("The Arcane Foci are exhausted. Please wait a few moments for the ley lines to stabilize.");
   return error;
@@ -47,6 +56,7 @@ const handleAIError = (error: any) => {
 
 export const generateImage = async (prompt: string): Promise<string> => {
   return withRetry(async () => {
+    trackUsage('utility', 40); // Image gen is expensive
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -67,6 +77,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
 
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
   return withRetry(async () => {
+    trackUsage('utility', 15);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -116,6 +127,7 @@ export const rerollTraits = async (
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
   return withRetry(async () => {
+    trackUsage('utility', 10);
     try {
       const ai = getAI();
       const locked = existingTraits.filter(t => t.locked);
@@ -166,6 +178,7 @@ export const rerollTraits = async (
 
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
   return withRetry(async () => {
+    trackUsage('utility', 10);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -196,6 +209,7 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
   return withRetry(async () => {
+    trackUsage('utility', 15);
     try {
       const ai = getAI();
       const prompt = `Create TTRPG stats for: "${name}". Appearance: ${description}. ${isBoss ? "Make it a Boss encounter." : ""}`;
@@ -241,6 +255,7 @@ export const generateMonsterStats = async (name: string, description: string, is
 
 export const generateItemMechanics = async (name: string, type: string, description: string): Promise<{ mechanics: ItemMechanic[], lore: string }> => {
   return withRetry(async () => {
+    trackUsage('utility', 10);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -278,6 +293,7 @@ export const generateItemMechanics = async (name: string, type: string, descript
 
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
   return withRetry(async () => {
+    trackUsage('utility', 20);
     try {
       const ai = getAI();
       const classDescriptions = party.map(p => {
@@ -320,6 +336,7 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
 
 export const generateSummary = async (logs: GameLog[], oldSummary: string): Promise<string> => {
   return withRetry(async () => {
+    trackUsage('utility', 5);
     try {
       const ai = getAI();
       const logContext = logs.map(l => `${l.role === 'dm' ? 'DM' : 'Player'}: ${l.content}`).join('\n');
@@ -336,6 +353,7 @@ export const generateSummary = async (logs: GameLog[], oldSummary: string): Prom
 
 export const getDMResponse = async (history: {role: string, content: string}[], plot: string, newMessage: string, knownCharacters: Character[], summary: string) => {
   return withRetry(async () => {
+    trackUsage('dm'); // Consumes one Token
     try {
       const ai = getAI();
       const charContext = knownCharacters.map(c => `${c.name} (${c.race})`).join(", ");
@@ -354,5 +372,5 @@ export const getDMResponse = async (history: {role: string, content: string}[], 
     } catch (e) {
       throw handleAIError(e);
     }
-  }, 2); // Slightly fewer retries for Pro to maintain responsiveness
+  }, 2);
 };

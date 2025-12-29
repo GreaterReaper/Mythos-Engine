@@ -32,6 +32,8 @@ interface CharacterCreatorProps {
   classes: ClassDef[];
   items?: Item[];
   notify: (message: string, type?: any) => void;
+  // Fix: Added missing reservoirReady property to interface to handle UI state for API availability
+  reservoirReady: boolean;
 }
 
 const getModifier = (val: number) => {
@@ -39,7 +41,8 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify }) => {
+// Fix: Destructured reservoirReady from props to use in button disabled logic
+const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify, reservoirReady }) => {
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
   const [race, setRace] = useState<RaceType>('Human');
@@ -87,7 +90,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleCreate = async () => {
-    if (!name || !classId) return;
+    // Fix: Guard handleCreate with reservoirReady check
+    if (!name || !classId || !reservoirReady) return;
     setGenerating(true);
     try {
       const selectedClass = classes.find(c => c.id === classId);
@@ -123,6 +127,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleRerollFeats = async (char: Character) => {
+    // Fix: Guard handleRerollFeats with reservoirReady check
+    if (!reservoirReady) return;
     setRerolling(char.id);
     try {
       const selectedClass = classes.find(c => c.id === char.classId);
@@ -190,8 +196,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 Essence Remaining: <span className="text-amber-700">{pointsRemaining}</span>
               </div>
 
-              <button onClick={handleCreate} disabled={generating || !name || !classId} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all">
-                {generating ? 'SUMMONING...' : 'BIND HERO'}
+              {/* Fix: Applied reservoirReady to disabled state and button text to prevent unauthorized requests */}
+              <button onClick={handleCreate} disabled={generating || !name || !classId || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20">
+                {generating ? 'SUMMONING...' : !reservoirReady ? 'ENERGY LOW...' : 'BIND HERO'}
               </button>
             </div>
           </div>
@@ -279,7 +286,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   <div className="space-y-6">
                     <div className="flex justify-between items-center border-b border-[#b28a48]/20 pb-4">
                       <h4 className="text-xl font-black fantasy-font text-neutral-400 tracking-widest">Heritage & Feats</h4>
-                      <button onClick={() => handleRerollFeats(selectedChar)} disabled={rerolling === selectedChar.id} className="text-[10px] font-black text-neutral-600 hover:text-amber-700 uppercase tracking-[0.3em] transition-all">Reroll Potential 🎲</button>
+                      {/* Fix: Added reservoirReady to disabled logic for reroll button within character details */}
+                      <button onClick={() => handleRerollFeats(selectedChar)} disabled={rerolling === selectedChar.id || !reservoirReady} className="text-[10px] font-black text-neutral-600 hover:text-amber-700 uppercase tracking-[0.3em] transition-all disabled:opacity-20">
+                        {rerolling === selectedChar.id ? 'REWEAVING...' : !reservoirReady ? 'ENERGY LOW...' : 'Reroll Potential 🎲'}
+                      </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {selectedChar.feats.map((f, i) => (

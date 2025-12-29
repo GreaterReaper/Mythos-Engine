@@ -8,9 +8,12 @@ interface ArmoryProps {
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   broadcast?: (msg: Partial<SyncMessage>) => void;
   notify: (message: string, type?: any) => void;
+  // Fix: Added missing reservoirReady property to interface to handle UI state for API availability
+  reservoirReady: boolean;
 }
 
-const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify }) => {
+// Fix: Destructured reservoirReady from props to use in interaction logic
+const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
   const [description, setDescription] = useState('');
@@ -38,7 +41,8 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify }) =
   }, [items, search, typeFilter, sortBy]);
 
   const handleCreate = async () => {
-    if (!name || !description || loading) return;
+    // Fix: Guard handleCreate with reservoirReady check
+    if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
       const [{ mechanics, lore }, imageUrl] = await Promise.all([
@@ -75,6 +79,8 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify }) =
   };
 
   const handleReroll = async (item: Item) => {
+    // Fix: Guard handleReroll with reservoirReady check
+    if (!reservoirReady) return;
     setRerolling(item.id);
     try {
       const updated = await rerollTraits('item', item.name, item.description, item.mechanics);
@@ -111,8 +117,9 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify }) =
                 <option value="Armor">Armor</option>
               </select>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="DESCRIBE THE ARTIFACT'S LEGEND..." className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-32 text-xs text-neutral-500 uppercase tracking-tight focus:border-[#b28a48] outline-none font-serif italic" />
-              <button onClick={handleCreate} disabled={loading || !name} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-4 font-black text-[10px] uppercase tracking-[0.3em] transition-all">
-                {loading ? 'FORGING...' : 'BIND RELIC'}
+              {/* Fix: Applied reservoirReady to disabled logic and message for forge button */}
+              <button onClick={handleCreate} disabled={loading || !name || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-4 font-black text-[10px] uppercase tracking-[0.3em] transition-all disabled:opacity-20">
+                {loading ? 'FORGING...' : !reservoirReady ? 'ENERGY LOW...' : 'BIND RELIC'}
               </button>
             </div>
           </div>
@@ -169,14 +176,15 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify }) =
                     <div className="space-y-6">
                       <div className="flex justify-between items-end border-b border-neutral-800 pb-2">
                         <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em]">Arcane Mechanics</h5>
-                        <button onClick={(e) => { e.stopPropagation(); handleReroll(item); }} disabled={rerolling === item.id} className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2">
-                          {rerolling === item.id ? 'REWEAVING...' : 'Reroll Unlocked 🎲'}
+                        {/* Fix: Added reservoirReady to disabled logic for reroll button within armory entry */}
+                        <button onClick={(e) => { e.stopPropagation(); handleReroll(item); }} disabled={rerolling === item.id || !reservoirReady} className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2 disabled:opacity-20">
+                          {rerolling === item.id ? 'REWEAVING...' : !reservoirReady ? 'ENERGY LOW...' : 'Reroll Unlocked 🎲'}
                         </button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {item.mechanics.map((m, i) => (
-                          <div key={i} onClick={(e) => { e.stopPropagation(); toggleLock(item.id, i); }} className={`p-5 border transition-all rounded-sm relative ${m.locked ? 'bg-amber-950/5 border-amber-900/30' : 'bg-black border-neutral-900 hover:border-neutral-800'}`}>
+                          <div key={i} onClick={(e) => { e.stopPropagation(); toggleLock(item.id, i); }} className={`p-5 border transition-all rounded-sm relative ${m.locked ? 'bg-amber-950/5 border-amber-900/30' : 'bg-black border-neutral-900 hover:border-neutral-700'}`}>
                             <div className="flex items-start gap-3">
                               <span className={`text-[10px] mt-0.5 ${m.locked ? 'text-amber-500' : 'text-neutral-700'}`}>{m.locked ? '†' : '○'}</span>
                               <div>

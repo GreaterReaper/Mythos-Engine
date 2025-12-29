@@ -7,6 +7,8 @@ interface BestiaryProps {
   monsters: Monster[];
   setMonsters: React.Dispatch<React.SetStateAction<Monster[]>>;
   notify: (message: string, type?: any) => void;
+  // Fix: Added missing reservoirReady property to interface to handle UI state for API availability
+  reservoirReady: boolean;
 }
 
 const getModifier = (val: number) => {
@@ -14,7 +16,8 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) => {
+// Fix: Destructured reservoirReady from props to use in interaction logic
+const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify, reservoirReady }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isBoss, setIsBoss] = useState(false);
@@ -42,7 +45,8 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
   }, [monsters, search, bossOnly, sortBy]);
 
   const handleCreate = async () => {
-    if (!name || !description || loading) return;
+    // Fix: Guard handleCreate with reservoirReady check
+    if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
       const [stats, imageUrl] = await Promise.all([
@@ -87,6 +91,8 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
 
   const handleReroll = (e: React.MouseEvent, monster: Monster) => {
     e.stopPropagation();
+    // Fix: Guard handleReroll with reservoirReady check
+    if (!reservoirReady) return;
     setRerolling(monster.id);
     const traitFormat = monster.abilities.map(a => ({ name: a.name, description: a.effect, locked: a.locked }));
     rerollTraits('monster', monster.name, monster.description, traitFormat)
@@ -148,12 +154,13 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
                 placeholder="DESCRIBE ITS NATURE..."
                 className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-40 text-xs text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed"
               />
+              {/* Fix: Applied reservoirReady to disabled logic and message for summon button */}
               <button
                 onClick={handleCreate}
-                disabled={loading || !name}
+                disabled={loading || !name || !reservoirReady}
                 className={`px-8 py-5 rounded-sm font-black w-full text-[11px] uppercase tracking-[0.4em] transition-all shadow-xl ${isBoss ? 'bg-red-800 hover:bg-red-700 text-white' : 'bg-[#b28a48] hover:bg-[#cbb07a] text-black'} disabled:opacity-20 active:scale-95`}
               >
-                {loading ? 'WEAVING FORM...' : 'INSCRIBE BESTIARY'}
+                {loading ? 'WEAVING FORM...' : !reservoirReady ? 'ENERGY LOW...' : 'INSCRIBE BESTIARY'}
               </button>
             </div>
           </div>
@@ -242,8 +249,9 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) =>
                         <div className="space-y-6">
                            <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
                               <h5 className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.4em]">Actions & Traits</h5>
-                              <button onClick={(e) => handleReroll(e, m)} disabled={rerolling === m.id} className="text-[10px] font-black text-[#b28a48] uppercase tracking-widest flex items-center gap-2">
-                                {rerolling === m.id ? '...' : 'Reroll 🎲'}
+                              {/* Fix: Added reservoirReady to disabled logic for reroll button within bestiary entry */}
+                              <button onClick={(e) => handleReroll(e, m)} disabled={rerolling === m.id || !reservoirReady} className="text-[10px] font-black text-[#b28a48] uppercase tracking-widest flex items-center gap-2 disabled:opacity-20">
+                                {rerolling === m.id ? '...' : !reservoirReady ? 'ENERGY LOW' : 'Reroll 🎲'}
                               </button>
                            </div>
                            <div className="space-y-6">

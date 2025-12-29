@@ -82,6 +82,13 @@ const App: React.FC = () => {
     setServerLogs(prev => [newLog, ...prev].slice(0, 50));
   };
 
+  const logout = () => {
+    if (confirm("Are you sure you wish to sever your bond with the Mythos? Your local saga will remain, but your identity will be forgotten on this device.")) {
+      setPlayerName('');
+      localStorage.removeItem('mythos_player_name');
+    }
+  };
+
   // Persistence
   useEffect(() => {
     localStorage.setItem('mythos_chars', JSON.stringify(characters));
@@ -195,7 +202,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={logout} />
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">

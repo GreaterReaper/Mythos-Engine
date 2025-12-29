@@ -4,9 +4,10 @@ import React from 'react';
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: any) => void;
+  onSignOut: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut }) => {
   const tabs = [
     { id: 'campaign', label: 'Play', icon: '⚔️' },
     { id: 'characters', label: 'Party', icon: '👤' },
@@ -49,7 +50,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
           ))}
         </div>
 
-        <div className="mt-auto">
+        <div className="mt-auto flex flex-col gap-1">
+          <button
+            onClick={onSignOut}
+            className="flex items-center gap-4 px-5 py-3 text-red-900/60 hover:text-red-500 hover:bg-red-950/10 transition-all group border-t border-[#1a1a1a]"
+          >
+            <span className="text-lg group-hover:scale-110 transition-transform">🚪</span>
+            <span className="font-bold text-[10px] uppercase tracking-widest">Sever Bond</span>
+          </button>
           <div className="p-4 border-t border-[#1a1a1a]">
             <div className="flex items-center gap-2 text-[10px] text-neutral-600 uppercase font-bold tracking-tighter">
               <span className="w-2 h-2 rounded-full bg-amber-900 animate-pulse"></span>
@@ -75,6 +83,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
             <span className="text-[9px] font-black uppercase tracking-tight">{tab.label}</span>
           </button>
         ))}
+        <button
+          onClick={onSignOut}
+          className="flex flex-col items-center gap-1 flex-1 text-red-900/60"
+        >
+          <span className="text-xl">🚪</span>
+          <span className="text-[9px] font-black uppercase tracking-tight">Sever</span>
+        </button>
       </nav>
     </>
   );

@@ -17,6 +17,11 @@ const reportError = (isRateLimit: boolean) => {
   window.dispatchEvent(new CustomEvent('mythos:arcane_error', { detail: { isRateLimit } }));
 };
 
+// Check if a hard lockout is currently active in the UI
+const isHardLockoutActive = () => {
+  return window.sessionStorage.getItem('mythos_lockout_active') === 'true';
+};
+
 // Helper to get AI instance safely
 const getAI = () => {
   const apiKey = process.env.API_KEY;
@@ -28,9 +33,14 @@ const getAI = () => {
 
 /**
  * Resiliency Wrapper: Implements exponential backoff for transient errors (429, 5xx)
- * If it's a 429, we wait longer to ensure the quota window resets.
+ * If it's a 429, we wait significantly longer to ensure the quota window resets.
  */
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 2000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, initialDelay = 10000): Promise<T> {
+  // Prevent any new requests if we are already in a hard lockout
+  if (isHardLockoutActive()) {
+    throw new Error("RECALIBRATION_IN_PROGRESS: The Ley Lines are currently resetting. Please wait for the timer.");
+  }
+
   try {
     return await fn();
   } catch (error: any) {
@@ -45,13 +55,8 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 20
     
     if (isRateLimit) {
       reportError(true);
-      // If we hit a rate limit, the first retry should be much later (5s+)
-      if (retries > 0) {
-        const wait = Math.max(5000, initialDelay);
-        console.warn(`Rate Limit hit. Waiting ${wait}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, wait));
-        return withRetry(fn, retries - 1, wait * 2);
-      }
+      // Immediately stop background retries if we hit 429 to avoid hammering the API
+      throw new Error("[429] Ley Lines Overloaded. Initiating Hard Recalibration (65s).");
     }
 
     if (isServerError && retries > 0) {
@@ -66,15 +71,12 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 20
 const handleAIError = (error: any) => {
   console.error("AI Service Error:", error);
   const msg = error.message || "The ether is unstable.";
-  if (msg.includes("429") || msg.includes("quota")) {
-    return new Error("[429] Ley Lines Overloaded. Deep recalibration required (45s).");
-  }
   return error;
 };
 
 // Generate image using gemini-2.5-flash-image
 export const generateImage = async (prompt: string): Promise<string> => {
-  trackUsage('utility', 15); 
+  trackUsage('utility', 25); 
   return withRetry(async () => {
     try {
       const ai = getAI();
@@ -96,7 +98,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
 
 // Generate TTRPG class mechanics using gemini-3-flash-preview
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
-  trackUsage('utility', 5);
+  trackUsage('utility', 10);
   return withRetry(async () => {
     try {
       const ai = getAI();
@@ -140,7 +142,7 @@ export const rerollTraits = async (
   contextDesc: string,
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
-  trackUsage('utility', 1); // Rerolls are now basically free
+  trackUsage('utility', 5);
   return withRetry(async () => {
     try {
       const ai = getAI();
@@ -188,7 +190,7 @@ export const rerollTraits = async (
 
 // Generate character feats using gemini-3-flash-preview
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
-  trackUsage('utility', 2);
+  trackUsage('utility', 5);
   return withRetry(async () => {
     try {
       const ai = getAI();
@@ -217,7 +219,7 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 
 // Generate monster stats using gemini-3-flash-preview
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
-  trackUsage('utility', 5);
+  trackUsage('utility', 10);
   return withRetry(async () => {
     try {
       const ai = getAI();
@@ -261,7 +263,7 @@ export const generateMonsterStats = async (name: string, description: string, is
 
 // Generate item mechanics using gemini-3-flash-preview
 export const generateItemMechanics = async (name: string, type: 'Weapon' | 'Armor', description: string): Promise<{ mechanics: { name: string; description: string }[]; lore: string }> => {
-  trackUsage('utility', 5);
+  trackUsage('utility', 10);
   return withRetry(async () => {
     try {
       const ai = getAI();
@@ -316,25 +318,25 @@ export const getDMResponse = async (
         model: 'gemini-3-pro-preview',
         contents: contents,
         config: {
-          systemInstruction: `You are a DM. Plot: ${plot}. Summary: ${summary}. React to player actions narratives.`,
+          systemInstruction: `You are a DM. Plot: ${plot}. Summary: ${summary}. React to player actions narratives. Keep responses relatively concise but atmospheric.`,
         }
       });
       return response.text || "...";
     } catch (e) {
       throw handleAIError(e);
     }
-  }, 1); // Less retries for Pro to save quota
+  }, 0); // NO retries for DM to prevent RPM flooding
 };
 
 // Generate narrative summary using gemini-3-flash-preview
 export const generateSummary = async (logs: GameLog[], currentSummary: string): Promise<string> => {
-  trackUsage('utility', 2);
+  trackUsage('utility', 5);
   return withRetry(async () => {
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Summarize the saga. Current summary: ${currentSummary}. New events: ${logs.map(l => l.content).join(' ')}`,
+        contents: `Summarize the saga so far into a single paragraph. Current summary: ${currentSummary}. New events: ${logs.map(l => l.content).join(' ')}`,
       });
       return response.text || currentSummary;
     } catch (e) {
@@ -345,15 +347,15 @@ export const generateSummary = async (logs: GameLog[], currentSummary: string): 
 
 // Generate smart loot for party using gemini-3-flash-preview
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
-  trackUsage('utility', 8);
+  trackUsage('utility', 15);
   return withRetry(async () => {
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Create loot for party: ${party.map(p => p.name).join(', ')}.`,
+        contents: `Create a unique magic item for a party consisting of: ${party.map(p => p.name).join(', ')}.`,
         config: {
-          systemInstruction: "Return JSON for magic item.",
+          systemInstruction: "Return JSON for a unique magic item.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,

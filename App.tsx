@@ -18,7 +18,7 @@ interface Notification {
   type: 'error' | 'success' | 'info';
 }
 
-const LOCKOUT_DURATION = 45; // Seconds to wait on 429
+const LOCKOUT_DURATION = 65; // Seconds to wait on 429 - strictly 1 minute window + buffer
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [arcaneTokens, setArcaneTokens] = useState<number>(3); // DM Tokens (Pro)
   const [reservoir, setReservoir] = useState<number>(100); // Utility Essence (Flash)
   const [lockoutTime, setLockoutTime] = useState<number>(0);
+  const lastLockoutTriggered = useRef<number>(0);
 
   const [playerName, setPlayerName] = useState<string>(() => {
     return localStorage.getItem('mythos_player_name') || '';
@@ -72,12 +73,19 @@ const App: React.FC = () => {
   // Arcane Regeneration Logic
   useEffect(() => {
     const regenInterval = setInterval(() => {
-      // 1 token per 40 seconds (Gemini Pro ~1.5 RPM limit)
-      setArcaneTokens(prev => Math.min(prev + 0.025, 3)); 
-      // 100% per 60 seconds (Gemini Flash ~15 RPM limit)
-      setReservoir(prev => Math.min(prev + 1.6, 100)); 
+      // Slowed down regeneration to ensure we stay under RPM
+      // 1 token per 60 seconds (Gemini Pro ~1 RPM)
+      setArcaneTokens(prev => Math.min(prev + 0.016, 3)); 
+      // 100% per 90 seconds (Gemini Flash ~10 RPM limit safe buffer)
+      setReservoir(prev => Math.min(prev + 1.1, 100)); 
       
-      setLockoutTime(prev => Math.max(prev - 1, 0));
+      setLockoutTime(prev => {
+        const next = Math.max(prev - 1, 0);
+        if (next === 0) {
+          window.sessionStorage.setItem('mythos_lockout_active', 'false');
+        }
+        return next;
+      });
     }, 1000);
 
     // Listen for AI usage events
@@ -89,8 +97,14 @@ const App: React.FC = () => {
 
     const handleError = (e: any) => {
       if (e.detail.isRateLimit) {
-        setLockoutTime(LOCKOUT_DURATION);
-        notify("The Ley Lines are severely overloaded. Deep Recalibration started.", "error");
+        const now = Date.now();
+        // Throttle lockout triggers to once every 10 seconds to prevent reset-loops
+        if (now - lastLockoutTriggered.current > 10000) {
+          lastLockoutTriggered.current = now;
+          setLockoutTime(LOCKOUT_DURATION);
+          window.sessionStorage.setItem('mythos_lockout_active', 'true');
+          notify("Ley Lines Severely Overloaded. Hard recalibration initiated (65s).", "error");
+        }
       }
     };
 
@@ -193,7 +207,7 @@ const App: React.FC = () => {
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); initPeer(); /* Logic for joining... */ }} setIsHost={setIsHost} forceSync={() => {}} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); initPeer(); }} setIsHost={setIsHost} forceSync={() => {}} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
         </div>
       </main>
@@ -229,28 +243,28 @@ const App: React.FC = () => {
           </div>
           
           <div className="relative group">
-            <div className={`w-8 h-8 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
+            <div className={`w-10 h-10 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
               isExhausted 
-                ? 'border-red-600 bg-red-950/20 shadow-[0_0_20px_#7f1d1d] animate-pulse' 
+                ? 'border-red-600 bg-red-950/20 shadow-[0_0_25px_#7f1d1d] animate-pulse' 
                 : reservoir > 5 
                   ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15px_rgba(178,138,72,0.3)]' 
                   : 'border-neutral-800 bg-black'
             }`}>
-              <span className={`text-[10px] font-black ${isExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
+              <span className={`text-[12px] font-black ${isExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
                 {isExhausted ? lockoutTime : Math.round(reservoir)}
               </span>
             </div>
             <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-48 shadow-2xl z-[110]">
                <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
-                 {isExhausted ? 'DEEP RECALIBRATION' : 'ARCANE STABILITY'}
+                 {isExhausted ? 'HARD LOCKOUT' : 'ARCANE STABILITY'}
                </h5>
                <div className="h-1 w-full bg-neutral-900 mb-2">
                  <div className={`h-full transition-all ${isExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
                </div>
                <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold">
-                 DM Capacity: {Math.floor(arcaneTokens)}/3 (Slow)<br/>
-                 Essence: {Math.round(reservoir)}% (Fast)<br/>
-                 {isExhausted ? `WAIT: ${lockoutTime} SECONDS` : 'LEY LINES STABLE'}
+                 Pro Capacity: {Math.floor(arcaneTokens)}/3<br/>
+                 Flash Capacity: {Math.round(reservoir)}%<br/>
+                 {isExhausted ? `RECALIBRATING: ${lockoutTime}S` : 'LEY LINES STABLE'}
                </p>
             </div>
           </div>
@@ -260,7 +274,7 @@ const App: React.FC = () => {
               Soul: <span className="text-[#b28a48]">{playerName}</span>
             </div>
             <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
-              {isExhausted ? 'OVERLOADED' : 'LEY LINE RESONANCE'}
+              {isExhausted ? 'LOCKOUT ACTIVE' : 'RESONANCE ONLINE'}
             </div>
           </div>
         </div>

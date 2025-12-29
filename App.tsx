@@ -96,6 +96,16 @@ const App: React.FC = () => {
     if (playerName) localStorage.setItem('mythos_player_name', playerName);
   }, [characters, classes, monsters, items, campaign, playerName]);
 
+  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
+    const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
+    connections.forEach(conn => {
+      if (conn.open) conn.send(fullMsg);
+    });
+    if (isHost && msg.type !== 'PULSE') {
+      addServerLog(`Broadcasting ${msg.type}`, 'success');
+    }
+  }, [connections, peerId, playerName, isHost]);
+
   const handleIncomingData = useCallback((data: SyncMessage) => {
     switch (data.type) {
       case 'STATE_UPDATE':
@@ -105,7 +115,25 @@ const App: React.FC = () => {
           if (data.payload.items) setItems(data.payload.items);
           if (data.payload.classes) setClasses(data.payload.classes);
           if (data.payload.characters) setCharacters(data.payload.characters);
-          notify("The Grimoire has been synchronized by the Host", "success");
+          notify("The Grimoire has been synchronized", "success");
+        } else {
+          // Host receives data from a client: Merge and Rebroadcast
+          if (data.payload.campaign) setCampaign(data.payload.campaign);
+          if (data.payload.monsters) setMonsters(data.payload.monsters);
+          if (data.payload.items) setItems(data.payload.items);
+          if (data.payload.classes) setClasses(data.payload.classes);
+          if (data.payload.characters) setCharacters(data.payload.characters);
+          
+          addServerLog(`Received grimoire update from ${data.senderName}`, 'info');
+          notify(`World knowledge updated by ${data.senderName}`, "info");
+          
+          // Relay the new state to all other connected clients
+          broadcast({ 
+            type: 'STATE_UPDATE', 
+            payload: data.payload,
+            senderId: peerId,
+            senderName: data.senderName // Retain original author name for tracking
+          });
         }
         break;
       case 'NEW_LOG':
@@ -113,7 +141,7 @@ const App: React.FC = () => {
         break;
       case 'GIVE_LOOT':
         setItems(prev => [...prev, data.payload]);
-        notify("The Host has granted you an artifact", "info");
+        notify("A new artifact has entered your possession", "info");
         break;
       case 'SUMMARY_UPDATE':
         setCampaign(prev => ({ ...prev, summary: data.payload }));
@@ -125,7 +153,7 @@ const App: React.FC = () => {
         }
         break;
     }
-  }, [isHost]);
+  }, [isHost, peerId, broadcast]);
 
   const initPeer = useCallback((customId?: string) => {
     if (peerRef.current) {
@@ -172,16 +200,6 @@ const App: React.FC = () => {
     return () => { peerRef.current?.destroy(); };
   }, [playerName]);
 
-  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
-    const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
-    connections.forEach(conn => {
-      if (conn.open) conn.send(fullMsg);
-    });
-    if (isHost && msg.type !== 'PULSE') {
-      addServerLog(`Broadcasting ${msg.type}`, 'success');
-    }
-  }, [connections, peerId, playerName, isHost]);
-
   const rehostWithSigil = (id: string) => {
     setIsHost(true);
     initPeer(id);
@@ -209,6 +227,18 @@ const App: React.FC = () => {
     notify("Archive restored", "success");
   };
 
+  const handleSyncSelection = (selection: Record<string, boolean>) => {
+    const payload: any = {};
+    if (selection.campaign) payload.campaign = campaign;
+    if (selection.monsters) payload.monsters = monsters;
+    if (selection.items) payload.items = items;
+    if (selection.classes) payload.classes = classes;
+    if (selection.characters) payload.characters = characters;
+    
+    broadcast({ type: 'STATE_UPDATE', payload });
+    notify(`Transmitting selected knowledge categories...`, "info");
+  };
+
   if (!playerName) return <LoginScreen setPlayerName={setPlayerName} />;
 
   return (
@@ -222,7 +252,7 @@ const App: React.FC = () => {
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes, characters } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={handleSyncSelection} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
         </div>
       </main>

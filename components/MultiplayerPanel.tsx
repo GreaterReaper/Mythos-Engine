@@ -10,7 +10,7 @@ interface MultiplayerPanelProps {
   serverLogs: ServerLog[];
   joinSession: (id: string) => void;
   setIsHost: (val: boolean) => void;
-  forceSync: () => void;
+  forceSync: (selection: Record<string, boolean>) => void;
   kickSoul: (id: string) => void;
   rehostWithSigil: (id: string) => void;
 }
@@ -20,6 +20,26 @@ const MultiplayerPanel: React.FC<MultiplayerPanelProps> = ({
 }) => {
   const [targetId, setTargetId] = useState('');
   const [customSigil, setCustomSigil] = useState('');
+  
+  const [syncSelection, setSyncSelection] = useState<Record<string, boolean>>({
+    characters: true,
+    classes: true,
+    monsters: isHost,
+    items: true,
+    campaign: isHost
+  });
+
+  const toggleSync = (key: string) => {
+    setSyncSelection(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const categories = [
+    { id: 'characters', label: 'Fellowship' },
+    { id: 'classes', label: 'Archetypes' },
+    { id: 'monsters', label: 'Bestiary' },
+    { id: 'items', label: 'Armory' },
+    { id: 'campaign', label: 'Chronicle' },
+  ];
 
   return (
     <div className="max-w-5xl mx-auto space-y-12 pb-12">
@@ -42,18 +62,42 @@ const MultiplayerPanel: React.FC<MultiplayerPanelProps> = ({
               <span className="text-[8px] text-neutral-600 font-bold ml-2">COPY</span>
             </div>
             
-            <div className="mt-8 pt-8 border-t border-neutral-900 space-y-4">
+            <div className="mt-8 pt-8 border-t border-neutral-900 space-y-6">
                <div className="flex justify-between items-center">
                  <span className="text-[10px] font-black uppercase text-neutral-600">Local Presence</span>
                  <span className={`text-[10px] font-black uppercase ${isHost ? 'text-amber-700' : 'text-blue-500'}`}>
                    {isHost ? 'Master of Fates' : 'Wandering Soul'}
                  </span>
                </div>
+
+               <div className="space-y-3">
+                 <p className="text-[9px] font-black text-neutral-500 uppercase tracking-widest border-b border-neutral-900 pb-2">Knowledge Selection</p>
+                 <div className="grid grid-cols-2 gap-2">
+                   {categories.map(cat => (
+                     <button
+                       key={cat.id}
+                       onClick={() => toggleSync(cat.id)}
+                       className={`px-3 py-2 text-[8px] font-black uppercase tracking-tighter border transition-all rounded-sm ${
+                         syncSelection[cat.id] 
+                           ? 'border-[#b28a48]/50 text-[#b28a48] bg-amber-950/10' 
+                           : 'border-neutral-900 text-neutral-700 hover:border-neutral-800'
+                       }`}
+                     >
+                       {cat.label}
+                     </button>
+                   ))}
+                 </div>
+               </div>
                
-               {isHost && (
-                 <button onClick={forceSync} className="w-full bg-[#1a1a1a] border border-[#b28a48]/20 hover:border-[#b28a48]/60 py-3 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48] transition-all shadow-xl active:scale-95">
-                   Transmit All Knowledge
-                 </button>
+               <button 
+                onClick={() => forceSync(syncSelection)} 
+                disabled={connections.length === 0 || !Object.values(syncSelection).some(v => v)}
+                className={`w-full bg-[#1a1a1a] border border-[#b28a48]/20 hover:border-[#b28a48]/60 py-3 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48] transition-all shadow-xl active:scale-95 disabled:opacity-20 ${!isHost && connections.length > 0 ? 'animate-pulse' : ''}`}
+               >
+                 {isHost ? 'Propagate Knowledge' : 'Contribute Selected'}
+               </button>
+               {connections.length === 0 && (
+                 <p className="text-[8px] text-center text-neutral-700 uppercase font-black">Requires active resonance link</p>
                )}
             </div>
           </div>

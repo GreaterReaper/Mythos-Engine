@@ -28,24 +28,34 @@ const getAI = () => {
 
 /**
  * Resiliency Wrapper: Implements exponential backoff for transient errors (429, 5xx)
+ * If it's a 429, we wait longer to ensure the quota window resets.
  */
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 1500): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 2000): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
     const errorStr = error.toString().toLowerCase();
     
-    // Precise detection only: avoid "exhausted" as it appears in non-rate-limit msgs
+    // Detect true rate limits
     const isRateLimit = errorStr.includes('429') || 
                        errorStr.includes('too many requests') || 
                        errorStr.includes('quota exceeded');
     
     const isServerError = errorStr.includes('500') || errorStr.includes('503') || errorStr.includes('overloaded');
     
-    if (isRateLimit && retries === 0) reportError(true);
+    if (isRateLimit) {
+      reportError(true);
+      // If we hit a rate limit, the first retry should be much later (5s+)
+      if (retries > 0) {
+        const wait = Math.max(5000, initialDelay);
+        console.warn(`Rate Limit hit. Waiting ${wait}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, wait));
+        return withRetry(fn, retries - 1, wait * 2);
+      }
+    }
 
-    if ((isRateLimit || isServerError) && retries > 0) {
-      console.warn(`Ley Line interference. Retrying in ${initialDelay}ms...`);
+    if (isServerError && retries > 0) {
+      console.warn(`Server busy. Retrying in ${initialDelay}ms...`);
       await new Promise(resolve => setTimeout(resolve, initialDelay));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
@@ -57,15 +67,15 @@ const handleAIError = (error: any) => {
   console.error("AI Service Error:", error);
   const msg = error.message || "The ether is unstable.";
   if (msg.includes("429") || msg.includes("quota")) {
-    return new Error("[429] The Ley Lines are temporarily overloaded. Please wait 15-30 seconds.");
+    return new Error("[429] Ley Lines Overloaded. Deep recalibration required (45s).");
   }
   return error;
 };
 
 // Generate image using gemini-2.5-flash-image
 export const generateImage = async (prompt: string): Promise<string> => {
+  trackUsage('utility', 15); 
   return withRetry(async () => {
-    trackUsage('utility', 15); // Reduced cost
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -86,8 +96,8 @@ export const generateImage = async (prompt: string): Promise<string> => {
 
 // Generate TTRPG class mechanics using gemini-3-flash-preview
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
+  trackUsage('utility', 5);
   return withRetry(async () => {
-    trackUsage('utility', 4); // Reduced cost
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -130,8 +140,8 @@ export const rerollTraits = async (
   contextDesc: string,
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
+  trackUsage('utility', 1); // Rerolls are now basically free
   return withRetry(async () => {
-    trackUsage('utility', 1); // Nearly free rerolls
     try {
       const ai = getAI();
       const locked = existingTraits.filter(t => t.locked);
@@ -178,8 +188,8 @@ export const rerollTraits = async (
 
 // Generate character feats using gemini-3-flash-preview
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
+  trackUsage('utility', 2);
   return withRetry(async () => {
-    trackUsage('utility', 2); // Reduced cost
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -207,8 +217,8 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 
 // Generate monster stats using gemini-3-flash-preview
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
+  trackUsage('utility', 5);
   return withRetry(async () => {
-    trackUsage('utility', 5);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -251,8 +261,8 @@ export const generateMonsterStats = async (name: string, description: string, is
 
 // Generate item mechanics using gemini-3-flash-preview
 export const generateItemMechanics = async (name: string, type: 'Weapon' | 'Armor', description: string): Promise<{ mechanics: { name: string; description: string }[]; lore: string }> => {
+  trackUsage('utility', 5);
   return withRetry(async () => {
-    trackUsage('utility', 4);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -293,8 +303,8 @@ export const getDMResponse = async (
   party: Character[],
   summary: string
 ): Promise<string> => {
+  trackUsage('dm', 0);
   return withRetry(async () => {
-    trackUsage('dm', 0);
     try {
       const ai = getAI();
       const contents = history.map(h => ({
@@ -306,25 +316,25 @@ export const getDMResponse = async (
         model: 'gemini-3-pro-preview',
         contents: contents,
         config: {
-          systemInstruction: `You are a DM. Plot: ${plot}. Summary: ${summary}.`,
+          systemInstruction: `You are a DM. Plot: ${plot}. Summary: ${summary}. React to player actions narratives.`,
         }
       });
       return response.text || "...";
     } catch (e) {
       throw handleAIError(e);
     }
-  }, 2);
+  }, 1); // Less retries for Pro to save quota
 };
 
 // Generate narrative summary using gemini-3-flash-preview
 export const generateSummary = async (logs: GameLog[], currentSummary: string): Promise<string> => {
+  trackUsage('utility', 2);
   return withRetry(async () => {
-    trackUsage('utility', 2);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Update summary. Current: ${currentSummary}. Logs: ${logs.length}`,
+        contents: `Summarize the saga. Current summary: ${currentSummary}. New events: ${logs.map(l => l.content).join(' ')}`,
       });
       return response.text || currentSummary;
     } catch (e) {
@@ -335,8 +345,8 @@ export const generateSummary = async (logs: GameLog[], currentSummary: string): 
 
 // Generate smart loot for party using gemini-3-flash-preview
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
+  trackUsage('utility', 8);
   return withRetry(async () => {
-    trackUsage('utility', 6);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({

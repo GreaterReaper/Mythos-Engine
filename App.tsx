@@ -18,14 +18,16 @@ interface Notification {
   type: 'error' | 'success' | 'info';
 }
 
+const LOCKOUT_DURATION = 45; // Seconds to wait on 429
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   // Arcane Resonance (Rate Limit Tracking)
-  const [arcaneTokens, setArcaneTokens] = useState<number>(3); // DM Tokens
-  const [reservoir, setReservoir] = useState<number>(100); // Utility Essence
-  const [isExhausted, setIsExhausted] = useState<boolean>(false);
+  const [arcaneTokens, setArcaneTokens] = useState<number>(3); // DM Tokens (Pro)
+  const [reservoir, setReservoir] = useState<number>(100); // Utility Essence (Flash)
+  const [lockoutTime, setLockoutTime] = useState<number>(0);
 
   const [playerName, setPlayerName] = useState<string>(() => {
     return localStorage.getItem('mythos_player_name') || '';
@@ -70,10 +72,12 @@ const App: React.FC = () => {
   // Arcane Regeneration Logic
   useEffect(() => {
     const regenInterval = setInterval(() => {
-      // 0.1 tokens per sec (~10s for full token)
-      setArcaneTokens(prev => Math.min(prev + 0.1, 3)); 
-      // 4.0% per sec (~25s for full reservoir)
-      setReservoir(prev => Math.min(prev + 4.0, 100)); 
+      // 1 token per 40 seconds (Gemini Pro ~1.5 RPM limit)
+      setArcaneTokens(prev => Math.min(prev + 0.025, 3)); 
+      // 100% per 60 seconds (Gemini Flash ~15 RPM limit)
+      setReservoir(prev => Math.min(prev + 1.6, 100)); 
+      
+      setLockoutTime(prev => Math.max(prev - 1, 0));
     }, 1000);
 
     // Listen for AI usage events
@@ -85,9 +89,8 @@ const App: React.FC = () => {
 
     const handleError = (e: any) => {
       if (e.detail.isRateLimit) {
-        setIsExhausted(true);
-        // Do NOT zero the reservoir. Just lock for a moment.
-        setTimeout(() => setIsExhausted(false), 12000);
+        setLockoutTime(LOCKOUT_DURATION);
+        notify("The Ley Lines are severely overloaded. Deep Recalibration started.", "error");
       }
     };
 
@@ -100,16 +103,6 @@ const App: React.FC = () => {
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
   }, []);
-
-  const addServerLog = (message: string, type: ServerLog['type'] = 'info') => {
-    const newLog: ServerLog = {
-      id: Math.random().toString(36).substr(2, 9),
-      message,
-      type,
-      timestamp: Date.now()
-    };
-    setServerLogs(prev => [newLog, ...prev].slice(0, 50));
-  };
 
   const logout = () => {
     if (confirm("Sever bond with Mythos?")) {
@@ -187,6 +180,8 @@ const App: React.FC = () => {
 
   if (!playerName) return <LoginScreen setPlayerName={setPlayerName} />;
 
+  const isExhausted = lockoutTime > 0;
+
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={logout} />
@@ -218,7 +213,7 @@ const App: React.FC = () => {
 
       {/* Arcane Status Bar (Foci Orb) */}
       <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
-        <div className="flex items-center gap-4 bg-black/60 backdrop-blur border border-[#b28a48]/20 px-4 py-2 rounded-sm pointer-events-auto">
+        <div className={`flex items-center gap-4 bg-black/60 backdrop-blur border px-4 py-2 rounded-sm pointer-events-auto transition-colors duration-1000 ${isExhausted ? 'border-red-600' : 'border-[#b28a48]/20'}`}>
           {/* Arcane Tokens (DM) */}
           <div className="flex gap-1">
             {[...Array(3)].map((_, i) => (
@@ -236,24 +231,26 @@ const App: React.FC = () => {
           <div className="relative group">
             <div className={`w-8 h-8 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
               isExhausted 
-                ? 'border-red-900 bg-red-950/20 shadow-[0_0_20px_#7f1d1d] animate-pulse' 
+                ? 'border-red-600 bg-red-950/20 shadow-[0_0_20px_#7f1d1d] animate-pulse' 
                 : reservoir > 5 
                   ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15px_rgba(178,138,72,0.3)]' 
                   : 'border-neutral-800 bg-black'
             }`}>
               <span className={`text-[10px] font-black ${isExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
-                {isExhausted ? '!' : Math.round(reservoir)}
+                {isExhausted ? lockoutTime : Math.round(reservoir)}
               </span>
             </div>
             <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-48 shadow-2xl z-[110]">
-               <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">Arcane Stability</h5>
+               <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
+                 {isExhausted ? 'DEEP RECALIBRATION' : 'ARCANE STABILITY'}
+               </h5>
                <div className="h-1 w-full bg-neutral-900 mb-2">
-                 <div className="h-full bg-amber-600 transition-all" style={{ width: `${reservoir}%` }}></div>
+                 <div className={`h-full transition-all ${isExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
                </div>
                <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold">
-                 Tokens: {Math.floor(arcaneTokens)}/3<br/>
-                 Resonance: {Math.round(reservoir)}%<br/>
-                 {isExhausted ? 'OVERLOADED...' : 'FOCI CHARGED'}
+                 DM Capacity: {Math.floor(arcaneTokens)}/3 (Slow)<br/>
+                 Essence: {Math.round(reservoir)}% (Fast)<br/>
+                 {isExhausted ? `WAIT: ${lockoutTime} SECONDS` : 'LEY LINES STABLE'}
                </p>
             </div>
           </div>
@@ -262,8 +259,8 @@ const App: React.FC = () => {
             <div className="text-[9px] uppercase font-black text-neutral-500">
               Soul: <span className="text-[#b28a48]">{playerName}</span>
             </div>
-            <div className="text-[7px] text-neutral-700 font-bold uppercase tracking-tighter">
-              LEY LINE RESONANCE
+            <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
+              {isExhausted ? 'OVERLOADED' : 'LEY LINE RESONANCE'}
             </div>
           </div>
         </div>

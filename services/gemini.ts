@@ -2,9 +2,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, MonsterAbility, ItemMechanic, Character, GameLog } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to get AI instance safely
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("Mythos Engine: API_KEY is missing. AI features will be disabled.");
+    return null;
+  }
+  return new GoogleGenAI({ apiKey });
+};
+
+const ai = getAI();
 
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
+  if (!ai) throw new Error("AI service unavailable");
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Create TTRPG mechanics for a custom class named "${name}". Description: ${description}`,
@@ -42,6 +53,7 @@ export const rerollTraits = async (
   contextDesc: string,
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
+  if (!ai) throw new Error("AI service unavailable");
   const locked = existingTraits.filter(t => t.locked);
   const countToGenerate = existingTraits.length - locked.length;
   
@@ -87,6 +99,7 @@ export const rerollTraits = async (
 };
 
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
+  if (!ai) throw new Error("AI service unavailable");
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Generate 3 unique TTRPG Feats for a character of the class "${className}" (${classDesc}).`,
@@ -109,6 +122,7 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 };
 
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
+  if (!ai) throw new Error("AI service unavailable");
   const prompt = `Create monster stats for: "${name}". Appearance/Abilities: ${description}. ${isBoss ? "IMPORTANT: This is a BOSS type monster. Give it significantly higher HP, AC, and legendary or multi-phase abilities." : ""}`;
   
   const response = await ai.models.generateContent({
@@ -152,6 +166,7 @@ export const generateMonsterStats = async (name: string, description: string, is
 };
 
 export const generateItemMechanics = async (name: string, type: string, description: string): Promise<{ mechanics: ItemMechanic[], lore: string }> => {
+  if (!ai) throw new Error("AI service unavailable");
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Write TTRPG mechanics and lore for a ${type} called "${name}". Description: ${description}.`,
@@ -181,6 +196,7 @@ export const generateItemMechanics = async (name: string, type: string, descript
 };
 
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
+  if (!ai) throw new Error("AI service unavailable");
   const classDescriptions = party.map(p => {
     const c = classes.find(cl => cl.id === p.classId);
     return `${p.name} (${c?.name}): ${c?.description}`;
@@ -218,6 +234,7 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
 };
 
 export const generateSummary = async (logs: GameLog[], oldSummary: string): Promise<string> => {
+  if (!ai) return oldSummary;
   const logContext = logs.map(l => `${l.role === 'dm' ? 'DM' : 'Player'}: ${l.content}`).join('\n');
   const prompt = `Synthesize the narrative history of this TTRPG session.
   Previous Summary: "${oldSummary || 'No previous summary.'}"
@@ -239,6 +256,7 @@ export const generateSummary = async (logs: GameLog[], oldSummary: string): Prom
 };
 
 export const getDMResponse = async (history: {role: string, content: string}[], plot: string, newMessage: string, knownCharacters: Character[], summary: string) => {
+  if (!ai) throw new Error("AI service unavailable");
   const charList = knownCharacters.map(c => c.name).join(", ");
   const systemInstruction = `You are a professional TTRPG Dungeon Master for a Dark Fantasy adventure.
   
@@ -267,6 +285,7 @@ export const getDMResponse = async (history: {role: string, content: string}[], 
 };
 
 export const generateImage = async (prompt: string): Promise<string> => {
+  if (!ai) return '';
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {

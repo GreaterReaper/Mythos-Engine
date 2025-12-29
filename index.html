@@ -27,6 +27,9 @@
                 radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%),
                 url('https://www.transparenttextures.com/patterns/dark-leather.png');
             overscroll-behavior-y: contain;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
         }
         h1, h2, h3, .fantasy-font {
             font-family: 'Cinzel', serif;
@@ -65,6 +68,7 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
     "peerjs": "https://esm.sh/peerjs@1.5.4",
     "vite": "https://esm.sh/vite@^7.3.0",
@@ -75,6 +79,8 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- This script tag is essential for the app to load on Vercel/Production -->
+    <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

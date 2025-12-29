@@ -5,17 +5,14 @@ import { Stats, ClassDef, Monster, Item, Trait, MonsterAbility, ItemMechanic, Ch
 // Helper to get AI instance safely
 const getAI = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("Mythos Engine: API_KEY is missing. AI features will be disabled.");
-    return null;
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    throw new Error("ARCANE_FOCI_MISSING: The API Key is not set in environment variables. Consult the Archive documentation.");
   }
   return new GoogleGenAI({ apiKey });
 };
 
-const ai = getAI();
-
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
-  if (!ai) throw new Error("AI service unavailable");
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Create TTRPG mechanics for a custom class named "${name}". Description: ${description}`,
@@ -53,7 +50,7 @@ export const rerollTraits = async (
   contextDesc: string,
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
-  if (!ai) throw new Error("AI service unavailable");
+  const ai = getAI();
   const locked = existingTraits.filter(t => t.locked);
   const countToGenerate = existingTraits.length - locked.length;
   
@@ -61,8 +58,7 @@ export const rerollTraits = async (
 
   const prompt = `You are a TTRPG designer. For a ${contextType} named "${contextName}" (${contextDesc}), 
   generate ${countToGenerate} new and unique traits/abilities/features. 
-  The following traits already exist and MUST be kept (do not duplicate them): ${locked.map(l => l.name).join(', ')}.
-  Provide only the new ${countToGenerate} items.`;
+  The following traits already exist and MUST be kept: ${locked.map(l => l.name).join(', ')}.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -99,7 +95,7 @@ export const rerollTraits = async (
 };
 
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
-  if (!ai) throw new Error("AI service unavailable");
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Generate 3 unique TTRPG Feats for a character of the class "${className}" (${classDesc}).`,
@@ -122,8 +118,8 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 };
 
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
-  if (!ai) throw new Error("AI service unavailable");
-  const prompt = `Create monster stats for: "${name}". Appearance/Abilities: ${description}. ${isBoss ? "IMPORTANT: This is a BOSS type monster. Give it significantly higher HP, AC, and legendary or multi-phase abilities." : ""}`;
+  const ai = getAI();
+  const prompt = `Create monster stats for: "${name}". Appearance: ${description}. ${isBoss ? "This is a BOSS." : ""}`;
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
@@ -138,22 +134,16 @@ export const generateMonsterStats = async (name: string, description: string, is
           stats: {
             type: Type.OBJECT,
             properties: {
-              strength: { type: Type.INTEGER },
-              dexterity: { type: Type.INTEGER },
-              constitution: { type: Type.INTEGER },
-              intelligence: { type: Type.INTEGER },
-              wisdom: { type: Type.INTEGER },
-              charisma: { type: Type.INTEGER }
+              strength: { type: Type.INTEGER }, dexterity: { type: Type.INTEGER },
+              constitution: { type: Type.INTEGER }, intelligence: { type: Type.INTEGER },
+              wisdom: { type: Type.INTEGER }, charisma: { type: Type.INTEGER }
             }
           },
           abilities: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                effect: { type: Type.STRING }
-              },
+              properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } },
               required: ["name", "effect"]
             }
           }
@@ -166,7 +156,7 @@ export const generateMonsterStats = async (name: string, description: string, is
 };
 
 export const generateItemMechanics = async (name: string, type: string, description: string): Promise<{ mechanics: ItemMechanic[], lore: string }> => {
-  if (!ai) throw new Error("AI service unavailable");
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Write TTRPG mechanics and lore for a ${type} called "${name}". Description: ${description}.`,
@@ -180,8 +170,8 @@ export const generateItemMechanics = async (name: string, type: string, descript
             items: {
               type: Type.OBJECT,
               properties: {
-                name: { type: Type.STRING, description: "Trait name (e.g. Sharpness, Glowing)" },
-                description: { type: Type.STRING, description: "Mechanic details (e.g. +1 to hit)" }
+                name: { type: Type.STRING },
+                description: { type: Type.STRING }
               },
               required: ["name", "description"]
             }
@@ -196,7 +186,7 @@ export const generateItemMechanics = async (name: string, type: string, descript
 };
 
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
-  if (!ai) throw new Error("AI service unavailable");
+  const ai = getAI();
   const classDescriptions = party.map(p => {
     const c = classes.find(cl => cl.id === p.classId);
     return `${p.name} (${c?.name}): ${c?.description}`;
@@ -204,23 +194,20 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
-    contents: `Generate a magical item for this TTRPG party: ${classDescriptions}. Ensure the item is PERFECTLY suited for at least one of these classes to wield effectively.`,
+    contents: `Generate a magical item for this TTRPG party: ${classDescriptions}.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
           name: { type: Type.STRING },
-          type: { type: Type.STRING, description: "Weapon or Armor" },
+          type: { type: Type.STRING },
           description: { type: Type.STRING },
           mechanics: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                description: { type: Type.STRING }
-              }
+              properties: { name: { type: Type.STRING }, description: { type: Type.STRING } }
             }
           },
           lore: { type: Type.STRING }
@@ -234,66 +221,36 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
 };
 
 export const generateSummary = async (logs: GameLog[], oldSummary: string): Promise<string> => {
-  if (!ai) return oldSummary;
+  const ai = getAI();
   const logContext = logs.map(l => `${l.role === 'dm' ? 'DM' : 'Player'}: ${l.content}`).join('\n');
-  const prompt = `Synthesize the narrative history of this TTRPG session.
-  Previous Summary: "${oldSummary || 'No previous summary.'}"
-  Recent Activity:
-  ${logContext}
-
-  Create a concise but comprehensive "Memory Fragment" for the Dungeon Master. Include:
-  - Key events that have occurred.
-  - Important NPCs and their status.
-  - Current party objectives and locations.
-  - Any significant changes to the world state.
-  Keep it strictly under 300 words.`;
-
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: prompt
+    contents: `Synthesize the narrative history. Previous: "${oldSummary}". Recent: ${logContext}`
   });
   return response.text || oldSummary;
 };
 
 export const getDMResponse = async (history: {role: string, content: string}[], plot: string, newMessage: string, knownCharacters: Character[], summary: string) => {
-  if (!ai) throw new Error("AI service unavailable");
+  const ai = getAI();
   const charList = knownCharacters.map(c => c.name).join(", ");
-  const systemInstruction = `You are a professional TTRPG Dungeon Master for a Dark Fantasy adventure.
-  
-  LONG-TERM NARRATIVE MEMORY:
-  ${summary || 'The story is just beginning.'}
-
-  ORIGINAL PLOT VISION: "${plot}".
-  KNOWN CHARACTERS IN PLAYER'S LIBRARY: ${charList || 'None'}.
-
-  RULES:
-  1. Combat is narrative and flexible. Handle "odd" matchups creatively through clever narration.
-  2. Prioritize story progression over rigid stat-checking.
-  3. Be descriptive but concise (1-2 paragraphs).
-  4. If you introduce a companion/NPC, and their name matches one of the KNOWN CHARACTERS (${charList}), treat them as that specific character with their established lore and traits.
-  5. React dynamically to player creativity. If they describe a clever use of an item or class ability, let it work or have an interesting consequence.
-  6. STAY CONSISTENT with the "LONG-TERM NARRATIVE MEMORY" provided above.`;
-
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: history.map(h => `${h.role === 'dm' ? 'DM' : 'Player'}: ${h.content}`).join('\n') + `\nPlayer: ${newMessage}`,
     config: {
-      systemInstruction
+      systemInstruction: `You are a Dark Fantasy TTRPG DM. Summary: ${summary}. Plot: ${plot}. Known Heroes: ${charList}.`
     }
   });
   return response.text || '';
 };
 
 export const generateImage = async (prompt: string): Promise<string> => {
-  if (!ai) return '';
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [{ text: `Digital painting, high fantasy TTRPG style: ${prompt}` }]
     },
-    config: {
-      imageConfig: { aspectRatio: "1:1" }
-    }
+    config: { imageConfig: { aspectRatio: "1:1" } }
   });
 
   for (const part of response.candidates?.[0]?.content?.parts || []) {

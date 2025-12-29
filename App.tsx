@@ -12,8 +12,15 @@ import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import Peer, { DataConnection } from 'peerjs';
 
+interface Notification {
+  id: string;
+  message: string;
+  type: 'error' | 'success' | 'info';
+}
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const [playerName, setPlayerName] = useState<string>(() => {
     return localStorage.getItem('mythos_player_name') || '';
@@ -47,17 +54,13 @@ const App: React.FC = () => {
   const [serverLogs, setServerLogs] = useState<ServerLog[]>([]);
   const peerRef = useRef<Peer | null>(null);
 
-  // Persistence
-  useEffect(() => {
-    localStorage.setItem('mythos_chars', JSON.stringify(characters));
-    localStorage.setItem('mythos_classes', JSON.stringify(classes));
-    localStorage.setItem('mythos_monsters', JSON.stringify(monsters));
-    localStorage.setItem('mythos_items', JSON.stringify(items));
-    localStorage.setItem('mythos_campaign', JSON.stringify(campaign));
-    if (playerName) {
-      localStorage.setItem('mythos_player_name', playerName);
-    }
-  }, [characters, classes, monsters, items, campaign, playerName]);
+  const notify = (message: string, type: Notification['type'] = 'info') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
 
   const addServerLog = (message: string, type: ServerLog['type'] = 'info') => {
     const newLog: ServerLog = {
@@ -69,21 +72,27 @@ const App: React.FC = () => {
     setServerLogs(prev => [newLog, ...prev].slice(0, 50));
   };
 
+  // Persistence
+  useEffect(() => {
+    localStorage.setItem('mythos_chars', JSON.stringify(characters));
+    localStorage.setItem('mythos_classes', JSON.stringify(classes));
+    localStorage.setItem('mythos_monsters', JSON.stringify(monsters));
+    localStorage.setItem('mythos_items', JSON.stringify(items));
+    localStorage.setItem('mythos_campaign', JSON.stringify(campaign));
+    if (playerName) localStorage.setItem('mythos_player_name', playerName);
+  }, [characters, classes, monsters, items, campaign, playerName]);
+
   const broadcast = useCallback((msg: Partial<SyncMessage>) => {
     const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
     connections.forEach(conn => {
       if (conn.open) conn.send(fullMsg);
     });
     if (isHost && msg.type !== 'PULSE') {
-      addServerLog(`Broadcasting ${msg.type} to all souls`, 'success');
+      addServerLog(`Broadcasting ${msg.type}`, 'success');
     }
   }, [connections, peerId, playerName, isHost]);
 
   const handleIncomingData = useCallback((data: SyncMessage) => {
-    if (isHost) {
-      addServerLog(`Pulse received from ${data.senderName}: ${data.type}`, 'info');
-    }
-
     switch (data.type) {
       case 'STATE_UPDATE':
         if (!isHost) {
@@ -91,7 +100,7 @@ const App: React.FC = () => {
           setMonsters(data.payload.monsters);
           setItems(data.payload.items);
           setClasses(data.payload.classes);
-          addServerLog(`Received world update from Host`, 'success');
+          notify("World synced with Host", "success");
         }
         break;
       case 'NEW_LOG':
@@ -100,24 +109,19 @@ const App: React.FC = () => {
       case 'GIVE_LOOT':
         setItems(prev => [...prev, data.payload]);
         break;
-      case 'SHARE_RESOURCE':
-        if (data.payload.type === 'item') setItems(prev => [...prev, data.payload.data]);
-        if (data.payload.type === 'class') setClasses(prev => [...prev, data.payload.data]);
-        break;
       case 'SUMMARY_UPDATE':
         setCampaign(prev => ({ ...prev, summary: data.payload }));
         break;
       case 'KICK':
         if (!isHost) {
-          addServerLog(`Host has severed your connection.`, 'error');
-          peerRef.current?.destroy();
+          notify("Host has severed your connection", "error");
           window.location.reload();
         }
         break;
     }
   }, [isHost]);
 
-  // PeerJS Setup
+  // PeerJS Stable Setup
   useEffect(() => {
     if (!playerName) return;
 
@@ -126,71 +130,46 @@ const App: React.FC = () => {
 
     peer.on('open', (id) => {
       setPeerId(id);
-      addServerLog(`Chronicle Server Online at Sigil: ${id}`, 'success');
+      addServerLog(`Sigil active: ${id}`, 'success');
     });
     
     peer.on('connection', (conn) => {
       conn.on('open', () => {
         setConnections(prev => [...prev, conn]);
-        addServerLog(`Soul Connected: ${conn.peer}`, 'success');
-        
+        addServerLog(`Soul connected: ${conn.peer}`, 'success');
         if (isHost) {
           conn.send({ 
             type: 'STATE_UPDATE', 
             payload: { campaign, monsters, items, classes },
-            senderId: peer.id,
-            senderName: playerName
+            senderId: peer.id, senderName: playerName
           });
         }
       });
-
       conn.on('data', (data: any) => handleIncomingData(data));
-      
       conn.on('close', () => {
         setConnections(prev => prev.filter(c => c.peer !== conn.peer));
-        addServerLog(`Soul Disconnected: ${conn.peer}`, 'warn');
-      });
-
-      conn.on('error', (err) => {
-        addServerLog(`Connection Error with ${conn.peer}: ${err}`, 'error');
       });
     });
 
-    return () => {
-      peer.destroy();
-    };
-  }, [isHost, playerName, campaign, monsters, items, classes]);
+    peer.on('error', (err) => {
+      addServerLog(`Server Error: ${err.type}`, 'error');
+      if (err.type === 'peer-unavailable') notify("Target Sigil not found", "error");
+    });
+
+    return () => { peer.destroy(); };
+  }, [playerName]); // Stable peer
 
   const joinSession = (id: string) => {
-    const peer = peerRef.current;
-    if (!peer) return;
+    if (!peerRef.current || !id) return;
     setIsHost(false);
-    addServerLog(`Attempting to bind with Sigil: ${id}...`, 'info');
-    const conn = peer.connect(id);
+    addServerLog(`Binding to Sigil: ${id}...`, 'info');
+    const conn = peerRef.current.connect(id);
     conn.on('open', () => {
       setConnections([conn]);
-      addServerLog(`Successfully bound to Host Soul`, 'success');
+      notify("Bound to Host Soul", "success");
     });
     conn.on('data', (data: any) => handleIncomingData(data));
-  };
-
-  const forceSync = () => {
-    if (!isHost) return;
-    broadcast({
-      type: 'STATE_UPDATE',
-      payload: { campaign, monsters, items, classes }
-    });
-    addServerLog('Forced manual world synchronization', 'success');
-  };
-
-  const kickSoul = (id: string) => {
-    const conn = connections.find(c => c.peer === id);
-    if (conn) {
-      conn.send({ type: 'KICK', senderId: peerId, senderName: playerName, payload: null });
-      conn.close();
-      setConnections(prev => prev.filter(c => c.peer !== id));
-      addServerLog(`Banished Soul: ${id}`, 'warn');
-    }
+    conn.on('error', () => notify("Connection failed", "error"));
   };
 
   const handleImportData = (data: any) => {
@@ -199,13 +178,10 @@ const App: React.FC = () => {
     if (data.monsters) setMonsters(data.monsters);
     if (data.items) setItems(data.items);
     if (data.campaign) setCampaign(data.campaign);
-    if (data.playerName) setPlayerName(data.playerName);
-    addServerLog('Imported Grimoire from Archive', 'success');
+    notify("Archive restored", "success");
   };
 
-  if (!playerName) {
-    return <LoginScreen setPlayerName={setPlayerName} />;
-  }
+  if (!playerName) return <LoginScreen setPlayerName={setPlayerName} />;
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -213,74 +189,36 @@ const App: React.FC = () => {
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && (
-            <CampaignView 
-              campaign={campaign} 
-              setCampaign={setCampaign} 
-              characters={characters}
-              broadcast={broadcast}
-              isHost={isHost}
-              classes={classes}
-              playerName={playerName}
-            />
-          )}
-          {activeTab === 'characters' && (
-            <CharacterCreator 
-              characters={characters} 
-              setCharacters={setCharacters} 
-              classes={classes}
-              items={items}
-            />
-          )}
-          {activeTab === 'classes' && (
-            <ClassLibrary 
-              classes={classes} 
-              setClasses={setClasses} 
-              broadcast={broadcast}
-            />
-          )}
-          {activeTab === 'bestiary' && (
-            <Bestiary 
-              monsters={monsters} 
-              setMonsters={setMonsters} 
-            />
-          )}
-          {activeTab === 'armory' && (
-            <Armory 
-              items={items} 
-              setItems={setItems} 
-              broadcast={broadcast}
-            />
-          )}
-          {activeTab === 'multiplayer' && (
-            <MultiplayerPanel 
-              peerId={peerId}
-              isHost={isHost}
-              connections={connections}
-              serverLogs={serverLogs}
-              joinSession={joinSession}
-              setIsHost={setIsHost}
-              forceSync={forceSync}
-              kickSoul={kickSoul}
-            />
-          )}
-          {activeTab === 'archive' && (
-            <ArchivePanel 
-              data={{ characters, classes, monsters, items, campaign, playerName }}
-              onImport={handleImportData}
-            />
-          )}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} />}
+          {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} />}
+          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} />}
+          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
         </div>
       </main>
 
-      {/* Connection Indicator */}
+      {/* Global Notifications */}
+      <div className="fixed top-20 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+        {notifications.map(n => (
+          <div key={n.id} className={`p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[250px] ${
+            n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : 
+            n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 
+            'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'
+          }`}>
+            <p className="text-[10px] font-black uppercase tracking-widest">{n.message}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
         <div className="bg-black/60 backdrop-blur border border-[#b28a48]/20 px-3 py-1 rounded-sm text-[9px] uppercase font-black text-neutral-500">
-          Player: <span className="text-[#b28a48]">{playerName}</span>
+          Soul: <span className="text-[#b28a48]">{playerName}</span>
         </div>
         {connections.length > 0 && (
           <div className="bg-black/60 backdrop-blur border border-[#b28a48]/40 px-3 py-1 rounded-full text-[10px] uppercase font-black text-[#b28a48] animate-pulse">
-            Linked to {connections.length} {connections.length === 1 ? 'Soul' : 'Souls'}
+            {connections.length} {connections.length === 1 ? 'Link' : 'Links'} Active
           </div>
         )}
       </div>

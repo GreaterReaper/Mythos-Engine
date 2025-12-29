@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
 interface SidebarProps {
   activeTab: string;
@@ -7,26 +7,6 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
-
   const tabs = [
     { id: 'campaign', label: 'Play', icon: '⚔️' },
     { id: 'characters', label: 'Party', icon: '👤' },
@@ -69,15 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
           ))}
         </div>
 
-        <div className="mt-auto space-y-4">
-          {deferredPrompt && (
-            <button 
-              onClick={handleInstall}
-              className="w-full flex items-center justify-center gap-2 py-3 border border-[#b28a48]/20 rounded-sm bg-[#b28a48]/5 hover:bg-[#b28a48]/10 text-[9px] font-black uppercase tracking-[0.2em] text-[#b28a48] transition-all"
-            >
-              <span>📥</span> BIND TO DEVICE
-            </button>
-          )}
+        <div className="mt-auto">
           <div className="p-4 border-t border-[#1a1a1a]">
             <div className="flex items-center gap-2 text-[10px] text-neutral-600 uppercase font-bold tracking-tighter">
               <span className="w-2 h-2 rounded-full bg-amber-900 animate-pulse"></span>
@@ -103,15 +75,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
             <span className="text-[9px] font-black uppercase tracking-tight">{tab.label}</span>
           </button>
         ))}
-        {deferredPrompt && (
-          <button 
-            onClick={handleInstall}
-            className="flex flex-col items-center gap-1 flex-1 text-amber-600"
-          >
-            <span className="text-xl">📥</span>
-            <span className="text-[9px] font-black uppercase tracking-tight">Bind</span>
-          </button>
-        )}
       </nav>
     </>
   );

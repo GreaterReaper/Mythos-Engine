@@ -7,9 +7,11 @@ interface ArmoryProps {
   items: Item[];
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   broadcast?: (msg: Partial<SyncMessage>) => void;
+  // Fix: Added notify prop to interface
+  notify: (message: string, type?: any) => void;
 }
 
-const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast }) => {
+const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
   const [description, setDescription] = useState('');
@@ -57,6 +59,11 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast }) => {
       setItems(prev => [...prev, newItem]);
       setName('');
       setDescription('');
+      notify(`${name} forged successfully.`, "success");
+    } catch (e: any) {
+      console.error(e);
+      // Fix: Added notify call for error reporting
+      notify(e.message || "The forge failed to create the relic.", "error");
     } finally {
       setLoading(false);
     }
@@ -67,6 +74,11 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast }) => {
     try {
       const newImg = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${item.type} called "${item.name}". Appearance: ${item.description}. Dark moody lighting, high texture, 8k resolution.`);
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, imageUrl: newImg } : i));
+      notify(`Vision for ${item.name} updated.`, "success");
+    } catch (e: any) {
+      console.error(e);
+      // Fix: Added notify call for error reporting
+      notify(e.message || "The vision failed to manifest.", "error");
     } finally {
       setRegenImgId(null);
     }
@@ -98,6 +110,11 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast }) => {
           mechanics: updated.map((u, idx) => ({ ...u, locked: item.mechanics[idx].locked }))
         };
       }));
+      notify("Arcane properties rewoven.", "success");
+    } catch (e: any) {
+      console.error(e);
+      // Fix: Added notify call for error reporting
+      notify(e.message || "Failed to reweave arcane properties.", "error");
     } finally {
       setRerolling(null);
     }

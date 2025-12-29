@@ -11,9 +11,11 @@ interface CampaignViewProps {
   isHost: boolean;
   classes: ClassDef[];
   playerName: string;
+  // Fix: Added notify prop to interface to match usage in App.tsx
+  notify: (message: string, type?: any) => void;
 }
 
-const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName }) => {
+const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName, notify }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
@@ -40,8 +42,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
       const newSummary = await generateSummary(recentLogs, campaign.summary);
       setCampaign(prev => ({ ...prev, summary: newSummary }));
       broadcast({ type: 'SUMMARY_UPDATE', payload: newSummary });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to synthesize narrative:", error);
+      // Fix: Added notify call for error reporting
+      notify(error.message || "Failed to synthesize narrative memory.", "error");
     } finally {
       setSummarizing(false);
     }
@@ -91,8 +95,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         logs: [...prev.logs, dmMsg]
       }));
       broadcast({ type: 'NEW_LOG', payload: dmMsg });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      // Fix: Added notify call for error reporting
+      notify(error.message || "The Dungeon Master's connection is unstable.", "error");
     } finally {
       setLoading(false);
     }
@@ -112,6 +118,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
       setCampaign(prev => ({ ...prev, logs: [...prev.logs, lootMsg] }));
       broadcast({ type: 'NEW_LOG', payload: lootMsg });
       broadcast({ type: 'GIVE_LOOT', payload: item });
+    } catch (error: any) {
+      console.error(error);
+      // Fix: Added notify call for error reporting
+      notify(error.message || "Failed to forge smart loot artifact.", "error");
     } finally {
       setLoading(false);
     }

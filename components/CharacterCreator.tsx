@@ -31,6 +31,8 @@ interface CharacterCreatorProps {
   setCharacters: React.Dispatch<React.SetStateAction<Character[]>>;
   classes: ClassDef[];
   items?: Item[];
+  // Fix: Added notify prop to interface
+  notify: (message: string, type?: any) => void;
 }
 
 const getModifier = (val: number) => {
@@ -38,7 +40,7 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [] }) => {
+const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify }) => {
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
   const [race, setRace] = useState<RaceType>('Human');
@@ -105,7 +107,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       };
       setCharacters(prev => [...prev, newChar]);
       setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS);
-    } catch (e) { console.error(e); } finally { setGenerating(false); }
+      notify(`${name} has joined the fellowship.`, "success");
+    } catch (e: any) { 
+      console.error(e); 
+      // Fix: Added notify call for error reporting
+      notify(e.message || "Failed to summon hero from the ether.", "error");
+    } finally { setGenerating(false); }
   };
 
   const toggleFeatLock = (charId: string, featIdx: number) => {
@@ -126,6 +133,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         if (c.id !== char.id) return c;
         return { ...c, feats: updatedFeats.map((f, i) => ({ ...f, locked: char.feats[i].locked })) };
       }));
+      notify("Heroic feats rewoven.", "success");
+    } catch (e: any) {
+      console.error(e);
+      // Fix: Added notify call for error reporting
+      notify(e.message || "Failed to reweave feats.", "error");
     } finally { setRerolling(null); }
   };
 

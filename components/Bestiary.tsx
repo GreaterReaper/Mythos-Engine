@@ -6,6 +6,8 @@ import { generateMonsterStats, generateImage, rerollTraits } from '../services/g
 interface BestiaryProps {
   monsters: Monster[];
   setMonsters: React.Dispatch<React.SetStateAction<Monster[]>>;
+  // Fix: Added notify prop to interface
+  notify: (message: string, type?: any) => void;
 }
 
 const getModifier = (val: number) => {
@@ -13,7 +15,7 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters }) => {
+const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, notify }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isBoss, setIsBoss] = useState(false);
@@ -67,8 +69,11 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters }) => {
       setDescription('');
       setIsBoss(false);
       setExpandedId(newMonster.id);
-    } catch (e) {
+      notify(`${name} inscribed into the bestiary.`, "success");
+    } catch (e: any) {
       console.error(e);
+      // Fix: Added notify call for error reporting
+      notify(e.message || "Failed to summon monster into the codex.", "error");
     } finally {
       setLoading(false);
     }
@@ -100,6 +105,12 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters }) => {
             }))
           };
         }));
+        notify("Monstrous traits rewoven.", "success");
+      })
+      .catch(err => {
+        console.error(err);
+        // Fix: Added notify call for error reporting
+        notify(err.message || "The spirits refuse to change this creature.", "error");
       })
       .finally(() => setRerolling(null));
   };

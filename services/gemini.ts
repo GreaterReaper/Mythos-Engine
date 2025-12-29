@@ -2,6 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, MonsterAbility, ItemMechanic, Character, GameLog } from "../types";
 
+// Helper to clean JSON output from potential markdown formatting
+const cleanJson = (text: string) => {
+  if (!text) return '{}';
+  return text.replace(/```json/g, "").replace(/```/g, "").trim();
+};
+
 // Helper to get AI instance safely
 const getAI = () => {
   const apiKey = process.env.API_KEY;
@@ -13,6 +19,7 @@ const getAI = () => {
 
 const handleAIError = (error: any) => {
   const msg = error?.message || "";
+  console.error("AI Error:", error);
   if (msg.includes("429") || msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("limit")) {
     throw new Error("ARCANE_FATIGUE: The Forge is cooling down. Please wait 60 seconds before your next ritual.");
   }
@@ -22,19 +29,23 @@ const handleAIError = (error: any) => {
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
   try {
     const ai = getAI();
-    // Using Flash for higher quota availability
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Create TTRPG mechanics for a custom class named "${name}". Description: ${description}`,
+      contents: `Design detailed TTRPG mechanics for a custom class named "${name}". Lore: ${description}. Focus on balance and flavor.`,
       config: {
+        systemInstruction: "You are an expert TTRPG game designer. Always respond with raw JSON matching the requested schema. Do not include any commentary or markdown formatting outside the JSON.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            hitDie: { type: Type.STRING },
+            hitDie: { type: Type.STRING, description: "e.g., 'd8' or 'd10'" },
             startingHp: { type: Type.INTEGER },
             hpPerLevel: { type: Type.INTEGER },
-            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER } },
+            spellSlots: { 
+              type: Type.ARRAY, 
+              items: { type: Type.INTEGER },
+              description: "Number of slots for levels 1-5"
+            },
             features: { 
               type: Type.ARRAY, 
               items: { 
@@ -51,7 +62,7 @@ export const generateClassMechanics = async (name: string, description: string):
         }
       }
     });
-    return JSON.parse(response.text || '{}');
+    return JSON.parse(cleanJson(response.text || '{}'));
   } catch (e) {
     return handleAIError(e);
   }
@@ -70,14 +81,13 @@ export const rerollTraits = async (
     
     if (countToGenerate <= 0) return existingTraits.map(t => ({ name: t.name, description: t.description }));
 
-    const prompt = `You are a TTRPG designer. For a ${contextType} named "${contextName}" (${contextDesc}), 
-    generate ${countToGenerate} new and unique traits/abilities/features. 
-    The following traits already exist and MUST be kept: ${locked.map(l => l.name).join(', ')}.`;
+    const prompt = `Generate ${countToGenerate} new unique ${contextType} traits for "${contextName}". Avoid repeating existing locked traits: ${locked.map(l => l.name).join(', ')}.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
+        systemInstruction: "You are a creative TTRPG designer. Return only a JSON array of objects with 'name' and 'description' keys.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -93,7 +103,7 @@ export const rerollTraits = async (
       }
     });
 
-    const newTraits = JSON.parse(response.text || '[]');
+    const newTraits = JSON.parse(cleanJson(response.text || '[]'));
     const result: { name: string; description: string }[] = [];
     let newIdx = 0;
 
@@ -116,8 +126,9 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate 3 unique TTRPG Feats for a character of the class "${className}" (${classDesc}).`,
+      contents: `Generate 3 character feats for the class "${className}" (${classDesc}).`,
       config: {
+        systemInstruction: "You are a TTRPG designer. Return only a JSON array of 3 feat objects.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -132,7 +143,7 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
         }
       }
     });
-    return JSON.parse(response.text || '[]');
+    return JSON.parse(cleanJson(response.text || '[]'));
   } catch (e) {
     return handleAIError(e);
   }
@@ -141,12 +152,13 @@ export const generateCharacterFeats = async (className: string, classDesc: strin
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean = false): Promise<Partial<Monster>> => {
   try {
     const ai = getAI();
-    const prompt = `Create monster stats for: "${name}". Appearance: ${description}. ${isBoss ? "This is a BOSS." : ""}`;
+    const prompt = `Create TTRPG stats for: "${name}". Appearance: ${description}. ${isBoss ? "Make it a Boss encounter." : ""}`;
     
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', // Switched to Flash for higher quota
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
+        systemInstruction: "You are a TTRPG monster designer. Generate balanced and interesting stat blocks in JSON format.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -174,7 +186,7 @@ export const generateMonsterStats = async (name: string, description: string, is
         }
       }
     });
-    return JSON.parse(response.text || '{}');
+    return JSON.parse(cleanJson(response.text || '{}'));
   } catch (e) {
     return handleAIError(e);
   }
@@ -185,8 +197,9 @@ export const generateItemMechanics = async (name: string, type: string, descript
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Write TTRPG mechanics and lore for a ${type} called "${name}". Description: ${description}.`,
+      contents: `Define TTRPG mechanics and flavorful lore for: "${name}" (${type}). Lore focus: ${description}.`,
       config: {
+        systemInstruction: "You are a TTRPG item designer. Focus on interesting mechanics and atmospheric lore.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -208,7 +221,7 @@ export const generateItemMechanics = async (name: string, type: string, descript
         }
       }
     });
-    return JSON.parse(response.text || '{"mechanics": [], "lore": ""}');
+    return JSON.parse(cleanJson(response.text || '{"mechanics": [], "lore": ""}'));
   } catch (e) {
     return handleAIError(e);
   }
@@ -219,13 +232,14 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
     const ai = getAI();
     const classDescriptions = party.map(p => {
       const c = classes.find(cl => cl.id === p.classId);
-      return `${p.name} (${c?.name}): ${c?.description}`;
+      return `${p.name} (${c?.name})`;
     }).join(", ");
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Generate a magical item for this TTRPG party: ${classDescriptions}.`,
+      model: 'gemini-3-flash-preview',
+      contents: `Design a unique loot item tailored for a party consisting of: ${classDescriptions}.`,
       config: {
+        systemInstruction: "You are a TTRPG loot master. Generate a single magical item in JSON format.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -246,7 +260,7 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
         }
       }
     });
-    const data = JSON.parse(response.text || '{}');
+    const data = JSON.parse(cleanJson(response.text || '{}'));
     return { ...data, id: Math.random().toString(36).substr(2, 9) };
   } catch (e) {
     return handleAIError(e);
@@ -259,7 +273,7 @@ export const generateSummary = async (logs: GameLog[], oldSummary: string): Prom
     const logContext = logs.map(l => `${l.role === 'dm' ? 'DM' : 'Player'}: ${l.content}`).join('\n');
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Synthesize the narrative history. Previous: "${oldSummary}". Recent: ${logContext}`
+      contents: `Synthesize this narrative session into a concise memory. Current summary: "${oldSummary}". New logs:\n${logContext}`
     });
     return response.text || oldSummary;
   } catch (e) {
@@ -275,7 +289,7 @@ export const getDMResponse = async (history: {role: string, content: string}[], 
       model: 'gemini-3-pro-preview',
       contents: history.map(h => `${h.role === 'dm' ? 'DM' : 'Player'}: ${h.content}`).join('\n') + `\nPlayer: ${newMessage}`,
       config: {
-        systemInstruction: `You are a Dark Fantasy TTRPG DM. Summary: ${summary}. Plot: ${plot}. Known Heroes: ${charList}.`
+        systemInstruction: `You are the Dungeon Master for a Dark Fantasy TTRPG. Summary so far: ${summary}. Current plot: ${plot}. Party members: ${charList}. Keep descriptions atmospheric, grim, and reactive to player choice.`
       }
     });
     return response.text || '';
@@ -290,7 +304,7 @@ export const generateImage = async (prompt: string): Promise<string> => {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: `Digital painting, high fantasy TTRPG style: ${prompt}` }]
+        parts: [{ text: `Digital high-fantasy oil painting, dark atmosphere: ${prompt}` }]
       },
       config: { imageConfig: { aspectRatio: "1:1" } }
     });

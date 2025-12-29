@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [lockoutTime, setLockoutTime] = useState<number>(0);
   const [isQuotaExhausted, setIsQuotaExhausted] = useState<boolean>(false);
   const [dmModel, setDmModel] = useState<string>('gemini-3-pro-preview');
+  const [localResetTime, setLocalResetTime] = useState<string>('');
   const lastLockoutTriggered = useRef<number>(0);
 
   const [playerName, setPlayerName] = useState<string>(() => {
@@ -72,8 +73,37 @@ const App: React.FC = () => {
     }, 7000);
   };
 
+  // Logic to calculate the next Daily Reset in local time (Target: Midnight PT)
+  const calculateReset = useCallback(() => {
+    try {
+      const now = new Date();
+      // Get current date/time string in Pacific Time
+      const ptStr = now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" });
+      const ptNow = new Date(ptStr);
+      
+      // Calculate PT midnight today
+      const ptMidnight = new Date(ptNow);
+      ptMidnight.setHours(24, 0, 0, 0);
+      
+      // Calculate milliseconds from now until PT midnight
+      const msUntilReset = ptMidnight.getTime() - ptNow.getTime();
+      
+      // Apply that duration to the local 'now' to find the local wall-clock reset time
+      const resetDate = new Date(now.getTime() + msUntilReset);
+      
+      setLocalResetTime(resetDate.toLocaleTimeString([], { 
+        weekday: 'short', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }));
+    } catch (e) {
+      setLocalResetTime("Midnight PT");
+    }
+  }, []);
+
   // Arcane Regeneration Logic
   useEffect(() => {
+    calculateReset();
     const regenInterval = setInterval(() => {
       setArcaneTokens(prev => Math.min(prev + 0.016, 3)); 
       setReservoir(prev => Math.min(prev + 1.1, 100)); 
@@ -87,6 +117,9 @@ const App: React.FC = () => {
       });
     }, 1000);
 
+    // Refresh reset time every hour
+    const resetRefreshInterval = setInterval(calculateReset, 3600000);
+
     const handleUsage = (e: any) => {
       const { type, cost } = e.detail;
       if (type === 'dm') setArcaneTokens(prev => Math.max(prev - 1, 0));
@@ -97,7 +130,7 @@ const App: React.FC = () => {
       if (e.detail.isRateLimit) {
         if (e.detail.isQuotaExceeded) {
           setIsQuotaExhausted(true);
-          notify("DAILY QUOTA REACHED: The 'Pro' ley line is exhausted (50 msg limit). Switch to 'High Velocity' in Play tab to continue.", "error");
+          notify(`DAILY QUOTA REACHED: The 'Pro' ley line is exhausted. Resets at ${localResetTime}. Switch to 'High Velocity' to continue.`, "error");
           return;
         }
 
@@ -116,10 +149,11 @@ const App: React.FC = () => {
 
     return () => {
       clearInterval(regenInterval);
+      clearInterval(resetRefreshInterval);
       window.removeEventListener('mythos:arcane_use' as any, handleUsage);
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
-  }, []);
+  }, [calculateReset, localResetTime]);
 
   const logout = () => {
     if (confirm("Sever bond with Mythos?")) {
@@ -205,7 +239,7 @@ const App: React.FC = () => {
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
@@ -256,16 +290,17 @@ const App: React.FC = () => {
                 {isExhausted ? lockoutTime : isQuotaExhausted && dmModel.includes('pro') ? '!' : Math.round(reservoir)}
               </span>
             </div>
-            <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-48 shadow-2xl z-[110]">
+            <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-56 shadow-2xl z-[110]">
                <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
                  {isExhausted ? 'RECALIBRATION' : isQuotaExhausted ? 'QUOTA EXHAUSTED' : 'ARCANE STABILITY'}
                </h5>
                <div className="h-1 w-full bg-neutral-900 mb-2">
                  <div className={`h-full transition-all ${isExhausted || isQuotaExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
                </div>
-               <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold">
+               <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold space-y-1">
                  DM: {dmModel.includes('pro') ? 'High Fidelity (50/day)' : 'High Velocity (1500/day)'}<br/>
                  Tokens: {Math.floor(arcaneTokens)}/3<br/>
+                 Reset: <span className="text-[#b28a48]">{localResetTime}</span><br/>
                  {isQuotaExhausted && dmModel.includes('pro') ? 'DAILY PRO QUOTA HIT' : isExhausted ? `RECALIBRATING: ${lockoutTime}S` : 'LEY LINES STABLE'}
                </p>
             </div>

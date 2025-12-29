@@ -16,9 +16,14 @@ interface CampaignViewProps {
   dmModel: string;
   setDmModel: (val: string) => void;
   isQuotaExhausted: boolean;
+  localResetTime: string;
 }
 
-const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, characters, broadcast, isHost, classes, playerName, notify, arcadeReady, dmModel, setDmModel, isQuotaExhausted }) => {
+const CampaignView: React.FC<CampaignViewProps> = ({ 
+  campaign, setCampaign, characters, broadcast, isHost, 
+  classes, playerName, notify, arcadeReady, dmModel, 
+  setDmModel, isQuotaExhausted, localResetTime 
+}) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
@@ -35,7 +40,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
     if (isHost && playerLogsCount > 0 && playerLogsCount % 5 === 0 && !summarizing) {
       handleNarrativeSynthesis();
     }
-  }, [campaign.logs.length, isHost]);
+  }, [campaign.logs.length, isHost, summarizing]);
 
   const handleNarrativeSynthesis = async () => {
     setSummarizing(true);
@@ -175,7 +180,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
             {activeParty.map(c => (
               <div key={c.id} className="group relative">
                 <div className="w-8 h-8 rounded-full border border-[#b28a48]/50 overflow-hidden bg-black flex items-center justify-center">
-                  {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0" /> : <span className="text-xs">👤</span>}
+                  {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0" alt={c.name} /> : <span className="text-xs">👤</span>}
                 </div>
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black border border-[#b28a48]/30 rounded text-[8px] font-black uppercase tracking-widest text-[#b28a48] invisible group-hover:visible whitespace-nowrap z-50">
                   {c.name}
@@ -226,13 +231,16 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         className="flex-1 bg-neutral-950/40 rounded-sm border border-[#1a1a1a] overflow-y-auto p-5 md:p-8 space-y-8 scrollbar-hide"
       >
         {isQuotaExhausted && dmModel.includes('pro') && (
-          <div className="bg-red-950/20 border-2 border-red-900 p-4 text-center mb-4">
-             <p className="text-red-500 font-black text-xs uppercase tracking-widest">
-               Ancestral Quota Exhausted (Daily Pro Limit Hit)
+          <div className="bg-red-950/20 border-2 border-red-900 p-6 text-center mb-6 rounded-sm shadow-2xl">
+             <h4 className="text-red-500 font-black text-sm uppercase tracking-widest mb-1">
+               Ancestral Quota Exhausted
+             </h4>
+             <p className="text-[10px] text-red-900 font-black uppercase mb-4">
+               The 'Pro' Ley Line resets on {localResetTime}
              </p>
              <button 
                onClick={() => setDmModel('gemini-3-flash-preview')}
-               className="mt-2 text-[10px] bg-red-900 text-white px-4 py-1 font-black uppercase hover:bg-red-800 transition-all"
+               className="text-[10px] bg-red-900 text-white px-6 py-2 font-black uppercase hover:bg-red-800 transition-all shadow-xl"
              >
                Switch to High Velocity Mode
              </button>
@@ -284,7 +292,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
         </div>
         {!arcadeReady && (
           <div className="text-[8px] font-black uppercase text-amber-900 tracking-widest text-center animate-pulse">
-            {isQuotaExhausted && dmModel.includes('pro') ? 'PRO QUOTA DEPLETED - SWITCH TO VELOCITY MODE' : 'Resonating with the Ether...'}
+            {isQuotaExhausted && dmModel.includes('pro') ? `PRO QUOTA DEPLETED - RESET AT ${localResetTime}` : 'Resonating with the Ether...'}
           </div>
         )}
       </div>

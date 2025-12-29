@@ -139,18 +139,15 @@ const App: React.FC = () => {
   }, [isHost]);
 
   // PeerJS Stable Setup
-  const initPeer = useCallback((customId?: string) => {
-    if (peerRef.current) {
-      peerRef.current.destroy();
-    }
+  useEffect(() => {
+    if (!playerName) return;
 
-    const peer = customId ? new Peer(customId) : new Peer();
+    const peer = new Peer();
     peerRef.current = peer;
 
     peer.on('open', (id) => {
       setPeerId(id);
       addServerLog(`Sigil active: ${id}`, 'success');
-      if (customId) notify(`Ancestral Sigil "${id}" Bound`, "success");
     });
     
     peer.on('connection', (conn) => {
@@ -174,20 +171,10 @@ const App: React.FC = () => {
     peer.on('error', (err) => {
       addServerLog(`Server Error: ${err.type}`, 'error');
       if (err.type === 'peer-unavailable') notify("Target Sigil not found", "error");
-      if (err.type === 'unavailable-id') notify("Sigil already bound to another portal", "error");
     });
-  }, [isHost, campaign, monsters, items, classes, playerName, handleIncomingData]);
 
-  useEffect(() => {
-    if (!playerName) return;
-    initPeer();
-    return () => { peerRef.current?.destroy(); };
-  }, [playerName]); // Only runs on login
-
-  const rehostWithSigil = (id: string) => {
-    setIsHost(true);
-    initPeer(id);
-  };
+    return () => { peer.destroy(); };
+  }, [playerName]); // Stable peer
 
   const joinSession = (id: string) => {
     if (!peerRef.current || !id) return;
@@ -224,7 +211,7 @@ const App: React.FC = () => {
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={() => broadcast({ type: 'STATE_UPDATE', payload: { campaign, monsters, items, classes } })} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
         </div>
       </main>

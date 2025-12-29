@@ -29,37 +29,35 @@ const getAI = () => {
 /**
  * Resiliency Wrapper: Implements exponential backoff for transient errors (429, 5xx)
  */
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 1500): Promise<T> {
   try {
     return await fn();
   } catch (error: any) {
     const errorStr = error.toString().toLowerCase();
-    // Detect rate limit even if the error message has been transformed
+    
+    // Precise detection only: avoid "exhausted" as it appears in non-rate-limit msgs
     const isRateLimit = errorStr.includes('429') || 
-                       errorStr.includes('rate limit') || 
-                       errorStr.includes('quota') || 
-                       errorStr.includes('exhausted');
+                       errorStr.includes('too many requests') || 
+                       errorStr.includes('quota exceeded');
     
     const isServerError = errorStr.includes('500') || errorStr.includes('503') || errorStr.includes('overloaded');
     
-    if (isRateLimit) reportError(true);
+    if (isRateLimit && retries === 0) reportError(true);
 
     if ((isRateLimit || isServerError) && retries > 0) {
-      console.warn(`Ley Line Interference detected. Retrying in ${initialDelay}ms... (${retries} attempts left)`);
+      console.warn(`Ley Line interference. Retrying in ${initialDelay}ms...`);
       await new Promise(resolve => setTimeout(resolve, initialDelay));
-      // Triple delay on each attempt for rate limits to ensure bucket reset
-      return withRetry(fn, retries - 1, isRateLimit ? initialDelay * 3 : initialDelay * 2);
+      return withRetry(fn, retries - 1, initialDelay * 2);
     }
     throw error;
   }
 }
 
 const handleAIError = (error: any) => {
-  console.error("AI Error:", error);
+  console.error("AI Service Error:", error);
   const msg = error.message || "The ether is unstable.";
-  // We keep the "429" code in the string so withRetry can detect it
-  if (msg.includes("429")) {
-    return new Error("[429] The Arcane Foci are exhausted. The Ley Lines require rest (30s+).");
+  if (msg.includes("429") || msg.includes("quota")) {
+    return new Error("[429] The Ley Lines are temporarily overloaded. Please wait 15-30 seconds.");
   }
   return error;
 };
@@ -67,7 +65,7 @@ const handleAIError = (error: any) => {
 // Generate image using gemini-2.5-flash-image
 export const generateImage = async (prompt: string): Promise<string> => {
   return withRetry(async () => {
-    trackUsage('utility', 25);
+    trackUsage('utility', 15); // Reduced cost
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
@@ -89,14 +87,14 @@ export const generateImage = async (prompt: string): Promise<string> => {
 // Generate TTRPG class mechanics using gemini-3-flash-preview
 export const generateClassMechanics = async (name: string, description: string): Promise<Partial<ClassDef>> => {
   return withRetry(async () => {
-    trackUsage('utility', 5);
+    trackUsage('utility', 4); // Reduced cost
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Design detailed TTRPG mechanics for a custom class named "${name}". Lore: ${description}. Focus on balance and flavor.`,
         config: {
-          systemInstruction: "You are an expert TTRPG game designer. Always respond with raw JSON matching the requested schema. Do not include any commentary or markdown formatting outside the JSON.",
+          systemInstruction: "You are an expert TTRPG game designer. Always respond with raw JSON. No markdown.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -109,10 +107,7 @@ export const generateClassMechanics = async (name: string, description: string):
                 type: Type.ARRAY, 
                 items: { 
                   type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    description: { type: Type.STRING }
-                  },
+                  properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
                   required: ["name", "description"]
                 } 
               }
@@ -136,29 +131,26 @@ export const rerollTraits = async (
   existingTraits: { name: string; description: string; locked?: boolean }[]
 ): Promise<{ name: string; description: string }[]> => {
   return withRetry(async () => {
-    trackUsage('utility', 2);
+    trackUsage('utility', 1); // Nearly free rerolls
     try {
       const ai = getAI();
       const locked = existingTraits.filter(t => t.locked);
       const countToGenerate = existingTraits.length - locked.length;
       if (countToGenerate <= 0) return existingTraits.map(t => ({ name: t.name, description: t.description }));
 
-      const prompt = `Generate ${countToGenerate} new unique ${contextType} traits for "${contextName}". Avoid repeating existing locked traits: ${locked.map(l => l.name).join(', ')}.`;
+      const prompt = `Generate ${countToGenerate} new unique ${contextType} traits for "${contextName}". Avoid: ${locked.map(l => l.name).join(', ')}.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          systemInstruction: "You are a creative TTRPG designer. Return only a JSON array of objects with 'name' and 'description' keys.",
+          systemInstruction: "Return a JSON array of objects with 'name' and 'description'.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                description: { type: Type.STRING }
-              },
+              properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
               required: ["name", "description"]
             }
           }
@@ -187,23 +179,20 @@ export const rerollTraits = async (
 // Generate character feats using gemini-3-flash-preview
 export const generateCharacterFeats = async (className: string, classDesc: string): Promise<Trait[]> => {
   return withRetry(async () => {
-    trackUsage('utility', 3);
+    trackUsage('utility', 2); // Reduced cost
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Generate 3 character feats for the class "${className}" (${classDesc}).`,
+        contents: `Generate 3 character feats for a ${className}.`,
         config: {
-          systemInstruction: "You are a TTRPG designer. Return only a JSON array of 3 feat objects.",
+          systemInstruction: "Return a JSON array of 3 feat objects.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                description: { type: Type.STRING }
-              },
+              properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
               required: ["name", "description"]
             }
           }
@@ -222,27 +211,21 @@ export const generateMonsterStats = async (name: string, description: string, is
     trackUsage('utility', 5);
     try {
       const ai = getAI();
-      const prompt = `Create TTRPG stats for: "${name}". Appearance: ${description}. ${isBoss ? "Make it a Boss encounter." : ""}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: prompt,
+        contents: `Stats for: "${name}". ${isBoss ? "Boss." : ""}`,
         config: {
-          systemInstruction: "You are a TTRPG monster designer. Generate balanced statistics and unique abilities. Return JSON only.",
+          systemInstruction: "Generate TTRPG monster JSON.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              hp: { type: Type.INTEGER },
-              ac: { type: Type.INTEGER },
+              hp: { type: Type.INTEGER }, ac: { type: Type.INTEGER },
               stats: {
                 type: Type.OBJECT,
                 properties: {
-                  strength: { type: Type.INTEGER },
-                  dexterity: { type: Type.INTEGER },
-                  constitution: { type: Type.INTEGER },
-                  intelligence: { type: Type.INTEGER },
-                  wisdom: { type: Type.INTEGER },
-                  charisma: { type: Type.INTEGER }
+                  strength: { type: Type.INTEGER }, dexterity: { type: Type.INTEGER }, constitution: { type: Type.INTEGER },
+                  intelligence: { type: Type.INTEGER }, wisdom: { type: Type.INTEGER }, charisma: { type: Type.INTEGER }
                 },
                 required: ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
               },
@@ -250,10 +233,7 @@ export const generateMonsterStats = async (name: string, description: string, is
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    effect: { type: Type.STRING }
-                  },
+                  properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } },
                   required: ["name", "effect"]
                 }
               }
@@ -272,14 +252,14 @@ export const generateMonsterStats = async (name: string, description: string, is
 // Generate item mechanics using gemini-3-flash-preview
 export const generateItemMechanics = async (name: string, type: 'Weapon' | 'Armor', description: string): Promise<{ mechanics: { name: string; description: string }[]; lore: string }> => {
   return withRetry(async () => {
-    trackUsage('utility', 5);
+    trackUsage('utility', 4);
     try {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Generate TTRPG mechanics and a brief lore snippet for a ${type} named "${name}". Appearance: ${description}.`,
+        contents: `Mechanics for ${type} "${name}".`,
         config: {
-          systemInstruction: "You are a legendary blacksmith and enchanter. Return JSON only.",
+          systemInstruction: "Return JSON for item mechanics and lore.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -288,10 +268,7 @@ export const generateItemMechanics = async (name: string, type: 'Weapon' | 'Armo
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    description: { type: Type.STRING }
-                  },
+                  properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
                   required: ["name", "description"]
                 }
               },
@@ -320,7 +297,6 @@ export const getDMResponse = async (
     trackUsage('dm', 0);
     try {
       const ai = getAI();
-      const partyInfo = party.map(c => `${c.name} (${c.race})`).join(', ');
       const contents = history.map(h => ({
         role: h.role === 'dm' ? 'model' : 'user',
         parts: [{ text: h.content }]
@@ -330,29 +306,25 @@ export const getDMResponse = async (
         model: 'gemini-3-pro-preview',
         contents: contents,
         config: {
-          systemInstruction: `You are an immersive Dungeon Master. Plot: ${plot}. Party: ${partyInfo}. Summary of saga: ${summary}. Respond with narrative and react to player actions. Keep it evocative but concise.`,
+          systemInstruction: `You are a DM. Plot: ${plot}. Summary: ${summary}.`,
         }
       });
-      return response.text || "The fog of war obscures the path...";
+      return response.text || "...";
     } catch (e) {
       throw handleAIError(e);
     }
-  });
+  }, 2);
 };
 
 // Generate narrative summary using gemini-3-flash-preview
 export const generateSummary = async (logs: GameLog[], currentSummary: string): Promise<string> => {
   return withRetry(async () => {
-    trackUsage('utility', 4);
+    trackUsage('utility', 2);
     try {
       const ai = getAI();
-      const logText = logs.map(l => `${l.role.toUpperCase()}: ${l.content}`).join('\n');
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Update the following TTRPG saga summary based on the recent logs.\nCurrent Summary: ${currentSummary}\nRecent Logs:\n${logText}`,
-        config: {
-          systemInstruction: "You are a chronicler. Summarize the key events of the story clearly and concisely.",
-        }
+        contents: `Update summary. Current: ${currentSummary}. Logs: ${logs.length}`,
       });
       return response.text || currentSummary;
     } catch (e) {
@@ -364,35 +336,25 @@ export const generateSummary = async (logs: GameLog[], currentSummary: string): 
 // Generate smart loot for party using gemini-3-flash-preview
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
   return withRetry(async () => {
-    trackUsage('utility', 8);
+    trackUsage('utility', 6);
     try {
       const ai = getAI();
-      const partyContext = party.map(p => {
-        const c = classes.find(cl => cl.id === p.classId);
-        return `${p.name} (Level ${p.level} ${c?.name || 'Adventurer'})`;
-      }).join(', ');
-      
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Create a unique magic item tailored for one or more members of this party: ${partyContext}.`,
+        contents: `Create loot for party: ${party.map(p => p.name).join(', ')}.`,
         config: {
-          systemInstruction: "You are a treasure generator. Return JSON for a unique magic item.",
+          systemInstruction: "Return JSON for magic item.",
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              name: { type: Type.STRING },
-              type: { type: Type.STRING },
-              description: { type: Type.STRING },
-              lore: { type: Type.STRING },
+              name: { type: Type.STRING }, type: { type: Type.STRING },
+              description: { type: Type.STRING }, lore: { type: Type.STRING },
               mechanics: {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
-                  properties: {
-                    name: { type: Type.STRING },
-                    description: { type: Type.STRING }
-                  },
+                  properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
                   required: ["name", "description"]
                 }
               }

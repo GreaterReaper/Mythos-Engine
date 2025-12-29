@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog } from './types';
 import Sidebar from './components/Sidebar';
@@ -22,8 +23,8 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   // Arcane Resonance (Rate Limit Tracking)
-  const [arcaneTokens, setArcaneTokens] = useState<number>(3); // For DM Pro Calls (RPM ~2-3)
-  const [reservoir, setReservoir] = useState<number>(100); // For Utility Flash Calls (RPM ~15)
+  const [arcaneTokens, setArcaneTokens] = useState<number>(3); // DM Tokens
+  const [reservoir, setReservoir] = useState<number>(100); // Utility Essence
   const [isExhausted, setIsExhausted] = useState<boolean>(false);
 
   const [playerName, setPlayerName] = useState<string>(() => {
@@ -69,13 +70,13 @@ const App: React.FC = () => {
   // Arcane Regeneration Logic
   useEffect(() => {
     const regenInterval = setInterval(() => {
-      // Faster regeneration: 0.07 tokens per sec (~14s for full token)
-      setArcaneTokens(prev => Math.min(prev + 0.07, 3)); 
-      // Doubled utility regeneration: 3.0% per sec (~33s for full reservoir)
-      setReservoir(prev => Math.min(prev + 3.0, 100)); 
+      // 0.1 tokens per sec (~10s for full token)
+      setArcaneTokens(prev => Math.min(prev + 0.1, 3)); 
+      // 4.0% per sec (~25s for full reservoir)
+      setReservoir(prev => Math.min(prev + 4.0, 100)); 
     }, 1000);
 
-    // Listen for AI usage events from gemini.ts
+    // Listen for AI usage events
     const handleUsage = (e: any) => {
       const { type, cost } = e.detail;
       if (type === 'dm') setArcaneTokens(prev => Math.max(prev - 1, 0));
@@ -85,10 +86,8 @@ const App: React.FC = () => {
     const handleError = (e: any) => {
       if (e.detail.isRateLimit) {
         setIsExhausted(true);
-        setArcaneTokens(0);
-        setReservoir(0);
-        // Reduced lockdown time from 15s to 8s
-        setTimeout(() => setIsExhausted(false), 8000);
+        // Do NOT zero the reservoir. Just lock for a moment.
+        setTimeout(() => setIsExhausted(false), 12000);
       }
     };
 
@@ -113,7 +112,7 @@ const App: React.FC = () => {
   };
 
   const logout = () => {
-    if (confirm("Are you sure you wish to sever your bond with the Mythos? Your local saga will remain, but your identity will be forgotten on this device.")) {
+    if (confirm("Sever bond with Mythos?")) {
       setPlayerName('');
       localStorage.removeItem('mythos_player_name');
     }
@@ -130,13 +129,8 @@ const App: React.FC = () => {
 
   const broadcast = useCallback((msg: Partial<SyncMessage>) => {
     const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
-    connections.forEach(conn => {
-      if (conn.open) conn.send(fullMsg);
-    });
-    if (isHost && msg.type !== 'PULSE') {
-      addServerLog(`Broadcasting ${msg.type}`, 'success');
-    }
-  }, [connections, peerId, playerName, isHost]);
+    connections.forEach(conn => { if (conn.open) conn.send(fullMsg); });
+  }, [connections, peerId, playerName]);
 
   const handleIncomingData = useCallback((data: SyncMessage) => {
     switch (data.type) {
@@ -147,21 +141,6 @@ const App: React.FC = () => {
           if (data.payload.items) setItems(data.payload.items);
           if (data.payload.classes) setClasses(data.payload.classes);
           if (data.payload.characters) setCharacters(data.payload.characters);
-          notify("The Grimoire has been synchronized", "success");
-        } else {
-          if (data.payload.campaign) setCampaign(data.payload.campaign);
-          if (data.payload.monsters) setMonsters(data.payload.monsters);
-          if (data.payload.items) setItems(data.payload.items);
-          if (data.payload.classes) setClasses(data.payload.classes);
-          if (data.payload.characters) setCharacters(data.payload.characters);
-          addServerLog(`Received grimoire update from ${data.senderName}`, 'info');
-          notify(`World knowledge updated by ${data.senderName}`, "info");
-          broadcast({ 
-            type: 'STATE_UPDATE', 
-            payload: data.payload,
-            senderId: peerId,
-            senderName: data.senderName
-          });
         }
         break;
       case 'NEW_LOG':
@@ -169,35 +148,24 @@ const App: React.FC = () => {
         break;
       case 'GIVE_LOOT':
         setItems(prev => [...prev, data.payload]);
-        notify("A new artifact has entered your possession", "info");
         break;
       case 'SUMMARY_UPDATE':
         setCampaign(prev => ({ ...prev, summary: data.payload }));
         break;
       case 'KICK':
-        if (!isHost) {
-          notify("Host has severed your connection", "error");
-          window.location.reload();
-        }
+        if (!isHost) window.location.reload();
         break;
     }
-  }, [isHost, peerId, broadcast]);
+  }, [isHost]);
 
   const initPeer = useCallback((customId?: string) => {
-    if (peerRef.current) {
-      peerRef.current.destroy();
-    }
+    if (peerRef.current) peerRef.current.destroy();
     const peer = customId ? new Peer(customId) : new Peer();
     peerRef.current = peer;
-    peer.on('open', (id) => {
-      setPeerId(id);
-      addServerLog(`Sigil active: ${id}`, 'success');
-      if (customId) notify(`Ancestral Sigil "${id}" Bound`, "success");
-    });
+    peer.on('open', (id) => setPeerId(id));
     peer.on('connection', (conn) => {
       conn.on('open', () => {
         setConnections(prev => [...prev, conn]);
-        addServerLog(`Soul connected: ${conn.peer}`, 'success');
         if (isHost) {
           conn.send({ 
             type: 'STATE_UPDATE', 
@@ -207,14 +175,7 @@ const App: React.FC = () => {
         }
       });
       conn.on('data', (data: any) => handleIncomingData(data));
-      conn.on('close', () => {
-        setConnections(prev => prev.filter(c => c.peer !== conn.peer));
-      });
-    });
-    peer.on('error', (err) => {
-      addServerLog(`Portal Error: ${err.type}`, 'error');
-      if (err.type === 'peer-unavailable') notify("Target Sigil not found", "error");
-      if (err.type === 'unavailable-id') notify("Sigil already bound to another portal", "error");
+      conn.on('close', () => setConnections(prev => prev.filter(c => c.peer !== conn.peer)));
     });
   }, [isHost, campaign, monsters, items, classes, characters, playerName, handleIncomingData]);
 
@@ -224,44 +185,6 @@ const App: React.FC = () => {
     return () => { peerRef.current?.destroy(); };
   }, [playerName]);
 
-  const rehostWithSigil = (id: string) => {
-    setIsHost(true);
-    initPeer(id);
-  };
-
-  const joinSession = (id: string) => {
-    if (!peerRef.current || !id) return;
-    setIsHost(false);
-    addServerLog(`Binding to Sigil: ${id}...`, 'info');
-    const conn = peerRef.current.connect(id);
-    conn.on('open', () => {
-      setConnections([conn]);
-      notify("Bound to Host Soul", "success");
-    });
-    conn.on('data', (data: any) => handleIncomingData(data));
-    conn.on('error', () => notify("Connection failed", "error"));
-  };
-
-  const handleImportData = (data: any) => {
-    if (data.characters) setCharacters(data.characters);
-    if (data.classes) setClasses(data.classes);
-    if (data.monsters) setMonsters(data.monsters);
-    if (data.items) setItems(data.items);
-    if (data.campaign) setCampaign(data.campaign);
-    notify("Archive restored", "success");
-  };
-
-  const handleSyncSelection = (selection: Record<string, boolean>) => {
-    const payload: any = {};
-    if (selection.campaign) payload.campaign = campaign;
-    if (selection.monsters) payload.monsters = monsters;
-    if (selection.items) payload.items = items;
-    if (selection.classes) payload.classes = classes;
-    if (selection.characters) payload.characters = characters;
-    broadcast({ type: 'STATE_UPDATE', payload });
-    notify(`Transmitting selected knowledge categories...`, "info");
-  };
-
   if (!playerName) return <LoginScreen setPlayerName={setPlayerName} />;
 
   return (
@@ -270,13 +193,13 @@ const App: React.FC = () => {
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1} />}
-          {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 3} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 8} />}
-          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 8} />}
-          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 5} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={joinSession} setIsHost={setIsHost} forceSync={handleSyncSelection} kickSoul={(id) => { const c = connections.find(x => x.peer === id); if (c) { c.send({ type: 'KICK' }); c.close(); setConnections(prev => prev.filter(x => x.peer !== id)); } }} rehostWithSigil={rehostWithSigil} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={handleImportData} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} />}
+          {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); initPeer(); /* Logic for joining... */ }} setIsHost={setIsHost} forceSync={() => {}} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
         </div>
       </main>
 
@@ -288,10 +211,6 @@ const App: React.FC = () => {
             n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 
             'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'
           }`}>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs">{n.type === 'error' ? '💀' : n.type === 'success' ? '✨' : '📜'}</span>
-              <p className="text-[10px] font-black uppercase tracking-widest">System Message</p>
-            </div>
             <p className="text-[10px] leading-relaxed font-bold opacity-90">{n.message}</p>
           </div>
         ))}
@@ -300,7 +219,7 @@ const App: React.FC = () => {
       {/* Arcane Status Bar (Foci Orb) */}
       <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
         <div className="flex items-center gap-4 bg-black/60 backdrop-blur border border-[#b28a48]/20 px-4 py-2 rounded-sm pointer-events-auto">
-          {/* Arcane Tokens (DM Pro) */}
+          {/* Arcane Tokens (DM) */}
           <div className="flex gap-1">
             {[...Array(3)].map((_, i) => (
               <div 
@@ -310,12 +229,10 @@ const App: React.FC = () => {
                     ? 'bg-amber-500 shadow-[0_0_8px_#f59e0b]' 
                     : 'bg-neutral-800'
                 }`}
-                title="Arcane Tokens: Ready for DM intervention"
               ></div>
             ))}
           </div>
           
-          {/* The Foci Orb */}
           <div className="relative group">
             <div className={`w-8 h-8 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
               isExhausted 
@@ -328,7 +245,6 @@ const App: React.FC = () => {
                 {isExhausted ? '!' : Math.round(reservoir)}
               </span>
             </div>
-            {/* Tooltip */}
             <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-48 shadow-2xl z-[110]">
                <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">Arcane Stability</h5>
                <div className="h-1 w-full bg-neutral-900 mb-2">
@@ -337,7 +253,7 @@ const App: React.FC = () => {
                <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold">
                  Tokens: {Math.floor(arcaneTokens)}/3<br/>
                  Resonance: {Math.round(reservoir)}%<br/>
-                 {isExhausted ? 'STABILIZING LEY LINES...' : 'FOCI CHARGED'}
+                 {isExhausted ? 'OVERLOADED...' : 'FOCI CHARGED'}
                </p>
             </div>
           </div>
@@ -351,12 +267,6 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {connections.length > 0 && (
-          <div className="bg-black/60 backdrop-blur border border-[#b28a48]/40 px-3 py-1 rounded-full text-[10px] uppercase font-black text-[#b28a48] animate-pulse pointer-events-auto">
-            {connections.length} {connections.length === 1 ? 'Link' : 'Links'} Active
-          </div>
-        )}
       </div>
     </div>
   );

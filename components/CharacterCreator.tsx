@@ -32,7 +32,6 @@ interface CharacterCreatorProps {
   classes: ClassDef[];
   items?: Item[];
   notify: (message: string, type?: any) => void;
-  // Fix: Added missing reservoirReady property to interface to handle UI state for API availability
   reservoirReady: boolean;
 }
 
@@ -41,7 +40,6 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-// Fix: Destructured reservoirReady from props to use in button disabled logic
 const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify, reservoirReady }) => {
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
@@ -90,7 +88,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleCreate = async () => {
-    // Fix: Guard handleCreate with reservoirReady check
     if (!name || !classId || !reservoirReady) return;
     setGenerating(true);
     try {
@@ -127,7 +124,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleRerollFeats = async (char: Character) => {
-    // Fix: Guard handleRerollFeats with reservoirReady check
     if (!reservoirReady) return;
     setRerolling(char.id);
     try {
@@ -196,9 +192,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 Essence Remaining: <span className="text-amber-700">{pointsRemaining}</span>
               </div>
 
-              {/* Fix: Applied reservoirReady to disabled state and button text to prevent unauthorized requests */}
-              <button onClick={handleCreate} disabled={generating || !name || !classId || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20">
-                {generating ? 'SUMMONING...' : !reservoirReady ? 'ENERGY LOW...' : 'BIND HERO'}
+              <button onClick={handleCreate} disabled={generating || !name || !classId || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20 flex flex-col items-center gap-1">
+                {generating ? 'SUMMONING...' : !reservoirReady ? 'ENERGY LOW...' : (
+                  <>
+                    <span>BIND HERO</span>
+                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-28⚡ ESSENCE]</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -286,9 +286,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   <div className="space-y-6">
                     <div className="flex justify-between items-center border-b border-[#b28a48]/20 pb-4">
                       <h4 className="text-xl font-black fantasy-font text-neutral-400 tracking-widest">Heritage & Feats</h4>
-                      {/* Fix: Added reservoirReady to disabled logic for reroll button within character details */}
-                      <button onClick={() => handleRerollFeats(selectedChar)} disabled={rerolling === selectedChar.id || !reservoirReady} className="text-[10px] font-black text-neutral-600 hover:text-amber-700 uppercase tracking-[0.3em] transition-all disabled:opacity-20">
-                        {rerolling === selectedChar.id ? 'REWEAVING...' : !reservoirReady ? 'ENERGY LOW...' : 'Reroll Potential 🎲'}
+                      <button onClick={() => handleRerollFeats(selectedChar)} disabled={rerolling === selectedChar.id || !reservoirReady} className="text-[10px] font-black text-neutral-600 hover:text-amber-700 uppercase tracking-[0.3em] transition-all disabled:opacity-20 flex items-center gap-2">
+                        {rerolling === selectedChar.id ? 'REWEAVING...' : (
+                          <>
+                            <span>Reroll Potential 🎲</span>
+                            <span className="text-amber-700/80">[-2⚡]</span>
+                          </>
+                        )}
                       </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

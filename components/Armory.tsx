@@ -8,11 +8,9 @@ interface ArmoryProps {
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   broadcast?: (msg: Partial<SyncMessage>) => void;
   notify: (message: string, type?: any) => void;
-  // Fix: Added missing reservoirReady property to interface to handle UI state for API availability
   reservoirReady: boolean;
 }
 
-// Fix: Destructured reservoirReady from props to use in interaction logic
 const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
@@ -41,7 +39,6 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   }, [items, search, typeFilter, sortBy]);
 
   const handleCreate = async () => {
-    // Fix: Guard handleCreate with reservoirReady check
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
@@ -79,7 +76,6 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   };
 
   const handleReroll = async (item: Item) => {
-    // Fix: Guard handleReroll with reservoirReady check
     if (!reservoirReady) return;
     setRerolling(item.id);
     try {
@@ -117,9 +113,13 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                 <option value="Armor">Armor</option>
               </select>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="DESCRIBE THE ARTIFACT'S LEGEND..." className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-32 text-xs text-neutral-500 uppercase tracking-tight focus:border-[#b28a48] outline-none font-serif italic" />
-              {/* Fix: Applied reservoirReady to disabled logic and message for forge button */}
-              <button onClick={handleCreate} disabled={loading || !name || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-4 font-black text-[10px] uppercase tracking-[0.3em] transition-all disabled:opacity-20">
-                {loading ? 'FORGING...' : !reservoirReady ? 'ENERGY LOW...' : 'BIND RELIC'}
+              <button onClick={handleCreate} disabled={loading || !name || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-4 font-black text-[10px] uppercase tracking-[0.3em] transition-all disabled:opacity-20 flex flex-col items-center gap-1">
+                {loading ? 'FORGING...' : !reservoirReady ? 'ENERGY LOW...' : (
+                  <>
+                    <span>BIND RELIC</span>
+                    <span className="text-amber-600/80 tracking-widest">[-30⚡ ESSENCE]</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -176,9 +176,13 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                     <div className="space-y-6">
                       <div className="flex justify-between items-end border-b border-neutral-800 pb-2">
                         <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.3em]">Arcane Mechanics</h5>
-                        {/* Fix: Added reservoirReady to disabled logic for reroll button within armory entry */}
                         <button onClick={(e) => { e.stopPropagation(); handleReroll(item); }} disabled={rerolling === item.id || !reservoirReady} className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2 disabled:opacity-20">
-                          {rerolling === item.id ? 'REWEAVING...' : !reservoirReady ? 'ENERGY LOW...' : 'Reroll Unlocked 🎲'}
+                          {rerolling === item.id ? 'REWEAVING...' : (
+                            <>
+                              <span>Reroll Unlocked 🎲</span>
+                              <span className="text-amber-600/60">[-2⚡]</span>
+                            </>
+                          )}
                         </button>
                       </div>
 

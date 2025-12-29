@@ -8,11 +8,9 @@ interface ClassLibraryProps {
   setClasses: React.Dispatch<React.SetStateAction<ClassDef[]>>;
   broadcast?: (msg: Partial<SyncMessage>) => void;
   notify: (msg: string, type?: any) => void;
-  // Fix: Added missing reservoirReady property to interface to handle UI state for API availability
   reservoirReady: boolean;
 }
 
-// Fix: Destructured reservoirReady from props to use in button disabled logic
 const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -26,7 +24,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   }, [classes, search]);
 
   const handleCreate = async () => {
-    // Fix: Guard handleCreate with reservoirReady check
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
@@ -64,7 +61,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleReroll = async (cls: ClassDef) => {
-    // Fix: Guard handleReroll with reservoirReady check
     if (!reservoirReady) return;
     setRerolling(cls.id);
     try {
@@ -118,13 +114,17 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                   className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-4 h-40 text-sm text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed" 
                 />
               </div>
-              {/* Fix: Applied reservoirReady to disabled logic and display text */}
               <button 
                 onClick={handleCreate} 
                 disabled={loading || !name || !reservoirReady} 
-                className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] hover:border-[#b28a48] transition-all shadow-xl active:scale-[0.98] disabled:opacity-20"
+                className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] hover:border-[#b28a48] transition-all shadow-xl active:scale-[0.98] disabled:opacity-20 flex flex-col items-center gap-1"
               >
-                {loading ? 'BINDING SOUL...' : !reservoirReady ? 'ENERGY LOW...' : 'FORGE ARCHETYPE'}
+                {loading ? 'BINDING SOUL...' : !reservoirReady ? 'ENERGY LOW...' : (
+                  <>
+                    <span>FORGE ARCHETYPE</span>
+                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-5⚡ ESSENCE]</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -202,13 +202,17 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                     <div className="space-y-8">
                       <div className="flex justify-between items-end border-b border-neutral-800 pb-3">
                         <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em]">Archetype Features</h5>
-                        {/* Fix: Applied reservoirReady to disabled logic for reroll button within archetype features */}
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleReroll(c); }}
                           disabled={rerolling === c.id || !reservoirReady}
                           className="text-[10px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20"
                         >
-                          {rerolling === c.id ? 'REWEAVING...' : !reservoirReady ? 'ENERGY LOW...' : 'Reroll Unlocked 🎲'}
+                          {rerolling === c.id ? 'REWEAVING...' : (
+                            <>
+                              <span>Reroll Unlocked 🎲</span>
+                              <span className="text-amber-600/60">[-2⚡]</span>
+                            </>
+                          )}
                         </button>
                       </div>
 

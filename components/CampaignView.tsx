@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CampaignState, GameLog, Character, ClassDef, SyncMessage } from '../types';
 import { getDMResponse, generateSmartLoot, generateSummary } from '../services/gemini';
@@ -185,9 +186,9 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
             <button 
               onClick={handleGenerateLoot}
               disabled={loading}
-              className="text-[9px] text-[#b28a48] hover:text-[#cbb07a] font-black uppercase tracking-widest border border-[#b28a48]/30 px-3 py-1 rounded-sm"
+              className="text-[9px] text-[#b28a48] hover:text-[#cbb07a] font-black uppercase tracking-widest border border-[#b28a48]/30 px-3 py-1 rounded-sm flex items-center gap-2"
             >
-              GENERATE SMART LOOT
+              GENERATE SMART LOOT <span className="text-amber-600/80">[-8⚡]</span>
             </button>
           )}
           <button 
@@ -240,9 +241,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({ campaign, setCampaign, char
           <button
             onClick={handleSendMessage}
             disabled={!arcadeReady || loading || !input.trim()}
-            className={`bg-[#1a1a1a] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-12 h-12 flex items-center justify-center transition-colors border border-[#333] disabled:opacity-20`}
+            className={`bg-[#1a1a1a] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-32 h-12 flex flex-col items-center justify-center transition-colors border border-[#333] disabled:opacity-20`}
           >
-            ⚔️
+            <span className="text-lg">⚔️</span>
+            <span className="text-[8px] font-black uppercase tracking-tighter">[-1 Token]</span>
           </button>
         </div>
         {!arcadeReady && (

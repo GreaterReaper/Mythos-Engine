@@ -19,6 +19,7 @@ interface Notification {
 }
 
 const LOCKOUT_DURATION = 65; 
+const DAILY_PRO_LIMIT = 50;
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
@@ -31,6 +32,17 @@ const App: React.FC = () => {
   const [isQuotaExhausted, setIsQuotaExhausted] = useState<boolean>(false);
   const [dmModel, setDmModel] = useState<string>('gemini-3-pro-preview');
   const [localResetTime, setLocalResetTime] = useState<string>('');
+  const [dailyProUsed, setDailyProUsed] = useState<number>(() => {
+    const saved = localStorage.getItem('mythos_daily_pro_used');
+    const lastReset = localStorage.getItem('mythos_last_reset_day');
+    const today = new Date().toDateString();
+    
+    if (lastReset !== today) {
+      return 0;
+    }
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
   const lastLockoutTriggered = useRef<number>(0);
 
   const [playerName, setPlayerName] = useState<string>(() => {
@@ -73,28 +85,29 @@ const App: React.FC = () => {
     }, 7000);
   };
 
-  // Logic to calculate the next Daily Reset in local time (Target: Midnight PT)
   const calculateReset = useCallback(() => {
     try {
       const now = new Date();
-      // Get current date/time string in Pacific Time
       const ptStr = now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" });
       const ptNow = new Date(ptStr);
-      
-      // Calculate PT midnight today
       const ptMidnight = new Date(ptNow);
       ptMidnight.setHours(24, 0, 0, 0);
-      
-      // Calculate milliseconds from now until PT midnight
       const msUntilReset = ptMidnight.getTime() - ptNow.getTime();
-      
-      // Apply that duration to the local 'now' to find the local wall-clock reset time
       const resetDate = new Date(now.getTime() + msUntilReset);
       
       setLocalResetTime(resetDate.toLocaleTimeString([], { 
         hour: '2-digit', 
         minute: '2-digit' 
       }));
+
+      // If wall clock has passed reset since last check, reset count
+      const lastResetCheck = localStorage.getItem('mythos_last_reset_day');
+      if (lastResetCheck !== now.toDateString()) {
+        setDailyProUsed(0);
+        setIsQuotaExhausted(false);
+        localStorage.setItem('mythos_last_reset_day', now.toDateString());
+        localStorage.setItem('mythos_daily_pro_used', '0');
+      }
     } catch (e) {
       setLocalResetTime("Midnight PT");
     }
@@ -116,12 +129,23 @@ const App: React.FC = () => {
       });
     }, 1000);
 
-    // Refresh reset time every hour
-    const resetRefreshInterval = setInterval(calculateReset, 3600000);
+    const resetRefreshInterval = setInterval(calculateReset, 60000);
 
     const handleUsage = (e: any) => {
       const { type, cost } = e.detail;
-      if (type === 'dm') setArcaneTokens(prev => Math.max(prev - 1, 0));
+      if (type === 'dm') {
+        setArcaneTokens(prev => Math.max(prev - 1, 0));
+        if (dmModel.includes('pro')) {
+          setDailyProUsed(prev => {
+            const next = prev + 1;
+            localStorage.setItem('mythos_daily_pro_used', next.toString());
+            if (next >= DAILY_PRO_LIMIT) {
+              setIsQuotaExhausted(true);
+            }
+            return next;
+          });
+        }
+      }
       if (type === 'utility') setReservoir(prev => Math.max(prev - cost, 0));
     };
 
@@ -129,6 +153,7 @@ const App: React.FC = () => {
       if (e.detail.isRateLimit) {
         if (e.detail.isQuotaExceeded) {
           setIsQuotaExhausted(true);
+          setDailyProUsed(DAILY_PRO_LIMIT);
           notify(`DAILY QUOTA REACHED: The 'Pro' ley line is exhausted. Resets at ${localResetTime}. Switch to 'High Velocity' to continue.`, "error");
           return;
         }
@@ -152,7 +177,7 @@ const App: React.FC = () => {
       window.removeEventListener('mythos:arcane_use' as any, handleUsage);
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
-  }, [calculateReset, localResetTime]);
+  }, [calculateReset, localResetTime, dmModel]);
 
   const logout = () => {
     if (confirm("Sever bond with Mythos?")) {
@@ -231,6 +256,7 @@ const App: React.FC = () => {
   if (!playerName) return <LoginScreen setPlayerName={setPlayerName} />;
 
   const isExhausted = lockoutTime > 0;
+  const proRemaining = Math.max(0, DAILY_PRO_LIMIT - dailyProUsed);
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -264,6 +290,15 @@ const App: React.FC = () => {
       {/* Arcane Status Bar (Foci Orb) */}
       <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
         <div className={`flex items-center gap-4 bg-black/60 backdrop-blur border px-4 py-2 rounded-sm pointer-events-auto transition-colors duration-1000 ${isExhausted || isQuotaExhausted ? 'border-red-600' : 'border-[#b28a48]/20'}`}>
+          {/* Daily Quota Token (Celestial Charge) */}
+          <div className="flex flex-col items-center justify-center border-r border-neutral-800 pr-4 mr-1">
+             <div className={`text-[7px] font-black uppercase tracking-tighter mb-1 ${proRemaining < 10 ? 'text-red-500' : 'text-neutral-500'}`}>Fidelity</div>
+             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${proRemaining < 10 ? 'border-red-900 bg-red-950/30' : 'border-amber-900/30 bg-amber-950/10'}`}>
+                <span className={`text-[10px] font-black ${proRemaining < 10 ? 'text-red-600' : 'text-amber-600'}`}>{proRemaining}</span>
+                <span className="text-[7px] text-neutral-700 font-bold">/ {DAILY_PRO_LIMIT}</span>
+             </div>
+          </div>
+
           <div className="flex gap-1">
             {[...Array(3)].map((_, i) => (
               <div 
@@ -290,7 +325,6 @@ const App: React.FC = () => {
               </span>
             </div>
             
-            {/* Tooltip */}
             <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-56 shadow-2xl z-[110]">
                <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
                  {isExhausted ? 'RECALIBRATION' : isQuotaExhausted ? 'QUOTA EXHAUSTED' : 'ARCANE STABILITY'}
@@ -300,6 +334,7 @@ const App: React.FC = () => {
                </div>
                <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold space-y-1">
                  DM: {dmModel.includes('pro') ? 'High Fidelity (50/day)' : 'High Velocity (1500/day)'}<br/>
+                 Celestial Charges: {proRemaining} remaining<br/>
                  Tokens: {Math.floor(arcaneTokens)}/3<br/>
                  Reset: <span className="text-[#b28a48]">{localResetTime}</span><br/>
                  {isQuotaExhausted && dmModel.includes('pro') ? 'DAILY PRO QUOTA HIT' : isExhausted ? `RECALIBRATING: ${lockoutTime}S` : 'LEY LINES STABLE'}
@@ -314,7 +349,6 @@ const App: React.FC = () => {
             <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted || isQuotaExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
               {isExhausted ? 'LOCKOUT' : isQuotaExhausted ? 'QUOTA DEPLETED' : 'RESONANCE ONLINE'}
             </div>
-            {/* Direct visibility of Reset Time in main bar */}
             <div className="text-[6px] font-black text-[#b28a48]/40 uppercase tracking-widest mt-0.5">
               RESET: {localResetTime}
             </div>

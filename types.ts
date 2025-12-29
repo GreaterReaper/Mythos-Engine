@@ -1,0 +1,117 @@
+
+export interface Stats {
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+}
+
+export interface Trait {
+  name: string;
+  description: string;
+  locked?: boolean;
+}
+
+export type RaceType = 'Human' | 'Variant Human' | 'Dwarf' | 'Elf' | 'Half-Elf';
+export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
+
+export interface Character {
+  id: string;
+  name: string;
+  classId: string;
+  race: RaceType;
+  gender: GenderType;
+  description: string;
+  level: number;
+  stats: Stats;
+  hp: number;
+  maxHp: number;
+  feats: Trait[];
+  imageUrl?: string;
+  isPlayer: boolean;
+  inventory: string[]; // Array of item IDs
+}
+
+export interface ClassFeature extends Trait {}
+
+export interface ClassDef {
+  id: string;
+  name: string;
+  description: string;
+  hitDie: string;
+  startingHp: number;
+  hpPerLevel: number;
+  spellSlots: number[];
+  features: ClassFeature[];
+}
+
+export interface MonsterAbility {
+  name: string;
+  effect: string;
+  locked?: boolean;
+}
+
+export interface Monster {
+  id: string;
+  name: string;
+  description: string;
+  stats: Stats;
+  hp: number;
+  ac: number;
+  abilities: MonsterAbility[];
+  imageUrl?: string;
+  isBoss?: boolean;
+}
+
+export interface ItemMechanic extends Trait {}
+
+export interface Item {
+  id: string;
+  name: string;
+  type: 'Weapon' | 'Armor';
+  description: string;
+  mechanics: ItemMechanic[];
+  lore: string;
+  imageUrl?: string;
+}
+
+export interface GameLog {
+  role: 'dm' | 'player';
+  content: string;
+  timestamp: number;
+  senderId?: string;
+  senderName?: string;
+}
+
+export interface CampaignState {
+  plot: string;
+  summary: string;
+  logs: GameLog[];
+  party: Character[];
+}
+
+export type SyncMessageType = 
+  | 'STATE_UPDATE' 
+  | 'NEW_LOG' 
+  | 'GIVE_LOOT' 
+  | 'SHARE_RESOURCE' 
+  | 'SUMMARY_UPDATE'
+  | 'KICK'
+  | 'PULSE'
+  | 'HANDSHAKE';
+
+export interface ServerLog {
+  id: string;
+  message: string;
+  type: 'info' | 'warn' | 'error' | 'success';
+  timestamp: number;
+}
+
+export interface SyncMessage {
+  type: SyncMessageType;
+  payload: any;
+  senderId: string;
+  senderName: string;
+}

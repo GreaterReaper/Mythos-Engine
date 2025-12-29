@@ -1,0 +1,5 @@
+{
+  "name": "Mythos Engine: AI TTRPG Platform",
+  "description": "A comprehensive TTRPG platform featuring an AI Dungeon Master, custom class and monster creation with AI-generated stats, and a robust point-buy character builder.",
+  "requestFramePermissions": []
+}

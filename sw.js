@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'mythos-v1.0.4';
+const CACHE_NAME = 'mythos-v1.0.5';
 const ASSETS = [
   '/',
   '/index.html',
@@ -24,29 +24,46 @@ self.addEventListener('activate', event => {
       return Promise.all(
         keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
+  // Only handle GET requests
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
     caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request).then(fetchRes => {
-          // Don't cache API calls or dynamic images from Gemini
-          if (event.request.url.includes('google') || event.request.url.includes('data:image')) {
-            return fetchRes;
-          }
-          return caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request.url, fetchRes.clone());
-            return fetchRes;
-          });
-        });
-      })
-      .catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
+      .then(cachedResponse => {
+        if (cachedResponse) {
+          return cachedResponse;
         }
+
+        return fetch(event.request).then(response => {
+          // Don't cache if not a valid response or if it's external/API
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+
+          // Don't cache AI/Search/PeerJS related dynamic calls
+          const url = event.request.url;
+          if (url.includes('google') || url.includes('peerjs') || url.includes('data:')) {
+            return response;
+          }
+
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+
+          return response;
+        }).catch(() => {
+          // If fetch fails (offline) and it's a navigation request, return index.html
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html') || caches.match('/');
+          }
+          return null;
+        });
       })
   );
 });

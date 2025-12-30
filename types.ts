@@ -45,6 +45,7 @@ export interface Character {
   isPlayer: boolean;
   inventory: string[]; // Array of item IDs
   knownSpells?: Spell[];
+  lockedStats?: (keyof Stats)[];
 }
 
 export interface ClassFeature extends Trait {}

@@ -22,6 +22,13 @@ export interface Trait {
 export type RaceType = 'Human' | 'Variant Human' | 'Dwarf' | 'Elf' | 'Half-Elf';
 export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
 
+export interface Spell {
+  name: string;
+  level: number;
+  school: string;
+  description: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -37,6 +44,7 @@ export interface Character {
   imageUrl?: string;
   isPlayer: boolean;
   inventory: string[]; // Array of item IDs
+  knownSpells?: Spell[];
 }
 
 export interface ClassFeature extends Trait {}

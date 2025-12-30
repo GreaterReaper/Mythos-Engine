@@ -1,10 +1,19 @@
 
-import React, { useState, useMemo } from 'react';
-import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item } from '../types';
-import { generateImage, generateCharacterFeats, rerollTraits } from '../services/gemini';
+import React, { useState, useMemo, useRef } from 'react';
+import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell } from '../types';
+import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook } from '../services/gemini';
 
 const INITIAL_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
 const POINT_COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+
+const STAT_DESCRIPTIONS: Record<keyof Stats, string> = {
+  strength: "Physical power, lifting capacity, and melee combat prowess.",
+  dexterity: "Agility, reflexes, balance, and ranged attack accuracy.",
+  constitution: "Health, stamina, and resistance to physical hardship.",
+  intelligence: "Mental acuity, logic, memory, and arcane knowledge.",
+  wisdom: "Intuition, perception, spiritual insight, and willpower.",
+  charisma: "Confidence, social influence, and innate leadership force.",
+};
 
 const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   Human: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
@@ -76,8 +85,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const [charDescription, setCharDescription] = useState('');
   const [stats, setStats] = useState<Stats>(INITIAL_STATS);
   const [generating, setGenerating] = useState(false);
+  const [weaving, setWeaving] = useState(false);
   const [rerolling, setRerolling] = useState<string | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [refImage, setRefImage] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState('');
   const [raceFilter, setRaceFilter] = useState<string>('All');
@@ -108,6 +121,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     return result;
   }, [stats, race]);
 
+  const innateTraits = useMemo(() => {
+    return RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true }));
+  }, [race]);
+
   const handleStatChange = (stat: keyof Stats, delta: number) => {
     const newVal = stats[stat] + delta;
     if (newVal < 8 || newVal > 15) return;
@@ -116,31 +133,67 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     setStats(prev => ({ ...prev, [stat]: newVal }));
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setRefImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreate = async () => {
     if (!name || !classId || !reservoirReady) return;
     setGenerating(true);
     try {
       const selectedClass = classes.find(c => c.id === classId);
-      const prompt = `Fantasy TTRPG character portrait of a ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Dark fantasy atmosphere.`;
-      const [imageUrl, classFeats] = await Promise.all([generateImage(prompt), generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '')]);
-      const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true }));
-      const allFeats = [...racialFeats, ...classFeats];
+      const prompt = `Fantasy TTRPG character portrait of a ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Dark fantasy atmosphere, painted art style. ${refImage ? "Maintain facial features and pose from the provided reference image." : ""}`;
+      
+      const [imageUrl, classFeats] = await Promise.all([
+        generateImage(prompt, refImage || undefined), 
+        generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '')
+      ]);
+      
+      const allFeats = [...innateTraits, ...classFeats];
       const newChar: Character = {
         id: Math.random().toString(36).substr(2, 9),
         name, classId, race, gender, description: charDescription, level: 1, stats: finalStats,
         hp: (selectedClass?.startingHp || 10) + (Math.floor((finalStats.constitution - 10) / 2)),
         maxHp: (selectedClass?.startingHp || 10) + (Math.floor((finalStats.constitution - 10) / 2)),
         feats: allFeats, imageUrl, isPlayer: characters.length === 0,
-        inventory: []
+        inventory: [],
+        knownSpells: []
       };
       setCharacters(prev => [...prev, newChar]);
-      setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS);
+      setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS); setRefImage(null);
       setSelectedCharacterId(newChar.id);
       notify(`${name} has joined the fellowship.`, "success");
     } catch (e: any) { 
       console.error(e); 
       notify(e.message || "Failed to summon hero from the ether.", "error");
     } finally { setGenerating(false); }
+  };
+
+  const handleWeaveSpells = async (char: Character) => {
+    if (!reservoirReady) return;
+    setWeaving(true);
+    try {
+      const selectedClass = classes.find(c => c.id === char.classId);
+      if (!selectedClass) throw new Error("Archetype not found.");
+      
+      const spellbook = await generateSpellbook(selectedClass.name, selectedClass.description, selectedClass.spellSlots.length);
+      setCharacters(prev => prev.map(c => {
+        if (c.id !== char.id) return c;
+        return { ...c, knownSpells: spellbook };
+      }));
+      notify("The Grimoire has been inscribed with new incantations.", "success");
+    } catch (e: any) {
+      notify(e.message, "error");
+    } finally {
+      setWeaving(false);
+    }
   };
 
   const toggleFeatLock = (charId: string, featIdx: number) => {
@@ -158,9 +211,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     try {
       const selectedClass = classes.find(c => c.id === char.classId);
       const updatedFeats = await rerollTraits('character', char.name, selectedClass?.description || '', char.feats);
+      
       setCharacters(prev => prev.map(c => {
         if (c.id !== char.id) return c;
-        return { ...c, feats: updatedFeats.map((f, i) => ({ ...f, locked: char.feats[i].locked })) };
+        
+        let updateIdx = 0;
+        const finalMergedFeats = c.feats.map(original => {
+          if (original.locked) return original;
+          const replacement = updatedFeats[updateIdx];
+          updateIdx++;
+          return replacement ? { ...replacement, locked: false } : original;
+        });
+
+        return { ...c, feats: finalMergedFeats };
       }));
       notify("Heroic feats rewoven.", "success");
     } catch (e: any) {
@@ -170,6 +233,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
   const selectedChar = characters.find(c => c.id === selectedCharacterId);
   const selectedClass = classes.find(c => c?.id === selectedChar?.classId);
+  const selectedInventoryItems = useMemo(() => {
+    if (!selectedChar || !items) return [];
+    return items.filter(item => selectedChar.inventory.includes(item.id));
+  }, [selectedChar, items]);
 
   return (
     <div className="space-y-12 pb-12 pt-16">
@@ -188,7 +255,41 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none" />
               </div>
 
-              {/* Heritage Selection Grid */}
+              <div className="space-y-1">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Sigil Reference (Optional)</label>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full bg-black border border-neutral-800 border-dashed h-24 flex items-center justify-center cursor-pointer hover:border-[#b28a48]/40 transition-all group overflow-hidden relative"
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleImageUpload}
+                  />
+                  {refImage ? (
+                    <>
+                      <img src={refImage} className="w-full h-full object-cover opacity-60 group-hover:opacity-40" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[8px] font-black text-white uppercase tracking-widest bg-black/60 px-2 py-1">Replace Image</span>
+                      </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setRefImage(null); }}
+                        className="absolute top-1 right-1 bg-black/80 text-white w-5 h-5 flex items-center justify-center text-[10px] rounded-full hover:bg-red-900 transition-colors z-10"
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-xl opacity-30 group-hover:opacity-100 transition-opacity">🖼️</div>
+                      <p className="text-[7px] font-black text-neutral-600 uppercase tracking-tighter mt-1 group-hover:text-neutral-400">Click to upload visual soul</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Select Heritage</label>
                 <div className="grid grid-cols-5 gap-2">
@@ -204,25 +305,27 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   ))}
                 </div>
                 
-                {/* Active Race Details Card */}
                 <div className="bg-neutral-950 border border-neutral-900 p-4 rounded-sm animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-black text-[#b28a48] uppercase tracking-widest">{race}</span>
+                    <span className="text-[10px] font-black text-[#b28a48] uppercase tracking-widest">{race} Heritage</span>
                     <div className="flex gap-2">
                       {Object.entries(RACIAL_BONUSES[race]).map(([stat, val]) => (
                         <span key={stat} className="text-[8px] font-black text-green-700 uppercase">{stat.slice(0, 3)} +{val}</span>
                       ))}
                     </div>
                   </div>
-                  <p className="text-[9px] text-neutral-500 italic mb-3 leading-relaxed">{RACIAL_TRAITS[race].flavor}</p>
+                  <p className="text-[9px] text-neutral-500 italic mb-4 leading-relaxed">{RACIAL_TRAITS[race].flavor}</p>
+                  
                   <div className="space-y-2">
-                    {RACIAL_TRAITS[race].traits.map((t, i) => (
-                      <div key={i} className="flex gap-2">
-                        <span className="text-amber-700 text-[8px] mt-0.5">†</span>
-                        <div>
-                          <p className="text-[8px] font-black text-neutral-400 uppercase tracking-tighter">{t.name}</p>
-                          <p className="text-[8px] text-neutral-600 leading-tight">{t.description}</p>
+                    <label className="text-[7px] font-black text-neutral-700 uppercase tracking-widest mb-1 block">Innate Divine Traits (Locked)</label>
+                    {innateTraits.map((t, i) => (
+                      <div key={i} className="p-3 bg-black border border-amber-950/30 rounded-sm relative group/trait">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-amber-600 text-[10px]">†</span>
+                          <h5 className="text-[9px] font-black text-neutral-300 uppercase tracking-wider">{t.name}</h5>
                         </div>
+                        <p className="text-[8px] text-neutral-500 italic leading-tight">{t.description}</p>
+                        <div className="absolute top-1 right-1 text-[6px] font-black text-amber-900 uppercase">BOUND</div>
                       </div>
                     ))}
                   </div>
@@ -256,7 +359,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {(Object.keys(stats) as Array<keyof Stats>).map((s) => (
-                    <div key={s} className="bg-black border border-neutral-900 p-3 text-center group hover:border-[#b28a48]/40 transition-colors">
+                    <div 
+                      key={s} 
+                      title={STAT_DESCRIPTIONS[s]}
+                      className="bg-black border border-neutral-900 p-3 text-center group hover:border-[#b28a48]/40 transition-colors relative cursor-help"
+                    >
                       <div className="text-[8px] text-neutral-600 font-bold uppercase mb-1 tracking-tighter">{s}</div>
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => handleStatChange(s, -1)} className="text-neutral-700 hover:text-red-500 font-black px-1 transition-colors"> - </button>
@@ -346,7 +453,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   <h4 className="text-xl font-black fantasy-font text-neutral-400 border-b border-[#b28a48]/20 pb-4 tracking-widest">Sacred Attributes</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
                     {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(stat => (
-                      <div key={stat} className="bg-black/60 border border-[#b28a48]/10 p-6 rounded-sm flex flex-col items-center">
+                      <div key={stat} className="bg-black/60 border border-[#b28a48]/10 p-6 rounded-sm flex flex-col items-center group relative cursor-help">
                         <div className="text-[11px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-4">{stat}</div>
                         <div className="flex items-center gap-5">
                           <span className="text-4xl font-black text-[#b28a48]">{selectedChar.stats[stat]}</span>
@@ -354,9 +461,102 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                             {getModifier(selectedChar.stats[stat])}
                           </div>
                         </div>
+                        <div className="mt-4 text-[9px] text-neutral-500 text-center font-serif italic max-w-[140px] leading-tight">
+                          {STAT_DESCRIPTIONS[stat]}
+                        </div>
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {selectedClass && selectedClass.spellSlots && selectedClass.spellSlots.length > 0 && (
+                  <div className="space-y-8">
+                    <h4 className="text-xl font-black fantasy-font text-neutral-400 border-b border-[#b28a48]/20 pb-4 tracking-widest">Arcane Capacity</h4>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
+                      {selectedClass.spellSlots.map((slots, i) => (
+                        <div key={i} className="bg-neutral-950 border border-[#b28a48]/10 p-4 rounded-sm text-center">
+                          <div className="text-[9px] font-black text-neutral-600 uppercase tracking-tighter mb-1">Level {i+1}</div>
+                          <div className="text-2xl font-black text-amber-700">{slots}</div>
+                          <div className="text-[7px] text-neutral-700 uppercase font-black">Slots</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedClass && selectedClass.spellSlots && selectedClass.spellSlots.length > 0 && (
+                  <div className="space-y-8">
+                    <div className="flex justify-between items-center border-b border-[#b28a48]/20 pb-4">
+                      <h4 className="text-xl font-black fantasy-font text-neutral-400 tracking-widest">The Grimoire</h4>
+                      <button 
+                        onClick={() => handleWeaveSpells(selectedChar)} 
+                        disabled={weaving || !reservoirReady} 
+                        className="text-[10px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-[0.3em] transition-all disabled:opacity-20 flex items-center gap-2"
+                      >
+                        {weaving ? 'Inscribing...' : (
+                          <>
+                            <span>Weave Spellbook 📜</span>
+                            <span className="text-amber-700/80">[-15⚡]</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6">
+                      {selectedChar.knownSpells && selectedChar.knownSpells.length > 0 ? (
+                        [...new Set(selectedChar.knownSpells.map(s => s.level))].sort((a: number, b: number) => a - b).map(level => (
+                          <div key={level} className="space-y-4">
+                            <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.4em] border-l-2 border-[#b28a48]/40 pl-3">Level {level} Spells</h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {selectedChar.knownSpells?.filter(s => s.level === level).map((spell, i) => (
+                                <div key={i} className="bg-black border border-neutral-900 p-5 rounded-sm hover:border-[#b28a48]/30 transition-all group">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <h6 
+                                      className="text-sm font-black text-[#b28a48] uppercase tracking-wider cursor-help" 
+                                      title={spell.description}
+                                    >
+                                      {spell.name}
+                                    </h6>
+                                    <span className="text-[8px] font-black text-neutral-700 uppercase border border-neutral-800 px-2 py-0.5 rounded-full">{spell.school}</span>
+                                  </div>
+                                  <p className="text-[11px] text-neutral-400 font-serif italic leading-relaxed">{spell.description}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="py-12 border-2 border-dashed border-neutral-900 text-center rounded-sm">
+                           <p className="text-[10px] text-neutral-700 uppercase font-black tracking-widest italic mb-2">This soul possesses the spark of magic, but the pages remain blank.</p>
+                           <button onClick={() => handleWeaveSpells(selectedChar)} className="text-[9px] font-black text-[#b28a48] underline uppercase tracking-widest">Sacrifice essence to weave your legacy</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-8">
+                   <h4 className="text-xl font-black fantasy-font text-neutral-400 border-b border-[#b28a48]/20 pb-4 tracking-widest">Relics & Possessions</h4>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                     {selectedInventoryItems.length > 0 ? (
+                       selectedInventoryItems.map((item) => (
+                         <div key={item.id} className="bg-black border border-neutral-900 p-4 rounded-sm flex gap-4 group/item">
+                           <div className="w-16 h-16 bg-neutral-950 border border-neutral-900 flex-shrink-0 relative overflow-hidden">
+                             {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover grayscale group-hover/item:grayscale-0 transition-all" /> : <div className="w-full h-full flex items-center justify-center text-xl">⚔️</div>}
+                           </div>
+                           <div>
+                             <h6 className="text-xs font-black text-[#b28a48] uppercase tracking-wider">{item.name}</h6>
+                             <p className="text-[9px] text-neutral-600 uppercase font-black mb-1">{item.type}</p>
+                             <p className="text-[10px] text-neutral-500 font-serif italic line-clamp-2">{item.description}</p>
+                           </div>
+                         </div>
+                       ))
+                     ) : (
+                       <div className="col-span-full py-8 border-2 border-dashed border-neutral-900 text-center rounded-sm">
+                         <span className="text-[10px] text-neutral-700 uppercase font-black tracking-widest italic">The hero carries only the weight of their destiny.</span>
+                       </div>
+                     )}
+                   </div>
                 </div>
 
                 <div className="space-y-8">

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog } from "../types";
+import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell } from "../types";
 
 // Helper to clean JSON output from potential markdown formatting
 const cleanJson = (text: string) => {
@@ -74,16 +74,33 @@ const handleAIError = (error: any) => {
   return error;
 };
 
-// Generate image using gemini-2.5-flash-image
-export const generateImage = async (prompt: string): Promise<string> => {
+// Generate image using gemini-2.5-flash-image with optional reference image
+export const generateImage = async (prompt: string, referenceBase64?: string): Promise<string> => {
   trackUsage('utility', 25); 
   return withRetry(async () => {
     try {
       const ai = getAI();
+      const parts: any[] = [{ text: prompt }];
+
+      if (referenceBase64) {
+        // Extract just the base64 data if it includes the data URL prefix
+        const base64Data = referenceBase64.includes(',') ? referenceBase64.split(',')[1] : referenceBase64;
+        const mimeTypeMatch = referenceBase64.match(/^data:(image\/[a-z]+);base64,/);
+        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/png';
+
+        parts.unshift({
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType,
+          },
+        });
+      }
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: prompt }] },
+        contents: { parts: parts },
       });
+
       for (const part of response.candidates[0].content.parts) {
         if (part.inlineData) {
           return `data:image/png;base64,${part.inlineData.data}`;
@@ -129,6 +146,42 @@ export const generateClassMechanics = async (name: string, description: string):
         }
       });
       return JSON.parse(cleanJson(response.text || '{}'));
+    } catch (e) {
+      throw handleAIError(e);
+    }
+  });
+};
+
+// Generate a comprehensive spell list for a character based on class
+export const generateSpellbook = async (className: string, classDesc: string, maxLevel: number): Promise<Spell[]> => {
+  trackUsage('utility', 15);
+  return withRetry(async () => {
+    try {
+      const ai = getAI();
+      const prompt = `Generate a comprehensive list of unique spells for a level ${maxLevel} ${className}. Lore context: ${classDesc}. Include spells from level 1 up to level ${maxLevel}.`;
+      
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          systemInstruction: "You are an expert fantasy writer and game designer. Create thematic, atmospheric spells. Return a JSON array of spell objects.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                level: { type: Type.INTEGER },
+                school: { type: Type.STRING },
+                description: { type: Type.STRING }
+              },
+              required: ["name", "level", "school", "description"]
+            }
+          }
+        }
+      });
+      return JSON.parse(cleanJson(response.text || '[]'));
     } catch (e) {
       throw handleAIError(e);
     }

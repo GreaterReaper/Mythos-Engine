@@ -65,17 +65,19 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     setRerolling(cls.id);
     try {
       const updated = await rerollTraits('class', cls.name, cls.description, cls.features);
-      setClasses(prev => prev.map(c => 
-        c.id === cls.id 
-          ? { 
-              ...c, 
-              features: updated.map((f, i) => ({ 
-                ...f, 
-                locked: cls.features[i].locked 
-              })) 
-            } 
-          : c
-      ));
+      setClasses(prev => prev.map(c => {
+        if (c.id !== cls.id) return c;
+        
+        let updateIdx = 0;
+        const finalMergedFeatures = c.features.map(original => {
+          if (original.locked) return original;
+          const replacement = updated[updateIdx];
+          updateIdx++;
+          return replacement ? { ...replacement, locked: false } : original;
+        });
+
+        return { ...c, features: finalMergedFeatures };
+      }));
       notify("Features Rewoven", "success");
     } catch (e: any) {
       notify(e.message, "error");

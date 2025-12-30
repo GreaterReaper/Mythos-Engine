@@ -18,6 +18,13 @@ interface Notification {
   type: 'error' | 'success' | 'info';
 }
 
+interface DiceRoll {
+  id: string;
+  sides: number;
+  result: number;
+  timestamp: number;
+}
+
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
@@ -26,6 +33,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
+  // Dice Roller State
+  const [diceTrayOpen, setDiceTrayOpen] = useState(false);
+  const [rollHistory, setRollHistory] = useState<DiceRoll[]>([]);
+  const [lastRoll, setLastRoll] = useState<DiceRoll | null>(null);
+
   // Current Session User
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const saved = localStorage.getItem('mythos_active_session');
@@ -68,6 +80,23 @@ const App: React.FC = () => {
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 7000);
+  };
+
+  const handleRollDice = (sides: number) => {
+    const result = Math.floor(Math.random() * sides) + 1;
+    const roll: DiceRoll = {
+      id: Math.random().toString(36).substr(2, 9),
+      sides,
+      result,
+      timestamp: Date.now()
+    };
+    setLastRoll(roll);
+    setRollHistory(prev => [roll, ...prev].slice(0, 10));
+    
+    // Aesthetic haptic feedback feel
+    if (result === sides && sides >= 10) {
+      notify(`CRITICAL! Natural ${result} on d${sides}`, 'success');
+    }
   };
 
   // Load user data on login
@@ -399,6 +428,68 @@ const App: React.FC = () => {
             <span className="text-[10px] font-black text-neutral-400 uppercase">{localResetTime}</span>
           </div>
         </div>
+      </div>
+
+      {/* Dice Roller Tray */}
+      <div className="fixed bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
+        {diceTrayOpen && (
+          <div className="grim-card w-64 p-4 border border-[#b28a48]/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex justify-between items-center mb-4 border-b border-[#b28a48]/10 pb-2">
+              <h4 className="text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest">CHRONICLE FATES</h4>
+              <button onClick={() => setDiceTrayOpen(false)} className="text-neutral-600 hover:text-red-500 transition-colors">✕</button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2 mb-6">
+              {[4, 6, 8, 10, 12, 20, 100].map(d => (
+                <button 
+                  key={d} 
+                  onClick={() => handleRollDice(d)}
+                  className="bg-neutral-950 border border-neutral-900 hover:border-[#b28a48] hover:text-[#b28a48] p-2 rounded-sm transition-all flex flex-col items-center justify-center gap-1 group active:scale-95"
+                >
+                  <span className="text-sm font-black">d{d}</span>
+                </button>
+              ))}
+              <button 
+                onClick={() => setRollHistory([])} 
+                className="bg-neutral-950 border border-neutral-900 text-neutral-700 hover:text-red-900 p-2 rounded-sm text-[8px] font-black uppercase tracking-tighter"
+              >
+                Clear
+              </button>
+            </div>
+
+            {lastRoll && (
+              <div className="text-center mb-6 animate-in zoom-in-75 duration-300">
+                <div className="text-[8px] font-black text-neutral-600 uppercase tracking-widest mb-1">Result d{lastRoll.sides}</div>
+                <div className={`text-5xl font-black fantasy-font drop-shadow-[0_0_10px_rgba(178,138,72,0.3)] ${lastRoll.result === lastRoll.sides && lastRoll.sides >= 10 ? 'text-amber-500 animate-pulse' : 'text-neutral-200'}`}>
+                  {lastRoll.result}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5 h-24 overflow-y-auto scrollbar-hide border-t border-neutral-900 pt-3">
+              {rollHistory.map((roll) => (
+                <div key={roll.id} className="flex justify-between items-center px-1">
+                  <span className="text-[9px] font-black text-neutral-600 uppercase">d{roll.sides}</span>
+                  <span className={`text-[10px] font-black ${roll.result === roll.sides && roll.sides >= 10 ? 'text-amber-600' : 'text-neutral-400'}`}>{roll.result}</span>
+                </div>
+              ))}
+              {rollHistory.length === 0 && (
+                <div className="text-[8px] text-neutral-800 italic uppercase text-center py-4">The fates await...</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <button 
+          onClick={() => setDiceTrayOpen(!diceTrayOpen)}
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${
+            diceTrayOpen 
+              ? 'bg-[#b28a48] text-black border-amber-300' 
+              : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'
+          }`}
+        >
+          🎲
+        </button>
       </div>
     </div>
   );

@@ -82,10 +82,16 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       const updated = await rerollTraits('item', item.name, item.description, item.mechanics);
       setItems(prev => prev.map(i => {
         if (i.id !== item.id) return i;
-        return {
-          ...i,
-          mechanics: updated.map((u, idx) => ({ ...u, locked: item.mechanics[idx].locked }))
-        };
+        
+        let updateIdx = 0;
+        const finalMergedMechanics = i.mechanics.map(original => {
+          if (original.locked) return original;
+          const replacement = updated[updateIdx];
+          updateIdx++;
+          return replacement ? { ...replacement, locked: false } : original;
+        });
+
+        return { ...i, mechanics: finalMergedMechanics };
       }));
       notify("Arcane properties rewoven.", "success");
     } catch (e: any) {

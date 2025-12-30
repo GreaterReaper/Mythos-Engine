@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { UserAccount } from '../types';
 
 interface SidebarProps {
@@ -7,13 +7,9 @@ interface SidebarProps {
   setActiveTab: (tab: any) => void;
   onSignOut: () => void;
   user: UserAccount;
-  hasKey: boolean;
-  onLinkKey: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, user, hasKey, onLinkKey }) => {
-  const [showInternalKey, setShowInternalKey] = useState(false);
-
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, user }) => {
   const tabs = [
     { id: 'campaign', label: 'Play', icon: '⚔️' },
     { id: 'characters', label: 'Party', icon: '👤' },
@@ -33,29 +29,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
           <div className="h-px w-24 bg-gradient-to-r from-transparent via-[#b28a48] to-transparent mx-auto mt-2 opacity-50"></div>
           
           <div className="mt-6 p-4 bg-black/40 border border-[#b28a48]/10 rounded-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-1 opacity-20">
-              <span className={`w-2 h-2 rounded-full block ${hasKey ? 'bg-green-500' : 'bg-red-500'}`}></span>
-            </div>
             <div className="text-left">
               <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest mb-1">Active Soul</p>
               <h4 className="text-xs font-black text-[#b28a48] uppercase truncate">{user.displayName}</h4>
               <p className="text-[7px] text-neutral-700 font-mono mt-1">SIGIL ID: {user.username}</p>
-              
-              <div className="mt-3 pt-3 border-t border-[#1a1a1a]">
-                <p className="text-[7px] text-neutral-600 font-black uppercase tracking-widest mb-1">Internal Sigil Key</p>
-                <div 
-                  className="bg-black/60 p-1.5 rounded-sm cursor-pointer group/key transition-colors hover:bg-black"
-                  onClick={() => setShowInternalKey(!showInternalKey)}
-                >
-                  <code className="text-[9px] font-mono text-amber-700/80 break-all leading-tight">
-                    {showInternalKey ? user.apiKey : '••••-••••-••••-••••'}
-                  </code>
-                </div>
-              </div>
             </div>
-            {!hasKey && (
-              <button onClick={onLinkKey} className="mt-3 w-full bg-red-950/20 border border-red-900/50 text-red-500 text-[7px] font-black py-1 uppercase tracking-tighter hover:bg-red-900 hover:text-white transition-all">Link Celestial Key</button>
-            )}
           </div>
         </div>
 
@@ -91,8 +69,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
           </button>
           <div className="p-4 border-t border-[#1a1a1a]">
             <div className="flex items-center gap-2 text-[10px] text-neutral-600 uppercase font-bold tracking-tighter">
-              <span className={`w-2 h-2 rounded-full ${hasKey ? 'bg-amber-900 animate-pulse' : 'bg-red-900'}`}></span>
-              Mythos Engine {hasKey ? 'Online' : 'Restricted'}
+              <span className="w-2 h-2 rounded-full bg-amber-900 animate-pulse"></span>
+              Mythos Engine Online
             </div>
           </div>
         </div>

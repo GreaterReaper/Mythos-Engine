@@ -2,9 +2,6 @@
 export interface UserAccount {
   username: string;
   displayName: string;
-  passwordHash: string; // Simulated for this frontend implementation
-  hasKeyBound: boolean;
-  apiKey: string;
 }
 
 export interface Stats {

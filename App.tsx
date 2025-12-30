@@ -12,18 +12,6 @@ import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import Peer, { DataConnection } from 'peerjs';
 
-// Define the AIStudio interface and extend window globally matching platform expectations
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    // Fix: Removed readonly modifier to avoid conflict with other global declarations
-    aistudio: AIStudio;
-  }
-}
-
 interface Notification {
   id: string;
   message: string;
@@ -43,8 +31,6 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('mythos_active_session');
     return saved ? JSON.parse(saved) : null;
   });
-
-  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
 
   // User-Scoped Storage Helper
   const getUserKey = (key: string) => currentUser ? `${currentUser.username}_${key}` : `guest_${key}`;
@@ -84,22 +70,6 @@ const App: React.FC = () => {
     }, 7000);
   };
 
-  // Check API Key status
-  const checkApiKey = useCallback(async () => {
-    if (window.aistudio) {
-      const has = await window.aistudio.hasSelectedApiKey();
-      setHasApiKey(has);
-    }
-  }, []);
-
-  const handleLinkKey = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      setHasApiKey(true);
-      notify("Celestial Key Bound to your Soul.", "success");
-    }
-  };
-
   // Load user data on login
   useEffect(() => {
     if (currentUser) {
@@ -133,10 +103,8 @@ const App: React.FC = () => {
         setDailyFlashUsed(0);
         localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
       }
-      
-      checkApiKey();
     }
-  }, [currentUser, checkApiKey]);
+  }, [currentUser]);
 
   // Sync state to user-scoped storage
   useEffect(() => {
@@ -335,8 +303,6 @@ const App: React.FC = () => {
         setActiveTab={setActiveTab} 
         onSignOut={logout} 
         user={currentUser}
-        hasKey={hasApiKey}
-        onLinkKey={handleLinkKey}
       />
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
@@ -411,15 +377,11 @@ const App: React.FC = () => {
                </div>
                <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold space-y-2">
                  Soul: <span className="text-[#b28a48]">{currentUser.displayName}</span><br/>
-                 Celestial Key: <span className={hasApiKey ? "text-green-500" : "text-red-500"}>{hasApiKey ? "Bound" : "Unlinked"}</span><br/>
                  Global Pro: <span className="text-amber-600">{proRemaining}</span> remaining<br/>
                  Global Flash: <span className="text-amber-600">{flashRemaining}</span> remaining<br/>
                  Tokens: {Math.floor(arcaneTokens)}/3<br/>
                  Reset: <span className="text-[#b28a48]">{localResetTime}</span>
                </p>
-               {!hasApiKey && (
-                 <button onClick={handleLinkKey} className="mt-4 w-full bg-red-900/40 border border-red-500 text-red-200 text-[8px] font-black py-2 uppercase tracking-widest hover:bg-red-500 hover:text-black transition-all">Link Celestial Key</button>
-               )}
             </div>
           </div>
 

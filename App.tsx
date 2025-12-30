@@ -108,6 +108,10 @@ const App: React.FC = () => {
       if (lastReset === today) {
         setDailyProUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_pro_used`) || '0'));
         setDailyFlashUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_flash_used`) || '0'));
+      } else {
+        localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
+        setDailyProUsed(0);
+        setDailyFlashUsed(0);
       }
     }
   }, [currentUser]);
@@ -135,20 +139,39 @@ const App: React.FC = () => {
       setReservoir(prev => Math.min(prev + 1.1, 100)); 
       setLockoutTime(prev => Math.max(prev - 1, 0));
     }, 1000);
+
     const handleUsage = (e: any) => {
       const { type, cost } = e.detail;
       if (type === 'dm') {
         setArcaneTokens(prev => Math.max(prev - 1, 0));
-        setDailyProUsed(p => p + 1);
+        // Use functional state or ref if model changes mid-call, 
+        // but simple state is fine here for single-player reactivity
+        setDmModel(currentModel => {
+          if (currentModel.includes('pro')) {
+            setDailyProUsed(p => p + 1);
+          } else {
+            setDailyFlashUsed(p => p + 1);
+          }
+          return currentModel;
+        });
       }
-      if (type === 'utility') setReservoir(prev => Math.max(prev - cost, 0));
+      if (type === 'utility') {
+        setReservoir(prev => Math.max(prev - cost, 0));
+        setDailyFlashUsed(p => p + 1);
+      }
     };
+
     const handleError = (e: any) => {
       if (e.detail.isRateLimit) {
         setLockoutTime(LOCKOUT_DURATION);
         notify("Ley Lines Overloaded.", "error");
       }
+      if (e.detail.isQuotaExceeded) {
+        setIsQuotaExhausted(true);
+        setLocalResetTime(new Date(Date.now() + 86400000).toLocaleTimeString());
+      }
     };
+
     window.addEventListener('mythos:arcane_use' as any, handleUsage);
     window.addEventListener('mythos:arcane_error' as any, handleError);
     return () => {
@@ -221,6 +244,8 @@ const App: React.FC = () => {
   if (!currentUser) return <LoginScreen setCurrentUser={setCurrentUser} />;
 
   const isExhausted = lockoutTime > 0;
+  const proPercent = (dailyProUsed / DAILY_PRO_LIMIT) * 100;
+  const flashPercent = (dailyFlashUsed / DAILY_FLASH_LIMIT) * 100;
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -253,6 +278,28 @@ const App: React.FC = () => {
            </div>
            <div className="w-32 h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
               <div className={`h-full transition-all duration-700 ${isExhausted ? 'bg-red-600' : 'bg-[#b28a48]'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
+           </div>
+        </div>
+
+        <div className="hidden md:flex items-center gap-8">
+           <div className="flex flex-col items-start gap-1">
+              <div className="flex justify-between w-24">
+                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Fidelity (Pro)</span>
+                <span className={`text-[7px] font-bold ${proPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{dailyProUsed}/{DAILY_PRO_LIMIT}</span>
+              </div>
+              <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
+                <div className={`h-full transition-all duration-1000 ${proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${proPercent}%` }}></div>
+              </div>
+           </div>
+
+           <div className="flex flex-col items-start gap-1">
+              <div className="flex justify-between w-24">
+                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Velocity (Flash)</span>
+                <span className={`text-[7px] font-bold ${flashPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{dailyFlashUsed}/{DAILY_FLASH_LIMIT}</span>
+              </div>
+              <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
+                <div className={`h-full transition-all duration-1000 ${flashPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${flashPercent}%` }}></div>
+              </div>
            </div>
         </div>
       </div>

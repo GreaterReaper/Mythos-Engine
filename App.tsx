@@ -164,9 +164,53 @@ const App: React.FC = () => {
     peerRef.current = peer;
     peer.on('open', (id) => setPeerId(id));
     peer.on('connection', (conn) => {
-      conn.on('open', () => setConnections(prev => [...prev, conn]));
+      conn.on('open', () => {
+        setConnections(prev => [...prev, conn]);
+        setServerLogs(prev => [...prev, {
+          id: Math.random().toString(36),
+          message: `Resonance established with ${conn.peer}`,
+          type: 'success',
+          timestamp: Date.now()
+        }]);
+      });
+      conn.on('data', (data: any) => {
+        const msg = data as SyncMessage;
+        switch (msg.type) {
+          case 'SHARE_RESOURCE':
+            const { resourceType, resourceData } = msg.payload;
+            if (resourceType === 'class') {
+              setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
+              notify(`New Archetype received: ${resourceData.name}`, 'success');
+            } else if (resourceType === 'monster') {
+              setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
+              notify(`New Horror added to Bestiary: ${resourceData.name}`, 'success');
+            } else if (resourceType === 'item') {
+              setItems(prev => prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]);
+              notify(`New Relic received: ${resourceData.name}`, 'success');
+            }
+            break;
+          case 'NEW_LOG':
+            setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] }));
+            break;
+          case 'SUMMARY_UPDATE':
+            setCampaign(prev => ({ ...prev, summary: msg.payload }));
+            break;
+          case 'GIVE_LOOT':
+            setItems(prev => [...prev, msg.payload]);
+            notify(`The party received loot: ${msg.payload.name}`, 'info');
+            break;
+          case 'STATE_UPDATE':
+            if (msg.payload.campaign) setCampaign(msg.payload.campaign);
+            if (msg.payload.classes) setClasses(msg.payload.classes);
+            if (msg.payload.monsters) setMonsters(msg.payload.monsters);
+            if (msg.payload.items) setItems(msg.payload.items);
+            if (msg.payload.characters) setCharacters(msg.payload.characters);
+            notify("Chronicle state synchronized", "info");
+            break;
+        }
+      });
     });
-  }, []);
+  }, [notify]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -186,7 +230,7 @@ const App: React.FC = () => {
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
-          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); initPeer(); }} setIsHost={setIsHost} forceSync={() => {}} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
@@ -213,7 +257,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Dice Roller Tray - Moved for mobile compat */}
       <div className="fixed bottom-24 lg:bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
         {diceTrayOpen && (
           <div className="grim-card w-64 p-4 border border-[#b28a48]/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">

@@ -86,6 +86,22 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
+  const handleShareIndividual = (e: React.MouseEvent, cls: ClassDef) => {
+    e.stopPropagation();
+    if (broadcast) {
+      broadcast({
+        type: 'SHARE_RESOURCE',
+        payload: {
+          resourceType: 'class',
+          resourceData: cls
+        }
+      });
+      notify(`Shared Archetype: ${cls.name}`, 'success');
+    } else {
+      notify("Portal not active.", "error");
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <div className="text-center lg:text-left">
@@ -141,9 +157,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
               onChange={(e) => setSearch(e.target.value)} 
               className="flex-1 bg-black border border-neutral-900 px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] outline-none focus:border-[#b28a48]" 
             />
-            <div className="hidden md:block text-[10px] font-black text-neutral-600 uppercase tracking-widest">
-              Codex Entries: {filteredClasses.length}
-            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-8">
@@ -161,12 +174,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <h4 className="text-3xl font-black text-[#b28a48] fantasy-font tracking-widest uppercase">{c.name}</h4>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setClasses(prev => prev.filter(x => x.id !== c.id)); }} 
-                        className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
-                      >
-                        🗑️
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={(e) => handleShareIndividual(e, c)}
+                          className="text-neutral-700 hover:text-green-500 transition-colors p-2 text-xl"
+                          title="Share Archetype through Portal"
+                        >
+                          🌀
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setClasses(prev => prev.filter(x => x.id !== c.id)); }} 
+                          className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                     <p className={`text-base text-neutral-400 mt-4 italic font-serif leading-relaxed ${expandedId === c.id ? '' : 'line-clamp-2'}`}>
                       {c.description}
@@ -178,29 +200,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                       <div className="text-[10px] uppercase text-neutral-600 font-black mb-1">Hit Die</div>
                       <div className="text-lg font-black text-[#b28a48]">{c.hitDie}</div>
                     </div>
-                    <div className="bg-black/80 border border-neutral-800 px-6 py-4 rounded-sm text-center min-w-[90px]">
-                      <div className="text-[10px] uppercase text-neutral-600 font-black mb-1">Vitality</div>
-                      <div className="text-lg font-black text-[#b28a48]">{c.startingHp}</div>
-                    </div>
                   </div>
                 </div>
 
                 {expandedId === c.id && (
                   <div className="border-t border-neutral-900 bg-[#080808] p-8 md:p-12 space-y-12 animate-in slide-in-from-top duration-500">
-                    {c.spellSlots && c.spellSlots.length > 0 && (
-                      <div className="animate-in fade-in duration-700">
-                        <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] mb-6 border-b border-neutral-800 pb-2">Mana Capacity (Spell Slots)</h5>
-                        <div className="grid grid-cols-5 gap-4">
-                          {c.spellSlots.map((slot, i) => (
-                            <div key={i} className="bg-neutral-950 border border-neutral-800 p-4 text-center rounded-sm">
-                              <div className="text-[9px] text-neutral-600 font-black mb-1 tracking-tighter">LEVEL {i + 1}</div>
-                              <div className="text-xl font-black text-amber-700">{slot}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     <div className="space-y-8">
                       <div className="flex justify-between items-end border-b border-neutral-800 pb-3">
                         <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em]">Archetype Features</h5>
@@ -212,7 +216,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           {rerolling === c.id ? 'REWEAVING...' : (
                             <>
                               <span>Reroll Unlocked 🎲</span>
-                              <span className="text-amber-600/60">[-2⚡]</span>
                             </>
                           )}
                         </button>
@@ -240,44 +243,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 </p>
                               </div>
                             </div>
-                            {f.locked && (
-                              <div className="absolute top-3 right-3 text-[8px] font-black text-amber-800 uppercase tracking-[0.2em] border border-amber-900/40 px-2 py-0.5 rounded-full">BOUND</div>
-                            )}
                           </div>
                         ))}
                       </div>
                     </div>
-
-                    <div className="text-center pt-8 border-t border-neutral-900">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setExpandedId(null); }}
-                        className="text-[11px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.6em] transition-all"
-                      >
-                        Collapse Archetype Ledger
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!expandedId && (
-                  <div className="px-8 pb-8 pt-0 flex items-center justify-between">
-                    <div className="flex gap-3 overflow-hidden">
-                       {c.features.slice(0, 2).map((f, i) => (
-                         <span key={i} className="text-[10px] px-3 py-1 border border-neutral-900 text-neutral-600 uppercase font-black rounded-sm truncate max-w-[120px]">{f.name}</span>
-                       ))}
-                       {c.features.length > 2 && <span className="text-[10px] text-neutral-800 font-black self-center uppercase tracking-tighter">+ {c.features.length - 2} MORE</span>}
-                    </div>
-                    <span className="text-[10px] font-black text-[#b28a48] uppercase tracking-[0.2em] animate-pulse">Expand Codex Entry †</span>
                   </div>
                 )}
               </div>
             ))}
-            {filteredClasses.length === 0 && (
-              <div className="py-24 text-center border-2 border-dashed border-neutral-900 rounded-sm">
-                <div className="text-6xl mb-6 opacity-20">📜</div>
-                <div className="text-[12px] uppercase tracking-[0.5em] text-neutral-700 font-black">The Grimoire is silent...</div>
-              </div>
-            )}
           </div>
         </div>
       </div>

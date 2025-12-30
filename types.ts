@@ -1,4 +1,12 @@
 
+export interface UserAccount {
+  username: string;
+  displayName: string;
+  passwordHash: string; // Simulated for this frontend implementation
+  hasKeyBound: boolean;
+  apiKey: string;
+}
+
 export interface Stats {
   strength: number;
   dexterity: number;
@@ -100,7 +108,8 @@ export type SyncMessageType =
   | 'SUMMARY_UPDATE'
   | 'KICK'
   | 'PULSE'
-  | 'HANDSHAKE';
+  | 'HANDSHAKE'
+  | 'QUOTA_SYNC';
 
 export interface ServerLog {
   id: string;

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog } from './types';
+import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount } from './types';
 import Sidebar from './components/Sidebar';
 import CampaignView from './components/CampaignView';
 import CharacterCreator from './components/CharacterCreator';
@@ -12,6 +12,18 @@ import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import Peer, { DataConnection } from 'peerjs';
 
+// Define the AIStudio interface and extend window globally matching platform expectations
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    // Fix: Removed readonly modifier to avoid conflict with other global declarations
+    aistudio: AIStudio;
+  }
+}
+
 interface Notification {
   id: string;
   message: string;
@@ -20,11 +32,23 @@ interface Notification {
 
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
+const DAILY_FLASH_LIMIT = 1500;
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
+  // Current Session User
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    const saved = localStorage.getItem('mythos_active_session');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+
+  // User-Scoped Storage Helper
+  const getUserKey = (key: string) => currentUser ? `${currentUser.username}_${key}` : `guest_${key}`;
+
   // Arcane Resonance (Rate Limit Tracking)
   const [arcaneTokens, setArcaneTokens] = useState<number>(3); 
   const [reservoir, setReservoir] = useState<number>(100); 
@@ -32,43 +56,18 @@ const App: React.FC = () => {
   const [isQuotaExhausted, setIsQuotaExhausted] = useState<boolean>(false);
   const [dmModel, setDmModel] = useState<string>('gemini-3-pro-preview');
   const [localResetTime, setLocalResetTime] = useState<string>('');
-  const [dailyProUsed, setDailyProUsed] = useState<number>(() => {
-    const saved = localStorage.getItem('mythos_daily_pro_used');
-    const lastReset = localStorage.getItem('mythos_last_reset_day');
-    const today = new Date().toDateString();
-    
-    if (lastReset !== today) {
-      return 0;
-    }
-    return saved ? parseInt(saved, 10) : 0;
-  });
+  
+  const [dailyProUsed, setDailyProUsed] = useState<number>(0);
+  const [dailyFlashUsed, setDailyFlashUsed] = useState<number>(0);
 
   const lastLockoutTriggered = useRef<number>(0);
 
-  const [playerName, setPlayerName] = useState<string>(() => {
-    return localStorage.getItem('mythos_player_name') || '';
-  });
-
-  const [characters, setCharacters] = useState<Character[]>(() => {
-    const saved = localStorage.getItem('mythos_chars');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [classes, setClasses] = useState<ClassDef[]>(() => {
-    const saved = localStorage.getItem('mythos_classes');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [monsters, setMonsters] = useState<Monster[]>(() => {
-    const saved = localStorage.getItem('mythos_monsters');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [items, setItems] = useState<Item[]>(() => {
-    const saved = localStorage.getItem('mythos_items');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [campaign, setCampaign] = useState<CampaignState>(() => {
-    const saved = localStorage.getItem('mythos_campaign');
-    return saved ? JSON.parse(saved) : { plot: '', summary: '', logs: [], party: [] };
-  });
+  // State initialization depends on currentUser
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [classes, setClasses] = useState<ClassDef[]>([]);
+  const [monsters, setMonsters] = useState<Monster[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [] });
 
   // Multiplayer State
   const [peerId, setPeerId] = useState<string>('');
@@ -85,6 +84,78 @@ const App: React.FC = () => {
     }, 7000);
   };
 
+  // Check API Key status
+  const checkApiKey = useCallback(async () => {
+    if (window.aistudio) {
+      const has = await window.aistudio.hasSelectedApiKey();
+      setHasApiKey(has);
+    }
+  }, []);
+
+  const handleLinkKey = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+      notify("Celestial Key Bound to your Soul.", "success");
+    }
+  };
+
+  // Load user data on login
+  useEffect(() => {
+    if (currentUser) {
+      const uPrefix = currentUser.username;
+      
+      const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
+      setCharacters(savedChars ? JSON.parse(savedChars) : []);
+      
+      const savedClasses = localStorage.getItem(`${uPrefix}_mythos_classes`);
+      setClasses(savedClasses ? JSON.parse(savedClasses) : []);
+      
+      const savedMonsters = localStorage.getItem(`${uPrefix}_mythos_monsters`);
+      setMonsters(savedMonsters ? JSON.parse(savedMonsters) : []);
+      
+      const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
+      setItems(savedItems ? JSON.parse(savedItems) : []);
+      
+      const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
+      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [] });
+
+      const savedPro = localStorage.getItem(`${uPrefix}_mythos_daily_pro_used`);
+      const savedFlash = localStorage.getItem(`${uPrefix}_mythos_daily_flash_used`);
+      const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
+      const today = new Date().toDateString();
+
+      if (lastReset === today) {
+        setDailyProUsed(savedPro ? parseInt(savedPro) : 0);
+        setDailyFlashUsed(savedFlash ? parseInt(savedFlash) : 0);
+      } else {
+        setDailyProUsed(0);
+        setDailyFlashUsed(0);
+        localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
+      }
+      
+      checkApiKey();
+    }
+  }, [currentUser, checkApiKey]);
+
+  // Sync state to user-scoped storage
+  useEffect(() => {
+    if (!currentUser) return;
+    const uPrefix = currentUser.username;
+    localStorage.setItem(`${uPrefix}_mythos_chars`, JSON.stringify(characters));
+    localStorage.setItem(`${uPrefix}_mythos_classes`, JSON.stringify(classes));
+    localStorage.setItem(`${uPrefix}_mythos_monsters`, JSON.stringify(monsters));
+    localStorage.setItem(`${uPrefix}_mythos_items`, JSON.stringify(items));
+    localStorage.setItem(`${uPrefix}_mythos_campaign`, JSON.stringify(campaign));
+    localStorage.setItem(`${uPrefix}_mythos_daily_pro_used`, dailyProUsed.toString());
+    localStorage.setItem(`${uPrefix}_mythos_daily_flash_used`, dailyFlashUsed.toString());
+  }, [currentUser, characters, classes, monsters, items, campaign, dailyProUsed, dailyFlashUsed]);
+
+  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
+    const fullMsg = { ...msg, senderId: peerId, senderName: currentUser?.displayName || 'Unknown' } as SyncMessage;
+    connections.forEach(conn => { if (conn.open) conn.send(fullMsg); });
+  }, [connections, peerId, currentUser]);
+
   const calculateReset = useCallback(() => {
     try {
       const now = new Date();
@@ -100,33 +171,27 @@ const App: React.FC = () => {
         minute: '2-digit' 
       }));
 
-      // If wall clock has passed reset since last check, reset count
-      const lastResetCheck = localStorage.getItem('mythos_last_reset_day');
-      if (lastResetCheck !== now.toDateString()) {
-        setDailyProUsed(0);
-        setIsQuotaExhausted(false);
-        localStorage.setItem('mythos_last_reset_day', now.toDateString());
-        localStorage.setItem('mythos_daily_pro_used', '0');
+      if (currentUser) {
+        const uPrefix = currentUser.username;
+        const lastResetCheck = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
+        if (lastResetCheck !== now.toDateString()) {
+          setDailyProUsed(0);
+          setDailyFlashUsed(0);
+          setIsQuotaExhausted(false);
+          localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, now.toDateString());
+        }
       }
     } catch (e) {
       setLocalResetTime("Midnight PT");
     }
-  }, []);
+  }, [currentUser]);
 
-  // Arcane Regeneration Logic
   useEffect(() => {
     calculateReset();
     const regenInterval = setInterval(() => {
       setArcaneTokens(prev => Math.min(prev + 0.016, 3)); 
       setReservoir(prev => Math.min(prev + 1.1, 100)); 
-      
-      setLockoutTime(prev => {
-        const next = Math.max(prev - 1, 0);
-        if (next === 0) {
-          window.sessionStorage.setItem('mythos_lockout_active', 'false');
-        }
-        return next;
-      });
+      setLockoutTime(prev => Math.max(prev - 1, 0));
     }, 1000);
 
     const resetRefreshInterval = setInterval(calculateReset, 60000);
@@ -138,15 +203,26 @@ const App: React.FC = () => {
         if (dmModel.includes('pro')) {
           setDailyProUsed(prev => {
             const next = prev + 1;
-            localStorage.setItem('mythos_daily_pro_used', next.toString());
-            if (next >= DAILY_PRO_LIMIT) {
-              setIsQuotaExhausted(true);
-            }
+            if (next >= DAILY_PRO_LIMIT) setIsQuotaExhausted(true);
+            broadcast({ type: 'QUOTA_SYNC', payload: { pro: next, flash: dailyFlashUsed } });
+            return next;
+          });
+        } else {
+          setDailyFlashUsed(prev => {
+            const next = prev + 1;
+            broadcast({ type: 'QUOTA_SYNC', payload: { pro: dailyProUsed, flash: next } });
             return next;
           });
         }
       }
-      if (type === 'utility') setReservoir(prev => Math.max(prev - cost, 0));
+      if (type === 'utility') {
+        setReservoir(prev => Math.max(prev - cost, 0));
+        setDailyFlashUsed(prev => {
+          const next = prev + 1;
+          broadcast({ type: 'QUOTA_SYNC', payload: { pro: dailyProUsed, flash: next } });
+          return next;
+        });
+      }
     };
 
     const handleError = (e: any) => {
@@ -154,16 +230,14 @@ const App: React.FC = () => {
         if (e.detail.isQuotaExceeded) {
           setIsQuotaExhausted(true);
           setDailyProUsed(DAILY_PRO_LIMIT);
-          notify(`DAILY QUOTA REACHED: The 'Pro' ley line is exhausted. Resets at ${localResetTime}. Switch to 'High Velocity' to continue.`, "error");
+          notify(`GLOBAL QUOTA REACHED. Resets at ${localResetTime}.`, "error");
           return;
         }
-
         const now = Date.now();
         if (now - lastLockoutTriggered.current > 10000) {
           lastLockoutTriggered.current = now;
           setLockoutTime(LOCKOUT_DURATION);
-          window.sessionStorage.setItem('mythos_lockout_active', 'true');
-          notify("Ley Lines Severely Overloaded. Hard recalibration initiated (65s).", "error");
+          notify("Ley Lines Overloaded. Recalibrating (65s).", "error");
         }
       }
     };
@@ -177,28 +251,14 @@ const App: React.FC = () => {
       window.removeEventListener('mythos:arcane_use' as any, handleUsage);
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
-  }, [calculateReset, localResetTime, dmModel]);
+  }, [calculateReset, localResetTime, dmModel, dailyProUsed, dailyFlashUsed, broadcast]);
 
   const logout = () => {
     if (confirm("Sever bond with Mythos?")) {
-      setPlayerName('');
-      localStorage.removeItem('mythos_player_name');
+      setCurrentUser(null);
+      localStorage.removeItem('mythos_active_session');
     }
   };
-
-  useEffect(() => {
-    localStorage.setItem('mythos_chars', JSON.stringify(characters));
-    localStorage.setItem('mythos_classes', JSON.stringify(classes));
-    localStorage.setItem('mythos_monsters', JSON.stringify(monsters));
-    localStorage.setItem('mythos_items', JSON.stringify(items));
-    localStorage.setItem('mythos_campaign', JSON.stringify(campaign));
-    if (playerName) localStorage.setItem('mythos_player_name', playerName);
-  }, [characters, classes, monsters, items, campaign, playerName]);
-
-  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
-    const fullMsg = { ...msg, senderId: peerId, senderName: playerName } as SyncMessage;
-    connections.forEach(conn => { if (conn.open) conn.send(fullMsg); });
-  }, [connections, peerId, playerName]);
 
   const handleIncomingData = useCallback((data: SyncMessage) => {
     switch (data.type) {
@@ -220,11 +280,15 @@ const App: React.FC = () => {
       case 'SUMMARY_UPDATE':
         setCampaign(prev => ({ ...prev, summary: data.payload }));
         break;
+      case 'QUOTA_SYNC':
+        if (data.payload.pro > dailyProUsed) setDailyProUsed(data.payload.pro);
+        if (data.payload.flash > dailyFlashUsed) setDailyFlashUsed(data.payload.flash);
+        break;
       case 'KICK':
         if (!isHost) window.location.reload();
         break;
     }
-  }, [isHost]);
+  }, [isHost, dailyProUsed, dailyFlashUsed]);
 
   const initPeer = useCallback((customId?: string) => {
     if (peerRef.current) peerRef.current.destroy();
@@ -234,43 +298,56 @@ const App: React.FC = () => {
     peer.on('connection', (conn) => {
       conn.on('open', () => {
         setConnections(prev => [...prev, conn]);
+        conn.send({ 
+          type: 'QUOTA_SYNC', 
+          payload: { pro: dailyProUsed, flash: dailyFlashUsed },
+          senderId: peer.id, senderName: currentUser?.displayName || 'Unknown'
+        });
         if (isHost) {
           conn.send({ 
             type: 'STATE_UPDATE', 
             payload: { campaign, monsters, items, classes, characters },
-            senderId: peer.id, senderName: playerName
+            senderId: peer.id, senderName: currentUser?.displayName || 'Unknown'
           });
         }
       });
       conn.on('data', (data: any) => handleIncomingData(data));
       conn.on('close', () => setConnections(prev => prev.filter(c => c.peer !== conn.peer)));
     });
-  }, [isHost, campaign, monsters, items, classes, characters, playerName, handleIncomingData]);
+  }, [isHost, campaign, monsters, items, classes, characters, currentUser, handleIncomingData, dailyProUsed, dailyFlashUsed]);
 
   useEffect(() => {
-    if (!playerName) return;
+    if (!currentUser) return;
     initPeer();
     return () => { peerRef.current?.destroy(); };
-  }, [playerName]);
+  }, [currentUser, initPeer]);
 
-  if (!playerName) return <LoginScreen setPlayerName={setPlayerName} />;
+  if (!currentUser) return <LoginScreen setCurrentUser={setCurrentUser} />;
 
   const isExhausted = lockoutTime > 0;
   const proRemaining = Math.max(0, DAILY_PRO_LIMIT - dailyProUsed);
+  const flashRemaining = Math.max(0, DAILY_FLASH_LIMIT - dailyFlashUsed);
 
   return (
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={logout} />
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        onSignOut={logout} 
+        user={currentUser}
+        hasKey={hasApiKey}
+        onLinkKey={handleLinkKey}
+      />
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={playerName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); initPeer(); }} setIsHost={setIsHost} forceSync={() => {}} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
         </div>
       </main>
 
@@ -290,10 +367,10 @@ const App: React.FC = () => {
       {/* Arcane Status Bar (Foci Orb) */}
       <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
         <div className={`flex items-center gap-4 bg-black/60 backdrop-blur border px-4 py-2 rounded-sm pointer-events-auto transition-colors duration-1000 ${isExhausted || isQuotaExhausted ? 'border-red-600' : 'border-[#b28a48]/20'}`}>
-          {/* Daily Quota Token (Celestial Charge) */}
-          <div className="flex flex-col items-center justify-center border-r border-neutral-800 pr-4 mr-1">
-             <div className={`text-[7px] font-black uppercase tracking-tighter mb-1 ${proRemaining < 10 ? 'text-red-500' : 'text-neutral-500'}`}>Fidelity</div>
-             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${proRemaining < 10 ? 'border-red-900 bg-red-950/30' : 'border-amber-900/30 bg-amber-950/10'}`}>
+          {/* Global Quota Token */}
+          <div className="flex flex-col items-center justify-center border-r border-neutral-800 pr-4 mr-1 group/quota cursor-help">
+             <div className={`text-[7px] font-black uppercase tracking-tighter mb-1 ${proRemaining < 10 ? 'text-red-500' : 'text-neutral-500'}`}>GLOBAL PRO</div>
+             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all ${proRemaining < 10 ? 'border-red-900 bg-red-950/30 shadow-[0_0_8px_rgba(153,27,27,0.4)]' : 'border-amber-900/30 bg-amber-950/10'}`}>
                 <span className={`text-[10px] font-black ${proRemaining < 10 ? 'text-red-600' : 'text-amber-600'}`}>{proRemaining}</span>
                 <span className="text-[7px] text-neutral-700 font-bold">/ {DAILY_PRO_LIMIT}</span>
              </div>
@@ -317,7 +394,7 @@ const App: React.FC = () => {
               isExhausted || (isQuotaExhausted && dmModel.includes('pro'))
                 ? 'border-red-600 bg-red-950/20 shadow-[0_0_25px_#7f1d1d] animate-pulse' 
                 : reservoir > 5 
-                  ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15px_rgba(178,138,72,0.3)]' 
+                  ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15_rgba(178,138,72,0.3)]' 
                   : 'border-neutral-800 bg-black'
             }`}>
               <span className={`text-[12px] font-black ${isExhausted || isQuotaExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
@@ -332,19 +409,23 @@ const App: React.FC = () => {
                <div className="h-1 w-full bg-neutral-900 mb-2">
                  <div className={`h-full transition-all ${isExhausted || isQuotaExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
                </div>
-               <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold space-y-1">
-                 DM: {dmModel.includes('pro') ? 'High Fidelity (50/day)' : 'High Velocity (1500/day)'}<br/>
-                 Celestial Charges: {proRemaining} remaining<br/>
+               <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold space-y-2">
+                 Soul: <span className="text-[#b28a48]">{currentUser.displayName}</span><br/>
+                 Celestial Key: <span className={hasApiKey ? "text-green-500" : "text-red-500"}>{hasApiKey ? "Bound" : "Unlinked"}</span><br/>
+                 Global Pro: <span className="text-amber-600">{proRemaining}</span> remaining<br/>
+                 Global Flash: <span className="text-amber-600">{flashRemaining}</span> remaining<br/>
                  Tokens: {Math.floor(arcaneTokens)}/3<br/>
-                 Reset: <span className="text-[#b28a48]">{localResetTime}</span><br/>
-                 {isQuotaExhausted && dmModel.includes('pro') ? 'DAILY PRO QUOTA HIT' : isExhausted ? `RECALIBRATING: ${lockoutTime}S` : 'LEY LINES STABLE'}
+                 Reset: <span className="text-[#b28a48]">{localResetTime}</span>
                </p>
+               {!hasApiKey && (
+                 <button onClick={handleLinkKey} className="mt-4 w-full bg-red-900/40 border border-red-500 text-red-200 text-[8px] font-black py-2 uppercase tracking-widest hover:bg-red-500 hover:text-black transition-all">Link Celestial Key</button>
+               )}
             </div>
           </div>
 
           <div className="flex flex-col">
             <div className="text-[9px] uppercase font-black text-neutral-500">
-              Soul: <span className="text-[#b28a48]">{playerName}</span>
+              Soul: <span className="text-[#b28a48]">{currentUser.displayName}</span>
             </div>
             <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted || isQuotaExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
               {isExhausted ? 'LOCKOUT' : isQuotaExhausted ? 'QUOTA DEPLETED' : 'RESONANCE ONLINE'}

@@ -66,13 +66,13 @@ const App: React.FC = () => {
   const [serverLogs, setServerLogs] = useState<ServerLog[]>([]);
   const peerRef = useRef<Peer | null>(null);
 
-  const notify = (message: string, type: Notification['type'] = 'info') => {
+  const notify = useCallback((message: string, type: Notification['type'] = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 7000);
-  };
+  }, []);
 
   const handleRollDice = (sides: number) => {
     const result = Math.floor(Math.random() * sides) + 1;
@@ -144,8 +144,6 @@ const App: React.FC = () => {
       const { type, cost } = e.detail;
       if (type === 'dm') {
         setArcaneTokens(prev => Math.max(prev - 1, 0));
-        // Use functional state or ref if model changes mid-call, 
-        // but simple state is fine here for single-player reactivity
         setDmModel(currentModel => {
           if (currentModel.includes('pro')) {
             setDailyProUsed(p => p + 1);
@@ -179,61 +177,108 @@ const App: React.FC = () => {
       window.removeEventListener('mythos:arcane_use' as any, handleUsage);
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
-  }, []);
+  }, [notify]);
+
+  const setupConnection = useCallback((conn: DataConnection) => {
+    conn.on('open', () => {
+      setConnections(prev => [...prev, conn]);
+      setServerLogs(prev => [...prev, {
+        id: Math.random().toString(36),
+        message: `Resonance established with ${conn.peer}`,
+        type: 'success',
+        timestamp: Date.now()
+      }]);
+    });
+
+    conn.on('data', (data: any) => {
+      const msg = data as SyncMessage;
+      switch (msg.type) {
+        case 'SHARE_RESOURCE':
+          const { resourceType, resourceData } = msg.payload;
+          if (resourceType === 'class') {
+            setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
+            notify(`New Archetype received: ${resourceData.name}`, 'success');
+          } else if (resourceType === 'monster') {
+            setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
+            notify(`New Horror added to Bestiary: ${resourceData.name}`, 'success');
+          } else if (resourceType === 'item') {
+            setItems(prev => prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]);
+            notify(`New Relic received: ${resourceData.name}`, 'success');
+          }
+          break;
+        case 'NEW_LOG':
+          setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] }));
+          break;
+        case 'SUMMARY_UPDATE':
+          setCampaign(prev => ({ ...prev, summary: msg.payload }));
+          break;
+        case 'GIVE_LOOT':
+          setItems(prev => [...prev, msg.payload]);
+          notify(`The party received loot: ${msg.payload.name}`, 'info');
+          break;
+        case 'STATE_UPDATE':
+          if (msg.payload.campaign) setCampaign(msg.payload.campaign);
+          if (msg.payload.classes) setClasses(msg.payload.classes);
+          if (msg.payload.monsters) setMonsters(msg.payload.monsters);
+          if (msg.payload.items) setItems(msg.payload.items);
+          if (msg.payload.characters) setCharacters(msg.payload.characters);
+          notify("Chronicle state synchronized", "info");
+          break;
+      }
+    });
+
+    conn.on('close', () => {
+      setConnections(prev => prev.filter(c => c.peer !== conn.peer));
+      setServerLogs(prev => [...prev, {
+        id: Math.random().toString(36),
+        message: `Connection lost with ${conn.peer}`,
+        type: 'warn',
+        timestamp: Date.now()
+      }]);
+    });
+  }, [notify]);
 
   const initPeer = useCallback((customId?: string) => {
     if (peerRef.current) peerRef.current.destroy();
     const peer = customId ? new Peer(customId) : new Peer();
     peerRef.current = peer;
-    peer.on('open', (id) => setPeerId(id));
-    peer.on('connection', (conn) => {
-      conn.on('open', () => {
-        setConnections(prev => [...prev, conn]);
-        setServerLogs(prev => [...prev, {
-          id: Math.random().toString(36),
-          message: `Resonance established with ${conn.peer}`,
-          type: 'success',
-          timestamp: Date.now()
-        }]);
-      });
-      conn.on('data', (data: any) => {
-        const msg = data as SyncMessage;
-        switch (msg.type) {
-          case 'SHARE_RESOURCE':
-            const { resourceType, resourceData } = msg.payload;
-            if (resourceType === 'class') {
-              setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
-              notify(`New Archetype received: ${resourceData.name}`, 'success');
-            } else if (resourceType === 'monster') {
-              setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
-              notify(`New Horror added to Bestiary: ${resourceData.name}`, 'success');
-            } else if (resourceType === 'item') {
-              setItems(prev => prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]);
-              notify(`New Relic received: ${resourceData.name}`, 'success');
-            }
-            break;
-          case 'NEW_LOG':
-            setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] }));
-            break;
-          case 'SUMMARY_UPDATE':
-            setCampaign(prev => ({ ...prev, summary: msg.payload }));
-            break;
-          case 'GIVE_LOOT':
-            setItems(prev => [...prev, msg.payload]);
-            notify(`The party received loot: ${msg.payload.name}`, 'info');
-            break;
-          case 'STATE_UPDATE':
-            if (msg.payload.campaign) setCampaign(msg.payload.campaign);
-            if (msg.payload.classes) setClasses(msg.payload.classes);
-            if (msg.payload.monsters) setMonsters(msg.payload.monsters);
-            if (msg.payload.items) setItems(msg.payload.items);
-            if (msg.payload.characters) setCharacters(msg.payload.characters);
-            notify("Chronicle state synchronized", "info");
-            break;
-        }
-      });
+    
+    peer.on('open', (id) => {
+      setPeerId(id);
+      setServerLogs(prev => [...prev, {
+        id: Math.random().toString(36),
+        message: `Local sigil manifested: ${id}`,
+        type: 'info',
+        timestamp: Date.now()
+      }]);
     });
-  }, [notify]);
+
+    peer.on('connection', (conn) => {
+      setupConnection(conn);
+    });
+
+    peer.on('error', (err) => {
+      console.error("PeerJS Error:", err);
+      setServerLogs(prev => [...prev, {
+        id: Math.random().toString(36),
+        message: `Ether instability: ${err.type}`,
+        type: 'error',
+        timestamp: Date.now()
+      }]);
+      if (err.type === 'unavailable-id') {
+        notify("This shared code is already taken.", "error");
+      }
+    });
+  }, [setupConnection, notify]);
+
+  const connectToHost = useCallback((hostSigil: string) => {
+    if (!peerRef.current || !peerRef.current.open) {
+      notify("Portal not ready. Inscribe your sigil first.", "error");
+      return;
+    }
+    const conn = peerRef.current.connect(hostSigil);
+    setupConnection(conn);
+  }, [setupConnection, notify]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -257,7 +302,16 @@ const App: React.FC = () => {
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); initPeer(); }} setIsHost={setIsHost} forceSync={() => {}} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {
+              if (connections.length === 0) return;
+              const state: any = {};
+              if (selection.characters) state.characters = characters;
+              if (selection.classes) state.classes = classes;
+              if (selection.monsters) state.monsters = monsters;
+              if (selection.items) state.items = items;
+              if (selection.campaign) state.campaign = campaign;
+              broadcast({ type: 'STATE_UPDATE', payload: state });
+          }} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
         </div>
       </main>

@@ -288,14 +288,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
                 </div>
-
-                <div className="grid grid-cols-5 gap-2 mt-2">
-                  {(Object.keys(RACIAL_TRAITS) as RaceType[]).map((r) => (
-                    <button key={r} onClick={() => setRace(r)} className={`h-12 border transition-all flex items-center justify-center text-xl rounded-sm ${race === r ? 'bg-amber-950/30 border-[#b28a48] shadow-[0_0_10px_rgba(178,138,72,0.3)]' : 'bg-neutral-950 border-neutral-900 hover:border-neutral-700'}`}>
-                      {RACIAL_TRAITS[r].icon}
-                    </button>
-                  ))}
-                </div>
                 
                 <div className="bg-neutral-950/50 border border-neutral-900 p-3 rounded-sm mt-3 animate-in fade-in slide-in-from-top-1">
                   <div className="flex justify-between items-center mb-2">
@@ -310,9 +302,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       </div>
                     ))}
                   </div>
-                  <p className="text-[9px] text-neutral-400 font-serif italic leading-relaxed border-t border-neutral-900 pt-2">
+                  <p className="text-[9px] text-neutral-400 font-serif italic leading-relaxed mb-4">
                     {RACIAL_TRAITS[race].flavor}
                   </p>
+
+                  <div className="space-y-2 pt-3 border-t border-neutral-900">
+                    <p className="text-[7px] font-black text-neutral-600 uppercase tracking-widest mb-1">Innate Heritage Feats</p>
+                    {RACIAL_TRAITS[race].traits.map((trait, idx) => (
+                      <div key={idx} className="bg-black/40 p-2 border border-neutral-900 rounded-sm">
+                        <p className="text-[9px] font-black text-[#b28a48] uppercase">{trait.name}</p>
+                        <p className="text-[8px] text-neutral-500 font-serif italic leading-tight">{trait.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -510,7 +512,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedChar.feats.map((f, i) => (
-                      <div key={i} className={`p-5 border rounded-sm flex flex-col justify-center min-h-[110px] transition-all relative ${f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-800'}`}>
+                      <div key={i} className={`p-5 border rounded-sm flex flex-col justify-center min-h-[110px] transition-all relative ${f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'}`}>
                         <div className="flex items-start gap-4">
                            <span className={`text-xl mt-0.5 transition-colors ${f.locked ? 'text-amber-600' : 'text-neutral-800 opacity-20'}`}>
                              {f.locked ? '†' : '○'}

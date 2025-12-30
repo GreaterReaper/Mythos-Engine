@@ -318,7 +318,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Global Notifications */}
-      <div className="fixed top-20 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed top-24 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
           <div key={n.id} className={`p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[280px] ${
             n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : 
@@ -330,71 +330,73 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {/* Arcane Status Bar (Foci Orb) */}
-      <div className="fixed top-4 right-4 z-[60] flex flex-col items-end gap-2 pointer-events-none">
-        <div className={`flex items-center gap-4 bg-black/60 backdrop-blur border px-4 py-2 rounded-sm pointer-events-auto transition-colors duration-1000 ${isExhausted || isQuotaExhausted ? 'border-red-600' : 'border-[#b28a48]/20'}`}>
-          {/* Global Quota Token */}
-          <div className="flex flex-col items-center justify-center border-r border-neutral-800 pr-4 mr-1 group/quota cursor-help">
-             <div className={`text-[7px] font-black uppercase tracking-tighter mb-1 ${proRemaining < 10 ? 'text-red-500' : 'text-neutral-500'}`}>GLOBAL PRO</div>
-             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all ${proRemaining < 10 ? 'border-red-900 bg-red-950/30 shadow-[0_0_8px_rgba(153,27,27,0.4)]' : 'border-amber-900/30 bg-amber-950/10'}`}>
-                <span className={`text-[10px] font-black ${proRemaining < 10 ? 'text-red-600' : 'text-amber-600'}`}>{proRemaining}</span>
-                <span className="text-[7px] text-neutral-700 font-bold">/ {DAILY_PRO_LIMIT}</span>
-             </div>
+      {/* Persistent Global Status Bar */}
+      <div className="fixed top-0 right-0 left-0 lg:left-64 h-16 z-[60] bg-black/80 backdrop-blur-md border-b border-neutral-900 px-6 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          {/* Daily Quota Tracking */}
+          <div className="flex gap-4">
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Global Pro</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-black ${proRemaining < 10 ? 'text-red-500' : 'text-amber-500'}`}>{proRemaining}</span>
+                <span className="text-[8px] text-neutral-700 font-bold uppercase">Left</span>
+              </div>
+            </div>
+            <div className="w-px h-8 bg-neutral-900 self-center"></div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Global Flash</span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-black ${flashRemaining < 100 ? 'text-red-500' : 'text-amber-500'}`}>{flashRemaining}</span>
+                <span className="text-[8px] text-neutral-700 font-bold uppercase">Left</span>
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div className="flex gap-1">
-            {[...Array(3)].map((_, i) => (
-              <div 
-                key={i} 
-                className={`w-2 h-3 rounded-sm transform rotate-12 transition-all duration-500 ${
-                  i < Math.floor(arcaneTokens) 
-                    ? (isQuotaExhausted && dmModel.includes('pro') ? 'bg-red-900' : 'bg-amber-500 shadow-[0_0_8px_#f59e0b]') 
-                    : 'bg-neutral-800'
-                }`}
-              ></div>
-            ))}
-          </div>
-          
-          <div className="relative group">
-            <div className={`w-10 h-10 rounded-full border-2 transition-all duration-700 flex items-center justify-center ${
-              isExhausted || (isQuotaExhausted && dmModel.includes('pro'))
-                ? 'border-red-600 bg-red-950/20 shadow-[0_0_25px_#7f1d1d] animate-pulse' 
-                : reservoir > 5 
-                  ? 'border-[#b28a48] bg-amber-950/10 shadow-[0_0_15_rgba(178,138,72,0.3)]' 
-                  : 'border-neutral-800 bg-black'
-            }`}>
-              <span className={`text-[12px] font-black ${isExhausted || isQuotaExhausted ? 'text-red-500' : reservoir > 5 ? 'text-[#b28a48]' : 'text-neutral-700'}`}>
-                {isExhausted ? lockoutTime : isQuotaExhausted && dmModel.includes('pro') ? '!' : Math.round(reservoir)}
+        <div className="flex items-center gap-8">
+          {/* DM Token Tracking */}
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">DM Resonance</span>
+              <span className={`text-sm font-black ${arcaneTokens < 1 ? 'text-red-500' : 'text-[#b28a48]'}`}>
+                {Math.floor(arcaneTokens)} / 3 <span className="text-[8px] text-neutral-700">Tokens</span>
               </span>
             </div>
-            
-            <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-[#b28a48]/40 invisible group-hover:visible w-56 shadow-2xl z-[110]">
-               <h5 className="text-[9px] font-black text-[#b28a48] uppercase tracking-widest mb-1">
-                 {isExhausted ? 'RECALIBRATION' : isQuotaExhausted ? 'QUOTA EXHAUSTED' : 'ARCANE STABILITY'}
-               </h5>
-               <div className="h-1 w-full bg-neutral-900 mb-2">
-                 <div className={`h-full transition-all ${isExhausted || isQuotaExhausted ? 'bg-red-600' : 'bg-amber-600'}`} style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}></div>
-               </div>
-               <p className="text-[8px] text-neutral-500 uppercase leading-tight font-bold space-y-2">
-                 Soul: <span className="text-[#b28a48]">{currentUser.displayName}</span><br/>
-                 Global Pro: <span className="text-amber-600">{proRemaining}</span> remaining<br/>
-                 Global Flash: <span className="text-amber-600">{flashRemaining}</span> remaining<br/>
-                 Tokens: {Math.floor(arcaneTokens)}/3<br/>
-                 Reset: <span className="text-[#b28a48]">{localResetTime}</span>
-               </p>
+            <div className="flex gap-1">
+              {[...Array(3)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`w-1.5 h-4 rounded-sm transition-all duration-500 ${
+                    i < Math.floor(arcaneTokens) 
+                      ? (isQuotaExhausted && dmModel.includes('pro') ? 'bg-red-900' : 'bg-[#b28a48] shadow-[0_0_5px_#b28a48]') 
+                      : 'bg-neutral-800'
+                  }`}
+                ></div>
+              ))}
             </div>
           </div>
 
-          <div className="flex flex-col">
-            <div className="text-[9px] uppercase font-black text-neutral-500">
-              Soul: <span className="text-[#b28a48]">{currentUser.displayName}</span>
+          <div className="w-px h-8 bg-neutral-900"></div>
+
+          {/* Arcane Energy (Reservoir) Tracking */}
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Arcane Energy</span>
+              <span className={`text-sm font-black ${isExhausted ? 'text-red-500 animate-pulse' : 'text-[#b28a48]'}`}>
+                {isExhausted ? `Lock: ${lockoutTime}s` : `${Math.round(reservoir)}%`}
+              </span>
             </div>
-            <div className={`text-[7px] font-bold uppercase tracking-tighter transition-colors ${isExhausted || isQuotaExhausted ? 'text-red-700' : 'text-neutral-700'}`}>
-              {isExhausted ? 'LOCKOUT' : isQuotaExhausted ? 'QUOTA DEPLETED' : 'RESONANCE ONLINE'}
+            <div className="w-32 h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
+              <div 
+                className={`h-full transition-all duration-700 ${isExhausted ? 'bg-red-600' : 'bg-[#b28a48]'}`} 
+                style={{ width: `${isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir}%` }}
+              ></div>
             </div>
-            <div className="text-[6px] font-black text-[#b28a48]/40 uppercase tracking-widest mt-0.5">
-              RESET: {localResetTime}
-            </div>
+          </div>
+
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Next Reset</span>
+            <span className="text-[10px] font-black text-neutral-400 uppercase">{localResetTime}</span>
           </div>
         </div>
       </div>

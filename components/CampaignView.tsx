@@ -140,7 +140,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
 
   if (campaign.logs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center max-w-2xl mx-auto px-4">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center max-w-2xl mx-auto px-4 pt-16">
         <div className="text-7xl mb-8 drop-shadow-[0_0_20px_rgba(178,138,72,0.3)]">📜</div>
         <h2 className="text-4xl font-black mb-4 fantasy-font text-[#b28a48]">Forge Your Saga</h2>
         <p className="text-neutral-500 mb-10 text-sm italic tracking-widest uppercase">
@@ -164,7 +164,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-64px)] space-y-4">
+    <div className="flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-64px)] space-y-4 pt-12">
       <div className="bg-black/80 backdrop-blur-sm p-4 rounded-sm border border-[#1a1a1a] flex flex-wrap justify-between items-center shadow-2xl gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

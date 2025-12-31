@@ -1,4 +1,3 @@
-
 export interface UserAccount {
   username: string;
   displayName: string;
@@ -59,6 +58,8 @@ export interface ClassDef {
   hpPerLevel: number;
   spellSlots: number[];
   features: ClassFeature[];
+  preferredStats?: string[];
+  bonuses?: string[];
 }
 
 export interface MonsterAbility {

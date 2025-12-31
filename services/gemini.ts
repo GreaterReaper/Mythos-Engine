@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell } from "../types";
 
@@ -251,7 +250,7 @@ export const generateClassMechanics = async (name: string, description: string):
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Design mechanics for class: ${name}. Lore: ${description}`,
+      contents: `Design mechanics for class: ${name}. Lore: ${description}. Include primary stats and unique bonuses.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -260,9 +259,12 @@ export const generateClassMechanics = async (name: string, description: string):
             hitDie: { type: Type.STRING },
             startingHp: { type: Type.INTEGER },
             hpPerLevel: { type: Type.INTEGER },
-            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER } },
+            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Number of spell slots for levels 1-5" },
+            preferredStats: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Recommended core stats (e.g. Strength, Intelligence)" },
+            bonuses: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Innate class proficiencies or minor passive bonuses" },
             features: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } }
-          }
+          },
+          required: ["hitDie", "startingHp", "hpPerLevel", "spellSlots", "preferredStats", "bonuses", "features"]
         }
       }
     });

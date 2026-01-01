@@ -14,6 +14,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [identifyingId, setIdentifyingId] = useState<string | null>(null);
   const [rerolling, setRerolling] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -49,6 +50,28 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       notify(e.message || "The Forge failed to respond.", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleIdentifyDepths = async (cls: ClassDef) => {
+    if (!reservoirReady || identifyingId) return;
+    setIdentifyingId(cls.id);
+    try {
+      const mechanics = await generateClassMechanics(cls.name, cls.description);
+      setClasses(prev => prev.map(c => c.id === cls.id ? {
+        ...c,
+        preferredStats: mechanics.preferredStats || [],
+        bonuses: mechanics.bonuses || [],
+        spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : c.spellSlots,
+        hitDie: mechanics.hitDie || c.hitDie,
+        startingHp: mechanics.startingHp || c.startingHp,
+        hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel
+      } : c));
+      notify(`Depths of "${cls.name}" Manifested`, "success");
+    } catch (e: any) {
+      notify(e.message, "error");
+    } finally {
+      setIdentifyingId(null);
     }
   };
 
@@ -154,7 +177,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                 {loading ? 'BINDING SOUL...' : !reservoirReady ? 'ENERGY LOW...' : (
                   <>
                     <span>FORGE ARCHETYPE</span>
-                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-5⚡ ESSENCE]</span>
+                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-10⚡ ESSENCE]</span>
                   </>
                 )}
               </button>
@@ -176,6 +199,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           <div className="grid grid-cols-1 gap-8">
             {filteredClasses.map((c, idx) => {
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
+              const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
+
               return (
                 <div 
                   key={c.id} 
@@ -187,7 +212,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                   }`}
                 >
                   <div className="p-8 flex flex-col md:flex-row justify-between gap-8">
-                    <div className="flex-1">
+                    <div className="flex-1 text-left">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-4">
                           {!search && (
@@ -210,7 +235,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                               </button>
                             </div>
                           )}
-                          <h4 className="text-3xl font-black text-[#b28a48] fantasy-font tracking-widest uppercase">{c.name}</h4>
+                          <div>
+                            <h4 className="text-3xl font-black text-[#b28a48] fantasy-font tracking-widest uppercase">{c.name}</h4>
+                            {isLegacy && (
+                              <span className="text-[7px] font-black text-amber-700 uppercase tracking-widest bg-amber-950/20 px-2 py-0.5 rounded-sm border border-amber-900/30">
+                                Legacy Record
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button 
@@ -248,16 +280,31 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <div className="space-y-8">
                           <div>
-                            <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] border-b border-neutral-800 pb-2 mb-4 text-left">Core Attributes</h5>
+                            <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
+                              <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Core Attributes</h5>
+                              {isLegacy && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
+                                  disabled={identifyingId === c.id || !reservoirReady}
+                                  className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                >
+                                  {identifyingId === c.id ? 'ANALYZING...' : 'Manifest Latent Power ⚡'}
+                                </button>
+                              )}
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
-                              <div className="bg-black/40 p-4 border border-neutral-900 rounded-sm">
+                              <div className="bg-black/40 p-4 border border-neutral-900 rounded-sm text-left">
                                 <p className="text-[8px] font-black text-neutral-600 uppercase mb-2">Primary Stats</p>
                                 <div className="flex flex-wrap gap-2">
-                                  {c.preferredStats?.map((s, idx) => (
-                                    <span key={idx} className="bg-amber-950/20 text-[#b28a48] text-[10px] font-black px-2 py-1 rounded-sm border border-amber-900/30 uppercase tracking-tighter">
-                                      {s}
-                                    </span>
-                                  )) || <span className="text-neutral-700 text-[10px] italic">Undetermined</span>}
+                                  {c.preferredStats && c.preferredStats.length > 0 ? (
+                                    c.preferredStats.map((s, idx) => (
+                                      <span key={idx} className="bg-amber-950/20 text-[#b28a48] text-[10px] font-black px-2 py-1 rounded-sm border border-amber-900/30 uppercase tracking-tighter">
+                                        {s}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-neutral-700 text-[10px] italic">Undetermined</span>
+                                  )}
                                 </div>
                               </div>
                               <div className="bg-black/40 p-4 border border-neutral-900 rounded-sm text-left">
@@ -272,12 +319,16 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] border-b border-neutral-800 pb-2 mb-4 text-left">Class Proficiencies</h5>
                             <div className="bg-black/40 p-5 border border-neutral-900 rounded-sm text-left">
                               <ul className="grid grid-cols-1 gap-2">
-                                {c.bonuses?.map((b, idx) => (
-                                  <li key={idx} className="flex items-center gap-3">
-                                    <span className="w-1.5 h-1.5 bg-[#b28a48] rounded-full"></span>
-                                    <span className="text-xs text-neutral-400 font-serif italic">{b}</span>
-                                  </li>
-                                )) || <li className="text-neutral-700 text-[10px] italic">No specific bonuses recorded</li>}
+                                {c.bonuses && c.bonuses.length > 0 ? (
+                                  c.bonuses.map((b, idx) => (
+                                    <li key={idx} className="flex items-center gap-3">
+                                      <span className="w-1.5 h-1.5 bg-[#b28a48] rounded-full"></span>
+                                      <span className="text-xs text-neutral-400 font-serif italic">{b}</span>
+                                    </li>
+                                  ))
+                                ) : (
+                                  <li className="text-neutral-700 text-[10px] italic">No specific bonuses recorded</li>
+                                )}
                               </ul>
                             </div>
                           </div>

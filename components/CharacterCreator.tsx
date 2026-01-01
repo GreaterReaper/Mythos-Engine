@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -110,6 +111,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const totalPointsUsed = useMemo(() => (Object.values(stats) as number[]).reduce((acc: number, val: number) => acc + (POINT_COSTS[val] || 0), 0), [stats]);
   const pointsRemaining = 27 - totalPointsUsed;
   
+  const selectedClassForCreation = useMemo(() => classes.find(c => c.id === classId), [classes, classId]);
+
   const finalStats = useMemo(() => {
     const bonuses = RACIAL_BONUSES[race];
     const result = { ...stats };
@@ -245,12 +248,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
           <div className="grim-card p-8 border-dashed border-[#b28a48]/20 border-2 rounded-sm bg-black shadow-2xl">
             <h3 className="text-xl font-black mb-8 fantasy-font text-neutral-300">Recruit Hero</h3>
             <div className="space-y-6">
-              <div className="space-y-1">
+              <div className="space-y-1 text-left">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Identify Legend</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-xs tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none font-bold" />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-xs tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none font-bold uppercase" />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 text-left">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Sigil Reference (Optional)</label>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
@@ -273,7 +276,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-2 text-left">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Heritage (Race)</label>
                 
                 <div className="relative">
@@ -292,7 +295,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <div className="bg-neutral-950/50 border border-neutral-900 p-3 rounded-sm mt-3 animate-in fade-in slide-in-from-top-1">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-[8px] font-black text-[#b28a48] uppercase tracking-[0.2em]">Racial Ancestry Gifts</p>
-                    <span className="text-[10px]">{RACIAL_TRAITS[race].icon}</span>
+                    <span className="text-xs">{RACIAL_TRAITS[race].icon}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {Object.entries(RACIAL_BONUSES[race]).map(([stat, val]) => (
@@ -318,7 +321,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Base Statistics (Point Buy)</label>
                   <span className="text-[9px] font-bold text-neutral-500 tracking-tighter">{pointsRemaining} PTS LEFT</span>
@@ -327,13 +330,22 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   {(Object.keys(INITIAL_STATS) as Array<keyof Stats>).map((s) => {
                     const bonus = RACIAL_BONUSES[race][s] || 0;
                     const valWithBonus = stats[s] + bonus;
+                    const isPreferred = selectedClassForCreation?.preferredStats?.some(ps => ps.toLowerCase().includes(s.toLowerCase()));
+
                     return (
-                      <div key={s} className="bg-black border border-neutral-900 p-3 text-center relative group hover:border-[#b28a48]/40 transition-colors">
+                      <div 
+                        key={s} 
+                        className={`bg-black border p-3 text-center relative group transition-all rounded-sm ${
+                          isPreferred ? 'border-amber-500/40 shadow-[0_0_10px_rgba(178,138,72,0.1)]' : 'border-neutral-900 hover:border-[#b28a48]/40'
+                        }`}
+                      >
                         <button 
                           onClick={() => setActiveTooltip(activeTooltip === s ? null : s)} 
-                          className="text-[8px] text-neutral-600 font-bold uppercase mb-1 tracking-tighter block w-full hover:text-neutral-300 transition-colors"
+                          className={`text-[8px] font-bold uppercase mb-1 tracking-tighter block w-full transition-colors ${
+                            isPreferred ? 'text-amber-500' : 'text-neutral-600 hover:text-neutral-300'
+                          }`}
                         >
-                          {s} <span className="opacity-40 ml-1">ⓘ</span>
+                          {s} {isPreferred && '★'} <span className="opacity-40 ml-1">ⓘ</span>
                         </button>
                         
                         {activeTooltip === s && (
@@ -346,27 +358,37 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                         
                         <div className="flex items-center justify-center gap-2">
                           <button onClick={() => handleStatChange(s, -1)} className="text-neutral-700 hover:text-red-500 font-black px-1 text-lg"> - </button>
-                          <span className={`text-sm font-black min-w-[1.2rem] ${bonus > 0 ? 'text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.3)]' : 'text-[#b28a48]'}`}>
+                          <span className={`text-sm font-black min-w-[1.2rem] ${bonus > 0 ? 'text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.3)]' : isPreferred ? 'text-amber-500' : 'text-[#b28a48]'}`}>
                             {valWithBonus}
                           </span>
                           <button onClick={() => handleStatChange(s, 1)} className="text-neutral-700 hover:text-green-500 font-black px-1 text-lg"> + </button>
                         </div>
-                        <div className="text-[7px] text-neutral-700 font-black uppercase mt-1">
+                        <div className={`text-[7px] font-black uppercase mt-1 ${isPreferred ? 'text-amber-700' : 'text-neutral-700'}`}>
                           MOD: {getModifier(valWithBonus)}
                           {bonus > 0 && <span className="text-green-800 ml-1">(+{bonus} R)</span>}
                         </div>
+                        {isPreferred && (
+                          <div className="absolute -top-1 -right-1 text-[8px] text-amber-500/80 animate-pulse pointer-events-none">★</div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 text-left">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Archetype & Appearance</label>
-                <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none focus:border-[#b28a48] mb-2 appearance-none">
-                  <option value="">Choose Path...</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <div className="relative mb-2">
+                  <select 
+                    value={classId} 
+                    onChange={(e) => setClassId(e.target.value)} 
+                    className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none focus:border-[#b28a48] appearance-none cursor-pointer"
+                  >
+                    <option value="">Choose Path...</option>
+                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
+                </div>
                 <textarea 
                   value={charDescription} 
                   onChange={(e) => setCharDescription(e.target.value)} 
@@ -394,9 +416,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
             {filteredCharacters.map(char => (
-              <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className="grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden bg-black">
+              <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className="grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden bg-black rounded-sm">
                 <div className="h-48 bg-black relative grayscale group-hover:grayscale-0 transition-all duration-700">
-                  {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-7xl">👤</div>}
+                  {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-7xl">👤</div>}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                   <div className="absolute bottom-4 left-4 right-4 text-left">
                      <h4 className="text-xl font-black fantasy-font text-[#b28a48]">{char.name}</h4>
@@ -406,7 +428,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               </div>
             ))}
             {filteredCharacters.length === 0 && (
-              <div className="col-span-full py-24 text-center border-2 border-dashed border-neutral-900 opacity-20 flex flex-col items-center">
+              <div className="col-span-full py-24 text-center border-2 border-dashed border-neutral-900 opacity-20 flex flex-col items-center rounded-sm">
                 <span className="text-4xl mb-4">📜</span>
                 <p className="text-xs uppercase tracking-[0.4em] font-black">The hall of heroes awaits entries</p>
               </div>
@@ -422,9 +444,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
             <div className="lg:w-2/5 relative border-b lg:border-r border-[#b28a48]/10 shrink-0">
               <div className="h-[400px] lg:h-full relative overflow-hidden">
-                {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className="w-full h-full object-cover" />}
+                {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className="w-full h-full object-cover" alt={selectedChar.name} />}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-10">
+                <div className="absolute bottom-0 left-0 right-0 p-10 text-left">
                   <h3 className="text-5xl font-black fantasy-font text-[#b28a48] mb-2">{selectedChar.name}</h3>
                   <p className="text-xs uppercase tracking-[0.6em] text-neutral-500 font-black">{selectedChar.race} {selectedClass?.name}</p>
                 </div>
@@ -540,14 +562,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       </div>
                     ) : (
                       charInventory.map((item, i) => (
-                        <div key={item.id} className="p-5 bg-black border border-neutral-900 rounded-sm flex items-start gap-4 group/invItem">
+                        <div key={item.id} className="p-5 bg-black border border-neutral-900 rounded-sm flex items-start gap-4 group/invItem text-left">
                           <div className="w-12 h-12 rounded-sm border border-[#b28a48]/20 overflow-hidden flex-shrink-0">
-                            {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-neutral-950 text-xl">⚔️</div>}
+                            {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <div className="w-full h-full flex items-center justify-center bg-neutral-950 text-xl">⚔️</div>}
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between">
                               <h6 className="text-sm font-black text-[#b28a48] uppercase tracking-wider">{item.name}</h6>
-                              <button onClick={() => removeItemFromChar(selectedChar.id, item.id)} className="text-neutral-800 hover:text-red-500 text-xs transition-colors opacity-0 group-hover/invItem:opacity-100">DROP</button>
+                              <button onClick={() => removeItemFromChar(selectedChar.id, item.id)} className="text-neutral-800 hover:text-red-500 text-xs transition-colors opacity-0 group-hover/invItem:opacity-100 uppercase font-black">DROP</button>
                             </div>
                             <p className="text-[10px] text-neutral-500 italic line-clamp-2 mt-1">{item.description}</p>
                           </div>
@@ -581,7 +603,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       </div>
                     ) : (
                       selectedChar.knownSpells.map((spell, i) => (
-                        <div key={i} className="p-6 bg-black border border-neutral-900 rounded-sm hover:border-[#b28a48]/30 transition-colors group/spell">
+                        <div key={i} className="p-6 bg-black border border-neutral-900 rounded-sm hover:border-[#b28a48]/30 transition-colors group/spell text-left">
                           <div className="flex justify-between items-start mb-3">
                             <div>
                               <h6 className="text-sm font-black text-amber-600 uppercase tracking-widest">{spell.name}</h6>

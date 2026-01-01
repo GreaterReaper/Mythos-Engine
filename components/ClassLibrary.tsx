@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage } from '../types';
 import { generateClassMechanics, rerollTraits } from '../services/gemini';
@@ -22,6 +23,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const filteredClasses = useMemo(() => {
     return classes.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
   }, [classes, search]);
+
+  const legacyRecords = useMemo(() => {
+    return classes.filter(c => !c.preferredStats || c.preferredStats.length === 0);
+  }, [classes]);
 
   const handleCreate = async () => {
     if (!name || !description || loading || !reservoirReady) return;
@@ -73,6 +78,34 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     } finally {
       setIdentifyingId(null);
     }
+  };
+
+  const handleBulkManifest = async () => {
+    if (!reservoirReady || loading || legacyRecords.length === 0) return;
+    
+    setLoading(true);
+    notify(`Rebuilding ${legacyRecords.length} Archetypes...`, "info");
+
+    for (const cls of legacyRecords) {
+      try {
+        const mechanics = await generateClassMechanics(cls.name, cls.description);
+        setClasses(prev => prev.map(c => c.id === cls.id ? {
+          ...c,
+          preferredStats: mechanics.preferredStats || [],
+          bonuses: mechanics.bonuses || [],
+          spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : c.spellSlots,
+          hitDie: mechanics.hitDie || c.hitDie,
+          startingHp: mechanics.startingHp || c.startingHp,
+          hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel
+        } : c));
+        // Small delay to prevent aggressive rate limiting
+        await new Promise(r => setTimeout(r, 800));
+      } catch (e) {
+        console.error(`Failed to manifest ${cls.name}`, e);
+      }
+    }
+    setLoading(false);
+    notify("Grimoire Synchronization Complete", "success");
   };
 
   const toggleFeatureLock = (clsId: string, featIdx: number) => {
@@ -141,9 +174,22 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="text-center lg:text-left">
-        <h2 className="text-4xl font-black fantasy-font text-[#b28a48]">Grimoire of Archetypes</h2>
-        <p className="text-neutral-500 text-xs uppercase tracking-widest font-black mt-2">Design your legends. AI translates lore into mechanics.</p>
+      <div className="text-center lg:text-left flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+        <div>
+          <h2 className="text-4xl font-black fantasy-font text-[#b28a48]">Grimoire of Archetypes</h2>
+          <p className="text-neutral-500 text-xs uppercase tracking-widest font-black mt-2">Design your legends. AI translates lore into mechanics.</p>
+        </div>
+        
+        {legacyRecords.length > 0 && (
+          <button 
+            onClick={handleBulkManifest}
+            disabled={loading || !reservoirReady}
+            className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+          >
+            <span className="animate-pulse">✨</span>
+            Synchronize Grimoire ({legacyRecords.length} Legacy)
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -152,7 +198,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             <h3 className="text-xl font-bold mb-6 fantasy-font text-neutral-300">Forge Archetype</h3>
             <div className="space-y-5">
               <div>
-                <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2 block">Class Identity</label>
+                <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2 block text-left">Class Identity</label>
                 <input 
                   value={name} 
                   onChange={(e) => setName(e.target.value)} 
@@ -161,7 +207,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2 block">Arcane Focus & Lore</label>
+                <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2 block text-left">Arcane Focus & Lore</label>
                 <textarea 
                   value={description} 
                   onChange={(e) => setDescription(e.target.value)} 
@@ -268,8 +314,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
                     <div className="flex gap-4 items-center self-start">
                       <div className="bg-black/80 border border-neutral-800 px-6 py-4 rounded-sm text-center min-w-[90px]">
-                        <div className="text-[10px] uppercase text-neutral-600 font-black mb-1">Hit Die</div>
-                        <div className="text-lg font-black text-[#b28a48]">{c.hitDie}</div>
+                        <div className="text-[10px] uppercase text-neutral-600 font-black mb-1 text-center">Hit Die</div>
+                        <div className="text-lg font-black text-[#b28a48] text-center">{c.hitDie}</div>
                       </div>
                     </div>
                   </div>

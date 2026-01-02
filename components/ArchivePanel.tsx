@@ -5,9 +5,10 @@ interface ArchivePanelProps {
   data: any;
   onImport: (data: any) => void;
   manifestBasics?: () => void;
+  onCloudSync?: (action: 'push' | 'pull') => void;
 }
 
-const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBasics }) => {
+const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBasics, onCloudSync }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -52,18 +53,19 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBas
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-12 pb-24 px-4 md:px-0">
+    <div className="max-w-4xl mx-auto space-y-12 pb-24 px-4 md:px-0">
       <div className="text-center pt-8">
         <h2 className="text-4xl font-black fantasy-font text-[#b28a48] drop-shadow-lg">The Archive</h2>
         <p className="text-neutral-600 text-xs uppercase tracking-[0.4em] mt-2 font-black">Preserve your sagas across the ether</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Local Persistence */}
         <div className="grim-card p-8 border-2 border-[#b28a48]/20 flex flex-col justify-between rounded-sm shadow-2xl">
           <div className="space-y-6 text-center">
             <h3 className="text-lg font-black fantasy-font text-[#b28a48] uppercase tracking-widest">Manifest Archive</h3>
             <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed font-bold">
-              Extract your entire grimoire (characters, items, monsters, and sagas) into a portable relic file for safekeeping.
+              Extract your local grimoire into a portable relic file.
             </p>
           </div>
           <button
@@ -78,7 +80,7 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBas
           <div className="space-y-6 text-center">
             <h3 className="text-lg font-black fantasy-font text-red-900/60 uppercase tracking-widest">Restore Grimoire</h3>
             <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed font-bold">
-              Sacrifice your current local grimoire to restore an archive from a previous manifestation. <span className="text-red-950 font-black block mt-2">Warning: All current data will be lost.</span>
+              Sacrifice current local data to restore an archive file.
             </p>
           </div>
           <button
@@ -96,18 +98,42 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBas
           />
         </div>
 
+        {/* Cloud Persistence */}
+        <div className="grim-card p-8 border-2 border-[#b28a48]/30 md:col-span-2 flex flex-col md:flex-row items-center justify-between gap-6 rounded-sm shadow-2xl bg-amber-950/10">
+          <div className="space-y-3 text-center md:text-left flex-1">
+            <h3 className="text-lg font-black fantasy-font text-amber-500 uppercase tracking-widest">Cloud Sync (The Ether)</h3>
+            <p className="text-[10px] text-neutral-400 uppercase tracking-widest leading-relaxed font-bold">
+              Bind your saga to the global Ether using your sigil and 4-digit Arcane PIN. Access your chronicle from any device.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+            <button
+              onClick={() => onCloudSync?.('push')}
+              className="w-full md:w-auto px-10 bg-amber-950/30 hover:bg-[#b28a48] hover:text-black border border-[#b28a48]/40 py-4 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48] transition-all shadow-xl whitespace-nowrap active:scale-95"
+            >
+              Sync to Ether ☁️
+            </button>
+            <button
+              onClick={() => onCloudSync?.('pull')}
+              className="w-full md:w-auto px-10 bg-black hover:bg-neutral-800 border border-neutral-700 py-4 text-[10px] font-black uppercase tracking-[0.4em] text-neutral-300 transition-all shadow-xl whitespace-nowrap active:scale-95"
+            >
+              Restore from Ether 🌀
+            </button>
+          </div>
+        </div>
+
         <div className="grim-card p-8 border-2 border-blue-900/20 md:col-span-2 flex flex-col md:flex-row items-center justify-between gap-6 rounded-sm shadow-2xl bg-blue-950/5">
           <div className="space-y-3 text-center md:text-left flex-1">
             <h3 className="text-lg font-black fantasy-font text-blue-400 uppercase tracking-widest">Starter Grimoire</h3>
             <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed font-bold">
-              New to the realm? Manifest a basic set of standard classes, items, monsters, and default heroes (Miri, Seris, Lina) to begin your saga immediately.
+              Manifest basic classes, items, monsters, and default heroes.
             </p>
           </div>
           <button
             onClick={manifestBasics}
             className="w-full md:w-auto px-12 bg-blue-950/30 hover:bg-blue-900/40 border border-blue-400/40 py-5 text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 transition-all shadow-xl whitespace-nowrap active:scale-95"
           >
-            Inscribe Basics
+            Inscribe Basics & Sigils ✨
           </button>
         </div>
       </div>

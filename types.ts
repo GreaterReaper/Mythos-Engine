@@ -3,6 +3,7 @@ export interface UserAccount {
   username: string;
   displayName: string;
   isAdmin?: boolean;
+  pin?: string; // 4-digit pin for cloud sync
 }
 
 export interface Stats {
@@ -125,7 +126,6 @@ export interface GameLog {
   senderName?: string;
 }
 
-/* Define Rule interface for TTRPG mechanics */
 export interface Rule {
   id: string;
   category: string;

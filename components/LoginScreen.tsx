@@ -12,6 +12,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [pin, setPin] = useState('');
   const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -27,8 +28,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
       return;
     }
 
-    // Check if user is elevating to admin or if they were already admin
-    if (adminCode === ADMIN_SECRET) {
+    // Admin override or PIN match
+    const isElevating = adminCode === ADMIN_SECRET;
+    if (!isElevating && !user.isAdmin && pin !== user.pin) {
+      setError("Arcane PIN mismatch.");
+      return;
+    }
+
+    if (isElevating) {
       user.isAdmin = true;
     }
 
@@ -45,6 +52,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
       return;
     }
 
+    if (pin.length !== 4 || isNaN(Number(pin))) {
+      setError("A 4-digit PIN is required for the Ether-Link.");
+      return;
+    }
+
     const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
     if (accounts.some(a => a.username.toLowerCase() === username.toLowerCase())) {
       setError("This sigil is already bound.");
@@ -54,7 +66,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     const newUser: UserAccount = {
       username: username.toLowerCase().trim(),
       displayName: displayName.trim(),
-      isAdmin: adminCode === ADMIN_SECRET
+      isAdmin: adminCode === ADMIN_SECRET,
+      pin: pin
     };
 
     accounts.push(newUser);
@@ -64,11 +77,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')]">
-      <div className="max-w-md w-full px-6">
-        <div className="grim-card p-10 text-center border-2 border-[#b28a48]/40 shadow-[0_0_50px_rgba(0,0,0,0.9)]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-10">
+      <div className="max-w-md w-full px-6 py-10">
+        <div className="grim-card p-8 md:p-10 text-center border-2 border-[#b28a48]/40 shadow-[0_0_50px_rgba(0,0,0,0.9)]">
           <div className="mb-8">
-            <h1 className="text-5xl font-black tracking-[0.3em] text-[#b28a48] drop-shadow-[0_2px_10px_rgba(178,138,72,0.5)] mb-2">MYTHOS</h1>
+            <h1 className="text-4xl md:text-5xl font-black tracking-[0.3em] text-[#b28a48] drop-shadow-[0_2px_10px_rgba(178,138,72,0.5)] mb-2">MYTHOS</h1>
             <div className="h-px w-32 bg-gradient-to-r from-transparent via-[#b28a48] to-transparent mx-auto opacity-50"></div>
             <p className="text-[10px] text-neutral-500 uppercase tracking-[0.5em] mt-4 font-bold">Arcane TTRPG Engine</p>
           </div>
@@ -110,6 +123,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="USERNAME"
                 className="w-full bg-black border border-[#1a1a1a] focus:border-[#b28a48] p-3 text-sm tracking-widest text-[#b28a48] outline-none transition-colors uppercase font-mono"
+              />
+            </div>
+
+            <div className="space-y-1 text-left">
+              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Arcane PIN (4-Digits)</label>
+              <input
+                type="password"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+                className="w-full bg-black border border-[#1a1a1a] focus:border-[#b28a48] p-3 text-sm tracking-widest text-[#b28a48] outline-none transition-colors font-mono"
               />
             </div>
 

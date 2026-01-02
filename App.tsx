@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell, ItemMechanic } from './types';
+import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
 import CampaignView from './components/CampaignView';
 import CharacterCreator from './components/CharacterCreator';
@@ -10,6 +11,7 @@ import MultiplayerPanel from './components/MultiplayerPanel';
 import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import SpellCodex from './components/SpellCodex';
+import { generateImage } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
 interface Notification {
@@ -29,7 +31,6 @@ const LOCKOUT_DURATION = 65;
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
 
-// Re-organized thematic spells
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
     { name: 'Arcane Ruin', level: 1, school: 'Evocation', description: 'A burst of raw energy dealing 3d6 force damage to an area.' },
@@ -155,6 +156,51 @@ const SYSTEM_ITEMS: Item[] = [
     mechanics: [{ name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies.' }],
     lore: 'Heavens are no sanctuary from an Archer\'s arrow.',
     authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-assassin-daggers',
+    name: 'Twin Shadow Daggers',
+    type: 'Weapon',
+    description: 'Serrated obsidian blades that hum with a silent, lethal vibration.',
+    mechanics: [{ name: 'Silent Strike', description: 'Attacks made while hidden deal an additional 2d6 piercing damage.' }],
+    lore: 'Favored by the Thieves of the Unseen Hand.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-archsorcerer-staff',
+    name: 'Staff of the Burning Void',
+    type: 'Weapon',
+    description: 'A staff of charred wood capped with a flickering violet flame.',
+    mechanics: [{ name: 'Void Channel', description: 'Add +2 to damage rolls for spells that deal Force or Fire damage.' }],
+    lore: 'Wielded by those who trade their sanity for raw arcane might.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-warrior-plate',
+    name: 'Vanguard Plate Armor',
+    type: 'Armor',
+    description: 'Thick, overlapping plates of heavy steel etched with runes of protection.',
+    mechanics: [{ name: 'Immovable', description: 'Grants advantage on saves against being pushed or knocked prone. Base AC 18.' }],
+    lore: 'The literal wall between civilization and the darkness.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-thief-leathers',
+    name: 'Midnight Studded Leather',
+    type: 'Armor',
+    description: 'Reinforced leather armor dyed deep black, designed for maximum mobility.',
+    mechanics: [{ name: 'Fluid Motion', description: 'Grants +2 to Dexterity (Stealth) checks. Base AC 12 + Dex.' }],
+    lore: 'Light enough to be forgotten, tough enough to save a life.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-sorcerer-robes',
+    name: 'Robes of the Aether Weaver',
+    type: 'Armor',
+    description: 'Silk robes woven with threads of pure mana, shimmering with an inner light.',
+    mechanics: [{ name: 'Mana Shield', description: 'Once per rest, reduce incoming damage from a spell by half. Base AC 10 + Dex.' }],
+    lore: 'Traditional garb for the high mages of the Silver Citadel.',
+    authorId: 'system', authorName: 'Orestara'
   }
 ];
 
@@ -230,15 +276,64 @@ const App: React.FC = () => {
     return Object.values(merged);
   }, []);
 
-  const manifestBasics = (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
+  const handleCloudSync = useCallback(async (action: 'push' | 'pull') => {
+    if (!currentUser) return;
+    const etherKey = 'mythos_ether_archive';
+    const cloudArchive: Record<string, any> = JSON.parse(localStorage.getItem(etherKey) || '{}');
+
+    if (action === 'push') {
+      const payload = {
+        pin: currentUser.pin,
+        isAdmin: currentUser.isAdmin,
+        data: { characters, classes, monsters, items, campaign, playerName: currentUser.displayName }
+      };
+      cloudArchive[currentUser.username] = payload;
+      localStorage.setItem(etherKey, JSON.stringify(cloudArchive));
+      notify("Saga Synchronized with the Ether.", "success");
+    } else {
+      const entry = cloudArchive[currentUser.username];
+      if (!entry) {
+        notify("No chronicle found for this sigil in the Ether.", "error");
+        return;
+      }
+      if (currentUser.isAdmin || entry.pin === currentUser.pin) {
+        const d = entry.data;
+        setCharacters(d.characters);
+        setClasses(d.classes);
+        setMonsters(d.monsters);
+        setItems(deduplicateAndMergeItems(d.items));
+        setCampaign(d.campaign);
+        notify("Chronicle Restored from the Ether.", "success");
+      } else {
+        notify("Arcane PIN mismatch. Access Denied.", "error");
+      }
+    }
+  }, [currentUser, characters, classes, monsters, items, campaign, notify, deduplicateAndMergeItems]);
+
+  const manifestBasics = async (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
+    notify("Manifesting archetypes and fated gear...", "info");
+    
     if (scope === 'all' || scope === 'monsters') {
       const existingIds = new Set(monsters.map(m => m.id));
-      const monstersToAdd = SYSTEM_MONSTERS.filter(m => !existingIds.has(m.id));
+      const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
+      for (let m of monstersToAdd) {
+        if (!m.imageUrl) {
+          try { m.imageUrl = await generateImage(`Bestiary portrait: ${m.name}. Description: ${m.description}. Dark fantasy oil painting style.`); } catch(e) {}
+        }
+      }
       setMonsters(prev => [...prev, ...monstersToAdd]);
     }
+
     if (scope === 'all' || scope === 'items') {
-      setItems(prev => deduplicateAndMergeItems([...prev, ...SYSTEM_ITEMS]));
+      const itemsToAdd = [...SYSTEM_ITEMS];
+      for (let i of itemsToAdd) {
+        if (!i.imageUrl) {
+          try { i.imageUrl = await generateImage(`Relic artifact: ${i.name}. Description: ${i.description}. Obsidian, iron, and gold filigree.`); } catch(e) {}
+        }
+      }
+      setItems(prev => deduplicateAndMergeItems([...prev, ...itemsToAdd]));
     }
+
     if (scope === 'all' || scope === 'heroes') {
         const heroes: Character[] = [
             {
@@ -255,7 +350,7 @@ const App: React.FC = () => {
                     { name: 'Restless Spirit', description: 'Gains +2 to Initiative and cannot be surprised.' },
                     { name: 'Sword Waltz', description: 'Bonus action to give an enemy disadvantage on their next attack.' }
                 ],
-                inventory: ['sys-iron-longsword', 'sys-evening-shield'],
+                inventory: ['sys-iron-longsword', 'sys-evening-shield', 'sys-warrior-plate'],
                 isPlayer: true
             },
             {
@@ -272,7 +367,7 @@ const App: React.FC = () => {
                     { name: 'Aloof Precision', description: 'Deals extra 1d6 damage to targets further than 40ft away.' },
                     { name: 'Defensive Sarcasm', description: 'Force a DC 12 WIS save or Charm an enemy that misses you.' }
                 ],
-                inventory: ['sys-sky-piercer-bow'],
+                inventory: ['sys-sky-piercer-bow', 'sys-thief-leathers'],
                 isPlayer: false
             },
             {
@@ -289,15 +384,21 @@ const App: React.FC = () => {
                     { name: 'Rural Kindness', description: 'Healing grants the target a +2 bonus to their next save.' },
                     { name: 'Quiet Devotion', description: 'Can cast supportive spells silently once per rest.' }
                 ],
-                inventory: ['sys-menders-staff'],
+                inventory: ['sys-menders-staff', 'sys-sorcerer-robes'],
                 knownSpells: THEMATIC_SPELLS.mage.slice(0, 3),
                 isPlayer: false
             }
         ];
         const existingHeroIds = new Set(characters.map(c => c.id));
         const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
+        for (let h of heroesToAdd) {
+          if (!h.imageUrl) {
+            try { h.imageUrl = await generateImage(`Hero portrait: ${h.name}, ${h.race} ${h.classId}. ${h.description}. Masterpiece dark fantasy portrait.`); } catch(e) {}
+          }
+        }
         setCharacters(prev => [...prev, ...heroesToAdd]);
     }
+
     if (scope === 'all') {
       const basicClasses: ClassDef[] = [
         {
@@ -349,13 +450,37 @@ const App: React.FC = () => {
           authorId: 'system', authorName: 'Orestara'
         },
         {
+          id: 'basic-thief',
+          name: 'Thief',
+          description: 'Masters of stealth and dual-daggers who strike from the shadows.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Stealth Proficiency'], 
+          features: [
+            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized enemy that is currently grappled or surprised.' }, 
+            { name: 'Smoke Escape', description: 'Vanish and disengage instantly as a reaction or bonus action.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-archer',
+          name: 'Archer',
+          description: 'Masters of the bow who can ground flying enemies with incredible accuracy.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Aerial Sniper'], 
+          features: [
+            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that is isolated.' }, 
+            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
           id: 'basic-dark-knight',
           name: 'Dark Knight',
           description: 'Warriors who channel forbidden aether to siphon life and shield with shadows.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [2, 0, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Two-Handed Mastery', 'Soul-Resonance'],
           features: [
             { name: 'Living Shadow', description: 'Conjure a shadowy simulacrum to fight alongside you.' },
-            { name: 'Living Dead', description: 'Stay active at 0 HP for 10 seconds with tripled lifesteal.' }
+            { name: 'Living Dead', description: 'Stay active at 0 HP for one combat round with tripled lifesteal.' }
           ],
           initialSpells: THEMATIC_SPELLS.dark_knight,
           authorId: 'system', authorName: 'Orestara'
@@ -363,6 +488,7 @@ const App: React.FC = () => {
       ];
       setClasses(prev => [...prev.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
     }
+
     if (scope === 'all' || scope === 'adventure') {
       const adventurePlot = "The Silvermarsh is dying. A ghastly pallor has infected the wildlife, turning them into aggressive aberrations. Local legends speak of a Gorechimera reborn from the filth of a forgotten battlefield. The party must venture into the heart of the mire to sever the source of the corruption before it reaches the capital.";
       const starterLog: GameLog = {
@@ -374,11 +500,11 @@ const App: React.FC = () => {
         plot: adventurePlot,
         summary: "The fellowship has arrived at the Silvermarsh to investigate a spreading blight linked to a Gorechimera.",
         logs: [starterLog],
-        party: characters.slice(0, 3), // Auto-recruit Miri, Seris, Lina
+        party: characters.slice(0, 3), 
         rules: []
       });
     }
-    notify("Arcanum Synchronized.", "success");
+    notify("Arcanum Synchronized. Sigils manifest.", "success");
   };
 
   const diceNeeded = useMemo(() => {
@@ -571,7 +697,7 @@ const App: React.FC = () => {
               if (sel.campaign) state.campaign = campaign;
               broadcast({ type: 'STATE_UPDATE', payload: state });
           }} kickSoul={() => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} onCloudSync={handleCloudSync} />}
         </div>
       </main>
 

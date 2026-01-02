@@ -3,7 +3,19 @@ import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule 
 
 const cleanJson = (text: string) => {
   if (!text) return '{}';
-  return text.replace(/```json/g, "").replace(/```/g, "").trim();
+  // Remove markdown code blocks and any leading/trailing whitespace
+  let cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  // Attempt to find the first '{' or '[' and the last '}' or ']' to strip hallucinated preamble/postamble
+  const firstBrace = Math.min(
+    cleaned.indexOf('{') === -1 ? Infinity : cleaned.indexOf('{'),
+    cleaned.indexOf('[') === -1 ? Infinity : cleaned.indexOf('[')
+  );
+  const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
+  
+  if (firstBrace !== Infinity && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
 };
 
 const trackUsage = (type: 'dm' | 'utility', cost: number = 0) => {
@@ -39,7 +51,6 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 50
     }
 
     if (retries > 0 && isRateLimit) {
-      // Graceful exponential backoff for rate limits
       await new Promise(resolve => setTimeout(resolve, initialDelay));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
@@ -82,7 +93,7 @@ export const generateCharacterFeats = async (className: string, description: str
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}.`,
+      contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. Output ONLY the JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -105,7 +116,9 @@ export const generateSpellbook = async (className: string, classDesc: string, ma
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate thematic spells for a level ${maxLevel} ${className}. Lore: ${classDesc}.`,
+      contents: `Generate thematic spells for a level ${maxLevel} ${className}. Lore: ${classDesc}. 
+      CRITICAL: The 'description' MUST include specific mechanics and dice rolls (e.g. "Deals 2d6 cold damage", "Grants +2 AC"). 
+      DO NOT include the prompt or instructions in the description.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -133,7 +146,14 @@ export const generateRules = async (plot: string): Promise<Rule[]> => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate a set of 5 core TTRPG rules and mechanics for a dark fantasy setting with this plot: ${plot}. Focus on Combat, Magic, Death, and Sanity.`,
+      contents: `Generate a set of 6 fundamental TTRPG rules and mechanics. 
+      Include rules for: 
+      1. Ability Checks & Difficulty (typical 1d20 mechanics).
+      2. Combat Rounds & Actions.
+      3. Advantage & Disadvantage (Bane/Boon).
+      4. Dying & Death Saves.
+      5. Resting & Recovery.
+      6. A unique thematic mechanic based on this plot: ${plot}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -198,7 +218,7 @@ export const rerollStats = async (
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Reroll TTRPG stats (range 8-18) for "${name}" (${className}). KEEP THESE: ${lockedStats.map(s => `${s}:${existingStats[s]}`).join(', ')}. Make others thematic.`,
+      contents: `Reroll TTRPG stats (range 8-18) for "${name}" (${className}). KEEP THESE: ${lockedStats.map(s => `${s}:${existingStats[s]}`).join(', ')}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -216,7 +236,6 @@ export const rerollStats = async (
       }
     });
     const rolled = JSON.parse(cleanJson(response.text || '{}'));
-    // Enforce locks programmatically to be safe
     lockedStats.forEach(s => { rolled[s] = existingStats[s]; });
     return rolled;
   });
@@ -290,7 +309,8 @@ export const generateClassMechanics = async (name: string, description: string):
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Design mechanics for class: ${name}. Lore: ${description}. Include primary stats, unique bonuses, and 3 thematic starting spells.`,
+      contents: `Design mechanics for class: ${name}. Lore: ${description}. Include primary stats, unique bonuses, and 3 thematic starting spells. 
+      CRITICAL: Spell 'description' MUST include specific mechanics and dice rolls. Output ONLY JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -299,9 +319,9 @@ export const generateClassMechanics = async (name: string, description: string):
             hitDie: { type: Type.STRING },
             startingHp: { type: Type.INTEGER },
             hpPerLevel: { type: Type.INTEGER },
-            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Number of spell slots for levels 1-5" },
-            preferredStats: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Recommended core stats (e.g. Strength, Intelligence)" },
-            bonuses: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Innate class proficiencies or minor passive bonuses" },
+            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER } },
+            preferredStats: { type: Type.ARRAY, items: { type: Type.STRING } },
+            bonuses: { type: Type.ARRAY, items: { type: Type.STRING } },
             features: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } },
             initialSpells: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, level: { type: Type.INTEGER }, school: { type: Type.STRING }, description: { type: Type.STRING } } } }
           },
@@ -317,13 +337,9 @@ export const generateMonsterStats = async (name: string, description: string, is
   trackUsage('utility', 10);
   return withRetry(async () => {
     const ai = getAI();
-    const rolePrompt = isBoss 
-      ? "This is a LEGENDARY BOSS entity. It should be an overwhelming threat with high hit points (150-500+), formidable armor class (18-24), and complex, multi-stage or area-of-effect abilities. You MUST generate exactly 3 'Legendary Actions' - these are powerful abilities the boss can use at the end of another creature's turn."
-      : "This is a STANDARD MONSTER. It should be balanced for a typical encounter with appropriate hit points (20-100) and armor class (12-16).";
-
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate TTRPG stats for monster: ${name}. Description: ${description}. Role: ${rolePrompt}`,
+      contents: `Generate TTRPG stats for monster: ${name}. Description: ${description}. Is Boss: ${isBoss}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -333,7 +349,7 @@ export const generateMonsterStats = async (name: string, description: string, is
             ac: { type: Type.INTEGER },
             stats: { type: Type.OBJECT, properties: { strength: { type: Type.INTEGER }, dexterity: { type: Type.INTEGER }, constitution: { type: Type.INTEGER }, intelligence: { type: Type.INTEGER }, wisdom: { type: Type.INTEGER }, charisma: { type: Type.INTEGER } } },
             abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } } },
-            legendaryActions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } }, description: "Special powerful actions used outside of regular turns. Only for bosses." }
+            legendaryActions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } } }
           },
           required: ["hp", "ac", "stats", "abilities"]
         }

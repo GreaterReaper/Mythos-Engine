@@ -1,12 +1,12 @@
-
 import React, { useRef, useState } from 'react';
 
 interface ArchivePanelProps {
   data: any;
   onImport: (data: any) => void;
+  manifestBasics?: () => void;
 }
 
-const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport }) => {
+const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBasics }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -51,14 +51,14 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-12 pb-24">
+    <div className="max-w-2xl mx-auto space-y-12 pb-24 px-4 md:px-0">
       <div className="text-center">
         <h2 className="text-4xl font-black fantasy-font text-[#b28a48] drop-shadow-lg">The Archive</h2>
         <p className="text-neutral-600 text-xs uppercase tracking-[0.4em] mt-2">Preserve your sagas across the ether</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="grim-card p-8 border-2 border-[#b28a48]/20 flex flex-col justify-between">
+        <div className="grim-card p-8 border-2 border-[#b28a48]/20 flex flex-col justify-between rounded-sm">
           <div className="space-y-6 text-center">
             <h3 className="text-lg font-black fantasy-font text-[#b28a48]">Manifest Archive</h3>
             <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed">
@@ -73,7 +73,7 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport }) => {
           </button>
         </div>
 
-        <div className="grim-card p-8 border-2 border-red-950/20 flex flex-col justify-between">
+        <div className="grim-card p-8 border-2 border-red-950/20 flex flex-col justify-between rounded-sm">
           <div className="space-y-6 text-center">
             <h3 className="text-lg font-black fantasy-font text-red-900/60">Restore Grimoire</h3>
             <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed">
@@ -93,6 +93,21 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport }) => {
             className="hidden"
             accept=".json"
           />
+        </div>
+
+        <div className="grim-card p-8 border-2 border-blue-900/20 md:col-span-2 flex flex-col md:flex-row items-center justify-between gap-6 rounded-sm">
+          <div className="space-y-3 text-center md:text-left flex-1">
+            <h3 className="text-lg font-black fantasy-font text-blue-400">Starter Grimoire</h3>
+            <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed">
+              New to the realm? Manifest a basic set of standard classes, items, and monsters to begin your saga immediately.
+            </p>
+          </div>
+          <button
+            onClick={manifestBasics}
+            className="w-full md:w-auto px-12 bg-blue-950/30 hover:bg-blue-900/40 border border-blue-400/40 py-5 text-[10px] font-black uppercase tracking-[0.4em] text-blue-400 transition-all shadow-xl whitespace-nowrap"
+          >
+            Inscribe Basics
+          </button>
         </div>
       </div>
 

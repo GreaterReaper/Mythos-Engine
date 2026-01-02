@@ -9,9 +9,10 @@ interface RulesManifestProps {
   isHost: boolean;
   reservoirReady: boolean;
   broadcast: (msg: Partial<SyncMessage>) => void;
+  setActiveTab: (tab: any) => void;
 }
 
-const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, notify, isHost, reservoirReady, broadcast }) => {
+const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, notify, isHost, reservoirReady, broadcast, setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState('');
@@ -24,7 +25,7 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
       const generated = await generateRules(campaign.plot);
       setCampaign(prev => ({ ...prev, rules: generated }));
       broadcast({ type: 'STATE_UPDATE', payload: { campaign: { ...campaign, rules: generated } } });
-      notify("Mechanics manifested from the ether.", "success");
+      notify("Standard Mechanics Manifested.", "success");
     } catch (error: any) {
       notify(error.message || "Failed to manifest rules.", "error");
     } finally {
@@ -55,9 +56,18 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
 
   return (
     <div className="space-y-8 md:space-y-12 pb-12 pt-16 px-4 md:px-0">
-      <div className="text-center">
-        <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48] drop-shadow-lg">Laws of the Realm</h2>
-        <p className="text-neutral-600 text-[10px] md:text-xs uppercase tracking-[0.4em] mt-2 font-black">The Inscribed Mechanics of Your Saga</p>
+      <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+        <button 
+          onClick={() => setActiveTab('campaign')}
+          className="text-[10px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-[0.4em] transition-all flex items-center gap-2 group"
+        >
+          <span className="group-hover:-translate-x-1 transition-transform">←</span> Return to Saga
+        </button>
+        <div className="text-center flex-1">
+          <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48] drop-shadow-lg">Laws of the Realm</h2>
+          <p className="text-neutral-600 text-[10px] md:text-xs uppercase tracking-[0.4em] mt-2 font-black">The Inscribed Mechanics of Your Saga</p>
+        </div>
+        <div className="w-[120px] hidden md:block"></div> {/* Spacer for alignment */}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 max-w-6xl mx-auto">
@@ -70,13 +80,13 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
                   value={customName} 
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="RULE NAME..." 
-                  className="w-full bg-black border border-neutral-900 p-4 text-xs uppercase tracking-widest text-[#b28a48] outline-none"
+                  className="w-full bg-black border border-neutral-800 p-4 text-xs uppercase tracking-widest text-[#b28a48] outline-none"
                 />
                 <input 
                   value={customCategory} 
                   onChange={(e) => setCustomCategory(e.target.value)}
                   placeholder="CATEGORY (Combat, Magic, etc)..." 
-                  className="w-full bg-black border border-neutral-900 p-4 text-xs uppercase tracking-widest text-neutral-500 outline-none"
+                  className="w-full bg-black border border-neutral-800 p-4 text-xs uppercase tracking-widest text-neutral-500 outline-none"
                 />
                 <textarea 
                   value={customContent}
@@ -94,6 +104,7 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
               </div>
 
               <div className="mt-8 pt-8 border-t border-neutral-900">
+                <p className="text-[8px] font-black text-neutral-600 uppercase tracking-widest mb-4 text-center">Need typical rules?</p>
                 <button 
                   onClick={handleManifestRules}
                   disabled={loading || !reservoirReady}
@@ -101,7 +112,7 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
                 >
                   {loading ? 'CHANNELING...' : (
                     <>
-                      <span>Manifest Mechanics</span>
+                      <span>Manifest Core Rules</span>
                       <span className="text-[7px] opacity-40">[-20⚡ ESSENCE]</span>
                     </>
                   )}
@@ -130,7 +141,7 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
                         <button onClick={() => deleteRule(rule.id)} className="text-neutral-800 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-all text-[10px] font-black uppercase">Abolish</button>
                       )}
                    </div>
-                   <p className="text-sm md:text-base text-neutral-400 font-serif leading-relaxed italic">{rule.content}</p>
+                   <p className="text-sm md:text-base text-neutral-400 font-serif leading-relaxed italic whitespace-pre-wrap">{rule.content}</p>
                 </div>
               ))}
             </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Character, ClassDef, Spell } from '../types';
 
@@ -7,27 +8,32 @@ interface SpellCodexProps {
   notify: (msg: string, type?: any) => void;
 }
 
+interface SpellWithMetadata extends Spell {
+  source: string;
+  classId?: string;
+}
+
 const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) => {
   const [search, setSearch] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState<string>('all');
 
   const allSpells = useMemo(() => {
-    const list: (Spell & { source: string })[] = [];
+    const list: SpellWithMetadata[] = [];
     
     // Aggregate from characters
     characters.forEach(c => {
       (c.knownSpells || []).forEach(s => {
-        list.push({ ...s, source: `${c.name}` });
+        list.push({ ...s, source: `${c.name}`, classId: c.classId });
       });
     });
 
     // Aggregate from classes
     classes.forEach(cls => {
       (cls.initialSpells || []).forEach(s => {
-        list.push({ ...s, source: `${cls.name} (Archetype)` });
+        list.push({ ...s, source: `${cls.name} (Archetype)`, classId: cls.id });
       });
     });
     
-    // Deduplicate or show distinct sources
     return list;
   }, [characters, classes]);
 
@@ -36,9 +42,10 @@ const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) 
       const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase()) || 
                           s.school.toLowerCase().includes(search.toLowerCase()) ||
                           s.source.toLowerCase().includes(search.toLowerCase());
-      return matchesSearch;
+      const matchesClass = selectedClassId === 'all' || s.classId === selectedClassId;
+      return matchesSearch && matchesClass;
     }).sort((a, b) => a.level - b.level);
-  }, [allSpells, search]);
+  }, [allSpells, search, selectedClassId]);
 
   return (
     <div className="space-y-8 pb-12 pt-16">
@@ -48,14 +55,28 @@ const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) 
       </div>
 
       <div className="max-w-4xl mx-auto space-y-6 px-4 md:px-0">
-        <div className="flex gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
           <input 
             type="text" 
-            placeholder="Search incantations or classes..." 
+            placeholder="Search incantations..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-black border border-neutral-900 px-4 md:px-6 py-4 text-xs uppercase tracking-widest text-[#b28a48] outline-none focus:border-[#b28a48] rounded-sm font-mono shadow-inner"
           />
+          
+          <div className="relative min-w-[220px]">
+            <select 
+              value={selectedClassId} 
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              className="w-full bg-black border border-neutral-900 px-4 py-4 text-[10px] text-[#b28a48] font-black uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48] rounded-sm transition-all"
+            >
+              <option value="all">All Archetypes</option>
+              {classes.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">

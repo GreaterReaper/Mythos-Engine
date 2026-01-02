@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage, Spell } from '../types';
 import { generateClassMechanics, generateSpellbook, rerollTraits } from '../services/gemini';
@@ -10,6 +9,22 @@ interface ClassLibraryProps {
   notify: (msg: string, type?: any) => void;
   reservoirReady: boolean;
 }
+
+const COMMON_SPELL_POOL: Spell[] = [
+  { name: 'Guidance', level: 0, school: 'Divination', description: 'Target rolls a d4 and adds it to an ability check.' },
+  { name: 'Light', level: 0, school: 'Evocation', description: 'Touch an object to shed bright light.' },
+  { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'Manipulate objects with a spectral hand.' },
+  { name: 'Healing Word', level: 1, school: 'Evocation', description: 'Regain 1d4 + Modifier HP.' },
+  { name: 'Shield of Faith', level: 1, school: 'Abjuration', description: 'Grant a creature +2 AC.' },
+  { name: 'Magic Missile', level: 1, school: 'Evocation', description: '3 darts deal 1d4 + 1 force damage each.' },
+  { name: 'Cure Wounds', level: 1, school: 'Evocation', description: 'Regain 1d8 + Modifier HP.' },
+  { name: 'Detect Magic', level: 1, school: 'Divination', description: 'Sense magic within 30 feet.' },
+  { name: 'Misty Step', level: 2, school: 'Conjuration', description: 'Teleport 30 feet.' },
+  { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'End one disease or condition.' },
+  { name: 'Spiritual Weapon', level: 2, school: 'Evocation', description: 'Spectral weapon deals 1d8 + Mod force damage.' },
+  { name: 'Fireball', level: 3, school: 'Evocation', description: 'Explosion deals 8d6 fire damage (DEX save half).' },
+  { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Return creature to life with 1 HP.' },
+];
 
 const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady }) => {
   const [name, setName] = useState('');
@@ -25,7 +40,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     return classes.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
   }, [classes, search]);
 
-  // Updated to include records missing either stats or spells
   const legacyRecords = useMemo(() => {
     return classes.filter(c => 
       (!c.preferredStats || c.preferredStats.length === 0) || 
@@ -64,7 +78,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
-  // Full regeneration of archetype details
   const handleIdentifyDepths = async (cls: ClassDef) => {
     if (!reservoirReady || identifyingId) return;
     setIdentifyingId(cls.id);
@@ -88,18 +101,38 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
-  // Specific spell generation for old classes
   const handleManifestSpells = async (cls: ClassDef) => {
     if (!reservoirReady || learningSpellsId) return;
     setLearningSpellsId(cls.id);
     try {
-      // Use the character spellbook generator as a basis for archetype spells
-      const spells = await generateSpellbook(cls.name, cls.description, 3);
+      // 1. Generate Unique Thematic Spells
+      const generatedSpells = await generateSpellbook(cls.name, cls.description, 3);
+      
+      // 2. Synchronize with Common Registry based on Class identity
+      const keywords = (cls.name + ' ' + cls.description).toLowerCase();
+      const isDivine = keywords.includes('cleric') || keywords.includes('priest') || keywords.includes('holy') || keywords.includes('light');
+      const isArcane = keywords.includes('mage') || keywords.includes('arcan') || keywords.includes('wizard') || keywords.includes('void');
+      
+      const relevantCommon = COMMON_SPELL_POOL.filter(s => {
+        if (['Guidance', 'Light', 'Detect Magic'].includes(s.name)) return true;
+        if (isDivine && (s.name.includes('Heal') || s.school === 'Abjuration' || s.name === 'Revivify')) return true;
+        if (isArcane && (s.school === 'Evocation' || s.school === 'Conjuration' || s.name === 'Misty Step')) return true;
+        return false;
+      });
+
+      // Merge avoiding duplicates
+      const finalSpells = [...generatedSpells];
+      relevantCommon.forEach(rc => {
+        if (!finalSpells.some(fs => fs.name.toLowerCase() === rc.name.toLowerCase())) {
+          finalSpells.push(rc);
+        }
+      });
+
       setClasses(prev => prev.map(c => c.id === cls.id ? {
         ...c,
-        initialSpells: spells
+        initialSpells: finalSpells
       } : c));
-      notify(`Grimoire for "${cls.name}" Inscribed`, "success");
+      notify(`Grimoire for "${cls.name}" Inscribed with ${finalSpells.length} spells.`, "success");
     } catch (e: any) {
       notify(e.message, "error");
     } finally {
@@ -364,13 +397,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Core Attributes</h5>
                               <div className="flex gap-2">
-                                {missingSpells && !isLegacy && (
+                                {(missingSpells || expandedId === c.id) && (
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
                                     disabled={learningSpellsId === c.id || !reservoirReady}
                                     className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
                                   >
-                                    {learningSpellsId === c.id ? 'INSCRIBING...' : 'Inscribe Spells ✨'}
+                                    {learningSpellsId === c.id ? 'SYNCHRONIZING...' : 'Sync Arcanum ✨'}
                                   </button>
                                 )}
                                 {isLegacy && (
@@ -451,7 +484,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                       <p className="text-[10px] font-black text-amber-600 uppercase">{s.name}</p>
                                       <p className="text-[8px] text-neutral-600 font-black">LVL {s.level}</p>
                                     </div>
-                                    <p className="text-[10px] text-neutral-400 font-serif italic line-clamp-1">{s.description}</p>
+                                    <p className="text-[10px] text-neutral-400 font-serif italic line-clamp-2 leading-relaxed">{s.description}</p>
                                   </div>
                                 ))
                               ) : (
@@ -483,7 +516,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 }`}
                               >
                                 <div className="flex items-start gap-4">
-                                  <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-500' : 'text-neutral-800'}`}>
+                                  <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-600' : 'text-neutral-800'}`}>
                                     {f.locked ? '†' : '○'}
                                   </span>
                                   <div>

@@ -30,6 +30,22 @@ const LOCKOUT_DURATION = 65;
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
 
+const COMMON_SPELLS: Spell[] = [
+  { name: 'Guidance', level: 0, school: 'Divination', description: 'Once before the spell ends, the target can roll a d4 and add the number rolled to one ability check of its choice.' },
+  { name: 'Light', level: 0, school: 'Evocation', description: 'Touch an object; it sheds bright light in a 20ft radius.' },
+  { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'A spectral, floating hand appears at a point you choose. It can manipulate objects.' },
+  { name: 'Healing Word', level: 1, school: 'Evocation', description: 'A creature of your choice regains HP equal to 1d4 + Spellcasting Modifier.' },
+  { name: 'Shield of Faith', level: 1, school: 'Abjuration', description: 'A shimmering field surrounds a creature, granting it +2 AC for 10 minutes.' },
+  { name: 'Magic Missile', level: 1, school: 'Evocation', description: 'Three darts of glowing force. Each dart hits a creature and deals 1d4 + 1 force damage.' },
+  { name: 'Cure Wounds', level: 1, school: 'Evocation', description: 'A creature you touch regains HP equal to 1d8 + Spellcasting Modifier.' },
+  { name: 'Detect Magic', level: 1, school: 'Divination', description: 'You sense the presence of magic within 30 feet of you.' },
+  { name: 'Misty Step', level: 2, school: 'Conjuration', description: 'Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space.' },
+  { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'Touch a creature and end either one disease or one condition: blinded, deafened, paralyzed, or poisoned.' },
+  { name: 'Spiritual Weapon', level: 2, school: 'Evocation', description: 'Create a floating, spectral weapon. Make a melee spell attack to deal 1d8 + Modifier force damage.' },
+  { name: 'Fireball', level: 3, school: 'Evocation', description: 'A massive explosion of flame. Each creature in a 20ft radius must make a DEX save or take 8d6 fire damage.' },
+  { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Touch a creature that has died within the last minute. That creature returns to life with 1 hit point.' },
+];
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'rules'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -74,6 +90,124 @@ const App: React.FC = () => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 7000);
   }, []);
+
+  const syncAllClassesToSpells = (classList: ClassDef[]): ClassDef[] => {
+    return classList.map(cls => {
+      const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
+      const isSpellcaster = cls.spellSlots && cls.spellSlots.some(s => s > 0);
+      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood');
+      const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light');
+      
+      const newSpells = [...(cls.initialSpells || [])];
+      
+      if (isSpellcaster) {
+        COMMON_SPELLS.forEach(common => {
+          const alreadyKnown = newSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
+          if (alreadyKnown) return;
+
+          let shouldAdd = false;
+          // Healers get healing
+          if (isDivine && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify'))) shouldAdd = true;
+          // Arcane get offensive/utility
+          if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) shouldAdd = true;
+          // Everyone gets Guidance/Light/Detect if they are magic at all
+          if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
+
+          if (shouldAdd) newSpells.push(common);
+        });
+      }
+      
+      return { ...cls, initialSpells: newSpells };
+    });
+  };
+
+  const manifestBasics = () => {
+    const basicClasses: ClassDef[] = [
+      {
+        id: 'basic-warrior',
+        name: 'Warrior',
+        description: 'A master of martial combat, relying on strength and steel.',
+        hitDie: 'd10',
+        startingHp: 10,
+        hpPerLevel: 6,
+        spellSlots: [0, 0, 0],
+        preferredStats: ['Strength', 'Constitution'],
+        bonuses: ['Heavy Armor Proficiency', 'Martial Weapon Mastery'],
+        features: [
+          { name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' },
+          { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }
+        ],
+        initialSpells: []
+      },
+      {
+        id: 'basic-arcanist',
+        name: 'Arcanist',
+        description: 'A wielder of the fundamental forces of the universe.',
+        hitDie: 'd6',
+        startingHp: 6,
+        hpPerLevel: 4,
+        spellSlots: [4, 2, 0],
+        preferredStats: ['Intelligence', 'Wisdom'],
+        bonuses: ['Arcane Recovery', 'Spell Sniper'],
+        features: [
+          { name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' },
+          { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }
+        ],
+        initialSpells: [] // To be synced
+      }
+    ];
+
+    const basicMonsters: Monster[] = [
+      {
+        id: 'basic-goblin',
+        name: 'Goblin Scavenger',
+        description: 'A small, green-skinned humanoid with sharp teeth and a malicious grin.',
+        stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 },
+        hp: 7,
+        ac: 13,
+        abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }],
+        imageUrl: 'https://images.unsplash.com/photo-1519074063912-ad25b5ce495c?auto=format&fit=crop&q=80&w=400'
+      },
+      {
+        id: 'basic-skeleton',
+        name: 'Dread Skeleton',
+        description: 'Bones knit together by dark necromancy, eyes glowing with cold blue fire.',
+        stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 },
+        hp: 13,
+        ac: 13,
+        abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
+        imageUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&q=80&w=400'
+      }
+    ];
+
+    const basicItems: Item[] = [
+      {
+        id: 'basic-sword',
+        name: 'Iron Longsword',
+        type: 'Weapon',
+        description: 'A well-balanced blade of cold-forged iron.',
+        mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage.' }],
+        lore: 'Standard issue for the King\'s Guard.',
+        imageUrl: 'https://images.unsplash.com/photo-1513360371669-4ada307f8df8?auto=format&fit=crop&q=80&w=400'
+      },
+      {
+        id: 'basic-potion',
+        name: 'Lesser Healing Potion',
+        type: 'Weapon', 
+        description: 'A bubbling red liquid that smells of cherries.',
+        mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points.' }],
+        lore: 'Brewed in the temple of the Dawn Mother.',
+        imageUrl: 'https://images.unsplash.com/photo-1527333656061-ca7adf608ae1?auto=format&fit=crop&q=80&w=400'
+      }
+    ];
+
+    const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
+
+    setClasses(syncedClasses);
+    setMonsters(prev => [...prev.filter(m => !m.id.startsWith('basic')), ...basicMonsters]);
+    setItems(prev => [...prev.filter(i => !i.id.startsWith('basic')), ...basicItems]);
+    notify("Arcanum Synchronized. Basic content manifested.", "success");
+  };
 
   const diceNeeded = useMemo(() => {
     if (campaign.logs.length === 0) return false;
@@ -302,7 +436,7 @@ const App: React.FC = () => {
   const flashPercent = (dailyFlashUsed / DAILY_FLASH_LIMIT) * 100;
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={() => setCurrentUser(null)} user={currentUser} />
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
@@ -312,7 +446,7 @@ const App: React.FC = () => {
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
-          {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoir >= 1 && !isExhausted} broadcast={broadcast} />}
+          {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoir >= 1 && !isExhausted} broadcast={broadcast} setActiveTab={setActiveTab} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {
               if (connections.length === 0) return;
               const state: any = {};
@@ -323,7 +457,7 @@ const App: React.FC = () => {
               if (selection.campaign) state.campaign = campaign;
               broadcast({ type: 'STATE_UPDATE', payload: state });
           }} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={manifestBasics} />}
         </div>
       </main>
 

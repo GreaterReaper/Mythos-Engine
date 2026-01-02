@@ -136,6 +136,32 @@ export const generateCharacterFeats = async (className: string, description: str
   });
 };
 
+export const generateSingleSpell = async (className: string, classDesc: string, level: number = 1): Promise<Spell> => {
+  trackUsage('utility', 5);
+  return withRetry(async (forcedModel) => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: forcedModel || 'gemini-3-flash-preview',
+      contents: `Generate 1 unique thematic TTRPG spell for a level ${level} ${className}. Lore: ${classDesc}. 
+      CRITICAL RULE: The 'description' MUST ONLY contain mechanical effects and dice rolls. Output ONLY JSON.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            level: { type: Type.INTEGER },
+            school: { type: Type.STRING },
+            description: { type: Type.STRING }
+          },
+          required: ["name", "level", "school", "description"]
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '{}'));
+  });
+};
+
 export const generateSpellbook = async (className: string, classDesc: string, maxLevel: number): Promise<Spell[]> => {
   trackUsage('utility', 15);
   return withRetry(async (forcedModel) => {

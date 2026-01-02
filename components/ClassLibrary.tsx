@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage, Spell, UserAccount, Item } from '../types';
-import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage } from '../services/gemini';
+import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage, generateSingleSpell } from '../services/gemini';
 
 interface ClassLibraryProps {
   classes: ClassDef[];
@@ -25,6 +25,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const [rerolling, setRerolling] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  // Architect AI Generation state
+  const [aiGeneratingSpell, setAiGeneratingSpell] = useState<string | null>(null);
 
   // Manual Spell Edit State
   const [editingSpellIdx, setEditingSpellIdx] = useState<number | null>(null);
@@ -363,6 +366,27 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     if (window.confirm("Banish this archetype from the grimoire forever?")) {
       const updated = classes.filter(x => x.id !== cls.id);
       updateAndSync(updated);
+    }
+  };
+
+  // Architect-Only AI Generation
+  const handleAIGenerateSpell = async (cls: ClassDef) => {
+    if (!currentUser.isAdmin || aiGeneratingSpell) return;
+    setAiGeneratingSpell(cls.id);
+    try {
+      // Determine level based on current slot list
+      const targetLevel = (cls.initialSpells?.length || 0) > 4 ? 2 : 1;
+      const spell = await generateSingleSpell(cls.name, cls.description, targetLevel);
+      const updated = classes.map(c => {
+        if (c.id !== cls.id) return c;
+        return { ...c, initialSpells: [...(c.initialSpells || []), spell] };
+      });
+      updateAndSync(updated);
+      notify(`Gemini suggested: ${spell.name}`, "success");
+    } catch (e: any) {
+      notify("Architect insight failed.", "error");
+    } finally {
+      setAiGeneratingSpell(null);
     }
   };
 
@@ -734,12 +758,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Archetype Spells</h5>
                               {currentUser.isAdmin && (
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); startAddingSpell(c.id); }}
-                                  className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest border border-amber-500/30 px-2 py-0.5 rounded-sm flex items-center gap-1"
-                                >
-                                  <span>+ Architect: Manual Spell</span>
-                                </button>
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); handleAIGenerateSpell(c); }}
+                                    disabled={aiGeneratingSpell === c.id}
+                                    className="text-[8px] font-black text-blue-400 hover:text-white uppercase tracking-widest border border-blue-500/30 px-2 py-0.5 rounded-sm flex items-center gap-1 bg-blue-900/10"
+                                  >
+                                    <span>{aiGeneratingSpell === c.id ? 'Insight...' : '✨ Architect: AI Suggest'}</span>
+                                  </button>
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); startAddingSpell(c.id); }}
+                                    className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest border border-amber-500/30 px-2 py-0.5 rounded-sm flex items-center gap-1"
+                                  >
+                                    <span>+ Manual</span>
+                                  </button>
+                                </div>
                               )}
                             </div>
                             

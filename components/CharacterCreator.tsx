@@ -146,10 +146,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       const selectedClass = classes.find(c => c.id === classId);
       const prompt = `Fantasy TTRPG character portrait. A ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Atmosphere: dark fantasy, painted masterpiece. ${refImage ? "Strictly maintain the facial features and style from the reference image provided." : ""}`;
       
-      const [imageUrl, classFeats] = await Promise.all([
-        generateImage(prompt, refImage || undefined), 
-        generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '')
-      ]);
+      // CALL SEQUENTIALLY TO AVOID RATE LIMITS (429)
+      const imageUrl = await generateImage(prompt, refImage || undefined);
+      const classFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
       
       const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true }));
       const allFeats = [...racialFeats, ...classFeats];
@@ -168,7 +167,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS); setRefImage(null);
       setSelectedCharacterId(newChar.id);
       notify(`${name} Bound.`, "success");
-    } catch (e: any) { notify("Summoning Failed.", "error"); } finally { setGenerating(false); }
+    } catch (e: any) { 
+      notify(e.message || "Summoning Failed.", "error"); 
+    } finally { 
+      setGenerating(false); 
+    }
   };
 
   const handleRerollStatsOnChar = async (char: Character) => {
@@ -177,7 +180,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     try {
       const cls = classes.find(c => c.id === char.classId);
       const newStats = await rerollStats(char.name, cls?.name || 'Hero', char.stats, char.lockedStats || []);
-      setCharacters(prev => prev.map(c => c.id === char.id ? { ...c, stats: newStats } : c));
+      setCharacters(prev => prev.map(c => {
+        if (c.id !== char.id) return c;
+        const newHp = (classes.find(cl => cl.id === c.classId)?.startingHp || 10) + (Math.floor((newStats.constitution - 10) / 2));
+        return { ...c, stats: newStats, hp: newHp, maxHp: newHp };
+      }));
       notify("Stats Rewoven.", "success");
     } catch (e: any) { notify("Arcane Interference.", "error"); } finally { setRerollingStats(null); }
   };

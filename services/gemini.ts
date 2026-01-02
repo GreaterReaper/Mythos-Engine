@@ -24,24 +24,36 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-async function withRetry<T>(fn: () => Promise<T>, retries = 2, initialDelay = 10000): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
   if (isHardLockoutActive()) throw new Error("RECALIBRATION_IN_PROGRESS");
   try {
     return await fn();
   } catch (error: any) {
     const errorStr = error.toString().toLowerCase();
-    if (errorStr.includes('quota')) {
+    const isQuota = errorStr.includes('quota');
+    const isRateLimit = errorStr.includes('429') || errorStr.includes('rate limit') || errorStr.includes('too many requests');
+
+    if (isQuota) {
       reportError(true, true);
       throw new Error("DAILY_QUOTA_EXHAUSTED");
     }
-    if (errorStr.includes('429')) {
-      reportError(true, false);
-      throw new Error("LEY_LINES_OVERLOADED");
-    }
-    if (retries > 0) {
+
+    if (retries > 0 && isRateLimit) {
+      // Graceful exponential backoff for rate limits
       await new Promise(resolve => setTimeout(resolve, initialDelay));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
+
+    if (isRateLimit) {
+      reportError(true, false);
+      throw new Error("LEY_LINES_OVERLOADED");
+    }
+
+    if (retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, initialDelay));
+      return withRetry(fn, retries - 1, initialDelay * 1.5);
+    }
+
     throw error;
   }
 }
@@ -276,9 +288,13 @@ export const generateMonsterStats = async (name: string, description: string, is
   trackUsage('utility', 10);
   return withRetry(async () => {
     const ai = getAI();
+    const rolePrompt = isBoss 
+      ? "This is a LEGENDARY BOSS entity. It should be an overwhelming threat with high hit points (150-500+), formidable armor class (18-24), and complex, multi-stage or area-of-effect abilities. Focus on legendary actions or passive auras."
+      : "This is a STANDARD MONSTER. It should be balanced for a typical encounter with appropriate hit points (20-100) and armor class (12-16).";
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate stats for monster: ${name}. Description: ${description}. Boss: ${isBoss}`,
+      contents: `Generate TTRPG stats for monster: ${name}. Description: ${description}. Role: ${rolePrompt}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -288,7 +304,8 @@ export const generateMonsterStats = async (name: string, description: string, is
             ac: { type: Type.INTEGER },
             stats: { type: Type.OBJECT, properties: { strength: { type: Type.INTEGER }, dexterity: { type: Type.INTEGER }, constitution: { type: Type.INTEGER }, intelligence: { type: Type.INTEGER }, wisdom: { type: Type.INTEGER }, charisma: { type: Type.INTEGER } } },
             abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } } }
-          }
+          },
+          required: ["hp", "ac", "stats", "abilities"]
         }
       }
     });

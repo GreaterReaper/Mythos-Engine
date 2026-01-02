@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Monster, Stats, SyncMessage } from '../types';
 import { generateMonsterStats, generateImage, rerollTraits } from '../services/gemini';
@@ -7,6 +6,14 @@ const getModifier = (val: number) => {
   const mod = Math.floor((val - 10) / 2);
   return mod >= 0 ? `+${mod}` : mod;
 };
+
+interface BestiaryProps {
+  monsters: Monster[];
+  setMonsters: React.Dispatch<React.SetStateAction<Monster[]>>;
+  broadcast?: (msg: Partial<SyncMessage>) => void;
+  notify: (message: string, type?: any) => void;
+  reservoirReady: boolean;
+}
 
 const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, notify, reservoirReady }) => {
   const [name, setName] = useState('');
@@ -39,10 +46,9 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
-      const [stats, imageUrl] = await Promise.all([
-        generateMonsterStats(name, description, isBoss),
-        generateImage(`Full body illustration of a ${isBoss ? 'LEGENDARY BOSS' : 'fantasy'} monster: ${description}. cinematic lighting.`)
-      ]);
+      // SEQUENTIAL CALLS TO AVOID 429 LEY LINE OVERLOADS
+      const stats = await generateMonsterStats(name, description, isBoss);
+      const imageUrl = await generateImage(`Full body illustration of a ${isBoss ? 'LEGENDARY BOSS' : 'fantasy'} monster: ${description}. cinematic lighting.`);
       
       const newMonster: Monster = {
         id: Math.random().toString(36).substr(2, 9),
@@ -52,7 +58,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         stats: stats.stats || { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 },
         hp: stats.hp || 50,
         ac: stats.ac || 15,
-        abilities: (stats.abilities || []).map(a => ({ ...a, locked: false })),
+        abilities: (stats.abilities || []).map((a: any) => ({ ...a, locked: false })),
         imageUrl
       };
       
@@ -121,7 +127,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       broadcast({
         type: 'SHARE_RESOURCE',
         payload: {
-          resourceType: 'monster',
+          resourceType: 'class',
           resourceData: monster
         }
       });
@@ -210,15 +216,16 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative flex-shrink-0 transition-all duration-700 grayscale group-hover:grayscale-0 ${expandedId === m.id ? 'grayscale-0' : ''}`}>
-                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-black flex items-center justify-center text-6xl">🐉</div>}
+                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" alt={m.name} /> : <div className="w-full h-full bg-black flex items-center justify-center text-6xl">🐉</div>}
                   </div>
                   
                   <div className="p-8 flex-1 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 text-left">
                           <h4 className={`text-3xl font-black fantasy-font tracking-widest ${m.isBoss ? 'text-red-500' : 'text-[#b28a48]'}`}>{m.name}</h4>
                         </div>
+                        <p className={`text-neutral-400 mt-2 font-serif italic text-left ${expandedId === m.id ? '' : 'line-clamp-2'}`}>{m.description}</p>
                       </div>
                       <div className="flex gap-2 items-center">
                         <button 
@@ -233,6 +240,64 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                     </div>
                   </div>
                 </div>
+
+                {expandedId === m.id && (
+                  <div className="p-8 border-t border-neutral-900 bg-neutral-950/20 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-2">
+                    <div className="space-y-6">
+                      <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-neutral-800 pb-2 text-left">Combat Statistics</h5>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center">
+                          <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Vitality (HP)</div>
+                          <div className={`text-2xl font-black ${m.isBoss ? 'text-red-500' : 'text-amber-500'}`}>{m.hp}</div>
+                        </div>
+                        <div className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center">
+                          <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Protection (AC)</div>
+                          <div className="text-2xl font-black text-neutral-200">{m.ac}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {Object.entries(m.stats).map(([s, v]) => (
+                          <div key={s} className="bg-black/40 p-2 border border-neutral-900 rounded-sm text-center">
+                            <div className="text-[7px] font-black text-neutral-700 uppercase">{s.slice(0, 3)}</div>
+                            <div className="text-sm font-black text-[#b28a48]">{v}</div>
+                            {/* FIX: Explicitly cast v to number to match getModifier's expected parameter type */}
+                            <div className="text-[8px] font-bold text-neutral-600">{getModifier(v as number)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+                        <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
+                        <button 
+                          onClick={(e) => handleReroll(e, m)}
+                          disabled={rerolling === m.id || !reservoirReady}
+                          className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20"
+                        >
+                          {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        {m.abilities.map((a, i) => (
+                          <div 
+                            key={i} 
+                            onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i); }}
+                            className={`p-4 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className={`text-lg ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                              <div>
+                                <h6 className={`text-xs font-black uppercase tracking-wider ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
+                                <p className="text-[11px] text-neutral-500 italic font-serif leading-relaxed">{a.effect}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -241,13 +306,5 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
     </div>
   );
 };
-
-interface BestiaryProps {
-  monsters: Monster[];
-  setMonsters: React.Dispatch<React.SetStateAction<Monster[]>>;
-  broadcast?: (msg: Partial<SyncMessage>) => void;
-  notify: (message: string, type?: any) => void;
-  reservoirReady: boolean;
-}
 
 export default Bestiary;

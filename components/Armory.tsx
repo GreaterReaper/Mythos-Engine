@@ -41,16 +41,16 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
-      const [{ mechanics, lore }, imageUrl] = await Promise.all([
-        generateItemMechanics(name, type, description),
-        generateImage(`Full-frame cinematic fantasy portrait of a legendary ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`)
-      ]);
+      // SEQUENTIAL API CALLS TO PREVENT LEY LINE OVERLOADS (429)
+      const { mechanics, lore } = await generateItemMechanics(name, type, description);
+      const imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
       
       const newItem: Item = {
         id: Math.random().toString(36).substr(2, 9),
         name, type, description,
-        mechanics: (mechanics || []).map(m => ({ ...m, locked: false })),
-        lore, imageUrl
+        mechanics: (mechanics || []).map((m: any) => ({ ...m, locked: false })),
+        lore: lore || description,
+        imageUrl
       };
       setItems(prev => [...prev, newItem]);
       setName('');
@@ -159,11 +159,11 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative grayscale group-hover:grayscale-0 transition-all duration-700 ${expandedId === item.id ? 'grayscale-0' : ''}`}>
-                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
+                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
                   </div>
                   
                   <div className="p-6 flex-1 flex flex-col justify-between">
-                    <div>
+                    <div className="text-left">
                       <div className="flex justify-between items-start">
                         <h4 className="text-2xl font-black fantasy-font text-[#b28a48]">{item.name}</h4>
                         <div className="flex gap-2">
@@ -177,9 +177,52 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           <button onClick={(e) => { e.stopPropagation(); setItems(prev => prev.filter(x => x.id !== item.id)); }} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>
                         </div>
                       </div>
+                      <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-black mb-2">{item.type}</p>
+                      <p className={`text-sm text-neutral-400 font-serif italic leading-relaxed ${expandedId === item.id ? '' : 'line-clamp-2'}`}>{item.description}</p>
                     </div>
                   </div>
                 </div>
+
+                {expandedId === item.id && (
+                  <div className="p-8 border-t border-neutral-900 bg-neutral-950/20 space-y-8 animate-in slide-in-from-top-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
+                      <div className="space-y-4">
+                        <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-neutral-800 pb-2">Ancient Lore</h5>
+                        <p className="text-sm text-neutral-400 font-serif italic leading-relaxed">{item.lore}</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+                          <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Arcane Mechanics</h5>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleReroll(item); }}
+                            disabled={rerolling === item.id || !reservoirReady}
+                            className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20"
+                          >
+                            {rerolling === item.id ? 'REWEAVING...' : 'Reroll Properties 🎲'}
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {item.mechanics.map((mech, i) => (
+                            <div 
+                              key={i}
+                              onClick={(e) => { e.stopPropagation(); toggleLock(item.id, i); }}
+                              className={`p-4 border rounded-sm transition-all cursor-pointer ${mech.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <span className={`text-lg mt-0.5 ${mech.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{mech.locked ? '†' : '○'}</span>
+                                <div>
+                                  <h6 className={`text-xs font-black uppercase tracking-wider ${mech.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{mech.name}</h6>
+                                  <p className="text-[11px] text-neutral-500 italic font-serif leading-relaxed">{mech.description}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -244,6 +244,42 @@ const App: React.FC = () => {
           name: 'Arcanist',
           description: 'A wielder of the fundamental forces of the universe.',
           hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Wisdom'], bonuses: ['Arcane Recovery', 'Spell Sniper'], features: [{ name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' }, { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }], initialSpells: [], authorId: 'system', authorName: 'Ancient Grimoire'
+        },
+        {
+          id: 'basic-dark-knight',
+          name: 'Dark Knight',
+          description: 'A grim order of knights who discard shields for massive two-handed blades. They fuel their dark aether with raw emotion—most notably Love—to drain life from enemies and shield allies with barriers of shadows.',
+          hitDie: 'd12',
+          startingHp: 12,
+          hpPerLevel: 7,
+          spellSlots: [2, 0, 0],
+          preferredStats: ['Strength', 'Charisma'],
+          bonuses: ['Two-Handed Mastery', 'Heavy Armor Proficiency', 'Intimidation Mastery'],
+          features: [
+            { 
+              name: 'Living Shadow', 
+              description: 'Spend an action to conjure a shadowy simulacrum. It fights at your side for 1 minute, dealing half your weapon damage as necrotic damage.',
+              locked: true 
+            },
+            { 
+              name: 'Living Dead', 
+              description: 'When reduced to 0 HP, you do not fall. Instead, for 10 seconds, you cannot be killed and your lifesteal is tripled. If you do not receive healing equal to your Maximum HP by the end, you must succeed a DC 15 Death Saving Throw or die instantly.',
+              locked: true 
+            },
+            { 
+              name: 'Cold Bite', 
+              description: 'Your controlled darkness chills the air. Enemies within 10ft take a -2 penalty to attack rolls as the air freezes around them.',
+              locked: true 
+            }
+          ],
+          initialSpells: [
+            { name: 'The Black Night', level: 1, school: 'Abjuration', description: 'Create a barrier of darkness around yourself or an ally equal to your level + CHA modifier.' },
+            { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from all enemies within 5ft, healing yourself for half the total damage.' },
+            { name: 'Dark Mind', level: 1, school: 'Abjuration', description: 'Fortify your mind against magic, gaining resistance to all elemental and arcane damage for 2 rounds.' },
+            { name: 'Shadow Wall', level: 2, school: 'Evocation', description: 'A wall of absolute shadow erupts. Enemies passing through take necrotic damage and are Chilled.' }
+          ],
+          authorId: 'Orestara',
+          authorName: 'Orestara'
         }
       ];
       const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);

@@ -46,6 +46,75 @@ const COMMON_SPELLS: Spell[] = [
   { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Touch a creature that has died within the last minute. The creature returns to life with 1 hit point.' },
 ];
 
+const SYSTEM_MONSTERS: Monster[] = [
+  {
+    id: 'sys-goblin',
+    name: 'Goblin Scavenger',
+    description: 'A small, green-skinned humanoid with sharp teeth and a malicious grin. They hunt in packs and prefer the shadows.',
+    stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 },
+    hp: 7,
+    ac: 13,
+    abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }],
+    imageUrl: 'https://images.unsplash.com/photo-1519074063912-ad25b5ce495c?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-skeleton',
+    name: 'Dread Skeleton',
+    description: 'Bones knit together by dark necromancy, eyes glowing with cold blue fire. It feels no pain and knows no fear.',
+    stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 },
+    hp: 13,
+    ac: 13,
+    abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
+    imageUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-orc',
+    name: 'Orc Marauder',
+    description: 'A hulking brute with grey skin and tusks, wielding a rusted greataxe and driven by bloodlust.',
+    stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
+    hp: 15,
+    ac: 13,
+    abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }],
+    imageUrl: 'https://images.unsplash.com/photo-1605142859862-978be7eba909?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-boss-sentinel',
+    name: 'The Obsidian Sentinel',
+    description: 'A towering construct of dark stone and glowing ley-veins, guarding ancient vaults from intruders.',
+    isBoss: true,
+    stats: { strength: 20, dexterity: 8, constitution: 20, intelligence: 3, wisdom: 11, charisma: 1 },
+    hp: 120,
+    ac: 18,
+    abilities: [
+      { name: 'Immutable Form', effect: 'Immune to any effect that would alter its form.' },
+      { name: 'Magic Resistance', effect: 'Advantage on saving throws against spells and other magical effects.' }
+    ],
+    legendaryActions: [
+      { name: 'Obsidian Smash', effect: 'Make one slam attack (+8 to hit, 3d10+5 bludgeoning).' },
+      { name: 'Ley Pulse', effect: 'Emanate a wave of force. Nearby creatures must succeed a DC 15 STR save or be knocked prone.' }
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-boss-malakor',
+    name: 'Malakor the Betrayer',
+    description: 'A fallen wizard whose soul is bound to a necrotic shroud. He seeks the erasure of all history to end his eternal pain.',
+    isBoss: true,
+    stats: { strength: 8, dexterity: 14, constitution: 16, intelligence: 20, wisdom: 14, charisma: 18 },
+    hp: 95,
+    ac: 15,
+    abilities: [
+      { name: 'Ethereal Jaunt', effect: 'As a bonus action, magically shift from the Material Plane to the Ethereal Plane, or vice-versa.' },
+      { name: 'Grasp of the Grave', effect: 'Melee weapon attack deals 4d6 necrotic damage and the target is grappled (DC 15 ESC).' }
+    ],
+    legendaryActions: [
+      { name: 'Cantrip', effect: 'Cast a cantrip or level 1 spell.' },
+      { name: 'Siphon Vitality', effect: 'A creature within 60ft must make a DC 16 CON save or take 3d8 necrotic damage, healing Malakor for half.' }
+    ],
+    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=400'
+  }
+];
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'rules'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -123,137 +192,75 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const manifestBasics = () => {
-    const basicClasses: ClassDef[] = [
-      {
-        id: 'basic-warrior',
-        name: 'Warrior',
-        description: 'A master of martial combat, relying on strength and steel.',
-        hitDie: 'd10',
-        startingHp: 10,
-        hpPerLevel: 6,
-        spellSlots: [0, 0, 0],
-        preferredStats: ['Strength', 'Constitution'],
-        bonuses: ['Heavy Armor Proficiency', 'Martial Weapon Mastery'],
-        features: [
-          { name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' },
-          { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }
-        ],
-        initialSpells: []
-      },
-      {
-        id: 'basic-arcanist',
-        name: 'Arcanist',
-        description: 'A wielder of the fundamental forces of the universe.',
-        hitDie: 'd6',
-        startingHp: 6,
-        hpPerLevel: 4,
-        spellSlots: [4, 2, 0],
-        preferredStats: ['Intelligence', 'Wisdom'],
-        bonuses: ['Arcane Recovery', 'Spell Sniper'],
-        features: [
-          { name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' },
-          { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }
-        ],
-        initialSpells: [] 
-      }
-    ];
+  const manifestBasics = (scope: 'all' | 'monsters' = 'all') => {
+    if (scope === 'all' || scope === 'monsters') {
+      const existingIds = new Set(monsters.map(m => m.id));
+      const monstersToAdd = SYSTEM_MONSTERS.filter(m => !existingIds.has(m.id));
+      setMonsters(prev => [...prev, ...monstersToAdd]);
+    }
 
-    const basicMonsters: Monster[] = [
-      {
-        id: 'basic-goblin',
-        name: 'Goblin Scavenger',
-        description: 'A small, green-skinned humanoid with sharp teeth and a malicious grin.',
-        stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 },
-        hp: 7,
-        ac: 13,
-        abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }],
-        imageUrl: 'https://images.unsplash.com/photo-1519074063912-ad25b5ce495c?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 'basic-skeleton',
-        name: 'Dread Skeleton',
-        description: 'Bones knit together by dark necromancy, eyes glowing with cold blue fire.',
-        stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 },
-        hp: 13,
-        ac: 13,
-        abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
-        imageUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 'basic-orc',
-        name: 'Orc Marauder',
-        description: 'A hulking brute with grey skin and tusks, wielding a rusted greataxe.',
-        stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
-        hp: 15,
-        ac: 13,
-        abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }],
-        imageUrl: 'https://images.unsplash.com/photo-1605142859862-978be7eba909?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 'boss-sentinel',
-        name: 'The Obsidian Sentinel',
-        description: 'A towering construct of dark stone and glowing ley-veins, guarding ancient vaults.',
-        isBoss: true,
-        stats: { strength: 20, dexterity: 8, constitution: 20, intelligence: 3, wisdom: 11, charisma: 1 },
-        hp: 120,
-        ac: 18,
-        abilities: [
-          { name: 'Immutable Form', effect: 'Immune to any effect that would alter its form.' },
-          { name: 'Magic Resistance', effect: 'Advantage on saving throws against spells and other magical effects.' }
-        ],
-        legendaryActions: [
-          { name: 'Obsidian Smash', effect: 'Make one slam attack (+8 to hit, 3d10+5 bludgeoning).' },
-          { name: 'Ley Pulse', effect: 'Emanate a wave of force. Nearby creatures must succeed a DC 15 STR save or be knocked prone.' }
-        ],
-        imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 'boss-malakor',
-        name: 'Malakor the Betrayer',
-        description: 'A fallen wizard whose soul is bound to a necrotic shroud. He seeks the erasure of all history.',
-        isBoss: true,
-        stats: { strength: 8, dexterity: 14, constitution: 16, intelligence: 20, wisdom: 14, charisma: 18 },
-        hp: 95,
-        ac: 15,
-        abilities: [
-          { name: 'Ethereal Jaunt', effect: 'As a bonus action, magically shift from the Material Plane to the Ethereal Plane, or vice-versa.' },
-          { name: 'Grasp of the Grave', effect: 'Melee weapon attack deals 4d6 necrotic damage and the target is grappled.' }
-        ],
-        legendaryActions: [
-          { name: 'Cantrip', effect: 'Cast a cantrip or level 1 spell.' },
-          { name: 'Siphon Vitality', effect: 'A creature within 60ft must make a DC 16 CON save or take 3d8 necrotic damage, healing Malakor for half.' }
-        ],
-        imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=400'
-      }
-    ];
+    if (scope === 'all') {
+      const basicClasses: ClassDef[] = [
+        {
+          id: 'basic-warrior',
+          name: 'Warrior',
+          description: 'A master of martial combat, relying on strength and steel.',
+          hitDie: 'd10',
+          startingHp: 10,
+          hpPerLevel: 6,
+          spellSlots: [0, 0, 0],
+          preferredStats: ['Strength', 'Constitution'],
+          bonuses: ['Heavy Armor Proficiency', 'Martial Weapon Mastery'],
+          features: [
+            { name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' },
+            { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }
+          ],
+          initialSpells: []
+        },
+        {
+          id: 'basic-arcanist',
+          name: 'Arcanist',
+          description: 'A wielder of the fundamental forces of the universe.',
+          hitDie: 'd6',
+          startingHp: 6,
+          hpPerLevel: 4,
+          spellSlots: [4, 2, 0],
+          preferredStats: ['Intelligence', 'Wisdom'],
+          bonuses: ['Arcane Recovery', 'Spell Sniper'],
+          features: [
+            { name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' },
+            { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }
+          ],
+          initialSpells: [] 
+        }
+      ];
 
-    const basicItems: Item[] = [
-      {
-        id: 'basic-sword',
-        name: 'Iron Longsword',
-        type: 'Weapon',
-        description: 'A well-balanced blade of cold-forged iron.',
-        mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage.' }],
-        lore: 'Standard issue for the King\'s Guard.',
-        imageUrl: 'https://images.unsplash.com/photo-1513360371669-4ada307f8df8?auto=format&fit=crop&q=80&w=400'
-      },
-      {
-        id: 'basic-potion',
-        name: 'Lesser Healing Potion',
-        type: 'Weapon', 
-        description: 'A bubbling red liquid that smells of cherries.',
-        mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points.' }],
-        lore: 'Brewed in the temple of the Dawn Mother.',
-        imageUrl: 'https://images.unsplash.com/photo-1527333656061-ca7adf608ae1?auto=format&fit=crop&q=80&w=400'
-      }
-    ];
+      const basicItems: Item[] = [
+        {
+          id: 'basic-sword',
+          name: 'Iron Longsword',
+          type: 'Weapon',
+          description: 'A well-balanced blade of cold-forged iron.',
+          mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage.' }],
+          lore: 'Standard issue for the King\'s Guard.',
+          imageUrl: 'https://images.unsplash.com/photo-1513360371669-4ada307f8df8?auto=format&fit=crop&q=80&w=400'
+        },
+        {
+          id: 'basic-potion',
+          name: 'Lesser Healing Potion',
+          type: 'Weapon', 
+          description: 'A bubbling red liquid that smells of cherries.',
+          mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points.' }],
+          lore: 'Brewed in the temple of the Dawn Mother.',
+          imageUrl: 'https://images.unsplash.com/photo-1527333656061-ca7adf608ae1?auto=format&fit=crop&q=80&w=400'
+        }
+      ];
 
-    const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
-
-    setClasses(syncedClasses);
-    setMonsters(prev => [...prev.filter(m => !m.id.startsWith('basic') && !m.id.startsWith('boss')), ...basicMonsters]);
-    setItems(prev => [...prev.filter(i => !i.id.startsWith('basic')), ...basicItems]);
+      const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
+      setClasses(syncedClasses);
+      setItems(prev => [...prev.filter(i => !i.id.startsWith('basic')), ...basicItems]);
+    }
+    
     notify("Arcanum Synchronized. Basic content manifested.", "success");
   };
 
@@ -491,7 +498,7 @@ const App: React.FC = () => {
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} syncSpells={syncAllClassesToSpells} />}
-          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
           {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoir >= 1 && !isExhausted} broadcast={broadcast} setActiveTab={setActiveTab} />}
@@ -505,7 +512,7 @@ const App: React.FC = () => {
               if (selection.campaign) state.campaign = campaign;
               broadcast({ type: 'STATE_UPDATE', payload: state });
           }} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={manifestBasics} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} />}
         </div>
       </main>
 

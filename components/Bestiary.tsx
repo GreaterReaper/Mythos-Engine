@@ -13,9 +13,10 @@ interface BestiaryProps {
   broadcast?: (msg: Partial<SyncMessage>) => void;
   notify: (message: string, type?: any) => void;
   reservoirReady: boolean;
+  manifestBasics?: (scope: 'monsters') => void;
 }
 
-const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, notify, reservoirReady }) => {
+const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, notify, reservoirReady, manifestBasics }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isBoss, setIsBoss] = useState(false);
@@ -47,7 +48,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
-      // SEQUENTIAL CALLS TO AVOID 429 LEY LINE OVERLOADS
       const stats = await generateMonsterStats(name, description, isBoss);
       const imageUrl = await generateImage(`Full body illustration of a ${isBoss ? 'LEGENDARY BOSS' : 'fantasy'} monster: ${description}. cinematic lighting.`);
       
@@ -166,9 +166,19 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
   return (
     <div className="space-y-8 pb-12">
-      <div>
-        <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48] tracking-widest">Ancient Bestiary</h2>
-        <p className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black mt-2">Codex of Horrors & Guardians</p>
+      <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-[#b28a48]/20 pb-4">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48] tracking-widest">Ancient Bestiary</h2>
+          <p className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black mt-2">Codex of Horrors & Guardians</p>
+        </div>
+        
+        <button 
+          onClick={() => manifestBasics && manifestBasics('monsters')}
+          className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+        >
+          <span className="animate-pulse">✨</span>
+          Manifest System Archive
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -232,14 +242,34 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 bg-black border border-neutral-900 px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] outline-none focus:border-[#b28a48]"
             />
+            <button 
+              onClick={() => setBossOnly(!bossOnly)}
+              className={`px-4 py-3 text-[9px] font-black uppercase tracking-widest border transition-all ${bossOnly ? 'bg-red-950/20 border-red-500 text-red-500' : 'bg-black border-neutral-800 text-neutral-500'}`}
+            >
+              Legendary Only
+            </button>
           </div>
 
           <div className="space-y-8">
-            {filteredMonsters.map(m => (
+            {filteredMonsters.length === 0 ? (
+               <div className="py-24 px-8 text-center bg-black/40 border-2 border-dashed border-[#b28a48]/10 rounded-sm flex flex-col items-center justify-center min-h-[400px]">
+                  <div className="text-6xl mb-6 opacity-30">📜</div>
+                  <h3 className="text-xl font-black fantasy-font text-neutral-600 mb-4 uppercase tracking-[0.2em]">The Bestiary is Untouched</h3>
+                  <p className="text-xs text-neutral-500 max-w-sm font-serif italic mb-8">
+                    Existing chronicles require manifestation of system horrors or manual inscription of the monstrous.
+                  </p>
+                  <button 
+                    onClick={() => manifestBasics && manifestBasics('monsters')}
+                    className="bg-amber-950/20 border-2 border-[#b28a48] hover:bg-[#b28a48] text-[#b28a48] hover:text-black px-12 py-5 text-xs font-black uppercase tracking-[0.5em] transition-all shadow-[0_0_30px_rgba(178,138,72,0.1)] active:scale-95"
+                  >
+                    Manifest System Horrors
+                  </button>
+               </div>
+            ) : filteredMonsters.map(m => (
               <div 
                 key={m.id} 
                 onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
-                className={`grim-card rounded-sm overflow-hidden group transition-all duration-500 border-2 cursor-pointer ${expandedId === m.id ? (m.isBoss ? 'border-red-600/60 shadow-2xl' : 'border-[#b28a48]/60 shadow-2xl') : (m.isBoss ? 'border-red-900/30 hover:border-red-700/50' : 'border-neutral-900 hover:border-neutral-800')}`}
+                className={`grim-card rounded-sm overflow-hidden group transition-all duration-500 border-2 cursor-pointer ${expandedId === m.id ? (m.isBoss ? 'border-red-600/60 shadow-[0_0_30px_rgba(220,38,38,0.2)]' : 'border-[#b28a48]/60 shadow-2xl') : (m.isBoss ? 'border-red-900/30 hover:border-red-700/50' : 'border-neutral-900 hover:border-neutral-800')}`}
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative flex-shrink-0 transition-all duration-700 grayscale group-hover:grayscale-0 ${expandedId === m.id ? 'grayscale-0' : ''}`}>
@@ -248,12 +278,13 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                   
                   <div className="p-8 flex-1 flex flex-col justify-between">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-3 text-left">
-                          <h4 className={`text-3xl font-black fantasy-font tracking-widest ${m.isBoss ? 'text-red-500' : 'text-[#b28a48]'}`}>{m.name}</h4>
+                      <div className="text-left">
+                        <div className="flex items-center gap-3">
+                          <h4 className={`text-3xl font-black fantasy-font tracking-widest ${m.isBoss ? 'text-red-500 drop-shadow-[0_2px_8px_rgba(220,38,38,0.4)]' : 'text-[#b28a48]'}`}>{m.name}</h4>
                           {m.isBoss && <span className="text-[8px] font-black text-white bg-red-600 px-2 py-0.5 rounded-sm tracking-widest animate-pulse">LEGENDARY</span>}
+                          {m.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-widest uppercase opacity-60">System Archive</span>}
                         </div>
-                        <p className={`text-neutral-400 mt-2 font-serif italic text-left ${expandedId === m.id ? '' : 'line-clamp-2'}`}>{m.description}</p>
+                        <p className={`text-neutral-400 mt-2 font-serif italic text-left leading-relaxed ${expandedId === m.id ? '' : 'line-clamp-2'}`}>{m.description}</p>
                       </div>
                       <div className="flex gap-2 items-center">
                         <button 
@@ -270,25 +301,27 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                 </div>
 
                 {expandedId === m.id && (
-                  <div className="p-8 border-t border-neutral-900 bg-neutral-950/20 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-2">
+                  <div className={`p-8 border-t bg-black/40 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-2 duration-500 ${m.isBoss ? 'border-red-900/20' : 'border-neutral-900'}`}>
                     <div className="space-y-6">
-                      <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-neutral-800 pb-2 text-left">Combat Statistics</h5>
+                      <h5 className={`text-[10px] font-black uppercase tracking-widest border-b pb-2 text-left ${m.isBoss ? 'text-red-400 border-red-950' : 'text-neutral-500 border-neutral-800'}`}>Combat Statistics</h5>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center">
+                        <div className={`bg-black/60 p-5 border rounded-sm text-center ${m.isBoss ? 'border-red-900/30' : 'border-neutral-900'}`}>
                           <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Vitality (HP)</div>
-                          <div className={`text-2xl font-black ${m.isBoss ? 'text-red-500' : 'text-amber-500'}`}>{m.hp}</div>
+                          <div className={`text-3xl font-black ${m.isBoss ? 'text-red-500 drop-shadow-[0_0_10px_rgba(220,38,38,0.2)]' : 'text-amber-500'}`}>{m.hp}</div>
                         </div>
-                        <div className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center">
+                        <div className={`bg-black/60 p-5 border rounded-sm text-center ${m.isBoss ? 'border-red-900/30' : 'border-neutral-900'}`}>
                           <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Protection (AC)</div>
-                          <div className="text-2xl font-black text-neutral-200">{m.ac}</div>
+                          <div className="text-3xl font-black text-neutral-200">{m.ac}</div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {Object.entries(m.stats).map(([s, v]) => (
-                          <div key={s} className="bg-black/40 p-2 border border-neutral-900 rounded-sm text-center">
-                            <div className="text-[7px] font-black text-neutral-700 uppercase">{s.slice(0, 3)}</div>
-                            <div className="text-sm font-black text-[#b28a48]">{v}</div>
-                            <div className="text-[8px] font-bold text-neutral-600">{getModifier(v as number)}</div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {(Object.keys(m.stats) as Array<keyof Stats>).map((s) => (
+                          <div key={s} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-center group/stat">
+                            <div className="text-[7px] font-black text-neutral-700 uppercase mb-1">{s.slice(0, 3)}</div>
+                            <div className="text-lg font-black text-[#b28a48]">{m.stats[s]}</div>
+                            <div className="text-[9px] font-bold text-neutral-500 bg-neutral-950/50 mt-1 py-0.5 rounded-sm">
+                              {getModifier(m.stats[s] as number)}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -302,7 +335,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                           <button 
                             onClick={(e) => handleReroll(e, m, 'standard')}
                             disabled={rerolling === m.id || !reservoirReady}
-                            className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20"
+                            className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20 transition-colors"
                           >
                             {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
                           </button>
@@ -312,13 +345,13 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                             <div 
                               key={i} 
                               onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'standard'); }}
-                              className={`p-4 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
+                              className={`p-5 border rounded-sm cursor-pointer transition-all text-left group/abil ${a.locked ? 'bg-amber-950/10 border-amber-900/40 shadow-inner' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
                             >
-                              <div className="flex items-center gap-3">
-                                <span className={`text-lg ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                              <div className="flex items-center gap-4">
+                                <span className={`text-xl ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
                                 <div>
-                                  <h6 className={`text-xs font-black uppercase tracking-wider ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
-                                  <p className="text-[11px] text-neutral-500 italic font-serif leading-relaxed">{a.effect}</p>
+                                  <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
+                                  <p className="text-xs text-neutral-400 italic font-serif leading-relaxed opacity-80">{a.effect}</p>
                                 </div>
                               </div>
                             </div>
@@ -334,9 +367,9 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                             <button 
                               onClick={(e) => handleReroll(e, m, 'legendary')}
                               disabled={rerollingLegendary === m.id || !reservoirReady}
-                              className="text-[8px] font-black text-red-400 hover:text-red-200 uppercase tracking-widest disabled:opacity-20"
+                              className="text-[8px] font-black text-red-400 hover:text-red-200 uppercase tracking-widest disabled:opacity-20 transition-colors"
                             >
-                              {rerollingLegendary === m.id ? 'REFORMING...' : 'Reweave Legends 🎲'}
+                              {rerollingLegendary === m.id ? 'REWEAVING...' : 'Reweave Legends 🎲'}
                             </button>
                           </div>
                           <div className="space-y-3">
@@ -344,21 +377,23 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                               <div 
                                 key={i} 
                                 onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'legendary'); }}
-                                className={`p-4 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-red-950/20 border-red-900/40' : 'bg-black/60 border-red-950/10 hover:border-red-900/30'}`}
+                                className={`p-5 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-red-950/20 border-red-900/40' : 'bg-black/60 border-red-950/10 hover:border-red-900/30'}`}
                               >
-                                <div className="flex items-center gap-3">
-                                  <span className={`text-lg ${a.locked ? 'text-red-500' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                                <div className="flex items-center gap-4">
+                                  <span className={`text-xl ${a.locked ? 'text-red-500' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
                                   <div>
-                                    <h6 className={`text-xs font-black uppercase tracking-wider ${a.locked ? 'text-red-400' : 'text-red-500/80'}`}>{a.name}</h6>
-                                    <p className="text-[11px] text-neutral-400 italic font-serif leading-relaxed">{a.effect}</p>
+                                    <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${a.locked ? 'text-red-400' : 'text-red-500/80'}`}>{a.name}</h6>
+                                    <p className="text-xs text-neutral-300 italic font-serif leading-relaxed opacity-80">{a.effect}</p>
                                   </div>
                                 </div>
                               </div>
                             ))}
                           </div>
-                          <p className="text-[7px] text-red-900 uppercase font-black tracking-widest text-center mt-2 italic">
-                            Used at the end of another creature's turn
-                          </p>
+                          <div className="p-3 bg-red-950/10 border border-red-900/20 text-center rounded-sm">
+                             <p className="text-[8px] text-red-700 uppercase font-black tracking-widest italic">
+                                Legendary Actions are triggered at the end of another creature's turn.
+                             </p>
+                          </div>
                         </div>
                       )}
                     </div>

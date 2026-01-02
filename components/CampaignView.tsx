@@ -18,12 +18,14 @@ interface CampaignViewProps {
   localResetTime: string;
   items: Item[];
   user: UserAccount;
+  manifestBasics?: (scope: 'adventure') => void;
 }
 
 const CampaignView: React.FC<CampaignViewProps> = ({ 
   campaign, setCampaign, characters, broadcast, isHost, 
   classes, playerName, notify, arcadeReady, dmModel, 
-  setDmModel, isQuotaExhausted, localResetTime, items, user
+  setDmModel, isQuotaExhausted, localResetTime, items, user,
+  manifestBasics
 }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       console.error("Failed to synthesize narrative:", error);
       notify(error.message || "Failed to synthesize narrative memory.", "error");
     } finally {
-      setLoading(false);
       setSummarizing(false);
     }
   };
@@ -135,7 +136,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         content: `Amidst the journey, you discover an artifact forged for those like you: [${item.name}].`, 
         timestamp: Date.now() 
       };
-      setCampaign(prev => ({ ...prev, logs: [...prev.logs, lootMsg] }));
+      setCampaign(prev => ({ ...prev, logs: [...prev.logs, lootMsg], items: [...(prev.items || []), item] }));
       broadcast({ type: 'NEW_LOG', payload: lootMsg });
       broadcast({ type: 'GIVE_LOOT', payload: item });
     } catch (error: any) {
@@ -152,7 +153,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         <div className="text-6xl md:text-7xl mb-6 drop-shadow-[0_0_20px_rgba(178,138,72,0.3)]">📜</div>
         <h2 className="text-3xl md:text-4xl font-black mb-4 fantasy-font text-[#b28a48]">Forge Your Saga</h2>
         <p className="text-neutral-500 mb-8 text-[10px] italic tracking-widest uppercase">
-          Describe the world and the conflict that awaits.
+          Describe the world and the conflict that awaits, or load a fated destiny.
         </p>
         <textarea
           value={campaign.plot}
@@ -160,13 +161,21 @@ const CampaignView: React.FC<CampaignViewProps> = ({
           className="w-full bg-black border-2 border-[#1a1a1a] rounded-sm p-4 mb-6 flex-1 max-h-[300px] focus:border-[#b28a48]/50 outline-none text-neutral-300 font-serif text-base shadow-inner"
           placeholder="e.g. A kingdom where dragons returned..."
         />
-        <button
-          onClick={handleStartCampaign}
-          disabled={!campaign.plot}
-          className="bg-[#b28a48] hover:bg-[#cbb07a] disabled:bg-neutral-900 text-black px-12 py-5 font-black uppercase tracking-[0.3em] transition-all w-full md:w-auto shadow-xl"
-        >
-          Begin Adventure
-        </button>
+        <div className="flex flex-col md:flex-row gap-4 w-full justify-center">
+          <button
+            onClick={handleStartCampaign}
+            disabled={!campaign.plot}
+            className="bg-[#b28a48] hover:bg-[#cbb07a] disabled:bg-neutral-900 text-black px-12 py-5 font-black uppercase tracking-[0.3em] transition-all w-full md:w-auto shadow-xl"
+          >
+            Begin Custom Adventure
+          </button>
+          <button
+            onClick={() => manifestBasics && manifestBasics('adventure')}
+            className="bg-blue-950/20 border-2 border-blue-500/30 hover:bg-blue-900/40 text-blue-400 px-12 py-5 font-black uppercase tracking-[0.3em] transition-all w-full md:w-auto shadow-xl"
+          >
+            Quickstart Adventure ✨
+          </button>
+        </div>
       </div>
     );
   }
@@ -185,7 +194,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
           </button>
           <div className="min-w-0">
             <h3 className="text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest uppercase truncate max-w-[100px] sm:max-w-none">
-              {campaign.plot.slice(0, 40)}
+              {campaign.plot.slice(0, 40)}...
             </h3>
             {summarizing && <span className="text-[7px] text-amber-500 animate-pulse font-black uppercase">Reflecting...</span>}
           </div>
@@ -247,7 +256,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         )}
       </div>
 
-      {/* Input Area - Optimized for Mobile Typing */}
+      {/* Input Area */}
       <div className="bg-black/40 border-t border-[#1a1a1a] pt-3 pb-1 shrink-0">
         <div className="flex gap-2 items-end">
           <textarea
@@ -256,7 +265,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({
             disabled={!arcadeReady || loading}
             onChange={(e) => {
               setInput(e.target.value);
-              // Simple auto-height
               e.target.style.height = 'auto';
               e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
             }}
@@ -279,22 +287,22 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         </div>
       </div>
 
-      {/* Sheets Panel - Full Screen on Mobile */}
+      {/* Sheets Panel */}
       {sheetOpen && (
-        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto animate-in fade-in duration-300 pt-[var(--safe-top)]">
+        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[var(--safe-top)]">
            <div className="p-4 md:p-8 h-full flex flex-col max-w-4xl mx-auto">
               <div className="flex justify-between items-center mb-6 border-b border-[#b28a48]/20 pb-4 shrink-0">
                  <h2 className="text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Active Fellowship</h2>
                  <button onClick={() => setSheetOpen(false)} className="text-neutral-600 hover:text-white text-3xl p-2 active:scale-90">✕</button>
               </div>
-              <div className="flex-1 space-y-6 pb-24">
+              <div className="flex-1 space-y-6 pb-24 text-left">
                  {campaign.party.length === 0 ? (
                    <p className="text-center text-neutral-600 uppercase text-[10px] font-black py-12">No members recruited.</p>
                  ) : (
                    campaign.party.map(c => {
                      const cls = classes.find(cl => cl.id === c.classId);
                      return (
-                       <div key={c.id} className="grim-card p-5 border-neutral-900 border-2 rounded-sm text-left shadow-2xl">
+                       <div key={c.id} className="grim-card p-5 border-neutral-900 border-2 rounded-sm shadow-2xl">
                           <div className="flex items-center gap-4 mb-5">
                              <div className="w-20 h-20 rounded-sm border border-[#b28a48]/20 overflow-hidden shrink-0 shadow-inner">
                                 {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} />}
@@ -329,7 +337,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         </div>
       )}
 
-      {/* Recruitment Panel - Full Screen on Mobile */}
+      {/* Recruitment Panel */}
       {recruitmentOpen && (
         <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[var(--safe-top)]">
            <div className="p-4 h-full flex flex-col max-w-2xl mx-auto">

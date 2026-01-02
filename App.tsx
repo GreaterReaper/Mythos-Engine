@@ -29,71 +29,75 @@ const LOCKOUT_DURATION = 65;
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
 
-const COMMON_SPELLS: Spell[] = [
-  { name: 'Guidance', level: 0, school: 'Divination', description: 'Once before the spell ends, the target can roll a d4 and add the number rolled to one ability check of its choice.' },
-  { name: 'Light', level: 0, school: 'Evocation', description: 'Touch an object; it sheds bright light in a 20ft radius for 1 hour.' },
-  { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'A spectral, floating hand appears at a point you choose within 30ft. It can manipulate objects up to 10lbs.' },
-  { name: 'Healing Word', level: 1, school: 'Evocation', description: 'A creature of your choice regains HP equal to 1d4 + Spellcasting Modifier as a bonus action.' },
-  { name: 'Shield of Faith', level: 1, school: 'Abjuration', description: 'A shimmering field surrounds a creature, granting it +2 AC for up to 10 minutes.' },
-  { name: 'Magic Missile', level: 1, school: 'Evocation', description: 'Three darts of force strike targets unerringly. Each dart deals 1d4 + 1 force damage.' },
-  { name: 'Cure Wounds', level: 1, school: 'Evocation', description: 'A creature you touch regains HP equal to 1d8 + Spellcasting Modifier.' },
-  { name: 'Detect Magic', level: 1, school: 'Divination', description: 'For up to 10 minutes, you sense the presence of magic within 30 feet of you.' },
-  { name: 'Misty Step', level: 2, school: 'Conjuration', description: 'Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space you can see.' },
-  { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'Touch a creature and end either one disease or one condition: blinded, deafened, paralyzed, or poisoned.' },
-  { name: 'Spiritual Weapon', level: 2, school: 'Evocation', description: 'Create a spectral weapon. Make a melee spell attack to deal 1d8 + Modifier force damage as a bonus action.' },
-  { name: 'Fireball', level: 3, school: 'Evocation', description: 'A massive explosion of flame. Each creature in a 20ft radius takes 8d6 fire damage (DEX save for half).' },
-  { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Touch a creature that has died within the last minute. The creature returns to life with 1 hit point.' },
-];
+// Re-organized thematic spells
+const THEMATIC_SPELLS: Record<string, Spell[]> = {
+  sorcerer: [
+    { name: 'Arcane Ruin', level: 1, school: 'Evocation', description: 'A burst of raw energy dealing 3d6 force damage to an area.' },
+    { name: 'Burning Veins', level: 1, school: 'Transmutation', description: 'Your next destructive spell ignores fire resistance and deals 1d6 extra fire damage.' },
+    { name: 'Elemental Surge', level: 2, school: 'Evocation', description: 'Release a 15ft cone of frost or flame (3d8 damage, DEX save half).' },
+    { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'Manipulate objects up to 10lbs from 30ft away.' },
+    { name: 'Magic Missile', level: 1, school: 'Evocation', description: 'Three darts of force strike unerringly for 1d4+1 damage each.' }
+  ],
+  mage: [
+    { name: 'Cure Wounds', level: 1, school: 'Evocation', description: 'A creature you touch regains HP equal to 1d8 + Spellcasting Modifier.' },
+    { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier (+1 AC) for 2 rounds.' },
+    { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'Heals all allies in a 30ft radius for 2d8 + WIS modifier.' },
+    { name: 'Guidance', level: 0, school: 'Divination', description: 'Target can roll a d4 and add it to one ability check.' },
+    { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'End one disease or condition (blinded, deafened, paralyzed, poisoned).' }
+  ],
+  dark_knight: [
+    { name: 'The Black Night', level: 1, school: 'Abjuration', description: 'Create a barrier of darkness around yourself equal to your level + CHA modifier.' },
+    { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from all enemies within 5ft, healing yourself for half.' },
+    { name: 'Shadow Siphon', level: 2, school: 'Necromancy', description: 'Curse a target; when they take damage, you regain 1d4 HP.' },
+    { name: 'Grim Visage', level: 1, school: 'Illusion', description: 'Force a target to make a WIS save or be Frightened for 1 minute.' }
+  ]
+};
 
 const SYSTEM_MONSTERS: Monster[] = [
   {
     id: 'sys-goblin',
     name: 'Goblin Scavenger',
-    description: 'A small, green-skinned humanoid with sharp teeth and a malicious grin. They hunt in packs and prefer the shadows.',
+    description: 'Small, green-skinned humanoids that hunt in packs. They thrive on ambush tactics.',
     stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 },
-    hp: 7,
-    ac: 13,
+    hp: 7, ac: 13,
     abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }],
-    authorId: 'Orestara', authorName: 'Orestara'
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-skeleton',
     name: 'Dread Skeleton',
-    description: 'Bones knit together by dark necromancy, eyes glowing with cold blue fire. It feels no pain and knows no fear.',
+    description: 'Bones knit by dark necromancy. They feel no pain and know no fear.',
     stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 },
-    hp: 13,
-    ac: 13,
+    hp: 13, ac: 13,
     abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
-    authorId: 'Orestara', authorName: 'Orestara'
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-orc',
     name: 'Orc Marauder',
-    description: 'A hulking brute with grey skin and teeth, wielding a rusted greataxe and driven by bloodlust.',
+    description: 'A hulking brute driven by bloodlust and raw physical power.',
     stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
-    hp: 18,
-    ac: 14,
-    abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }],
-    authorId: 'Orestara', authorName: 'Orestara'
+    hp: 18, ac: 14,
+    abilities: [{ name: 'Aggressive', effect: 'Move toward a hostile creature as a bonus action.' }],
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-gorechimera',
-    name: 'Gorechimera',
-    description: 'A terrifying legendary beast with the head and shoulders of a lion, the body and head of a goat, and a serpent tail that spews venom.',
+    name: 'Pallid Gorechimera',
+    description: 'A terrifying legendary beast with the head of a lion, body of a goat, and a serpent tail. It exudes a deathly pallor.',
     isBoss: true,
     stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 12, wisdom: 16, charisma: 14 },
-    hp: 240,
-    ac: 18,
+    hp: 240, ac: 18,
     abilities: [
       { name: 'Venomous Serpent', effect: 'Tail spray deals 4d6 poison damage and target is Poisoned (DC 16 CON half).' },
-      { name: 'Lion Head Rend', effect: 'Melee weapon attack: +10 to hit, 10ft reach. Deals 3d10+6 slashing damage.' },
-      { name: 'Goat Head Restoration', effect: 'Goat head can use its action to revive one slain non-boss monster within 30ft to half HP, or fully heal its other heads.' }
+      { name: 'Lion Head Rend', effect: 'Melee weapon attack: +10 to hit. Deals 3d10+6 slashing damage.' },
+      { name: 'Goat Head Restoration', effect: 'Action to fully heal its other heads or revive a minor monster.' }
     ],
     legendaryActions: [
       { name: 'Triple Strike', effect: 'Each head makes one attack against a different target.' },
       { name: 'Goat\'s Bleat', effect: 'Allied creatures within 40ft regain 4d8 hit points.' }
     ],
-    authorId: 'Orestara', authorName: 'Orestara'
+    authorId: 'system', authorName: 'Orestara'
   }
 ];
 
@@ -103,132 +107,54 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Standard Longsword',
     type: 'Weapon',
     description: 'A well-balanced one-handed blade of cold-forged iron.',
-    mechanics: [
-      { name: 'Parry', description: 'As a reaction, add +2 to AC against one melee attack.' },
-      { name: 'Versatile', description: 'Can be used with two hands to deal 1d10 damage instead of 1d8.' }
-    ],
-    lore: 'Standard issue for the King\'s Guard. Reliable and ubiquitous.',
-    authorId: 'Orestara', authorName: 'Orestara'
+    mechanics: [{ name: 'Parry', description: 'As a reaction, add +2 to AC against one melee attack.' }],
+    lore: 'Standard issue for the King\'s Guard.',
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-gargantuan-greatsword',
     name: 'Titan Zweihänder',
     type: 'Weapon',
-    description: 'A massive two-handed sword that hums with the roar of a Warrior.',
-    mechanics: [
-      { name: 'Heavy Impact', description: 'Deals 2d6 slashing damage. On a critical hit, the target is knocked Prone.' },
-      { name: 'Warrior\'s Reach', description: 'Increases melee reach by 5ft due to its immense length.' }
-    ],
-    lore: 'Forged for the physical Vanguard. It prioritizes raw weight and control over magical finesse.',
-    authorId: 'Orestara', authorName: 'Orestara'
+    description: 'A massive two-handed sword that hums with raw power.',
+    mechanics: [{ name: 'Heavy Impact', description: 'Deals 2d6 slashing. On a crit, the target is knocked Prone.' }],
+    lore: 'Forged for Warriors who serve as the vanguard.',
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-dark-executioner',
     name: 'Abyssal Executioner',
     type: 'Weapon',
-    description: 'A jagged greatsword that bleeds black smoke. Signature weapon of the Dark Knight.',
-    mechanics: [
-      { name: 'Siphon Soul', description: 'Deals 1d10 slashing + 1d6 necrotic damage. Restore HP equal to half the necrotic damage dealt.' },
-      { name: 'Void Channel', description: 'Functions as a spellcasting focus for Dark Knight spells, pulsing with forbidden energy.' }
-    ],
-    lore: 'A blade that requires one to gaze into the void. It rewards the wearer for every drop of blood spilled.',
-    authorId: 'Orestara', authorName: 'Orestara'
+    description: 'A jagged greatsword that bleeds black smoke.',
+    mechanics: [{ name: 'Siphon Soul', description: 'Deals 1d10 slashing + 1d6 necrotic. Restore HP equal to half necrotic damage.' }],
+    lore: 'A blade that requires one to gaze into the void to master.',
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-evening-shield',
     name: 'Daughter of the Evening',
     type: 'Armor',
-    description: 'A legendary mirrored shield that reflects the silver light of a dying sun.',
-    mechanics: [
-      { name: 'Gaze Reflection', description: 'When targeted by a gaze-based attack (e.g., Petrification, Charm), the wielder can reflect the effect back at the source with a successful DC 15 Dexterity save.' },
-      { name: 'Silvery Guard', description: 'Grants +2 AC and resistance to Radiant damage.' }
-    ],
-    lore: 'Forged to hunt the Gorgon queens. Its surface is so perfect it seems to hold a piece of the twilight sky.',
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-order-kite-shield',
-    name: 'Order Kite Shield',
-    type: 'Armor',
-    description: 'A heavy steel shield bearing the insignia of the Royal Order.',
-    mechanics: [
-      { name: 'Bastion', description: 'While holding this shield, you can use your reaction to grant an adjacent ally +2 AC until the start of your next turn.' },
-      { name: 'Shield Bash', description: 'Allows a bonus action strike for 1d4 blunt damage; flinches small enemies.' }
-    ],
-    lore: 'Standard protection for the frontline guardians of civilization.',
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-ebon-cuirass',
-    name: 'Cuirass of the Ebon Void',
-    type: 'Armor',
-    description: 'Heavy plate armor for Dark Knights that resonates with the wearer\'s conviction.',
-    mechanics: [
-      { name: 'Soul Resonance', description: 'While wearing this armor, add your Charisma modifier to your Armor Class (max +2).' },
-      { name: 'Shadow Weave', description: 'Grants resistance to Necrotic damage.' }
-    ],
-    lore: 'Forged from meteorite iron cooled in the blood of shadows. It feels lighter to those who embrace the darkness.',
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-warrior-plate',
-    name: 'Titan\'s Full Plate',
-    type: 'Armor',
-    description: 'Imposing full plate armor for Warriors who stand immovable.',
-    mechanics: [
-      { name: 'Unshakeable', description: 'Base AC 18. Advantage on saving throws against being moved or knocked Prone.' },
-      { name: 'Physical Fortress', description: 'Reduces all non-magical bludgeoning, piercing, and slashing damage by 3.' }
-    ],
-    lore: 'The literal wall between the party and death. Every scratch is a testament to its endurance.',
-    authorId: 'Orestara', authorName: 'Orestara'
+    description: 'A legendary mirrored shield that reflects dying sunlight.',
+    mechanics: [{ name: 'Gaze Reflection', description: 'Reflect gaze-based attacks on a successful DC 15 Dex save.' }],
+    lore: 'Forged to hunt Gorgon queens in the first age.',
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-menders-staff',
     name: 'Crest of Mercy',
     type: 'Weapon',
     description: 'A white-ash staff that pulses with soft golden light.',
-    mechanics: [
-      { name: 'Mercy Aura', description: 'Increases all healing spells cast by the wielder by 2 per die rolled.' },
-      { name: 'Peaceful Focus', description: 'Grants advantage on Wisdom (Medicine) checks.' }
-    ],
-    lore: 'A gift from Orestara to the first Mages of the Order. It hums a low, soothing note.',
-    authorId: 'Orestara', authorName: 'Orestara'
+    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled.' }],
+    lore: 'A gift from Orestara to the first Mages.',
+    authorId: 'system', authorName: 'Orestara'
   },
   {
     id: 'sys-sky-piercer-bow',
     name: 'Sky-Piercer Bow',
     type: 'Weapon',
-    description: 'A masterfully crafted bow that can ground flying beasts and strike from extreme distances.',
-    mechanics: [
-      { name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies or targets further than 60ft away.' },
-      { name: 'True Flight', description: 'Arrows ignore half and three-quarters cover.' }
-    ],
-    lore: 'Heavens are no sanctuary. Legends say its string is woven from captured wind.',
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-assassin-daggers',
-    name: 'Assassin\'s Twin Daggers',
-    type: 'Weapon',
-    description: 'A pair of thin, black-steel daggers designed for silent lethality.',
-    mechanics: [
-      { name: 'Finesse Striking', description: 'Deals 1d4 piercing. On a surprise attack, deal an extra 2d6 poison damage.' },
-      { name: 'Quick Reflexes', description: 'Grants a +2 bonus to Initiative while both daggers are held.' }
-    ],
-    lore: 'Tools for the Thief who strikes from the unseen dark. They leave no trace but the silence they create.',
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-archsorcerer-staff',
-    name: 'Staff of Destructive Will',
-    type: 'Weapon',
-    description: 'A tall staff capped with a burning ruby, used by high Sorcerers.',
-    mechanics: [
-      { name: 'Arcane Explosion', description: 'Once per rest, double the area of effect of your next destructive spell.' },
-      { name: 'Elemental Empowerment', description: 'Offensive spells ignore resistance to Fire or Cold damage.' }
-    ],
-    lore: 'A channel for raw power that tests the spirit of those who would wield it.',
-    authorId: 'Orestara', authorName: 'Orestara'
+    description: 'A bow that can ground flying beasts with incredible accuracy.',
+    mechanics: [{ name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies.' }],
+    lore: 'Heavens are no sanctuary from an Archer\'s arrow.',
+    authorId: 'system', authorName: 'Orestara'
   }
 ];
 
@@ -277,26 +203,17 @@ const App: React.FC = () => {
     }, 7000);
   }, []);
 
-  /**
-   * Deduplicates and merges items by name. 
-   * If names match, descriptions and lore are combined, and mechanics are merged uniquely.
-   */
   const deduplicateAndMergeItems = useCallback((itemList: Item[]): Item[] => {
     const merged: Record<string, Item> = {};
-
     itemList.forEach(item => {
       const key = item.name.trim().toLowerCase();
       if (!merged[key]) {
         merged[key] = { ...item };
       } else {
         const existing = merged[key];
-        
-        // Merge descriptions if distinct
         if (!existing.description.toLowerCase().includes(item.description.toLowerCase().trim())) {
           existing.description = existing.description.trim() + " " + item.description.trim();
         }
-        
-        // Merge mechanics by name uniquely
         const existingMechNames = new Set(existing.mechanics.map(m => m.name.toLowerCase().trim()));
         item.mechanics.forEach(m => {
           const mName = m.name.toLowerCase().trim();
@@ -305,67 +222,22 @@ const App: React.FC = () => {
             existingMechNames.add(mName);
           }
         });
-        
-        // Merge lore if distinct
         if (!existing.lore.toLowerCase().includes(item.lore.toLowerCase().trim())) {
           existing.lore = existing.lore.trim() + " " + item.lore.trim();
         }
       }
     });
-
     return Object.values(merged);
   }, []);
 
-  const syncAllClassesToSpells = useCallback((classList: ClassDef[]): ClassDef[] => {
-    return classList.map(cls => {
-      const hasSlots = cls.spellSlots && cls.spellSlots.some(s => s > 0);
-      if (!hasSlots) return { ...cls, initialSpells: [] };
-
-      const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
-      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver') || classKeywords.includes('warlock') || classKeywords.includes('spell');
-      const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar') || classKeywords.includes('divine') || classKeywords.includes('sacred');
-      const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild') || classKeywords.includes('primal') || classKeywords.includes('beast') || classKeywords.includes('flora');
-      
-      let currentSpells = (cls.initialSpells || []).filter(s => {
-          const sName = s.name.toLowerCase();
-          if (isArcane && !isDivine && !isDruidic && (sName.includes('cure') || sName.includes('heal') || sName.includes('revivify') || sName.includes('restoration'))) return false;
-          const isOffensiveArcane = sName.includes('fireball') || sName.includes('missile') || sName.includes('lightning') || sName.includes('acid');
-          if (isDivine && !isArcane && isOffensiveArcane && !classKeywords.includes('wrath') && !classKeywords.includes('war') && !classKeywords.includes('vengeance')) return false;
-          if (isDruidic && !isArcane && !isDivine && (sName.includes('mage hand') || sName.includes('spiritual weapon'))) return false;
-          return true;
-      });
-      
-      COMMON_SPELLS.forEach(common => {
-        const alreadyKnown = currentSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
-        if (alreadyKnown) return;
-        let shouldAdd = false;
-        const cName = common.name.toLowerCase();
-        if ((isDivine || isDruidic) && (cName.includes('heal') || cName.includes('restoration') || cName.includes('revivify') || cName.includes('cure'))) shouldAdd = true;
-        if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) {
-             if (!cName.includes('healing')) shouldAdd = true;
-        }
-        if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
-        if (['Mage Hand'].includes(common.name) && isArcane) shouldAdd = true;
-        if (shouldAdd) {
-            if (isArcane && !isDivine && (cName.includes('healing') || cName.includes('cure'))) shouldAdd = false;
-            if (shouldAdd) currentSpells.push(common);
-        }
-      });
-      return { ...cls, initialSpells: currentSpells };
-    });
-  }, []);
-
-  const manifestBasics = (scope: 'all' | 'monsters' | 'items' | 'heroes' = 'all') => {
+  const manifestBasics = (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
     if (scope === 'all' || scope === 'monsters') {
       const existingIds = new Set(monsters.map(m => m.id));
       const monstersToAdd = SYSTEM_MONSTERS.filter(m => !existingIds.has(m.id));
       setMonsters(prev => [...prev, ...monstersToAdd]);
     }
     if (scope === 'all' || scope === 'items') {
-      setItems(prev => {
-        const combined = [...prev, ...SYSTEM_ITEMS];
-        return deduplicateAndMergeItems(combined);
-      });
+      setItems(prev => deduplicateAndMergeItems([...prev, ...SYSTEM_ITEMS]));
     }
     if (scope === 'all' || scope === 'heroes') {
         const heroes: Character[] = [
@@ -375,15 +247,15 @@ const App: React.FC = () => {
                 classId: 'basic-fighter',
                 race: 'Human',
                 gender: 'Female',
-                description: "An energetic and impulsive swordswoman with a bright, playful personality. Miri, Lina, and Seris are inseparable traveling companions; where one is found, the other two are always nearby.",
+                description: "An energetic swordswoman with a playful personality. Part of an inseparable trio with Seris and Lina.",
                 level: 1,
                 stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 },
                 hp: 12, maxHp: 12,
                 feats: [
-                    { name: 'Restless Spirit', description: 'Gains +2 to Initiative and cannot be surprised while conscious.' },
-                    { name: 'Sword Waltz', description: 'When using a one-handed sword, you can use a bonus action to fluster an enemy, giving them disadvantage on their next attack.' }
+                    { name: 'Restless Spirit', description: 'Gains +2 to Initiative and cannot be surprised.' },
+                    { name: 'Sword Waltz', description: 'Bonus action to give an enemy disadvantage on their next attack.' }
                 ],
-                inventory: ['sys-iron-longsword', 'sys-order-kite-shield'],
+                inventory: ['sys-iron-longsword', 'sys-evening-shield'],
                 isPlayer: true
             },
             {
@@ -392,13 +264,13 @@ const App: React.FC = () => {
                 classId: 'basic-archer',
                 race: 'Elf',
                 gender: 'Female',
-                description: "A reserved Elven archer who prefers distance and quiet. Part of the inseparable trio with Miri and Lina; they are never found apart.",
+                description: "A reserved Elven archer who prefers distance. Member of the inseparable trio with Miri and Lina.",
                 level: 1,
                 stats: { strength: 8, dexterity: 17, constitution: 12, intelligence: 16, wisdom: 14, charisma: 10 },
                 hp: 10, maxHp: 10,
                 feats: [
                     { name: 'Aloof Precision', description: 'Deals extra 1d6 damage to targets further than 40ft away.' },
-                    { name: 'Defensive Sarcasm', description: 'When an enemy misses you, you can deliver a blunt retort, forcing them to make a DC 12 WIS save or be Charmed by your composure.' }
+                    { name: 'Defensive Sarcasm', description: 'Force a DC 12 WIS save or Charm an enemy that misses you.' }
                 ],
                 inventory: ['sys-sky-piercer-bow'],
                 isPlayer: false
@@ -409,18 +281,16 @@ const App: React.FC = () => {
                 classId: 'basic-mage',
                 race: 'Human',
                 gender: 'Female',
-                description: "A gentle priestess from a rural chapel. Member of the inseparable traveling party with Miri and Seris; where one is, all are.",
+                description: "A gentle priestess from a rural chapel. Member of the inseparable trio with Miri and Seris.",
                 level: 1,
                 stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
                 hp: 12, maxHp: 12,
                 feats: [
-                    { name: 'Rural Kindness', description: 'Healing grants the target a +2 bonus to their next saving throw.' },
+                    { name: 'Rural Kindness', description: 'Healing grants the target a +2 bonus to their next save.' },
                     { name: 'Quiet Devotion', description: 'Can cast supportive spells silently once per rest.' }
                 ],
                 inventory: ['sys-menders-staff'],
-                knownSpells: [
-                  { name: 'Blessing of the Chapel', level: 1, school: 'Abjuration', description: 'Target gains +1 AC and resistance to necrotic damage for 1 minute.' }
-                ],
+                knownSpells: THEMATIC_SPELLS.mage.slice(0, 3),
                 isPlayer: false
             }
         ];
@@ -436,11 +306,11 @@ const App: React.FC = () => {
           description: 'Mighty physical vanguards who focus on heavy weapons and unbreakable defense.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery'], 
           features: [
-            { name: 'Mighty Roar', description: 'Unleash a roar that invigorates you and allies, granting 1d8+Level temporary hit points.' }, 
-            { name: 'Crushing Blow', description: 'Attacks easily knock enemies prone on critical hits or high strength checks.' }
+            { name: 'Mighty Roar', description: 'Unleash a roar granting 1d8+Level temporary hit points.' }, 
+            { name: 'Crushing Blow', description: 'Critical hits knock enemies prone.' }
           ], 
           initialSpells: [], 
-          authorId: 'Orestara', authorName: 'Orestara'
+          authorId: 'system', authorName: 'Orestara'
         },
         {
           id: 'basic-fighter',
@@ -448,11 +318,11 @@ const App: React.FC = () => {
           description: 'Balanced masters of combat techniques and defensive shielding.',
           hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency'], 
           features: [
-            { name: 'Shield Bash', description: 'Strike with your shield for blunt damage, causing flinching.' }, 
-            { name: 'Firm Bastion', description: 'While holding a shield, you can protect adjacent allies as a reaction.' }
+            { name: 'Shield Bash', description: 'Strike with a shield for blunt damage and flinching.' }, 
+            { name: 'Firm Bastion', description: 'Protect adjacent allies as a reaction.' }
           ], 
           initialSpells: [], 
-          authorId: 'Orestara', authorName: 'Orestara'
+          authorId: 'system', authorName: 'Orestara'
         },
         {
           id: 'basic-sorcerer',
@@ -460,52 +330,23 @@ const App: React.FC = () => {
           description: 'Masters of raw elemental magic who turn the tide of battle with destruction.',
           hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction'], 
           features: [
-            { name: 'Spell Memory', description: 'Commit a single spell to memory to cast without expending a slot once per rest.' }, 
-            { name: 'Destructive Tide', description: 'Offensive spells deal additional damage based on your Charisma modifier.' }
+            { name: 'Spell Memory', description: 'Cast a memorized spell without a slot once per rest.' }, 
+            { name: 'Destructive Tide', description: 'Offensive spells deal extra damage based on Charisma.' }
           ], 
-          initialSpells: [
-            { name: 'Arcane Ruin', level: 1, school: 'Evocation', description: 'A burst of raw energy dealing 3d6 force damage to an area.' }
-          ], 
-          authorId: 'Orestara', authorName: 'Orestara'
+          initialSpells: THEMATIC_SPELLS.sorcerer, 
+          authorId: 'system', authorName: 'Orestara'
         },
         {
           id: 'basic-mage',
           name: 'Mage',
           description: 'Supportive aether-users who heal wounds and shield the fellowship.',
-          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Greater Healing Mastery'], 
+          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Healing Mastery'], 
           features: [
-            { name: 'Resonant Benediction', description: 'When you cast a healing spell, choose one additional ally within 15ft for half healing.' }, 
-            { name: 'Vital Flow', description: 'Channel aether to restore 1d10 + WIS hit points as a bonus action.' }
+            { name: 'Resonant Benediction', description: 'Healing spells affect one additional nearby ally.' }, 
+            { name: 'Vital Flow', description: 'Bonus action to restore 1d10 + WIS hit points.' }
           ], 
-          initialSpells: [
-            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier for 2 rounds.' },
-            { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'Heals all allies in a 30ft radius for 2d8 + WIS modifier.' }
-          ], 
-          authorId: 'Orestara', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-thief',
-          name: 'Thief',
-          description: 'Masters of stealth and dual-daggers who strike from the shadows.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Stealth Proficiency'], 
-          features: [
-            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized enemy that is currently grappled or surprised.' }, 
-            { name: 'Smoke Escape', description: 'Throw down a smoke bomb as a reaction or bonus action to vanish and disengage instantly.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'Orestara', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-archer',
-          name: 'Archer',
-          description: 'Masters of the bow who can ground flying enemies with incredible accuracy.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Aerial Sniper'], 
-          features: [
-            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that is isolated.' }, 
-            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'Orestara', authorName: 'Orestara'
+          initialSpells: THEMATIC_SPELLS.mage, 
+          authorId: 'system', authorName: 'Orestara'
         },
         {
           id: 'basic-dark-knight',
@@ -513,17 +354,29 @@ const App: React.FC = () => {
           description: 'Warriors who channel forbidden aether to siphon life and shield with shadows.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [2, 0, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Two-Handed Mastery', 'Soul-Resonance'],
           features: [
-            { name: 'Living Shadow', description: 'Spend an action to conjure a shadowy simulacrum to fight alongside you.' },
+            { name: 'Living Shadow', description: 'Conjure a shadowy simulacrum to fight alongside you.' },
             { name: 'Living Dead', description: 'Stay active at 0 HP for 10 seconds with tripled lifesteal.' }
           ],
-          initialSpells: [
-            { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from nearby enemies, healing yourself for half.' }
-          ],
-          authorId: 'Orestara', authorName: 'Orestara'
+          initialSpells: THEMATIC_SPELLS.dark_knight,
+          authorId: 'system', authorName: 'Orestara'
         }
       ];
-      const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
-      setClasses(syncedClasses);
+      setClasses(prev => [...prev.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
+    }
+    if (scope === 'all' || scope === 'adventure') {
+      const adventurePlot = "The Silvermarsh is dying. A ghastly pallor has infected the wildlife, turning them into aggressive aberrations. Local legends speak of a Gorechimera reborn from the filth of a forgotten battlefield. The party must venture into the heart of the mire to sever the source of the corruption before it reaches the capital.";
+      const starterLog: GameLog = {
+        role: 'dm',
+        content: "You stand at the edge of the Silvermarsh. The air is thick with the scent of damp earth and something metallic. A pale, sickly mist clings to the twisted trees. Ahead, a group of frantic Goblins are fleeing from a Dread Skeleton that seems to be oozing the same white ichor infecting the plants. What do you do?",
+        timestamp: Date.now()
+      };
+      setCampaign({
+        plot: adventurePlot,
+        summary: "The fellowship has arrived at the Silvermarsh to investigate a spreading blight linked to a Gorechimera.",
+        logs: [starterLog],
+        party: characters.slice(0, 3), // Auto-recruit Miri, Seris, Lina
+        rules: []
+      });
     }
     notify("Arcanum Synchronized.", "success");
   };
@@ -547,7 +400,6 @@ const App: React.FC = () => {
   const aggregateAllResources = useCallback((suffix: string) => {
     const aggregated: any[] = [];
     const seenIds = new Set();
-    
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.endsWith(suffix)) {
@@ -575,16 +427,10 @@ const App: React.FC = () => {
       (window as any).isMythosAdmin = !!currentUser.isAdmin;
       
       if (currentUser.isAdmin) {
-        const allChars = aggregateAllResources('_mythos_chars');
-        const allClasses = aggregateAllResources('_mythos_classes');
-        const allMonsters = aggregateAllResources('_mythos_monsters');
-        const allItems = aggregateAllResources('_mythos_items');
-        
-        setCharacters(allChars);
-        setClasses(allClasses);
-        setMonsters(allMonsters);
-        setItems(deduplicateAndMergeItems(allItems));
-        
+        setCharacters(aggregateAllResources('_mythos_chars'));
+        setClasses(aggregateAllResources('_mythos_classes'));
+        setMonsters(aggregateAllResources('_mythos_monsters'));
+        setItems(deduplicateAndMergeItems(aggregateAllResources('_mythos_items')));
         notify("Omniscience Enabled.", "success");
       } else {
         const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
@@ -598,21 +444,16 @@ const App: React.FC = () => {
       }
 
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
-      const campaignData = savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] };
-      if (!campaignData.rules) campaignData.rules = [];
-      setCampaign(campaignData);
+      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] });
 
       const today = new Date().toDateString();
-      const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
-      if (lastReset === today) {
+      if (localStorage.getItem(`${uPrefix}_mythos_last_reset_day`) === today) {
         setDailyProUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_pro_used`) || '0'));
         setDailyFlashUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_flash_used`) || '0'));
       } else {
         localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
-    } else {
-      (window as any).isMythosAdmin = false;
     }
   }, [currentUser, aggregateAllResources, notify, deduplicateAndMergeItems]);
 
@@ -642,7 +483,7 @@ const App: React.FC = () => {
 
     const handleUsage = (e: any) => {
       if (currentUser?.isAdmin) return;
-      const { type, cost } = e.detail;
+      const { type } = e.detail;
       if (type === 'dm') {
         setArcaneTokens(prev => Math.max(prev - 1, 0));
         setDmModel(currentModel => {
@@ -652,21 +493,15 @@ const App: React.FC = () => {
         });
       }
       if (type === 'utility') {
-        setReservoir(prev => Math.max(prev - cost, 0));
+        setReservoir(prev => Math.max(prev - e.detail.cost, 0));
         setDailyFlashUsed(p => p + 1);
       }
     };
 
     const handleError = (e: any) => {
       if (currentUser?.isAdmin) return;
-      if (e.detail.isRateLimit) {
-        setLockoutTime(LOCKOUT_DURATION);
-        notify("Ley Lines Overloaded.", "error");
-      }
-      if (e.detail.isQuotaExceeded) {
-        setIsQuotaExhausted(true);
-        setLocalResetTime(new Date(Date.now() + 86400000).toLocaleTimeString());
-      }
+      if (e.detail.isRateLimit) setLockoutTime(LOCKOUT_DURATION);
+      if (e.detail.isQuotaExceeded) setIsQuotaExhausted(true);
     };
 
     window.addEventListener('mythos:arcane_use' as any, handleUsage);
@@ -676,76 +511,44 @@ const App: React.FC = () => {
       window.removeEventListener('mythos:arcane_use' as any, handleUsage);
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
-  }, [notify, currentUser]);
+  }, [currentUser]);
 
   const setupConnection = useCallback((conn: DataConnection) => {
-    conn.on('open', () => {
-      setConnections(prev => [...prev, conn]);
-      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Resonance with ${conn.peer}`, type: 'success', timestamp: Date.now() }]);
-    });
+    conn.on('open', () => setConnections(prev => [...prev, conn]));
     conn.on('data', (data: any) => {
       const msg = data as SyncMessage;
       switch (msg.type) {
-        case 'SHARE_RESOURCE':
-          const { resourceType, resourceData } = msg.payload;
-          if (resourceType === 'class') setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
-          else if (resourceType === 'monster') setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
-          else if (resourceType === 'item') setItems(prev => deduplicateAndMergeItems(prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]));
-          notify(`Resource received: ${resourceData.name}`, 'success');
-          break;
         case 'NEW_LOG': setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] })); break;
-        case 'SUMMARY_UPDATE': setCampaign(prev => ({ ...prev, summary: msg.payload })); break;
-        case 'GIVE_LOOT': setItems(prev => deduplicateAndMergeItems([...prev, msg.payload])); notify(`Loot received: ${msg.payload.name}`, 'info'); break;
+        case 'GIVE_LOOT': setItems(prev => deduplicateAndMergeItems([...prev, msg.payload])); break;
         case 'STATE_UPDATE':
           if (msg.payload.campaign) setCampaign(msg.payload.campaign);
           if (msg.payload.classes) setClasses(msg.payload.classes);
           if (msg.payload.monsters) setMonsters(msg.payload.monsters);
           if (msg.payload.items) setItems(deduplicateAndMergeItems(msg.payload.items));
           if (msg.payload.characters) setCharacters(msg.payload.characters);
-          notify("Chronicle synchronized", "info");
           break;
       }
     });
-    conn.on('close', () => {
-      setConnections(prev => prev.filter(c => c.peer !== conn.peer));
-      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Connection lost with ${conn.peer}`, type: 'warn', timestamp: Date.now() }]);
-    });
-  }, [notify, deduplicateAndMergeItems]);
+    conn.on('close', () => setConnections(prev => prev.filter(c => c.peer !== conn.peer)));
+  }, [deduplicateAndMergeItems]);
 
   const initPeer = useCallback((customId?: string) => {
     if (peerRef.current) peerRef.current.destroy();
     const peer = customId ? new Peer(customId) : new Peer();
     peerRef.current = peer;
-    peer.on('open', (id) => {
-      setPeerId(id);
-      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Local sigil: ${id}`, type: 'info', timestamp: Date.now() }]);
-    });
-    peer.on('connection', (conn) => setupConnection(conn));
-    peer.on('error', (err) => {
-      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Instability: ${err.type}`, type: 'error', timestamp: Date.now() }]);
-    });
-  }, [setupConnection, notify]);
-
-  const connectToHost = useCallback((hostSigil: string) => {
-    if (!peerRef.current || !peerRef.current.open) { notify("Portal not ready.", "error"); return; }
-    const conn = peerRef.current.connect(hostSigil);
-    setupConnection(conn);
-  }, [setupConnection, notify]);
+    peer.on('open', id => setPeerId(id));
+    peer.on('connection', setupConnection);
+  }, [setupConnection]);
 
   useEffect(() => {
-    if (!currentUser) return;
-    initPeer();
-    return () => { peerRef.current?.destroy(); };
+    if (currentUser) initPeer();
+    return () => peerRef.current?.destroy();
   }, [currentUser, initPeer]);
 
   if (!currentUser) return <LoginScreen setCurrentUser={setCurrentUser} />;
 
-  const isExhausted = lockoutTime > 0;
-  const proPercent = (dailyProUsed / DAILY_PRO_LIMIT) * 100;
-  const flashPercent = (dailyFlashUsed / DAILY_FLASH_LIMIT) * 100;
-
-  const arcadeReady = currentUser.isAdmin || (arcaneTokens >= 1 && !isExhausted);
-  const reservoirReady = currentUser.isAdmin || (reservoir >= 1 && !isExhausted);
+  const reservoirReady = currentUser.isAdmin || (reservoir >= 1 && lockoutTime === 0);
+  const arcadeReady = currentUser.isAdmin || (arcaneTokens >= 1 && lockoutTime === 0);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
@@ -753,23 +556,22 @@ const App: React.FC = () => {
       
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-[calc(80px+var(--safe-bottom))] lg:pb-0 pt-[calc(64px+var(--safe-top))] lg:pt-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcadeReady} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} user={currentUser} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcadeReady} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} user={currentUser} manifestBasics={manifestBasics} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} syncSpells={syncAllClassesToSpells} currentUser={currentUser} items={items} setItems={(val) => setItems(typeof val === 'function' ? (prev) => deduplicateAndMergeItems(val(prev)) : deduplicateAndMergeItems(val))} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} items={items} setItems={setItems} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
-          {activeTab === 'armory' && <Armory items={items} setItems={(val) => setItems(typeof val === 'function' ? (prev) => deduplicateAndMergeItems(val(prev)) : deduplicateAndMergeItems(val))} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
+          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {
-              if (connections.length === 0) return;
+          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); const conn = peerRef.current!.connect(id); setupConnection(conn); }} setIsHost={setIsHost} forceSync={(sel) => {
               const state: any = {};
-              if (selection.characters) state.characters = characters;
-              if (selection.classes) state.classes = classes;
-              if (selection.monsters) state.monsters = monsters;
-              if (selection.items) state.items = items;
-              if (selection.campaign) state.campaign = campaign;
+              if (sel.characters) state.characters = characters;
+              if (sel.classes) state.classes = classes;
+              if (sel.monsters) state.monsters = monsters;
+              if (sel.items) state.items = items;
+              if (sel.campaign) state.campaign = campaign;
               broadcast({ type: 'STATE_UPDATE', payload: state });
-          }} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(deduplicateAndMergeItems(d.items)); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} />}
+          }} kickSoul={() => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} />}
         </div>
       </main>
 
@@ -788,29 +590,7 @@ const App: React.FC = () => {
               <span className={`text-sm font-black ${currentUser.isAdmin ? 'text-blue-400' : (arcaneTokens < 1 ? 'text-red-500' : 'text-[#b28a48]')}`}>{currentUser.isAdmin ? '∞' : Math.floor(arcaneTokens)} / 3</span>
            </div>
            <div className="w-20 md:w-32 h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
-              <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : (isExhausted ? 'bg-red-600' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : (isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir)}%` }}></div>
-           </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-4 md:gap-8">
-           <div className="flex flex-col items-start gap-1">
-              <div className="flex justify-between w-20 md:w-24">
-                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Fidelity</span>
-                <span className={`text-[7px] font-bold ${proPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyProUsed}/${DAILY_PRO_LIMIT}`}</span>
-              </div>
-              <div className="w-20 md:w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
-                <div className={`h-full transition-all duration-1000 ${currentUser.isAdmin ? 'bg-blue-500' : (proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : proPercent}%` }}></div>
-              </div>
-           </div>
-
-           <div className="hidden md:flex flex-col items-start gap-1">
-              <div className="flex justify-between w-24">
-                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Velocity</span>
-                <span className={`text-[7px] font-bold ${flashPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyFlashUsed}/${DAILY_FLASH_LIMIT}`}</span>
-              </div>
-              <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
-                <div className={`h-full transition-all duration-1000 ${currentUser.isAdmin ? 'bg-blue-500' : (flashPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : flashPercent}%` }}></div>
-              </div>
+              <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : (lockoutTime > 0 ? 'bg-red-600' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : (lockoutTime > 0 ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir)}%` }}></div>
            </div>
         </div>
       </div>

@@ -3,9 +3,7 @@ import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule 
 
 const cleanJson = (text: string) => {
   if (!text) return '{}';
-  // Remove markdown code blocks and any leading/trailing whitespace
   let cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
-  // Attempt to find the first '{' or '[' and the last '}' or ']' to strip hallucinated preamble/postamble
   const firstBrace = Math.min(
     cleaned.indexOf('{') === -1 ? Infinity : cleaned.indexOf('{'),
     cleaned.indexOf('[') === -1 ? Infinity : cleaned.indexOf('[')
@@ -93,7 +91,8 @@ export const generateCharacterFeats = async (className: string, description: str
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. Output ONLY the JSON.`,
+      contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. 
+      RULES: Output ONLY JSON. Field 'description' MUST be pure mechanical rules-text. NO conversational text.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -116,9 +115,9 @@ export const generateSpellbook = async (className: string, classDesc: string, ma
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate thematic spells for a level ${maxLevel} ${className}. Lore: ${classDesc}. 
-      CRITICAL: The 'description' MUST include specific mechanics and dice rolls (e.g. "Deals 2d6 cold damage", "Grants +2 AC"). 
-      DO NOT include the prompt or instructions in the description.`,
+      contents: `Generate 4 thematic unique spells for a level ${maxLevel} ${className}. Lore: ${classDesc}. 
+      CRITICAL RULE: The 'description' MUST ONLY contain mechanical effects and dice rolls (e.g., "Deals 2d6 cold damage"). 
+      DO NOT include ANY internal thoughts, technical notes, or preamble like "Let's go" or "Done" in the description.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -146,14 +145,7 @@ export const generateRules = async (plot: string): Promise<Rule[]> => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate a set of 6 fundamental TTRPG rules and mechanics. 
-      Include rules for: 
-      1. Ability Checks & Difficulty (typical 1d20 mechanics).
-      2. Combat Rounds & Actions.
-      3. Advantage & Disadvantage (Bane/Boon).
-      4. Dying & Death Saves.
-      5. Resting & Recovery.
-      6. A unique thematic mechanic based on this plot: ${plot}.`,
+      contents: `Generate a set of 6 fundamental TTRPG rules. Plot: ${plot}. Ensure content is professional manual-style text.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -190,7 +182,8 @@ export const rerollTraits = async (
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate ${countToGenerate} NEW unique ${contextType} traits for "${contextName}". Avoid: ${locked.map(l => l.name).join(', ')}. Context: ${contextDesc}`,
+      contents: `Generate ${countToGenerate} NEW unique ${contextType} traits for "${contextName}". 
+      Description must be strictly mechanical rules-text. Context: ${contextDesc}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -218,7 +211,7 @@ export const rerollStats = async (
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Reroll TTRPG stats (range 8-18) for "${name}" (${className}). KEEP THESE: ${lockedStats.map(s => `${s}:${existingStats[s]}`).join(', ')}.`,
+      contents: `Reroll stats for "${name}" (${className}). Locked: ${lockedStats.join(',')}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -264,7 +257,8 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
     const partyDesc = party.map(p => `${p.name} (${p.race} ${classes.find(c => c.id === p.classId)?.name})`).join(", ");
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Forge a legendary item for one of these heroes: ${partyDesc}.`,
+      contents: `Forge a legendary item for: ${partyDesc}. 
+      Mechanics description must be pure rules text.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -309,8 +303,9 @@ export const generateClassMechanics = async (name: string, description: string):
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Design mechanics for class: ${name}. Lore: ${description}. Include primary stats, unique bonuses, and 3 thematic starting spells. 
-      CRITICAL: Spell 'description' MUST include specific mechanics and dice rolls. Output ONLY JSON.`,
+      contents: `Design mechanics for class: ${name}. Lore: ${description}. 
+      CRITICAL: Spell/Feature descriptions MUST include specific mechanics and dice rolls. 
+      STRICTLY FORBIDDEN: Do not include ANY technical preamble, prompts, or model reasoning in the description fields.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -339,7 +334,7 @@ export const generateMonsterStats = async (name: string, description: string, is
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate TTRPG stats for monster: ${name}. Description: ${description}. Is Boss: ${isBoss}.`,
+      contents: `Generate monster stats for: ${name}. Description: ${description}. Is Boss: ${isBoss}. Rules text only.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -365,7 +360,7 @@ export const generateItemMechanics = async (name: string, type: string, descript
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Forge item mechanics for ${type}: ${name}. Lore: ${description}`,
+      contents: `Forge item mechanics for ${type}: ${name}. Lore: ${description}. Rules text only.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

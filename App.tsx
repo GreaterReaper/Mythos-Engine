@@ -32,18 +32,18 @@ const DAILY_FLASH_LIMIT = 1500;
 
 const COMMON_SPELLS: Spell[] = [
   { name: 'Guidance', level: 0, school: 'Divination', description: 'Once before the spell ends, the target can roll a d4 and add the number rolled to one ability check of its choice.' },
-  { name: 'Light', level: 0, school: 'Evocation', description: 'Touch an object; it sheds bright light in a 20ft radius.' },
-  { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'A spectral, floating hand appears at a point you choose. It can manipulate objects.' },
-  { name: 'Healing Word', level: 1, school: 'Evocation', description: 'A creature of your choice regains HP equal to 1d4 + Spellcasting Modifier.' },
-  { name: 'Shield of Faith', level: 1, school: 'Abjuration', description: 'A shimmering field surrounds a creature, granting it +2 AC for 10 minutes.' },
-  { name: 'Magic Missile', level: 1, school: 'Evocation', description: 'Three darts of glowing force. Each dart hits a creature and deals 1d4 + 1 force damage.' },
+  { name: 'Light', level: 0, school: 'Evocation', description: 'Touch an object; it sheds bright light in a 20ft radius for 1 hour.' },
+  { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'A spectral, floating hand appears at a point you choose within 30ft. It can manipulate objects up to 10lbs.' },
+  { name: 'Healing Word', level: 1, school: 'Evocation', description: 'A creature of your choice regains HP equal to 1d4 + Spellcasting Modifier as a bonus action.' },
+  { name: 'Shield of Faith', level: 1, school: 'Abjuration', description: 'A shimmering field surrounds a creature, granting it +2 AC for up to 10 minutes.' },
+  { name: 'Magic Missile', level: 1, school: 'Evocation', description: 'Three darts of force strike targets unerringly. Each dart deals 1d4 + 1 force damage.' },
   { name: 'Cure Wounds', level: 1, school: 'Evocation', description: 'A creature you touch regains HP equal to 1d8 + Spellcasting Modifier.' },
-  { name: 'Detect Magic', level: 1, school: 'Divination', description: 'You sense the presence of magic within 30 feet of you.' },
-  { name: 'Misty Step', level: 2, school: 'Conjuration', description: 'Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space.' },
+  { name: 'Detect Magic', level: 1, school: 'Divination', description: 'For up to 10 minutes, you sense the presence of magic within 30 feet of you.' },
+  { name: 'Misty Step', level: 2, school: 'Conjuration', description: 'Briefly surrounded by silvery mist, you teleport up to 30 feet to an unoccupied space you can see.' },
   { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'Touch a creature and end either one disease or one condition: blinded, deafened, paralyzed, or poisoned.' },
-  { name: 'Spiritual Weapon', level: 2, school: 'Evocation', description: 'Create a floating, spectral weapon. Make a melee spell attack to deal 1d8 + Modifier force damage.' },
-  { name: 'Fireball', level: 3, school: 'Evocation', description: 'A massive explosion of flame. Each creature in a 20ft radius must make a DEX save or take 8d6 fire damage.' },
-  { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Touch a creature that has died within the last minute. That creature returns to life with 1 hit point.' },
+  { name: 'Spiritual Weapon', level: 2, school: 'Evocation', description: 'Create a spectral weapon. Make a melee spell attack to deal 1d8 + Modifier force damage as a bonus action.' },
+  { name: 'Fireball', level: 3, school: 'Evocation', description: 'A massive explosion of flame. Each creature in a 20ft radius takes 8d6 fire damage (DEX save for half).' },
+  { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Touch a creature that has died within the last minute. The creature returns to life with 1 hit point.' },
 ];
 
 const App: React.FC = () => {
@@ -91,12 +91,14 @@ const App: React.FC = () => {
     }, 7000);
   }, []);
 
-  const syncAllClassesToSpells = (classList: ClassDef[]): ClassDef[] => {
+  const syncAllClassesToSpells = useCallback((classList: ClassDef[]): ClassDef[] => {
     return classList.map(cls => {
       const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
       const isSpellcaster = cls.spellSlots && cls.spellSlots.some(s => s > 0);
-      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood');
-      const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light');
+      
+      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver');
+      const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar');
+      const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild');
       
       const newSpells = [...(cls.initialSpells || [])];
       
@@ -106,12 +108,12 @@ const App: React.FC = () => {
           if (alreadyKnown) return;
 
           let shouldAdd = false;
-          // Healers get healing
-          if (isDivine && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify'))) shouldAdd = true;
-          // Arcane get offensive/utility
+          // Healers / Divine
+          if ((isDivine || isDruidic) && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify') || common.name.includes('Cure'))) shouldAdd = true;
+          // Arcane / Offensive
           if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) shouldAdd = true;
-          // Everyone gets Guidance/Light/Detect if they are magic at all
-          if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
+          // Universal cantrips
+          if (['Guidance', 'Light', 'Detect Magic', 'Mage Hand'].includes(common.name)) shouldAdd = true;
 
           if (shouldAdd) newSpells.push(common);
         });
@@ -119,7 +121,7 @@ const App: React.FC = () => {
       
       return { ...cls, initialSpells: newSpells };
     });
-  };
+  }, []);
 
   const manifestBasics = () => {
     const basicClasses: ClassDef[] = [
@@ -153,7 +155,7 @@ const App: React.FC = () => {
           { name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' },
           { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }
         ],
-        initialSpells: [] // To be synced
+        initialSpells: [] 
       }
     ];
 
@@ -442,7 +444,7 @@ const App: React.FC = () => {
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} syncSpells={syncAllClassesToSpells} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}

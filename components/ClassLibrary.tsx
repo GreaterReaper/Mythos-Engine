@@ -8,25 +8,10 @@ interface ClassLibraryProps {
   broadcast?: (msg: Partial<SyncMessage>) => void;
   notify: (msg: string, type?: any) => void;
   reservoirReady: boolean;
+  syncSpells?: (classList: ClassDef[]) => ClassDef[];
 }
 
-const COMMON_SPELL_POOL: Spell[] = [
-  { name: 'Guidance', level: 0, school: 'Divination', description: 'Target rolls a d4 and adds it to an ability check.' },
-  { name: 'Light', level: 0, school: 'Evocation', description: 'Touch an object to shed bright light.' },
-  { name: 'Mage Hand', level: 0, school: 'Conjuration', description: 'Manipulate objects with a spectral hand.' },
-  { name: 'Healing Word', level: 1, school: 'Evocation', description: 'Regain 1d4 + Modifier HP.' },
-  { name: 'Shield of Faith', level: 1, school: 'Abjuration', description: 'Grant a creature +2 AC.' },
-  { name: 'Magic Missile', level: 1, school: 'Evocation', description: '3 darts deal 1d4 + 1 force damage each.' },
-  { name: 'Cure Wounds', level: 1, school: 'Evocation', description: 'Regain 1d8 + Modifier HP.' },
-  { name: 'Detect Magic', level: 1, school: 'Divination', description: 'Sense magic within 30 feet.' },
-  { name: 'Misty Step', level: 2, school: 'Conjuration', description: 'Teleport 30 feet.' },
-  { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'End one disease or condition.' },
-  { name: 'Spiritual Weapon', level: 2, school: 'Evocation', description: 'Spectral weapon deals 1d8 + Mod force damage.' },
-  { name: 'Fireball', level: 3, school: 'Evocation', description: 'Explosion deals 8d6 fire damage (DEX save half).' },
-  { name: 'Revivify', level: 3, school: 'Necromancy', description: 'Return creature to life with 1 HP.' },
-];
-
-const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady }) => {
+const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady, syncSpells }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,7 +50,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         features: (mechanics.features || []).map((f: any) => ({ ...f, locked: false })),
         initialSpells: mechanics.initialSpells || []
       };
-      setClasses(prev => [...prev, newClass]);
+      
+      const updatedList = syncSpells ? syncSpells([...classes, newClass]) : [...classes, newClass];
+      setClasses(updatedList);
       setName('');
       setDescription('');
       setExpandedId(newClass.id);
@@ -83,7 +70,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     setIdentifyingId(cls.id);
     try {
       const mechanics = await generateClassMechanics(cls.name, cls.description);
-      setClasses(prev => prev.map(c => c.id === cls.id ? {
+      const updated = classes.map(c => c.id === cls.id ? {
         ...c,
         preferredStats: mechanics.preferredStats || [],
         bonuses: mechanics.bonuses || [],
@@ -92,7 +79,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         startingHp: mechanics.startingHp || c.startingHp,
         hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
         initialSpells: mechanics.initialSpells || c.initialSpells
-      } : c));
+      } : c);
+      
+      setClasses(syncSpells ? syncSpells(updated) : updated);
       notify(`Depths of "${cls.name}" Manifested`, "success");
     } catch (e: any) {
       notify(e.message, "error");
@@ -105,34 +94,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     if (!reservoirReady || learningSpellsId) return;
     setLearningSpellsId(cls.id);
     try {
-      // 1. Generate Unique Thematic Spells
-      const generatedSpells = await generateSpellbook(cls.name, cls.description, 3);
-      
-      // 2. Synchronize with Common Registry based on Class identity
-      const keywords = (cls.name + ' ' + cls.description).toLowerCase();
-      const isDivine = keywords.includes('cleric') || keywords.includes('priest') || keywords.includes('holy') || keywords.includes('light');
-      const isArcane = keywords.includes('mage') || keywords.includes('arcan') || keywords.includes('wizard') || keywords.includes('void');
-      
-      const relevantCommon = COMMON_SPELL_POOL.filter(s => {
-        if (['Guidance', 'Light', 'Detect Magic'].includes(s.name)) return true;
-        if (isDivine && (s.name.includes('Heal') || s.school === 'Abjuration' || s.name === 'Revivify')) return true;
-        if (isArcane && (s.school === 'Evocation' || s.school === 'Conjuration' || s.name === 'Misty Step')) return true;
-        return false;
-      });
-
-      // Merge avoiding duplicates
-      const finalSpells = [...generatedSpells];
-      relevantCommon.forEach(rc => {
-        if (!finalSpells.some(fs => fs.name.toLowerCase() === rc.name.toLowerCase())) {
-          finalSpells.push(rc);
-        }
-      });
-
-      setClasses(prev => prev.map(c => c.id === cls.id ? {
+      const uniqueSpells = await generateSpellbook(cls.name, cls.description, 3);
+      const updated = classes.map(c => c.id === cls.id ? {
         ...c,
-        initialSpells: finalSpells
-      } : c));
-      notify(`Grimoire for "${cls.name}" Inscribed with ${finalSpells.length} spells.`, "success");
+        initialSpells: uniqueSpells
+      } : c);
+      
+      setClasses(syncSpells ? syncSpells(updated) : updated);
+      notify(`Grimoire for "${cls.name}" Inscribed`, "success");
     } catch (e: any) {
       notify(e.message, "error");
     } finally {
@@ -146,10 +115,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     setLoading(true);
     notify(`Updating ${legacyRecords.length} Archetypes...`, "info");
 
+    let currentClasses = [...classes];
     for (const cls of legacyRecords) {
       try {
         const mechanics = await generateClassMechanics(cls.name, cls.description);
-        setClasses(prev => prev.map(c => c.id === cls.id ? {
+        currentClasses = currentClasses.map(c => c.id === cls.id ? {
           ...c,
           preferredStats: mechanics.preferredStats || [],
           bonuses: mechanics.bonuses || [],
@@ -158,12 +128,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           startingHp: mechanics.startingHp || c.startingHp,
           hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
           initialSpells: mechanics.initialSpells || c.initialSpells
-        } : c));
+        } : c);
         await new Promise(r => setTimeout(r, 800));
       } catch (e) {
         console.error(`Failed to manifest ${cls.name}`, e);
       }
     }
+    setClasses(syncSpells ? syncSpells(currentClasses) : currentClasses);
     setLoading(false);
     notify("Grimoire Synchronization Complete", "success");
   };

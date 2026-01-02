@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
-import { ClassDef, SyncMessage, Spell, UserAccount, Item } from '../types';
-import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage, generateSingleSpell } from '../services/gemini';
+import { ClassDef, SyncMessage, Spell, UserAccount, Item, Trait } from '../types';
+import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage, generateSingleSpell, generateCharacterFeats, getArchitectAdvice } from '../services/gemini';
 
 interface ClassLibraryProps {
   classes: ClassDef[];
@@ -28,6 +27,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   
   // Architect AI Generation state
   const [aiGeneratingSpell, setAiGeneratingSpell] = useState<string | null>(null);
+  const [suggestingFeatures, setSuggestingFeatures] = useState(false);
+  const [advice, setAdvice] = useState<string[]>([]);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
 
   // Manual Spell Edit State
   const [editingSpellIdx, setEditingSpellIdx] = useState<number | null>(null);
@@ -39,6 +41,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const [manualStartingHp, setManualStartingHp] = useState(8);
   const [manualHpPerLevel, setManualHpPerLevel] = useState(5);
   const [manualSlots, setManualSlots] = useState('0,0,0');
+  const [pendingFeatures, setPendingFeatures] = useState<Trait[]>([]);
 
   const filteredClasses = useMemo(() => {
     return classes.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
@@ -48,7 +51,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     return classes.filter(c => 
       (!c.preferredStats || c.preferredStats.length === 0) || 
       (!c.initialSpells || c.initialSpells.length === 0) ||
-      (c.spellSlots && c.spellSlots.every(s => s === 0) && c.initialSpells && c.initialSpells.length > 0) // Spells but no slots
+      (c.spellSlots && c.spellSlots.every(s => s === 0) && c.initialSpells && c.initialSpells.length > 0) 
     );
   }, [classes]);
 
@@ -64,6 +67,19 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     setClasses(newList);
     if (broadcast) {
       broadcast({ type: 'STATE_UPDATE', payload: { classes: newList } });
+    }
+  };
+
+  const handleFetchAdvice = async () => {
+    if (!name || !description || loadingAdvice) return;
+    setLoadingAdvice(true);
+    try {
+      const guidance = await getArchitectAdvice('class', name, description);
+      setAdvice(guidance);
+    } catch (e) {
+      notify("Architect guidance failed to manifest.", "error");
+    } finally {
+      setLoadingAdvice(false);
     }
   };
 
@@ -83,7 +99,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           spellSlots: manualSlots.split(',').map(s => parseInt(s.trim()) || 0),
           preferredStats: [],
           bonuses: [],
-          features: [],
+          features: pendingFeatures,
           initialSpells: []
         };
       } else {
@@ -131,12 +147,28 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       notify(`Archetype Bound.`, "success");
       setName('');
       setDescription('');
+      setAdvice([]);
+      setPendingFeatures([]);
       setExpandedId(newClass.id);
     } catch (e: any) {
       console.error(e);
       notify(e.message || "The Forge failed to respond.", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSuggestFeatures = async () => {
+    if (!name || !description || suggestingFeatures) return;
+    setSuggestingFeatures(true);
+    try {
+      const suggested = await generateCharacterFeats(name, description);
+      setPendingFeatures(prev => [...prev, ...suggested]);
+      notify("Architect insight manifest.", "success");
+    } catch (e) {
+      notify("Insight failed to coalesce.", "error");
+    } finally {
+      setSuggestingFeatures(false);
     }
   };
 
@@ -374,7 +406,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     if (!currentUser.isAdmin || aiGeneratingSpell) return;
     setAiGeneratingSpell(cls.id);
     try {
-      // Determine level based on current slot list
       const targetLevel = (cls.initialSpells?.length || 0) > 4 ? 2 : 1;
       const spell = await generateSingleSpell(cls.name, cls.description, targetLevel);
       const updated = classes.map(c => {
@@ -390,7 +421,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
-  // Spell Management Functions - Targeted for Admin control
+  // Spell Management Functions
   const startEditingSpell = (cls: ClassDef, idx: number) => {
     if (!currentUser.isAdmin) {
         notify("Only an Architect may manually rewrite existing incantations.", "error");
@@ -405,7 +436,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         notify("Only an Architect may manually inscribe new spells.", "error");
         return;
     }
-    setEditingSpellIdx(-1); // -1 signifies a new spell
+    setEditingSpellIdx(-1);
     setSpellForm({ name: '', level: 0, school: 'Evocation', description: '' });
   };
 
@@ -503,7 +534,18 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2 block text-left">Arcane Focus & Lore</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] block text-left">Arcane Focus & Lore</label>
+                  {currentUser.isAdmin && (
+                    <button 
+                      onClick={handleFetchAdvice}
+                      disabled={loadingAdvice || !name || !description}
+                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all"
+                    >
+                      <span>{loadingAdvice ? 'Analyzing...' : '⚖️ Balance Insight'}</span>
+                    </button>
+                  )}
+                </div>
                 <textarea 
                   value={description} 
                   onChange={(e) => setDescription(e.target.value)} 
@@ -512,8 +554,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                 />
               </div>
 
+              {advice.length > 0 && (
+                <div className="bg-amber-950/10 border border-amber-900/30 p-4 rounded-sm animate-in fade-in slide-in-from-top-2 text-left">
+                  <p className="text-[8px] font-black text-amber-600 uppercase tracking-widest mb-2 border-b border-amber-900/20 pb-1">Architect's Guidance</p>
+                  <ul className="space-y-2">
+                    {advice.map((point, i) => (
+                      <li key={i} className="text-[10px] text-neutral-300 font-serif italic leading-relaxed flex gap-2">
+                        <span className="text-amber-600">•</span> {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {manualMode && currentUser.isAdmin && (
-                <div className="p-4 bg-black/60 border border-amber-900/30 space-y-4 rounded-sm animate-in fade-in slide-in-from-top-2">
+                <div className="p-4 bg-black/60 border border-amber-900/30 space-y-4 rounded-sm animate-in fade-in slide-in-from-top-2 text-left">
                    <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Admin Override: Manual Inscription</p>
                    <div className="grid grid-cols-2 gap-4">
                      <div>
@@ -533,6 +588,29 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                    <div>
                      <label className="text-[7px] text-neutral-500 font-black uppercase mb-1 block">Spell Slots (L1,L2,L3)</label>
                      <input value={manualSlots} onChange={(e) => setManualSlots(e.target.value)} placeholder="4,2,0" className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none" />
+                   </div>
+
+                   <div className="pt-2 border-t border-amber-900/20">
+                     <div className="flex justify-between items-center mb-2">
+                       <label className="text-[7px] text-neutral-500 font-black uppercase">Pending Features</label>
+                       <button 
+                        onClick={handleSuggestFeatures}
+                        disabled={suggestingFeatures || !name || !description}
+                        className="text-[7px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all"
+                       >
+                         <span>{suggestingFeatures ? 'Channeling...' : '✨ Suggest Features'}</span>
+                       </button>
+                     </div>
+                     <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide">
+                       {pendingFeatures.map((f, i) => (
+                         <div key={i} className="bg-black/40 p-2 border border-neutral-900 rounded-sm group relative">
+                           <p className="text-[8px] font-black text-[#b28a48] uppercase">{f.name}</p>
+                           <p className="text-[7px] text-neutral-500 font-serif italic">{f.description}</p>
+                           <button onClick={() => setPendingFeatures(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-900 hover:text-red-500 text-[8px]">✕</button>
+                         </div>
+                       ))}
+                       {pendingFeatures.length === 0 && <p className="text-[7px] italic text-neutral-700 text-center py-2">No features suggested yet</p>}
+                     </div>
                    </div>
                 </div>
               )}
@@ -568,7 +646,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             {filteredClasses.map((c, idx) => {
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
-              const hasCorruptedArcanum = c.spellSlots && c.spellSlots.every(s => s === 0) && c.initialSpells && c.initialSpells.length > 0;
               const manageable = canEditOrManage(c);
 
               return (
@@ -611,11 +688,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                               {isLegacy && (
                                 <span className="text-[7px] font-black text-amber-700 uppercase tracking-widest bg-amber-950/20 px-2 py-0.5 rounded-sm border border-amber-900/30">
                                   Legacy
-                                </span>
-                              )}
-                              {hasCorruptedArcanum && (
-                                <span className="text-[7px] font-black text-red-500 uppercase tracking-widest bg-red-950/20 px-2 py-0.5 rounded-sm border border-red-900/30 animate-pulse">
-                                  Corrupted Arcanum
                                 </span>
                               )}
                               {isAuthor(c) ? (
@@ -662,7 +734,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
                   {expandedId === c.id && (
                     <div className="border-t border-neutral-900 bg-[#080808] p-8 md:p-12 space-y-12 animate-in slide-in-from-top duration-500">
-                      
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                         <div className="space-y-8">
                           <div>
@@ -676,7 +747,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 >
                                   {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Relics ⚔️'}
                                 </button>
-                                
                                 {manageable && (
                                   <>
                                     <button 
@@ -689,7 +759,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
                                       disabled={identifyingId === c.id || (!reservoirReady && !currentUser.isAdmin)}
-                                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
                                     >
                                       {identifyingId === c.id ? 'REASSIGNING...' : 'Recalibrate Slots ⚡'}
                                     </button>
@@ -914,11 +984,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     </p>
                                   </div>
                                 </div>
-                                {f.locked && !manageable && (
-                                  <div className="absolute top-2 right-2 text-[8px] font-black text-amber-900/40 uppercase tracking-widest">
-                                    Author Locked
-                                  </div>
-                                )}
                               </div>
                             ))}
                           </div>

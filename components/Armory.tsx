@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import { Item, ItemMechanic, SyncMessage, UserAccount } from '../types';
-import { generateItemMechanics, generateImage, rerollTraits } from '../services/gemini';
+import { generateItemMechanics, generateImage, rerollTraits, generateItemMechanicsList, getArchitectAdvice } from '../services/gemini';
 
 interface ArmoryProps {
   items: Item[];
@@ -28,6 +27,10 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   // Admin Manual Fields
   const [manualMode, setManualMode] = useState(false);
   const [manualLore, setManualLore] = useState('');
+  const [pendingMechanics, setPendingMechanics] = useState<ItemMechanic[]>([]);
+  const [suggestingMechanics, setSuggestingMechanics] = useState(false);
+  const [advice, setAdvice] = useState<string[]>([]);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
 
   const filteredItems = useMemo(() => {
     return items
@@ -43,6 +46,19 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       });
   }, [items, search, typeFilter, sortBy]);
 
+  const handleFetchAdvice = async () => {
+    if (!name || !description || loadingAdvice) return;
+    setLoadingAdvice(true);
+    try {
+      const guidance = await getArchitectAdvice('item', name, description);
+      setAdvice(guidance);
+    } catch (e) {
+      notify("Architect guidance failed to manifest.", "error");
+    } finally {
+      setLoadingAdvice(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!name || !description || loading) return;
     if (!manualMode && !reservoirReady && !currentUser.isAdmin) return;
@@ -54,7 +70,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       let imageUrl = '';
 
       if (manualMode && currentUser.isAdmin) {
-        mechanics = [];
+        mechanics = pendingMechanics;
         lore = manualLore || description;
       } else {
         const result = await generateItemMechanics(name, type, description);
@@ -74,6 +90,8 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       setName('');
       setDescription('');
       setManualLore('');
+      setAdvice([]);
+      setPendingMechanics([]);
       setExpandedId(newItem.id);
       notify(`${name} forged.`, "success");
     } catch (e: any) {
@@ -81,6 +99,20 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       notify(e.message || "The forge failed to create the relic.", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSuggestMechanics = async () => {
+    if (!name || !description || suggestingMechanics) return;
+    setSuggestingMechanics(true);
+    try {
+      const suggested = await generateItemMechanicsList(name, type, description);
+      setPendingMechanics(prev => [...prev, ...suggested]);
+      notify("Arcane properties manifest.", "success");
+    } catch (e) {
+      notify("The ether failed to respond.", "error");
+    } finally {
+      setSuggestingMechanics(false);
     }
   };
 
@@ -139,7 +171,6 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       const updated = await rerollTraits('item', item.name, item.description, item.mechanics);
       setItems(prev => prev.map(i => {
         if (i.id !== item.id) return i;
-        
         let updateIdx = 0;
         const finalMergedMechanics = i.mechanics.map(original => {
           if (original.locked) return original;
@@ -147,7 +178,6 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
           updateIdx++;
           return replacement ? { ...replacement, locked: false } : original;
         });
-
         return { ...i, mechanics: finalMergedMechanics };
       }));
       notify("Arcane properties rewoven.", "success");
@@ -249,7 +279,18 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
               </div>
 
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Appearance & Myth</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Appearance & Myth</label>
+                  {currentUser.isAdmin && (
+                    <button 
+                      onClick={handleFetchAdvice}
+                      disabled={loadingAdvice || !name || !description}
+                      className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all"
+                    >
+                      <span>{loadingAdvice ? 'Analyzing...' : '⚖️ Balance Insight'}</span>
+                    </button>
+                  )}
+                </div>
                 <textarea 
                   value={description} 
                   onChange={(e) => setDescription(e.target.value)} 
@@ -258,15 +299,54 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                 />
               </div>
 
+              {advice.length > 0 && (
+                <div className="bg-blue-950/10 border border-blue-900/30 p-4 rounded-sm animate-in fade-in slide-in-from-top-2 text-left">
+                  <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-2 border-b border-blue-900/20 pb-1">Artisan's Guidance</p>
+                  <ul className="space-y-2">
+                    {advice.map((point, i) => (
+                      <li key={i} className="text-[10px] text-neutral-300 font-serif italic leading-relaxed flex gap-2">
+                        <span className="text-blue-600">•</span> {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {manualMode && currentUser.isAdmin && (
-                <div className="space-y-1 text-left animate-in fade-in slide-in-from-top-2">
-                  <label className="text-[8px] font-black text-blue-500 uppercase tracking-widest block mb-1">Manual Lore (Admin)</label>
-                  <textarea 
-                    value={manualLore} 
-                    onChange={(e) => setManualLore(e.target.value)} 
-                    placeholder="Enter final lore text..." 
-                    className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-24 text-[10px] text-neutral-300 outline-none" 
-                  />
+                <div className="space-y-4 text-left animate-in fade-in slide-in-from-top-2 bg-black/40 p-4 border border-blue-900/20 rounded-sm">
+                  <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest block mb-1">Architect: Manual Forging</p>
+                  <div>
+                    <label className="text-[7px] text-neutral-500 font-black uppercase block mb-1">Custom Lore (Admin)</label>
+                    <textarea 
+                      value={manualLore} 
+                      onChange={(e) => setManualLore(e.target.value)} 
+                      placeholder="Enter final lore text..." 
+                      className="w-full bg-black border border-neutral-800 rounded-sm px-3 py-2 h-20 text-[9px] text-neutral-300 outline-none" 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[7px] text-neutral-500 font-black uppercase">Pending Mechanics</label>
+                      <button 
+                        onClick={handleSuggestMechanics}
+                        disabled={suggestingMechanics || !name || !description}
+                        className="text-[7px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all"
+                      >
+                        <span>{suggestingMechanics ? 'Channeling...' : '✨ Suggest Mechanics'}</span>
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-32 overflow-y-auto scrollbar-hide">
+                      {pendingMechanics.map((m, i) => (
+                        <div key={i} className="bg-black/40 p-2 border border-neutral-900 rounded-sm group relative">
+                          <p className="text-[8px] font-black text-blue-400 uppercase">{m.name}</p>
+                          <p className="text-[7px] text-neutral-500 font-serif italic">{m.description}</p>
+                          <button onClick={() => setPendingMechanics(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-900 hover:text-red-500 text-[8px]">✕</button>
+                        </div>
+                      ))}
+                      {pendingMechanics.length === 0 && <p className="text-[7px] italic text-neutral-700 text-center py-2">No mechanics suggested</p>}
+                    </div>
+                  </div>
                 </div>
               )}
 

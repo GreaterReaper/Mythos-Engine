@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
-import { Monster, Stats, SyncMessage, UserAccount } from '../types';
-import { generateMonsterStats, generateImage, rerollTraits } from '../services/gemini';
+import { Monster, Stats, SyncMessage, UserAccount, MonsterAbility } from '../types';
+import { generateMonsterStats, generateImage, rerollTraits, generateMonsterAbilities, getArchitectAdvice } from '../services/gemini';
 
 const getModifier = (val: number) => {
   const mod = Math.floor((val - 10) / 2);
@@ -36,6 +35,10 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   const [manualHp, setManualHp] = useState(50);
   const [manualAc, setManualAc] = useState(15);
   const [manualStats, setManualStats] = useState<Stats>({ strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 });
+  const [pendingAbilities, setPendingAbilities] = useState<MonsterAbility[]>([]);
+  const [suggestingAbilities, setSuggestingAbilities] = useState(false);
+  const [advice, setAdvice] = useState<string[]>([]);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
 
   const filteredMonsters = useMemo(() => {
     return monsters
@@ -52,6 +55,19 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       });
   }, [monsters, search, bossOnly, sortBy]);
 
+  const handleFetchAdvice = async () => {
+    if (!name || !description || loadingAdvice) return;
+    setLoadingAdvice(true);
+    try {
+      const guidance = await getArchitectAdvice('monster', name, description);
+      setAdvice(guidance);
+    } catch (e) {
+      notify("Architect guidance failed to manifest.", "error");
+    } finally {
+      setLoadingAdvice(false);
+    }
+  };
+
   const handleCreate = async () => {
     if (!name || !description || loading) return;
     if (!manualMode && !reservoirReady && !currentUser.isAdmin) return;
@@ -66,7 +82,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
           hp: manualHp,
           ac: manualAc,
           stats: manualStats,
-          abilities: [],
+          abilities: pendingAbilities,
           legendaryActions: []
         };
       } else {
@@ -91,6 +107,8 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       setName('');
       setDescription('');
       setIsBoss(false);
+      setAdvice([]);
+      setPendingAbilities([]);
       setExpandedId(newMonster.id);
       notify(`${name} inscribed.`, "success");
     } catch (e: any) {
@@ -98,6 +116,20 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       notify(e.message || "Failed to summon monster.", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSuggestAbilities = async () => {
+    if (!name || !description || suggestingAbilities) return;
+    setSuggestingAbilities(true);
+    try {
+      const suggested = await generateMonsterAbilities(name, description);
+      setPendingAbilities(prev => [...prev, ...suggested]);
+      notify("Monstrous traits manifest.", "success");
+    } catch (e) {
+      notify("Void whispers failed.", "error");
+    } finally {
+      setSuggestingAbilities(false);
     }
   };
 
@@ -164,14 +196,12 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
     const sourceList = type === 'standard' ? monster.abilities : (monster.legendaryActions || []);
     const traitFormat = sourceList.map(a => ({ name: a.name, description: a.effect, locked: a.locked }));
-    
     const contextType = type === 'standard' ? 'monster ability' : 'legendary boss action';
     
     rerollTraits(contextType, monster.name, monster.description, traitFormat)
       .then(updated => {
         setMonsters(prev => prev.map(m => {
           if (m.id !== monster.id) return m;
-          
           let updateIdx = 0;
           if (type === 'standard') {
             const finalMergedAbilities = m.abilities.map(original => {
@@ -194,7 +224,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         notify(`${type === 'standard' ? 'Abilities' : 'Legendary Actions'} rewoven.`, "success");
       })
       .catch(err => {
-        console.error(err);
         notify(err.message || "The spirits refuse to change this creature.", "error");
       })
       .finally(() => {
@@ -294,6 +323,40 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Monstrous Nature</label>
+                  {currentUser.isAdmin && (
+                    <button 
+                      onClick={handleFetchAdvice}
+                      disabled={loadingAdvice || !name || !description}
+                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all"
+                    >
+                      <span>{loadingAdvice ? 'Analyzing...' : '⚖️ Balance Insight'}</span>
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="DESCRIBE ITS ANATOMY & LEGEND..."
+                  className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-40 text-xs text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed"
+                />
+              </div>
+
+              {advice.length > 0 && (
+                <div className="bg-red-950/10 border border-red-900/30 p-4 rounded-sm animate-in fade-in slide-in-from-top-2 text-left">
+                  <p className="text-[8px] font-black text-red-600 uppercase tracking-widest mb-2 border-b border-red-900/20 pb-1">Warden's Assessment</p>
+                  <ul className="space-y-2">
+                    {advice.map((point, i) => (
+                      <li key={i} className="text-[10px] text-neutral-300 font-serif italic leading-relaxed flex gap-2">
+                        <span className="text-red-600">•</span> {point}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {manualMode && currentUser.isAdmin && (
                 <div className="p-4 bg-black/60 border border-amber-900/30 space-y-4 rounded-sm animate-in fade-in slide-in-from-top-2 text-left">
                   <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-2">Admin Override: Monster Stats</p>
@@ -307,7 +370,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                       <input type="number" value={manualAc} onChange={(e) => setManualAc(parseInt(e.target.value))} className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 border-b border-amber-900/20 pb-4 mb-4">
                     {(Object.keys(manualStats) as Array<keyof Stats>).map(s => (
                       <div key={s}>
                         <label className="text-[6px] text-neutral-600 font-black uppercase block mb-1">{s.slice(0,3)}</label>
@@ -315,18 +378,31 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                       </div>
                     ))}
                   </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[7px] text-neutral-500 font-black uppercase">Pending Abilities</label>
+                      <button 
+                        onClick={handleSuggestAbilities}
+                        disabled={suggestingAbilities || !name || !description}
+                        className="text-[7px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all"
+                      >
+                        <span>{suggestingAbilities ? 'Channeling...' : '✨ Suggest Abilities'}</span>
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-hide">
+                      {pendingAbilities.map((a, i) => (
+                        <div key={i} className="bg-black/40 p-2 border border-neutral-900 rounded-sm group relative">
+                          <p className="text-[8px] font-black text-[#b28a48] uppercase">{a.name}</p>
+                          <p className="text-[7px] text-neutral-500 font-serif italic">{a.effect}</p>
+                          <button onClick={() => setPendingAbilities(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-red-900 hover:text-red-500 text-[8px]">✕</button>
+                        </div>
+                      ))}
+                      {pendingAbilities.length === 0 && <p className="text-[7px] italic text-neutral-700 text-center py-2">No abilities suggested</p>}
+                    </div>
+                  </div>
                 </div>
               )}
-
-              <div className="space-y-1">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Monstrous Nature</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="DESCRIBE ITS ANATOMY & LEGEND..."
-                  className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-40 text-xs text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed"
-                />
-              </div>
 
               <button
                 onClick={handleCreate}
@@ -450,7 +526,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                       </div>
 
                       <div className="space-y-8">
-                        {/* Standard Abilities Section */}
                         <div className="space-y-4">
                           <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
                             <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
@@ -481,7 +556,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                           </div>
                         </div>
 
-                        {/* Legendary Actions Section */}
                         {m.isBoss && m.legendaryActions && m.legendaryActions.length > 0 && (
                           <div className="space-y-4 pt-4 border-t border-red-950/30">
                             <div className="flex justify-between items-center border-b border-red-900/20 pb-2">

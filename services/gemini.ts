@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
+import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule, MonsterAbility, ItemMechanic } from "../types";
 
 const cleanJson = (text: string) => {
   if (!text) return '{}';
@@ -40,7 +40,6 @@ const getAI = () => {
 
 /**
  * withRetry handles API retries and model fallbacks.
- * For Admins: If a Pro model hits a quota, it automatically attempts to use the Flash model to satisfy the request.
  */
 async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
   const admin = isAdmin();
@@ -55,20 +54,15 @@ async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3
 
     if (isQuota) {
       reportError(true, true);
-      // For Admins, we don't throw immediately. We let the retry logic try to fallback to Flash if possible.
       if (!admin) throw new Error("DAILY_QUOTA_EXHAUSTED");
-      
-      // Admin Fallback: If they were using Pro, try forcing Flash for this specific attempt
       console.warn("Admin Quota hit. Attempting Flash fallback...");
       try {
         return await fn('gemini-3-flash-preview');
-      } catch (fallbackError) {
-        // If fallback also fails, proceed to standard retry
-      }
+      } catch (fallbackError) {}
     }
 
     if (retries > 0 && (isRateLimit || isQuota)) {
-      const wait = admin ? 1000 : initialDelay; // Faster retries for admins
+      const wait = admin ? 1000 : initialDelay;
       await new Promise(resolve => setTimeout(resolve, wait));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
@@ -86,6 +80,28 @@ async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3
     throw error;
   }
 }
+
+export const getArchitectAdvice = async (type: 'class' | 'monster' | 'item', name: string, description: string): Promise<string[]> => {
+  trackUsage('utility', 2);
+  return withRetry(async (forcedModel) => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: forcedModel || 'gemini-3-flash-preview',
+      contents: `Analyze the following TTRPG ${type} concept: "${name}". Lore: "${description}". 
+      Provide exactly 3 concise bullet points of balancing advice for a Dungeon Master/Architect. 
+      Focus on mechanical parity, potential exploits, and thematic consistency. 
+      Output ONLY a JSON array of strings.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING }
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '[]'));
+  });
+};
 
 export const generateImage = async (prompt: string, referenceBase64?: string): Promise<string> => {
   trackUsage('utility', 25); 
@@ -427,6 +443,54 @@ export const generateMonsterStats = async (name: string, description: string, is
       }
     });
     return JSON.parse(cleanJson(response.text || '{}'));
+  });
+};
+
+export const generateMonsterAbilities = async (name: string, description: string, count: number = 3): Promise<MonsterAbility[]> => {
+  trackUsage('utility', 5);
+  return withRetry(async (forcedModel) => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: forcedModel || 'gemini-3-flash-preview',
+      contents: `Generate ${count} unique thematic abilities for a monster named "${name}". Lore: ${description}. 
+      RULES: Output ONLY JSON array of objects with 'name' and 'effect'. 'effect' must be mechanical rules text.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } },
+            required: ["name", "effect"]
+          }
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '[]'));
+  });
+};
+
+export const generateItemMechanicsList = async (name: string, type: string, description: string, count: number = 3): Promise<ItemMechanic[]> => {
+  trackUsage('utility', 5);
+  return withRetry(async (forcedModel) => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: forcedModel || 'gemini-3-flash-preview',
+      contents: `Generate ${count} unique mechanical properties for a ${type} named "${name}". Lore: ${description}. 
+      RULES: Output ONLY JSON array of objects with 'name' and 'description'. 'description' must be mechanical rules text.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
+            required: ["name", "description"]
+          }
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '[]'));
   });
 };
 

@@ -328,6 +328,11 @@ export const generateClassMechanics = async (name: string, description: string):
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Design mechanics for class: ${name}. Lore: ${description}. 
+      SPELL SLOT RULES:
+      - If the class is Martial/Physical (Fighter, Barbarian, Rogue style), spellSlots MUST be [0, 0, 0].
+      - If the class is a Half-Caster (Paladin, Ranger style), spellSlots MUST be [2, 0, 0].
+      - If the class is a Full-Caster (Wizard, Cleric style), spellSlots MUST be [4, 2, 0].
+      
       THEMATIC INTEGRITY RULE: 
       - Wizard/Arcanist/Mage archetypes MUST NOT have healing spells (Cure Wounds, etc.).
       - Cleric/Priest archetypes MUST NOT have purely destructive arcane spells like Fireball unless thematic for their deity.
@@ -340,7 +345,7 @@ export const generateClassMechanics = async (name: string, description: string):
             hitDie: { type: Type.STRING },
             startingHp: { type: Type.INTEGER },
             hpPerLevel: { type: Type.INTEGER },
-            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER } },
+            spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Number of slots for level 1, 2, 3 spells" },
             preferredStats: { type: Type.ARRAY, items: { type: Type.STRING } },
             bonuses: { type: Type.ARRAY, items: { type: Type.STRING } },
             features: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } },

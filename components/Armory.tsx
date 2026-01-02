@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Item, ItemMechanic, SyncMessage } from '../types';
+import { Item, ItemMechanic, SyncMessage, UserAccount } from '../types';
 import { generateItemMechanics, generateImage, rerollTraits } from '../services/gemini';
 
 interface ArmoryProps {
@@ -9,9 +10,10 @@ interface ArmoryProps {
   notify: (message: string, type?: any) => void;
   reservoirReady: boolean;
   manifestBasics?: (scope: 'items') => void;
+  currentUser: UserAccount;
 }
 
-const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady, manifestBasics }) => {
+const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady, manifestBasics, currentUser }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
   const [description, setDescription] = useState('');
@@ -22,6 +24,10 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'name' | 'type'>('name');
+
+  // Admin Manual Fields
+  const [manualMode, setManualMode] = useState(false);
+  const [manualLore, setManualLore] = useState('');
 
   const filteredItems = useMemo(() => {
     return items
@@ -38,24 +44,38 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   }, [items, search, typeFilter, sortBy]);
 
   const handleCreate = async () => {
-    if (!name || !description || loading || !reservoirReady) return;
+    if (!name || !description || loading) return;
+    if (!manualMode && !reservoirReady) return;
+
     setLoading(true);
     try {
-      const { mechanics, lore } = await generateItemMechanics(name, type, description);
-      const imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
+      let mechanics;
+      let lore = '';
+      let imageUrl = '';
+
+      if (manualMode && currentUser.isAdmin) {
+        mechanics = [];
+        lore = manualLore || description;
+      } else {
+        const result = await generateItemMechanics(name, type, description);
+        mechanics = result.mechanics || [];
+        lore = result.lore || description;
+        imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
+      }
       
       const newItem: Item = {
         id: Math.random().toString(36).substr(2, 9),
         name, type, description,
-        mechanics: (mechanics || []).map((m: any) => ({ ...m, locked: false })),
-        lore: lore || description,
+        mechanics: (mechanics).map((m: any) => ({ ...m, locked: false })),
+        lore: lore,
         imageUrl
       };
       setItems(prev => [...prev, newItem]);
       setName('');
       setDescription('');
+      setManualLore('');
       setExpandedId(newItem.id);
-      notify(`${name} forged successfully.`, "success");
+      notify(`${name} forged.`, "success");
     } catch (e: any) {
       console.error(e);
       notify(e.message || "The forge failed to create the relic.", "error");
@@ -191,7 +211,17 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/3">
           <div className="grim-card p-6 border-dashed border-[#b28a48]/20 border-2 rounded-sm sticky top-4 shadow-2xl">
-            <h3 className="text-xl font-black mb-6 fantasy-font text-neutral-300">Forge New Relic</h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black fantasy-font text-neutral-300 uppercase">Forge Relic</h3>
+              {currentUser.isAdmin && (
+                <button 
+                  onClick={() => setManualMode(!manualMode)}
+                  className={`text-[8px] px-2 py-1 border font-black uppercase transition-all ${manualMode ? 'bg-blue-500 text-black border-blue-500' : 'text-neutral-600 border-neutral-800 hover:text-white'}`}
+                >
+                  {manualMode ? 'Manual Mode ON' : 'AI Mode'}
+                </button>
+              )}
+            </div>
             <div className="space-y-5">
               <div className="space-y-1">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Artifact Name</label>
@@ -228,17 +258,29 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                 />
               </div>
 
+              {manualMode && currentUser.isAdmin && (
+                <div className="space-y-1 text-left animate-in fade-in slide-in-from-top-2">
+                  <label className="text-[8px] font-black text-blue-500 uppercase tracking-widest block mb-1">Manual Lore (Admin)</label>
+                  <textarea 
+                    value={manualLore} 
+                    onChange={(e) => setManualLore(e.target.value)} 
+                    placeholder="Enter final lore text..." 
+                    className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-24 text-[10px] text-neutral-300 outline-none" 
+                  />
+                </div>
+              )}
+
               <button 
                 onClick={handleCreate} 
-                disabled={loading || !name || !reservoirReady} 
+                disabled={loading || !name || (!manualMode && !reservoirReady)} 
                 className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-5 text-[11px] font-black uppercase tracking-[0.4em] transition-all disabled:opacity-20 shadow-xl active:scale-95 flex flex-col items-center gap-1"
               >
-                {loading ? 'BINDING RELIC...' : (
+                {loading ? 'BINDING RELIC...' : (manualMode ? 'FORGE MANUALLY' : (
                   <>
                     <span>FORGE RELIC</span>
                     <span className="text-[8px] text-amber-600/80 tracking-widest">[-10⚡ ESSENCE]</span>
                   </>
-                )}
+                ))}
               </button>
             </div>
           </div>

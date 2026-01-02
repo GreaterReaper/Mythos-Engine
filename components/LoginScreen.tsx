@@ -6,10 +6,13 @@ interface LoginScreenProps {
   setCurrentUser: (user: UserAccount) => void;
 }
 
+const ADMIN_SECRET = "MYTHOS_ADMIN";
+
 const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [adminCode, setAdminCode] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -24,7 +27,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
       return;
     }
 
-    // Success
+    // Check if user is elevating to admin or if they were already admin
+    if (adminCode === ADMIN_SECRET) {
+      user.isAdmin = true;
+    }
+
     localStorage.setItem('mythos_active_session', JSON.stringify(user));
     setCurrentUser(user);
   };
@@ -47,6 +54,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     const newUser: UserAccount = {
       username: username.toLowerCase().trim(),
       displayName: displayName.trim(),
+      isAdmin: adminCode === ADMIN_SECRET
     };
 
     accounts.push(newUser);
@@ -102,6 +110,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="USERNAME"
                 className="w-full bg-black border border-[#1a1a1a] focus:border-[#b28a48] p-3 text-sm tracking-widest text-[#b28a48] outline-none transition-colors uppercase font-mono"
+              />
+            </div>
+
+            <div className="space-y-1 text-left">
+              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600 opacity-40">Admin Access Code (Optional)</label>
+              <input
+                type="password"
+                value={adminCode}
+                onChange={(e) => setAdminCode(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-black border border-[#1a1a1a] focus:border-[#b28a48] p-3 text-sm tracking-widest text-neutral-700 outline-none transition-colors uppercase font-mono"
               />
             </div>
 

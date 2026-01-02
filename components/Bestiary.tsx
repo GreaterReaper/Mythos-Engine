@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Monster, Stats, SyncMessage } from '../types';
+import { Monster, Stats, SyncMessage, UserAccount } from '../types';
 import { generateMonsterStats, generateImage, rerollTraits } from '../services/gemini';
 
 const getModifier = (val: number) => {
@@ -14,9 +15,10 @@ interface BestiaryProps {
   notify: (message: string, type?: any) => void;
   reservoirReady: boolean;
   manifestBasics?: (scope: 'monsters') => void;
+  currentUser: UserAccount;
 }
 
-const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, notify, reservoirReady, manifestBasics }) => {
+const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, notify, reservoirReady, manifestBasics, currentUser }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isBoss, setIsBoss] = useState(false);
@@ -28,6 +30,12 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   const [search, setSearch] = useState('');
   const [bossOnly, setBossOnly] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'hp' | 'ac'>('name');
+
+  // Admin Manual Fields
+  const [manualMode, setManualMode] = useState(false);
+  const [manualHp, setManualHp] = useState(50);
+  const [manualAc, setManualAc] = useState(15);
+  const [manualStats, setManualStats] = useState<Stats>({ strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 });
 
   const filteredMonsters = useMemo(() => {
     return monsters
@@ -45,11 +53,26 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   }, [monsters, search, bossOnly, sortBy]);
 
   const handleCreate = async () => {
-    if (!name || !description || loading || !reservoirReady) return;
+    if (!name || !description || loading) return;
+    if (!manualMode && !reservoirReady) return;
+
     setLoading(true);
     try {
-      const stats = await generateMonsterStats(name, description, isBoss);
-      const imageUrl = await generateImage(`Full body illustration of a ${isBoss ? 'LEGENDARY BOSS' : 'fantasy'} monster: ${description}. cinematic lighting.`);
+      let stats;
+      let imageUrl = '';
+      
+      if (manualMode && currentUser.isAdmin) {
+        stats = {
+          hp: manualHp,
+          ac: manualAc,
+          stats: manualStats,
+          abilities: [],
+          legendaryActions: []
+        };
+      } else {
+        stats = await generateMonsterStats(name, description, isBoss);
+        imageUrl = await generateImage(`Full body illustration of a ${isBoss ? 'LEGENDARY BOSS' : 'fantasy'} monster: ${description}. cinematic lighting.`);
+      }
       
       const newMonster: Monster = {
         id: Math.random().toString(36).substr(2, 9),
@@ -69,10 +92,10 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       setDescription('');
       setIsBoss(false);
       setExpandedId(newMonster.id);
-      notify(`${name} inscribed into the bestiary.`, "success");
+      notify(`${name} inscribed.`, "success");
     } catch (e: any) {
       console.error(e);
-      notify(e.message || "Failed to summon monster into the codex.", "error");
+      notify(e.message || "Failed to summon monster.", "error");
     } finally {
       setLoading(false);
     }
@@ -203,6 +226,10 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
     }
   };
 
+  const handleStatChange = (stat: keyof Stats, val: number) => {
+    setManualStats(prev => ({ ...prev, [stat]: val }));
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-[#b28a48]/20 pb-4">
@@ -233,7 +260,17 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/3">
           <div className="grim-card p-6 rounded-sm border-2 border-dashed border-[#b28a48]/20 sticky top-4 shadow-2xl">
-            <h3 className="text-xl font-black mb-6 fantasy-font text-neutral-300">Summon Horror</h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black fantasy-font text-neutral-300 uppercase">Summon Horror</h3>
+              {currentUser.isAdmin && (
+                <button 
+                  onClick={() => setManualMode(!manualMode)}
+                  className={`text-[8px] px-2 py-1 border font-black uppercase transition-all ${manualMode ? 'bg-amber-500 text-black border-amber-500' : 'text-neutral-600 border-neutral-800 hover:text-white'}`}
+                >
+                  {manualMode ? 'Manual Mode ON' : 'AI Mode'}
+                </button>
+              )}
+            </div>
             <div className="space-y-5">
               <div className="space-y-1">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Entity Name</label>
@@ -257,6 +294,30 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                 </div>
               </div>
 
+              {manualMode && currentUser.isAdmin && (
+                <div className="p-4 bg-black/60 border border-amber-900/30 space-y-4 rounded-sm animate-in fade-in slide-in-from-top-2 text-left">
+                  <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-2">Admin Override: Monster Stats</p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="text-[7px] text-neutral-500 font-black uppercase mb-1 block">HP</label>
+                      <input type="number" value={manualHp} onChange={(e) => setManualHp(parseInt(e.target.value))} className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[7px] text-neutral-500 font-black uppercase mb-1 block">AC</label>
+                      <input type="number" value={manualAc} onChange={(e) => setManualAc(parseInt(e.target.value))} className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(Object.keys(manualStats) as Array<keyof Stats>).map(s => (
+                      <div key={s}>
+                        <label className="text-[6px] text-neutral-600 font-black uppercase block mb-1">{s.slice(0,3)}</label>
+                        <input type="number" value={manualStats[s]} onChange={(e) => handleStatChange(s, parseInt(e.target.value))} className="w-full bg-black border border-neutral-900 text-[9px] p-1.5 text-neutral-400 outline-none" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Monstrous Nature</label>
                 <textarea
@@ -269,14 +330,14 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
               <button
                 onClick={handleCreate}
-                disabled={loading || !name || !reservoirReady}
+                disabled={loading || !name || (!manualMode && !reservoirReady)}
                 className={`px-8 py-5 rounded-sm font-black w-full text-[11px] uppercase tracking-[0.4em] transition-all shadow-xl flex flex-col items-center gap-1 ${isBoss ? 'bg-red-800 hover:bg-red-700 text-white' : 'bg-[#b28a48] hover:bg-[#cbb07a] text-black'} disabled:opacity-20 active:scale-95`}
               >
-                {loading ? 'BINDING FORM...' : (
+                {loading ? 'BINDING FORM...' : (manualMode ? 'INSCRIBE MANUALLY' : (
                   <>
                     <span>{isBoss ? 'SUMMON BOSS' : 'INSCRIBE BESTIARY'}</span>
                   </>
-                )}
+                ))}
               </button>
             </div>
           </div>

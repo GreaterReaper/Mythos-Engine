@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage, Spell, UserAccount, Item } from '../types';
 import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage } from '../services/gemini';
@@ -25,6 +26,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Admin Manual Fields
+  const [manualMode, setManualMode] = useState(false);
+  const [manualHitDie, setManualHitDie] = useState('d8');
+  const [manualStartingHp, setManualStartingHp] = useState(8);
+  const [manualHpPerLevel, setManualHpPerLevel] = useState(5);
+  const [manualSlots, setManualSlots] = useState('0,0,0');
+
   const filteredClasses = useMemo(() => {
     return classes.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
   }, [classes, search]);
@@ -32,7 +40,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const legacyRecords = useMemo(() => {
     return classes.filter(c => 
       (!c.preferredStats || c.preferredStats.length === 0) || 
-      (!c.initialSpells || c.initialSpells.length === 0)
+      (!c.initialSpells || c.initialSpells.length === 0) ||
+      (c.spellSlots && c.spellSlots.every(s => s === 0) && c.initialSpells && c.initialSpells.length > 0) // Spells but no slots
     );
   }, [classes]);
 
@@ -48,10 +57,29 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleCreate = async () => {
-    if (!name || !description || loading || !reservoirReady) return;
+    if (!name || !description || loading) return;
+    if (!manualMode && !reservoirReady) return;
+
     setLoading(true);
     try {
-      const mechanics = await generateClassMechanics(name, description);
+      let mechanics;
+      let imageUrl = '';
+      
+      if (manualMode && currentUser.isAdmin) {
+        mechanics = {
+          hitDie: manualHitDie,
+          startingHp: manualStartingHp,
+          hpPerLevel: manualHpPerLevel,
+          spellSlots: manualSlots.split(',').map(s => parseInt(s.trim()) || 0),
+          preferredStats: [],
+          bonuses: [],
+          features: [],
+          initialSpells: []
+        };
+      } else {
+        mechanics = await generateClassMechanics(name, description);
+      }
+
       const hasSpells = mechanics.spellSlots && mechanics.spellSlots.some((s: number) => s > 0);
       const newClass: ClassDef = {
         id: Math.random().toString(36).substr(2, 9),
@@ -72,25 +100,26 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       const updatedList = syncSpells ? syncSpells([...classes, newClass]) : [...classes, newClass];
       updateAndSync(updatedList);
       
-      // Auto-generate starter equipment with context-aware images
-      try {
-        const signatureItems = await generateClassEquipment(name, description, newClass.hitDie, hasSpells);
-        const keyedItems = [];
-        for (const si of signatureItems) {
-            const imgUrl = await generateImage(`TTRPG concept art: ${si.name}, a signature ${si.type} for a ${name} hero. Lore: ${description}. Item Lore: ${si.lore}. Highly detailed obsidian and gold accents, cinematic lighting.`);
-            keyedItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
-            await new Promise(r => setTimeout(r, 1000)); // Breathing room for image generation
+      if (!manualMode) {
+        // Auto-generate starter equipment only in AI mode
+        try {
+          const signatureItems = await generateClassEquipment(name, description, newClass.hitDie, hasSpells);
+          const keyedItems = [];
+          for (const si of signatureItems) {
+              const imgUrl = await generateImage(`TTRPG concept art: ${si.name}, a signature ${si.type} for a ${name} hero. Lore: ${description}. Item Lore: ${si.lore}. Highly detailed obsidian and gold accents, cinematic lighting.`);
+              keyedItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
+              await new Promise(r => setTimeout(r, 1000)); 
+          }
+          setItems(prev => [...prev, ...keyedItems]);
+          if (broadcast) {
+            keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
+          }
+        } catch (itemErr) {
+          console.error("Failed to forge starter items:", itemErr);
         }
-        setItems(prev => [...prev, ...keyedItems]);
-        if (broadcast) {
-          keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
-        }
-        notify(`Archetype and Signature Gear Manifested.`, "success");
-      } catch (itemErr) {
-        console.error("Failed to forge starter items:", itemErr);
-        notify(`Archetype Bound, but visuals failed to coalesce.`, "info");
       }
 
+      notify(`Archetype Bound.`, "success");
       setName('');
       setDescription('');
       setExpandedId(newClass.id);
@@ -135,20 +164,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     setIdentifyingId(cls.id);
     try {
       const mechanics = await generateClassMechanics(cls.name, cls.description);
+      
       const updated = classes.map(c => c.id === cls.id ? {
         ...c,
         preferredStats: mechanics.preferredStats || [],
         bonuses: mechanics.bonuses || [],
-        spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : c.spellSlots,
+        spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : [0, 0, 0],
         hitDie: mechanics.hitDie || c.hitDie,
         startingHp: mechanics.startingHp || c.startingHp,
         hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
-        initialSpells: mechanics.initialSpells || c.initialSpells
+        initialSpells: mechanics.initialSpells || [] 
       } : c);
       
       const synced = syncSpells ? syncSpells(updated) : updated;
       updateAndSync(synced);
-      notify(`Depths of "${cls.name}" Manifested`, "success");
+      notify(`Depths of "${cls.name}" Reassigned`, "success");
     } catch (e: any) {
       notify(e.message, "error");
     } finally {
@@ -184,7 +214,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     if (!reservoirReady || loading || legacyRecords.length === 0) return;
     
     setLoading(true);
-    notify(`Updating ${legacyRecords.length} Archetypes...`, "info");
+    notify(`Purging & Recalibrating ${legacyRecords.length} Archetypes...`, "info");
 
     let currentClasses = [...classes];
     for (const cls of legacyRecords) {
@@ -196,11 +226,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           ...c,
           preferredStats: mechanics.preferredStats || [],
           bonuses: mechanics.bonuses || [],
-          spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : c.spellSlots,
+          spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : [0,0,0],
           hitDie: mechanics.hitDie || c.hitDie,
           startingHp: mechanics.startingHp || c.startingHp,
           hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
-          initialSpells: mechanics.initialSpells || c.initialSpells
+          initialSpells: mechanics.initialSpells || [] 
         } : c);
         await new Promise(r => setTimeout(r, 800));
       } catch (e) {
@@ -210,7 +240,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     const synced = syncSpells ? syncSpells(currentClasses) : currentClasses;
     updateAndSync(synced);
     setLoading(false);
-    notify("Grimoire Synchronization Complete", "success");
+    notify("Archetype Synchronization Complete", "success");
   };
 
   const handleBulkGearManifest = async () => {
@@ -221,7 +251,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     try {
       let count = 0;
       for (const cls of classes) {
-        // Check if archetype gear already exists to prevent spam
         const classTerms = cls.name.toLowerCase().split(' ');
         const exists = items.some(i => classTerms.some(term => i.name.toLowerCase().includes(term) || i.description.toLowerCase().includes(term)));
         
@@ -326,10 +355,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleDelete = (e: React.MouseEvent, cls: ClassDef) => {
     e.stopPropagation();
-    if (!isAuthor(cls) && cls.authorId !== 'system') {
-      notify("You cannot banish what you did not create.", "error");
-      return;
-    }
     if (window.confirm("Banish this archetype from the grimoire forever?")) {
       const updated = classes.filter(x => x.id !== cls.id);
       updateAndSync(updated);
@@ -361,7 +386,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
               className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
             >
               <span className="animate-pulse">✨</span>
-              Synchronize Legacies
+              Purge & Sync Legacies
             </button>
           )}
         </div>
@@ -370,7 +395,17 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/3">
           <div className="grim-card p-6 border-dashed border-[#b28a48]/20 border-2 rounded-sm sticky top-4">
-            <h3 className="text-xl font-bold mb-6 fantasy-font text-neutral-300">Forge Archetype</h3>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold fantasy-font text-neutral-300">Forge Archetype</h3>
+              {currentUser.isAdmin && (
+                <button 
+                  onClick={() => setManualMode(!manualMode)}
+                  className={`text-[8px] px-2 py-1 border font-black uppercase transition-all ${manualMode ? 'bg-amber-500 text-black border-amber-500' : 'text-neutral-600 border-neutral-800 hover:text-white'}`}
+                >
+                  {manualMode ? 'Manual Mode ON' : 'AI Mode'}
+                </button>
+              )}
+            </div>
             <div className="space-y-5">
               <div>
                 <label className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.2em] mb-2 block text-left">Class Identity</label>
@@ -390,17 +425,43 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                   className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-4 h-40 text-sm text-neutral-400 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed" 
                 />
               </div>
+
+              {manualMode && currentUser.isAdmin && (
+                <div className="p-4 bg-black/60 border border-amber-900/30 space-y-4 rounded-sm animate-in fade-in slide-in-from-top-2">
+                   <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Admin Override: Manual Inscription</p>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-[7px] text-neutral-500 font-black uppercase mb-1 block">Hit Die</label>
+                       <select value={manualHitDie} onChange={(e) => setManualHitDie(e.target.value)} className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none">
+                         <option value="d6">d6</option>
+                         <option value="d8">d8</option>
+                         <option value="d10">d10</option>
+                         <option value="d12">d12</option>
+                       </select>
+                     </div>
+                     <div>
+                       <label className="text-[7px] text-neutral-500 font-black uppercase mb-1 block">Start HP</label>
+                       <input type="number" value={manualStartingHp} onChange={(e) => setManualStartingHp(parseInt(e.target.value))} className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none" />
+                     </div>
+                   </div>
+                   <div>
+                     <label className="text-[7px] text-neutral-500 font-black uppercase mb-1 block">Spell Slots (L1,L2,L3)</label>
+                     <input value={manualSlots} onChange={(e) => setManualSlots(e.target.value)} placeholder="4,2,0" className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-[#b28a48] outline-none" />
+                   </div>
+                </div>
+              )}
+
               <button 
                 onClick={handleCreate} 
-                disabled={loading || !name || !reservoirReady} 
+                disabled={loading || !name || (!manualMode && !reservoirReady)} 
                 className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] hover:border-[#b28a48] transition-all shadow-xl active:scale-[0.98] disabled:opacity-20 flex flex-col items-center gap-1"
               >
-                {loading ? 'BINDING SOUL...' : !reservoirReady ? 'ENERGY LOW...' : (
+                {loading ? 'BINDING SOUL...' : (manualMode ? 'INSCRIBE MANUALLY' : (
                   <>
                     <span>FORGE ARCHETYPE</span>
                     <span className="text-[8px] text-amber-600/80 tracking-widest">[-15⚡ ESSENCE]</span>
                   </>
-                )}
+                ))}
               </button>
             </div>
           </div>
@@ -421,7 +482,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             {filteredClasses.map((c, idx) => {
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
-              const missingSpells = !c.initialSpells || c.initialSpells.length === 0;
+              const hasCorruptedArcanum = c.spellSlots && c.spellSlots.every(s => s === 0) && c.initialSpells && c.initialSpells.length > 0;
               const userIsAuthorOrSystem = isAuthor(c) || c.authorId === 'system';
 
               return (
@@ -438,7 +499,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                     <div className="flex-1 text-left">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-4">
-                          {!search && userIsAuthorOrSystem && (
+                          {!search && (
                             <div className="flex flex-col gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={(e) => handleMove(e, c.id, 'up')}
@@ -466,6 +527,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                   Legacy
                                 </span>
                               )}
+                              {hasCorruptedArcanum && (
+                                <span className="text-[7px] font-black text-red-500 uppercase tracking-widest bg-red-950/20 px-2 py-0.5 rounded-sm border border-red-900/30 animate-pulse">
+                                  Corrupted Arcanum
+                                </span>
+                              )}
                               {isAuthor(c) ? (
                                 <span className="text-[7px] font-black text-green-700 uppercase tracking-widest bg-green-950/20 px-2 py-0.5 rounded-sm border border-green-900/30">
                                   Your Legend
@@ -486,15 +552,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           >
                             🌀
                           </button>
-                          {userIsAuthorOrSystem && (
-                            <button 
-                              onClick={(e) => handleDelete(e, c)} 
-                              className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
-                              title="Banish Archetype"
-                            >
-                              🗑️
-                            </button>
-                          )}
+                          <button 
+                            onClick={(e) => handleDelete(e, c)} 
+                            className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
+                            title="Banish Archetype"
+                          >
+                            🗑️
+                          </button>
                         </div>
                       </div>
                       <p className={`text-base text-neutral-400 mt-4 italic font-serif italic leading-relaxed ${expandedId === c.id ? '' : 'line-clamp-2'}`}>
@@ -529,7 +593,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 
                                 {userIsAuthorOrSystem && (
                                   <>
-                                    {(missingSpells || expandedId === c.id) && (
+                                    {(expandedId === c.id) && (
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
                                         disabled={learningSpellsId === c.id || !reservoirReady}
@@ -538,13 +602,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                         {learningSpellsId === c.id ? 'SYNCHRONIZING...' : 'Sync Arcanum ✨'}
                                       </button>
                                     )}
-                                    {isLegacy && (
+                                    {(isLegacy || hasCorruptedArcanum) && (
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
                                         disabled={identifyingId === c.id || !reservoirReady}
                                         className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
                                       >
-                                        {identifyingId === c.id ? 'ANALYZING...' : 'Manifest Depths ⚡'}
+                                        {identifyingId === c.id ? 'REASSIGNING...' : 'Recalibrate Slots ⚡'}
                                       </button>
                                     )}
                                   </>

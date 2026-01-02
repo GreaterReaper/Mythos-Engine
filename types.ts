@@ -2,6 +2,7 @@
 export interface UserAccount {
   username: string;
   displayName: string;
+  isAdmin?: boolean;
 }
 
 export interface Stats {

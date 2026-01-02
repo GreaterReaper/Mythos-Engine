@@ -1,5 +1,5 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-// Added missing Rule import
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
 
 const cleanJson = (text: string) => {
@@ -29,6 +29,8 @@ const isHardLockoutActive = () => {
   return window.sessionStorage.getItem('mythos_lockout_active') === 'true';
 };
 
+const isAdmin = () => (window as any).isMythosAdmin === true;
+
 const getAI = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("ARCANE_FOCI_MISSING");
@@ -36,7 +38,9 @@ const getAI = () => {
 };
 
 async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
-  if (isHardLockoutActive()) throw new Error("RECALIBRATION_IN_PROGRESS");
+  const admin = isAdmin();
+  if (!admin && isHardLockoutActive()) throw new Error("RECALIBRATION_IN_PROGRESS");
+  
   try {
     return await fn();
   } catch (error: any) {
@@ -46,17 +50,19 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 50
 
     if (isQuota) {
       reportError(true, true);
-      throw new Error("DAILY_QUOTA_EXHAUSTED");
+      // Architects do not see the specific Quota Exhausted error if we can help it
+      if (!admin) throw new Error("DAILY_QUOTA_EXHAUSTED");
     }
 
     if (retries > 0 && isRateLimit) {
-      await new Promise(resolve => setTimeout(resolve, initialDelay));
+      const wait = admin ? initialDelay / 2 : initialDelay; // Faster retries for admins
+      await new Promise(resolve => setTimeout(resolve, wait));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
 
     if (isRateLimit) {
       reportError(true, false);
-      throw new Error("LEY_LINES_OVERLOADED");
+      if (!admin) throw new Error("LEY_LINES_OVERLOADED");
     }
 
     if (retries > 0) {
@@ -407,7 +413,6 @@ export const generateItemMechanics = async (name: string, type: string, descript
   });
 };
 
-/* Generate 5 core TTRPG rules based on campaign plot */
 export const generateRules = async (plot: string): Promise<Rule[]> => {
   trackUsage('utility', 15);
   return withRetry(async () => {

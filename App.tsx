@@ -68,7 +68,7 @@ const SYSTEM_MONSTERS: Monster[] = [
   {
     id: 'sys-orc',
     name: 'Orc Marauder',
-    description: 'A hulking brute with grey skin and tusks, wielding a rusted greataxe and driven by bloodlust.',
+    description: 'A hulking brute with grey skin and teeth, wielding a rusted greataxe and driven by bloodlust.',
     stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
     hp: 15,
     ac: 13,
@@ -147,7 +147,9 @@ const App: React.FC = () => {
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const saved = localStorage.getItem('mythos_active_session');
-    return saved ? JSON.parse(saved) : null;
+    const user = saved ? JSON.parse(saved) : null;
+    if (user) (window as any).isMythosAdmin = !!user.isAdmin;
+    return user;
   });
 
   const [arcaneTokens, setArcaneTokens] = useState<number>(3); 
@@ -270,6 +272,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
       const uPrefix = currentUser.username;
+      (window as any).isMythosAdmin = !!currentUser.isAdmin;
       const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
       setCharacters(savedChars ? JSON.parse(savedChars) : []);
       const savedClasses = localStorage.getItem(`${uPrefix}_mythos_classes`);
@@ -291,6 +294,8 @@ const App: React.FC = () => {
         localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
+    } else {
+      (window as any).isMythosAdmin = false;
     }
   }, [currentUser]);
 
@@ -319,9 +324,7 @@ const App: React.FC = () => {
     }, 1000);
 
     const handleUsage = (e: any) => {
-      // Bypassed for admins: skip usage increments
       if (currentUser?.isAdmin) return;
-
       const { type, cost } = e.detail;
       if (type === 'dm') {
         setArcaneTokens(prev => Math.max(prev - 1, 0));
@@ -338,9 +341,7 @@ const App: React.FC = () => {
     };
 
     const handleError = (e: any) => {
-      // Bypassed for admins: ignore lockout and quota events
       if (currentUser?.isAdmin) return;
-
       if (e.detail.isRateLimit) {
         setLockoutTime(LOCKOUT_DURATION);
         notify("Ley Lines Overloaded.", "error");
@@ -480,7 +481,7 @@ const App: React.FC = () => {
                 <span className={`text-[7px] font-bold ${proPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyProUsed}/${DAILY_PRO_LIMIT}`}</span>
               </div>
               <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
-                <div className={`h-full transition-all duration-1000 ${proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${currentUser.isAdmin ? 100 : proPercent}%` }}></div>
+                <div className={`h-full transition-all duration-1000 ${currentUser.isAdmin ? 'bg-blue-500' : (proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : proPercent}%` }}></div>
               </div>
            </div>
 
@@ -490,7 +491,7 @@ const App: React.FC = () => {
                 <span className={`text-[7px] font-bold ${flashPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyFlashUsed}/${DAILY_FLASH_LIMIT}`}</span>
               </div>
               <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
-                <div className={`h-full transition-all duration-1000 ${flashPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${currentUser.isAdmin ? 100 : flashPercent}%` }}></div>
+                <div className={`h-full transition-all duration-1000 ${currentUser.isAdmin ? 'bg-blue-500' : (flashPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : flashPercent}%` }}></div>
               </div>
            </div>
         </div>

@@ -179,6 +179,52 @@ const App: React.FC = () => {
         ac: 13,
         abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
         imageUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&q=80&w=400'
+      },
+      {
+        id: 'basic-orc',
+        name: 'Orc Marauder',
+        description: 'A hulking brute with grey skin and tusks, wielding a rusted greataxe.',
+        stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
+        hp: 15,
+        ac: 13,
+        abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }],
+        imageUrl: 'https://images.unsplash.com/photo-1605142859862-978be7eba909?auto=format&fit=crop&q=80&w=400'
+      },
+      {
+        id: 'boss-sentinel',
+        name: 'The Obsidian Sentinel',
+        description: 'A towering construct of dark stone and glowing ley-veins, guarding ancient vaults.',
+        isBoss: true,
+        stats: { strength: 20, dexterity: 8, constitution: 20, intelligence: 3, wisdom: 11, charisma: 1 },
+        hp: 120,
+        ac: 18,
+        abilities: [
+          { name: 'Immutable Form', effect: 'Immune to any effect that would alter its form.' },
+          { name: 'Magic Resistance', effect: 'Advantage on saving throws against spells and other magical effects.' }
+        ],
+        legendaryActions: [
+          { name: 'Obsidian Smash', effect: 'Make one slam attack (+8 to hit, 3d10+5 bludgeoning).' },
+          { name: 'Ley Pulse', effect: 'Emanate a wave of force. Nearby creatures must succeed a DC 15 STR save or be knocked prone.' }
+        ],
+        imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=400'
+      },
+      {
+        id: 'boss-malakor',
+        name: 'Malakor the Betrayer',
+        description: 'A fallen wizard whose soul is bound to a necrotic shroud. He seeks the erasure of all history.',
+        isBoss: true,
+        stats: { strength: 8, dexterity: 14, constitution: 16, intelligence: 20, wisdom: 14, charisma: 18 },
+        hp: 95,
+        ac: 15,
+        abilities: [
+          { name: 'Ethereal Jaunt', effect: 'As a bonus action, magically shift from the Material Plane to the Ethereal Plane, or vice-versa.' },
+          { name: 'Grasp of the Grave', effect: 'Melee weapon attack deals 4d6 necrotic damage and the target is grappled.' }
+        ],
+        legendaryActions: [
+          { name: 'Cantrip', effect: 'Cast a cantrip or level 1 spell.' },
+          { name: 'Siphon Vitality', effect: 'A creature within 60ft must make a DC 16 CON save or take 3d8 necrotic damage, healing Malakor for half.' }
+        ],
+        imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=400'
       }
     ];
 
@@ -206,7 +252,7 @@ const App: React.FC = () => {
     const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
 
     setClasses(syncedClasses);
-    setMonsters(prev => [...prev.filter(m => !m.id.startsWith('basic')), ...basicMonsters]);
+    setMonsters(prev => [...prev.filter(m => !m.id.startsWith('basic') && !m.id.startsWith('boss')), ...basicMonsters]);
     setItems(prev => [...prev.filter(i => !i.id.startsWith('basic')), ...basicItems]);
     notify("Arcanum Synchronized. Basic content manifested.", "success");
   };

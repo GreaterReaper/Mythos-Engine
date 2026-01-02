@@ -284,6 +284,42 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
   });
 };
 
+export const generateClassEquipment = async (className: string, classDesc: string): Promise<Item[]> => {
+  trackUsage('utility', 15);
+  return withRetry(async () => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Generate 2 thematic signature weapons for the class: ${className}. Lore: ${classDesc}. 
+      RULES: mechanics MUST be pure rules-text.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING },
+              type: { type: Type.STRING, enum: ["Weapon"] },
+              description: { type: Type.STRING },
+              mechanics: { 
+                type: Type.ARRAY, 
+                items: { 
+                  type: Type.OBJECT, 
+                  properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } 
+                } 
+              },
+              lore: { type: Type.STRING }
+            },
+            required: ["name", "type", "description", "mechanics", "lore"]
+          }
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '[]'));
+  });
+};
+
 export const generateSummary = async (logs: GameLog[], currentSummary: string): Promise<string> => {
   trackUsage('utility', 5);
   return withRetry(async () => {

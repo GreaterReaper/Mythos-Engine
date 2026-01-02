@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ClassDef, SyncMessage, Spell, UserAccount } from '../types';
-import { generateClassMechanics, generateSpellbook, rerollTraits } from '../services/gemini';
+import { ClassDef, SyncMessage, Spell, UserAccount, Item } from '../types';
+import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment } from '../services/gemini';
 
 interface ClassLibraryProps {
   classes: ClassDef[];
@@ -10,14 +10,17 @@ interface ClassLibraryProps {
   reservoirReady: boolean;
   syncSpells?: (classList: ClassDef[]) => ClassDef[];
   currentUser: UserAccount;
+  items: Item[];
+  setItems: React.Dispatch<React.SetStateAction<Item[]>>;
 }
 
-const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady, syncSpells, currentUser }) => {
+const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady, syncSpells, currentUser, items, setItems }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [identifyingId, setIdentifyingId] = useState<string | null>(null);
   const [learningSpellsId, setLearningSpellsId] = useState<string | null>(null);
+  const [forgingHeirloomId, setForgingHeirloomId] = useState<string | null>(null);
   const [rerolling, setRerolling] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -67,15 +70,51 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       
       const updatedList = syncSpells ? syncSpells([...classes, newClass]) : [...classes, newClass];
       updateAndSync(updatedList);
+      
+      // Auto-generate starter equipment
+      try {
+        const signatureItems = await generateClassEquipment(name, description);
+        const keyedItems = signatureItems.map(si => ({ ...si, id: Math.random().toString(36).substr(2, 9) }));
+        setItems(prev => [...prev, ...keyedItems]);
+        if (broadcast) {
+          keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
+        }
+        notify(`Archetype and Signature Gear Bound`, "success");
+      } catch (itemErr) {
+        console.error("Failed to forge starter items:", itemErr);
+        notify(`Archetype Bound, but the Forge failed to yield relics.`, "info");
+      }
+
       setName('');
       setDescription('');
       setExpandedId(newClass.id);
-      notify(`Archetype "${name}" Bound`, "success");
     } catch (e: any) {
       console.error(e);
       notify(e.message || "The Forge failed to respond.", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManifestHeirloom = async (cls: ClassDef) => {
+    if (!isAuthor(cls)) {
+      notify("Only the original author can manifest these heirlooms.", "error");
+      return;
+    }
+    if (!reservoirReady || forgingHeirloomId) return;
+    setForgingHeirloomId(cls.id);
+    try {
+      const signatureItems = await generateClassEquipment(cls.name, cls.description);
+      const keyedItems = signatureItems.map(si => ({ ...si, id: Math.random().toString(36).substr(2, 9) }));
+      setItems(prev => [...prev, ...keyedItems]);
+      if (broadcast) {
+        keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
+      }
+      notify(`Heirlooms of "${cls.name}" Manifested in Armory`, "success");
+    } catch (e: any) {
+      notify(e.message, "error");
+    } finally {
+      setForgingHeirloomId(null);
     }
   };
 
@@ -141,7 +180,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
     let currentClasses = [...classes];
     for (const cls of legacyRecords) {
-      // For bulk manifestation, we only update if user is author OR it's a system class (handled by App's manifestBasics normally)
       if (!isAuthor(cls) && cls.authorId !== 'system') continue;
       
       try {
@@ -304,7 +342,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                 {loading ? 'BINDING SOUL...' : !reservoirReady ? 'ENERGY LOW...' : (
                   <>
                     <span>FORGE ARCHETYPE</span>
-                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-10⚡ ESSENCE]</span>
+                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-15⚡ ESSENCE]</span>
                   </>
                 )}
               </button>
@@ -427,6 +465,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                               <div className="flex gap-2">
                                 {userIsAuthor && (
                                   <>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleManifestHeirloom(c); }}
+                                      disabled={forgingHeirloomId === c.id || !reservoirReady}
+                                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                    >
+                                      {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Heirloom ⚔️'}
+                                    </button>
                                     {(missingSpells || expandedId === c.id) && (
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}

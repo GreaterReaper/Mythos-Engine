@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Item, ItemMechanic, SyncMessage } from '../types';
 import { generateItemMechanics, generateImage, rerollTraits } from '../services/gemini';
@@ -9,9 +8,10 @@ interface ArmoryProps {
   broadcast?: (msg: Partial<SyncMessage>) => void;
   notify: (message: string, type?: any) => void;
   reservoirReady: boolean;
+  manifestBasics?: (scope: 'items') => void;
 }
 
-const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady }) => {
+const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady, manifestBasics }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
   const [description, setDescription] = useState('');
@@ -41,7 +41,6 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
     try {
-      // SEQUENTIAL API CALLS TO PREVENT LEY LINE OVERLOADS (429)
       const { mechanics, lore } = await generateItemMechanics(name, type, description);
       const imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
       
@@ -116,28 +115,79 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     }
   };
 
+  const handleDelete = (e: React.MouseEvent, item: Item) => {
+    e.stopPropagation();
+    if (window.confirm(`Are you certain you want to banish "${item.name}"?`)) {
+      setItems(prev => prev.filter(x => x.id !== item.id));
+    }
+  };
+
   return (
-    <div className="space-y-12 pb-12">
-      <div className="text-center">
-        <h2 className="text-4xl font-black fantasy-font text-[#b28a48] drop-shadow-lg">Royal Armory</h2>
-        <p className="text-neutral-600 text-xs uppercase tracking-[0.4em] mt-2">Relics of Power & Protection</p>
+    <div className="space-y-8 pb-12">
+      <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-[#b28a48]/20 pb-4">
+        <div>
+          <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48] tracking-widest">Royal Armory</h2>
+          <p className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black mt-2">Relics of Power & Protection</p>
+        </div>
+        
+        <button 
+          onClick={() => manifestBasics && manifestBasics('items')}
+          className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+        >
+          <span className="animate-pulse">✨</span>
+          Manifest Relic Archive
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/3">
-          <div className="grim-card p-6 border-dashed border-[#b28a48]/20 border-2 rounded-sm sticky top-4">
-            <h3 className="text-lg font-black mb-6 fantasy-font text-neutral-300">Forge New Relic</h3>
-            <div className="space-y-4">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="RELIC NAME..." className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none" />
-              <select value={type} onChange={(e) => setType(e.target.value as any)} className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-neutral-400 uppercase tracking-widest outline-none">
-                <option value="Weapon">Weapon</option>
-                <option value="Armor">Armor</option>
-              </select>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="DESCRIBE THE ARTIFACT'S LEGEND..." className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-32 text-xs text-neutral-500 uppercase tracking-tight focus:border-[#b28a48] outline-none font-serif italic" />
-              <button onClick={handleCreate} disabled={loading || !name || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-4 font-black text-[10px] uppercase tracking-[0.3em] transition-all disabled:opacity-20 flex flex-col items-center gap-1">
-                {loading ? 'FORGING...' : (
+          <div className="grim-card p-6 border-dashed border-[#b28a48]/20 border-2 rounded-sm sticky top-4 shadow-2xl">
+            <h3 className="text-xl font-black mb-6 fantasy-font text-neutral-300">Forge New Relic</h3>
+            <div className="space-y-5">
+              <div className="space-y-1">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Artifact Name</label>
+                <input 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  placeholder="RELIC NAME..." 
+                  className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none font-bold" 
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Relic Category</label>
+                <div className="relative">
+                  <select 
+                    value={type} 
+                    onChange={(e) => setType(e.target.value as any)} 
+                    className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-neutral-400 uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48]"
+                  >
+                    <option value="Weapon">Weapon</option>
+                    <option value="Armor">Armor</option>
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-neutral-600 font-black">▼</div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Appearance & Myth</label>
+                <textarea 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)} 
+                  placeholder="DESCRIBE THE ARTIFACT'S LEGEND..." 
+                  className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 h-32 text-xs text-neutral-500 focus:border-[#b28a48] outline-none font-serif italic leading-relaxed shadow-inner" 
+                />
+              </div>
+
+              <button 
+                onClick={handleCreate} 
+                disabled={loading || !name || !reservoirReady} 
+                className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-5 text-[11px] font-black uppercase tracking-[0.4em] transition-all disabled:opacity-20 shadow-xl active:scale-95 flex flex-col items-center gap-1"
+              >
+                {loading ? 'BINDING RELIC...' : (
                   <>
-                    <span>BIND RELIC</span>
+                    <span>FORGE RELIC</span>
+                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-10⚡ ESSENCE]</span>
                   </>
                 )}
               </button>
@@ -147,25 +197,59 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
         <div className="lg:w-2/3 space-y-6">
           <div className="bg-black/60 border border-[#b28a48]/20 p-4 rounded-sm flex flex-wrap items-center gap-4">
-            <input type="text" placeholder="Search armory..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[200px] bg-neutral-900/50 border border-neutral-800 px-4 py-2 text-[10px] uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none" />
+            <input 
+              type="text" 
+              placeholder="Search Royal Armory..." 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              className="flex-1 min-w-[200px] bg-black border border-neutral-900 px-4 py-3 text-xs uppercase tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none rounded-sm" 
+            />
+            <div className="flex gap-2">
+              {['All', 'Weapon', 'Armor'].map(f => (
+                <button 
+                  key={f}
+                  onClick={() => setTypeFilter(f)}
+                  className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest border transition-all rounded-sm ${typeFilter === f ? 'bg-[#b28a48] border-[#b28a48] text-black' : 'bg-black border-neutral-800 text-neutral-500 hover:border-neutral-700'}`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-6">
-            {filteredItems.map(item => (
+            {filteredItems.length === 0 ? (
+               <div className="py-24 px-8 text-center bg-black/40 border-2 border-dashed border-[#b28a48]/10 rounded-sm flex flex-col items-center justify-center min-h-[400px]">
+                  <div className="text-6xl mb-6 opacity-30">🛡️</div>
+                  <h3 className="text-xl font-black fantasy-font text-neutral-600 mb-4 uppercase tracking-[0.2em]">The Vault is Empty</h3>
+                  <p className="text-xs text-neutral-500 max-w-sm font-serif italic mb-8">
+                    No relics have been forged or manifest in this chronicle yet.
+                  </p>
+                  <button 
+                    onClick={() => manifestBasics && manifestBasics('items')}
+                    className="bg-blue-950/20 border-2 border-blue-500/50 hover:bg-blue-500 text-blue-400 hover:text-white px-12 py-5 text-xs font-black uppercase tracking-[0.5em] transition-all shadow-[0_0_30px_rgba(59,130,246,0.1)] active:scale-95"
+                  >
+                    Manifest Relic Archive
+                  </button>
+               </div>
+            ) : filteredItems.map(item => (
               <div 
                 key={item.id} 
                 onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                className={`grim-card group transition-all duration-500 border-2 cursor-pointer ${expandedId === item.id ? 'border-[#b28a48]/60 shadow-2xl' : 'border-neutral-900 hover:border-neutral-800'}`}
+                className={`grim-card group transition-all duration-500 border-2 cursor-pointer rounded-sm overflow-hidden ${expandedId === item.id ? 'border-[#b28a48]/60 shadow-[0_0_50px_rgba(0,0,0,0.5)]' : 'border-neutral-900 hover:border-neutral-800'}`}
               >
                 <div className="flex flex-col md:flex-row">
-                  <div className={`h-48 md:h-auto md:w-56 relative grayscale group-hover:grayscale-0 transition-all duration-700 ${expandedId === item.id ? 'grayscale-0' : ''}`}>
-                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
+                  <div className={`h-48 md:h-auto md:w-56 relative grayscale group-hover:grayscale-0 transition-all duration-700 overflow-hidden flex-shrink-0 ${expandedId === item.id ? 'grayscale-0' : ''}`}>
+                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover transform transition-transform duration-1000 group-hover:scale-110" alt={item.name} /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
                   </div>
                   
-                  <div className="p-6 flex-1 flex flex-col justify-between">
+                  <div className="p-8 flex-1 flex flex-col justify-between">
                     <div className="text-left">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-2xl font-black fantasy-font text-[#b28a48]">{item.name}</h4>
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-2xl md:text-3xl font-black fantasy-font text-[#b28a48] tracking-widest">{item.name}</h4>
+                          {item.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-[0.2em] uppercase opacity-60">System</span>}
+                        </div>
                         <div className="flex gap-2">
                           <button 
                             onClick={(e) => handleShareIndividual(e, item)}
@@ -174,32 +258,32 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           >
                             🌀
                           </button>
-                          <button onClick={(e) => { e.stopPropagation(); setItems(prev => prev.filter(x => x.id !== item.id)); }} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>
+                          <button onClick={(e) => handleDelete(e, item)} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>
                         </div>
                       </div>
-                      <p className="text-[10px] text-neutral-500 uppercase tracking-widest font-black mb-2">{item.type}</p>
-                      <p className={`text-sm text-neutral-400 font-serif italic leading-relaxed ${expandedId === item.id ? '' : 'line-clamp-2'}`}>{item.description}</p>
+                      <p className="text-[9px] text-amber-900 uppercase tracking-[0.4em] font-black mb-3">{item.type}</p>
+                      <p className={`text-sm md:text-base text-neutral-400 font-serif italic leading-relaxed ${expandedId === item.id ? '' : 'line-clamp-2'}`}>{item.description}</p>
                     </div>
                   </div>
                 </div>
 
                 {expandedId === item.id && (
-                  <div className="p-8 border-t border-neutral-900 bg-neutral-950/20 space-y-8 animate-in slide-in-from-top-2">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
-                      <div className="space-y-4">
-                        <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-neutral-800 pb-2">Ancient Lore</h5>
-                        <p className="text-sm text-neutral-400 font-serif italic leading-relaxed">{item.lore}</p>
+                  <div className="p-8 md:p-12 border-t border-neutral-900 bg-black/40 space-y-12 animate-in slide-in-from-top-2 duration-500">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 text-left">
+                      <div className="space-y-6">
+                        <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.4em] border-b border-neutral-900 pb-2">Ancient Lore</h5>
+                        <p className="text-sm md:text-base text-neutral-400 font-serif italic leading-relaxed whitespace-pre-wrap">{item.lore}</p>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
-                          <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Arcane Mechanics</h5>
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center border-b border-neutral-900 pb-2">
+                          <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.4em]">Arcane Properties</h5>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleReroll(item); }}
                             disabled={rerolling === item.id || !reservoirReady}
-                            className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20"
+                            className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 disabled:opacity-20"
                           >
-                            {rerolling === item.id ? 'REWEAVING...' : 'Reroll Properties 🎲'}
+                            {rerolling === item.id ? 'REWEAVING...' : <span>Reroll Properties 🎲</span>}
                           </button>
                         </div>
                         <div className="space-y-3">
@@ -207,18 +291,21 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                             <div 
                               key={i}
                               onClick={(e) => { e.stopPropagation(); toggleLock(item.id, i); }}
-                              className={`p-4 border rounded-sm transition-all cursor-pointer ${mech.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
+                              className={`p-6 border rounded-sm transition-all cursor-pointer relative group/mech ${mech.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black/60 border-neutral-900 hover:border-neutral-700'}`}
                             >
-                              <div className="flex items-start gap-3">
-                                <span className={`text-lg mt-0.5 ${mech.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{mech.locked ? '†' : '○'}</span>
+                              <div className="flex items-start gap-4">
+                                <span className={`text-xl mt-0.5 transition-colors ${mech.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{mech.locked ? '†' : '○'}</span>
                                 <div>
-                                  <h6 className={`text-xs font-black uppercase tracking-wider ${mech.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{mech.name}</h6>
-                                  <p className="text-[11px] text-neutral-500 italic font-serif leading-relaxed">{mech.description}</p>
+                                  <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${mech.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{mech.name}</h6>
+                                  <p className="text-xs md:text-sm text-neutral-400 italic font-serif leading-relaxed">{mech.description}</p>
                                 </div>
                               </div>
                             </div>
                           ))}
                         </div>
+                        {item.mechanics.length === 0 && (
+                          <p className="text-neutral-700 text-xs italic p-4 text-center border border-dashed border-neutral-900">No properties inscribed.</p>
+                        )}
                       </div>
                     </div>
                   </div>

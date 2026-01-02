@@ -115,6 +115,60 @@ const SYSTEM_MONSTERS: Monster[] = [
   }
 ];
 
+const SYSTEM_ITEMS: Item[] = [
+  {
+    id: 'sys-iron-longsword',
+    name: 'Iron Longsword',
+    type: 'Weapon',
+    description: 'A well-balanced blade of cold-forged iron. Reliable and versatile.',
+    mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage (1d10 if used with two hands).' }],
+    lore: 'Standard issue for the King\'s Guard, forged in the royal foundry.',
+    imageUrl: 'https://images.unsplash.com/photo-1513360371669-4ada307f8df8?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-healing-potion',
+    name: 'Lesser Healing Potion',
+    type: 'Weapon', // Using 'Weapon' as per the existing type definition logic for consumables in manifestBasics
+    description: 'A bubbling red liquid that smells of medicinal cherries.',
+    mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points as an action.' }],
+    lore: 'Brewed in the temple of the Dawn Mother to aid travelers.',
+    imageUrl: 'https://images.unsplash.com/photo-1527333656061-ca7adf608ae1?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-plate-armor',
+    name: 'Steel Plate Armor',
+    type: 'Armor',
+    description: 'Interlocking metal plates covering the entire body over a suit of chain mail.',
+    mechanics: [{ name: 'Heavy Protection', description: 'Grants an AC of 18. Disadvantage on Stealth checks.' }],
+    lore: 'Worn by knights of the highest order, polished to a mirror finish.',
+    imageUrl: 'https://images.unsplash.com/photo-1548366478-29497e008a09?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-relic-sunblade',
+    name: 'Sun-Seeker\'s Blade',
+    type: 'Weapon',
+    description: 'A longsword with a blade made of literal, solid light. It hums with celestial energy.',
+    mechanics: [
+      { name: 'Sunlight', description: 'Deals 1d8 radiant damage. The blade sheds bright light in a 15ft radius.' },
+      { name: 'Undead Scourge', description: 'Deals an extra 1d8 radiant damage to undead targets.' }
+    ],
+    lore: 'Said to be a fragment of a dying star, wielded by the first Solar Paladin.',
+    imageUrl: 'https://images.unsplash.com/photo-1519750783826-e2420f4d687f?auto=format&fit=crop&q=80&w=400'
+  },
+  {
+    id: 'sys-relic-voidplate',
+    name: 'Void-Hardened Plate',
+    type: 'Armor',
+    description: 'Armor forged from metal cooled in the vacuum between stars. It seems to swallow nearby light.',
+    mechanics: [
+      { name: 'Void Ward', description: 'Grants resistance to necrotic and force damage.' },
+      { name: 'Singularity AC', description: 'AC 19. Attackers cannot have advantage on attacks against the wearer.' }
+    ],
+    lore: 'Found in the wreckage of a crashed obsidian spire. It pulses with a dark, steady rhythm.',
+    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=400'
+  }
+];
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'rules'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -192,11 +246,17 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const manifestBasics = (scope: 'all' | 'monsters' = 'all') => {
+  const manifestBasics = (scope: 'all' | 'monsters' | 'items' = 'all') => {
     if (scope === 'all' || scope === 'monsters') {
       const existingIds = new Set(monsters.map(m => m.id));
       const monstersToAdd = SYSTEM_MONSTERS.filter(m => !existingIds.has(m.id));
       setMonsters(prev => [...prev, ...monstersToAdd]);
+    }
+
+    if (scope === 'all' || scope === 'items') {
+      const existingIds = new Set(items.map(i => i.id));
+      const itemsToAdd = SYSTEM_ITEMS.filter(i => !existingIds.has(i.id));
+      setItems(prev => [...prev, ...itemsToAdd]);
     }
 
     if (scope === 'all') {
@@ -235,30 +295,8 @@ const App: React.FC = () => {
         }
       ];
 
-      const basicItems: Item[] = [
-        {
-          id: 'basic-sword',
-          name: 'Iron Longsword',
-          type: 'Weapon',
-          description: 'A well-balanced blade of cold-forged iron.',
-          mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage.' }],
-          lore: 'Standard issue for the King\'s Guard.',
-          imageUrl: 'https://images.unsplash.com/photo-1513360371669-4ada307f8df8?auto=format&fit=crop&q=80&w=400'
-        },
-        {
-          id: 'basic-potion',
-          name: 'Lesser Healing Potion',
-          type: 'Weapon', 
-          description: 'A bubbling red liquid that smells of cherries.',
-          mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points.' }],
-          lore: 'Brewed in the temple of the Dawn Mother.',
-          imageUrl: 'https://images.unsplash.com/photo-1527333656061-ca7adf608ae1?auto=format&fit=crop&q=80&w=400'
-        }
-      ];
-
       const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
       setClasses(syncedClasses);
-      setItems(prev => [...prev.filter(i => !i.id.startsWith('basic')), ...basicItems]);
     }
     
     notify("Arcanum Synchronized. Basic content manifested.", "success");
@@ -499,7 +537,7 @@ const App: React.FC = () => {
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} syncSpells={syncAllClassesToSpells} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
-          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
           {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoir >= 1 && !isExhausted} broadcast={broadcast} setActiveTab={setActiveTab} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {

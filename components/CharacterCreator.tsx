@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -204,14 +203,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
   const handleStatChange = (stat: keyof Stats, delta: number) => {
     const newVal = stats[stat] + delta;
-    
-    // Architect bypass for Point Buy restrictions
-    if (currentUser.isAdmin) {
-      if (newVal < 1 || newVal > 30) return;
-      setStats(prev => ({ ...prev, [stat]: newVal }));
-      return;
-    }
-
     if (newVal < 8 || newVal > 15) return;
     const costDiff = (POINT_COSTS[newVal] || 0) - (POINT_COSTS[stats[stat]] || 0);
     if (pointsRemaining - costDiff < 0) return;
@@ -331,7 +322,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     try {
       const cls = classes.find(c => c.id === char.classId);
       const spells = await generateSpellbook(cls?.name || 'Mage', cls?.description || '', char.level);
-      // Fix: Use 'c.id' instead of undefined 'i.id'
       setCharacters(prev => prev.map(c => c.id === char.id ? { ...c, knownSpells: spells } : c));
       notify("Arcane Grimoire Updated.", "success");
     } catch (e: any) { notify("Spells Failed to Coalesce.", "error"); } finally { setLearningSpells(null); }
@@ -473,8 +463,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
               <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Base Statistics {currentUser.isAdmin ? '(Unlocked)' : '(Point Buy)'}</label>
-                  {!currentUser.isAdmin && <span className="text-[9px] font-bold text-neutral-500 tracking-tighter">{pointsRemaining} PTS LEFT</span>}
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Base Statistics (Point Buy)</label>
+                  <span className="text-[9px] font-bold text-neutral-500 tracking-tighter">{pointsRemaining} PTS LEFT</span>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {(Object.keys(INITIAL_STATS) as Array<keyof Stats>).map((s) => {

@@ -99,7 +99,7 @@ const ArchivePanel: React.FC<ArchivePanelProps> = ({ data, onImport, manifestBas
           <div className="space-y-3 text-center md:text-left flex-1">
             <h3 className="text-lg font-black fantasy-font text-blue-400">Starter Grimoire</h3>
             <p className="text-[10px] text-neutral-500 uppercase tracking-widest leading-relaxed">
-              New to the realm? Manifest a basic set of standard classes, items, and monsters to begin your saga immediately.
+              New to the realm? Manifest a basic set of standard classes, items, monsters, and heroes (Miri, Seris, Lina) to begin your saga immediately.
             </p>
           </div>
           <button

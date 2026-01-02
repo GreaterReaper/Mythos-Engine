@@ -79,46 +79,46 @@ const SYSTEM_MONSTERS: Monster[] = [
   {
     id: 'sys-gorechimera',
     name: 'Gorechimera',
-    description: 'A nightmare beast with the head of a lion, the body and head of a goat, and a venomous serpent for a tail. Its pallid skin marks it as a far more dangerous variant of the standard Chimera.',
+    description: 'A pallid, nightmare variant of the standard Chimera. It features the head and shoulders of a lion, the body and head of a goat, and a serpent tail that spews lethal venom.',
     isBoss: true,
-    stats: { strength: 20, dexterity: 12, constitution: 18, intelligence: 11, wisdom: 14, charisma: 10 },
-    hp: 185,
-    ac: 17,
-    abilities: [
-      { name: 'Venomous Serpent', effect: 'Serpent tail attacks deal 2d6 piercing + 3d6 poison damage. Target must succeed DC 15 CON save or be Poisoned.' },
-      { name: 'Lion Head Rend', effect: 'Multi-attack with claws and bite. Deals 2d10+5 slashing damage per hit.' },
-      { name: 'Goat Head Revival', effect: 'The goat head can revive one slain non-boss monster within 30ft or fully heal one of its other heads once per turn.' }
-    ],
-    legendaryActions: [
-      { name: 'Triple Strike', effect: 'All three heads attack different targets simultaneously.' },
-      { name: 'Venom Cloud', effect: 'Serpent tail spews a 15ft cone of poison. 6d6 poison damage (DEX save half).' },
-      { name: 'Healers Bleat', effect: 'The goat head releases a pulse that heals all allies within 30ft for 4d8 hit points.' }
-    ],
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-shadow-stalker',
-    name: 'Shadow Stalker',
-    description: 'A lithe, spectral predator that vanishes into darkness, leaving only the sound of rattling chains.',
-    stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 13, wisdom: 14, charisma: 16 },
-    hp: 45,
-    ac: 15,
-    abilities: [
-      { name: 'Shadow Jump', effect: 'Teleport up to 30ft from one area of dim light to another as a bonus action.' },
-      { name: 'Sneak Attack', effect: 'Deals extra 3d6 damage if it has advantage on the attack.' }
-    ],
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-ancient-golem',
-    name: 'Obsidian Golem',
-    description: 'A massive construct of polished dark stone, immune to simple weapons and tireless in its vigil.',
-    stats: { strength: 22, dexterity: 9, constitution: 20, intelligence: 3, wisdom: 11, charisma: 1 },
-    hp: 95,
+    stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 12, wisdom: 16, charisma: 14 },
+    hp: 240,
     ac: 18,
     abilities: [
-      { name: 'Magic Resistance', effect: 'Advantage on saves against spells.' },
-      { name: 'Immutable Form', effect: 'Immune to any effect that would change its shape.' }
+      { name: 'Venomous Serpent', effect: 'The tail spews a 15ft cone of venom. Targets take 4d6 poison damage and are Poisoned (DC 16 CON half).' },
+      { name: 'Lion head Rend', effect: 'Melee weapon attack: +10 to hit, reach 10ft. Deals 3d10+6 slashing damage.' },
+      { name: 'Goat head Restoration', effect: 'The goat head can use its action to revive one non-boss Monster to half HP or fully heal one of the Gorechimera\'s other heads.' }
+    ],
+    legendaryActions: [
+      { name: 'Triple Strike', effect: 'Each head makes an attack against a different target.' },
+      { name: 'Goat\'s Bleat', effect: 'A magical pulse heals all allied creatures within 40ft for 4d8 + 4 HP.' },
+      { name: 'Serpent Lash', effect: 'Attacks with its tail; target is Restrained and Poisoned until the end of its next turn.' }
+    ],
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-wraith',
+    name: 'Sorrowful Wraith',
+    description: 'A flickering shade of blue-black smoke, reaching out with frozen claws for the warmth of the living.',
+    stats: { strength: 6, dexterity: 16, constitution: 16, intelligence: 12, wisdom: 14, charisma: 15 },
+    hp: 67,
+    ac: 13,
+    abilities: [
+      { name: 'Incorporeal Movement', effect: 'Can move through other creatures and objects as if they were difficult terrain.' },
+      { name: 'Life Drain', effect: 'Melee spell attack: target takes 4d8 necrotic damage and its HP max is reduced by that amount.' }
+    ],
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-harpy',
+    name: 'Siren Harpy',
+    description: 'A hideous fusion of woman and vulture, its song carries a magical weight that pulls even the strongest into a trance.',
+    stats: { strength: 12, dexterity: 13, constitution: 12, intelligence: 7, wisdom: 10, charisma: 13 },
+    hp: 38,
+    ac: 11,
+    abilities: [
+      { name: 'Luring Song', effect: 'Allies within 300ft who hear it must succeed a DC 11 WIS save or be Charmed.' },
+      { name: 'Claws', effect: 'Melee weapon attack: +3 to hit, deals 2d4+1 slashing damage.' }
     ],
     authorId: 'Orestara', authorName: 'Orestara'
   }
@@ -148,7 +148,7 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Crest of Mercy',
     type: 'Weapon',
     description: 'A white-ash staff that pulses with soft golden light.',
-    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled.' }],
+    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled. Grants resistance to necrotic damage.' }],
     lore: 'A gift from Orestara to the first Mages of the Order.',
     authorId: 'Orestara', authorName: 'Orestara'
   }
@@ -238,7 +238,7 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const manifestBasics = (scope: 'all' | 'monsters' | 'items' = 'all') => {
+  const manifestBasics = (scope: 'all' | 'monsters' | 'items' | 'heroes' = 'all') => {
     if (scope === 'all' || scope === 'monsters') {
       const existingIds = new Set(monsters.map(m => m.id));
       const monstersToAdd = SYSTEM_MONSTERS.filter(m => !existingIds.has(m.id));
@@ -249,17 +249,78 @@ const App: React.FC = () => {
       const itemsToAdd = SYSTEM_ITEMS.filter(i => !existingIds.has(i.id));
       setItems(prev => [...prev, ...itemsToAdd]);
     }
+    if (scope === 'all' || scope === 'heroes') {
+      const heroes: Character[] = [
+        {
+          id: 'hero-miri',
+          name: 'Miri',
+          classId: 'basic-fighter',
+          race: 'Human',
+          gender: 'Female',
+          description: "An energetic and impulsive swordswoman with a bright, playful personality. She's loud, expressive, and often invades personal space, always full of restless enthusiasm.",
+          level: 1,
+          stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 11, wisdom: 11, charisma: 11 },
+          hp: 12, maxHp: 12,
+          feats: [
+            { name: 'Restless Spirit', description: 'Miri has advantage on initiative rolls and cannot be surprised.' },
+            { name: 'Sword Mastery', description: 'Deals extra 1d4 damage with one-handed swords.' }
+          ],
+          inventory: ['sys-iron-longsword'],
+          isPlayer: true
+        },
+        {
+          id: 'hero-seris',
+          name: 'Seris',
+          classId: 'basic-archer',
+          race: 'Elf',
+          gender: 'Female',
+          description: "A reserved Elven archer who prefers distance and quiet. Despite being easily flustered she tries to keep a cool and aloof façade. Her blunt and sarcastic demeanor usually spurs from embarrassment rather than anger.",
+          level: 1,
+          stats: { strength: 8, dexterity: 17, constitution: 13, intelligence: 14, wisdom: 14, charisma: 10 },
+          hp: 9, maxHp: 9,
+          feats: [
+            { name: 'Aloof Precision', description: 'Gains a +2 bonus to attack rolls if no allies are within 10ft.' },
+            { name: 'Keen Senses', description: 'Heritage grants advantage on Perception checks.' }
+          ],
+          inventory: ['sys-sky-piercer-bow'],
+          isPlayer: false
+        },
+        {
+          id: 'hero-lina',
+          name: 'Lina',
+          classId: 'basic-mage',
+          race: 'Human',
+          gender: 'Female',
+          description: "A petite, shy priestess from a small rural chapel. She gets overwhelmed easily, but her gentle nature never wavers even in the heat of battle.",
+          level: 1,
+          stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
+          hp: 12, maxHp: 12,
+          feats: [
+            { name: 'Rural Kindness', description: 'When Lina heals a target, they gain a 1d4 bonus to their next saving throw.' },
+            { name: 'Petite Stature', description: 'Has advantage on Stealth checks to hide in small spaces.' }
+          ],
+          inventory: ['sys-menders-staff'],
+          knownSpells: [
+            { name: 'Blessing of the Chapel', level: 1, school: 'Abjuration', description: 'Target gains +1 to AC and saves for 1 minute.' }
+          ],
+          isPlayer: false
+        }
+      ];
+      const existingHeroIds = new Set(characters.map(c => c.id));
+      const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
+      setCharacters(prev => [...prev, ...heroesToAdd]);
+    }
     if (scope === 'all') {
       const basicClasses: ClassDef[] = [
         {
           id: 'basic-warrior',
           name: 'Warrior',
-          description: 'Mighty warriors who wield two-handed swords and hammers. They invigorate themselves and allies with a mighty roar. Wearing imposing full plate armor, they possess naturally high resistance to being knocked prone. Their crushing blows send foes reeling, easily knocking them prone. They can charge up an attack that grows in strength based on damage taken during the charge, unleashing a devastating downward swing.',
+          description: 'Mighty warriors who wield two-handed swords and hammers. They invigorate themselves and allies with a mighty roar. Wearing imposing full plate armor, they possess naturally high resistance to being knocked prone.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery', 'Prone Resistance'], 
           features: [
             { name: 'Mighty Roar', description: 'Unleash a roar that invigorates you and allies, granting 1d8+Level temporary hit points.' }, 
             { name: 'Crushing Blow', description: 'Attacks easily knock enemies prone. Success on critical hits or high strength checks.' }, 
-            { name: 'Vengeful Charge', description: 'Ready a downward swing for 1 turn. Damage taken during the charge is added to the attack\'s power. You are more likely to be targeted while charging.' }
+            { name: 'Vengeful Charge', description: 'Ready a downward swing for 1 turn. Damage taken during the charge is added to the attack\'s power.' }
           ], 
           initialSpells: [], 
           authorId: 'Orestara', authorName: 'Orestara'
@@ -267,7 +328,7 @@ const App: React.FC = () => {
         {
           id: 'basic-fighter',
           name: 'Fighter',
-          description: 'Champions of the frontline who bear the brunt of damage with shields held firm. Wielding one-handed blades or maces paired with a shield, they excel in defensive combat. Their plate armor and shield mastery make them a wall of steel capable of causing beasts to flinch with powerful shield bashes.',
+          description: 'Champions of the frontline who bear the brunt of damage with shields held firm. Wielding one-handed blades or maces paired with a shield, they excel in defensive combat.',
           hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency', 'Shield AC Bonus (+2)'], 
           features: [
             { name: 'Shield Bash', description: 'Strike with your shield for blunt damage, causing all but the largest beasts to flinch.' }, 
@@ -279,7 +340,7 @@ const App: React.FC = () => {
         {
           id: 'basic-sorcerer',
           name: 'Sorcerer',
-          description: 'Masters of magic who wield long staves and wear robed attire. They excel at casting highly destructive magic that can turn the tide of battle. They possess the unique ability to commit a single spell to memory, allowing it to be cast instantly and for free, including their most powerful incantations.',
+          description: 'Masters of magic who wield long staves and wear robed attire. They excel at casting highly destructive magic that can turn the tide of battle.',
           hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction', 'Robe Defense'], 
           features: [
             { name: 'Spell Memory', description: 'Commit a single spell to memory. Once per rest, cast this spell instantly and without expending a spell slot.' }, 
@@ -294,24 +355,25 @@ const App: React.FC = () => {
         {
           id: 'basic-mage',
           name: 'Mage',
-          description: 'The ultimate supportive spellcaster. Mages focus on empowering, healing, and shielding their fellowship. They excel at casting wide-area buffs and powerful restorative rites, using small staves to channel pure, benevolent aether.',
+          description: 'The ultimate supportive spellcaster. Mages focus on empowering, healing, and shielding their fellowship. They excel at casting wide-area buffs and powerful restorative rites.',
           hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Greater Healing Mastery', 'Robe Defense'], 
           features: [
             { name: 'Resonant Benediction', description: 'When you cast a healing spell on an ally, you may choose one additional ally within 15ft to receive half the healing.' }, 
             { name: 'Vital Flow', description: 'Channel aether to restore 1d10 + WIS hit points to a wounded ally as a bonus action (3 uses per rest).' }
           ], 
           initialSpells: [
-            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier. Grants +2 AC and resistance to magical damage for 2 rounds.' },
+            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier. Grants +2 AC for 2 rounds.' },
             { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'A soothing blue mist heals all allies in a 30ft radius for 2d8 + WIS modifier.' },
             { name: 'Sanctuary of Light', level: 2, school: 'Abjuration', description: 'Designates a 10ft circle. Allies inside cannot be targeted by single-target attacks.' },
-            { name: 'Spirit Mend', level: 3, school: 'Necromancy', description: 'Regenerate 10 HP at the start of each of the target\'s turns for 1 minute.' }
+            { name: 'Spirit Mend', level: 3, school: 'Necromancy', description: 'Regenerate 10 HP at the start of each of the target\'s turns for 1 minute.' },
+            { name: 'Mass Restoration', level: 3, school: 'Abjuration', description: 'Cures all allies within 30ft of one negative status condition and heals for 3d8+WIS.' }
           ], 
           authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-thief',
           name: 'Thief',
-          description: 'Masters of stealth and dual-daggers who strike from the shadows. Wearing leather armor to remain agile, they can instantly execute human-sized enemies or smaller that have been grappled by allies. When cornered, they use smoke bombs to vanish and pick off weaker targets.',
+          description: 'Masters of stealth and dual-daggers who strike from the shadows. Wearing leather armor to remain agile.',
           hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Leather Armor Mastery', 'Stealth Proficiency'], 
           features: [
             { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized or smaller enemy that is currently grappled by an ally.' }, 
@@ -323,12 +385,12 @@ const App: React.FC = () => {
         {
           id: 'basic-archer',
           name: 'Archer',
-          description: 'Masters of the bow who can ground flying enemies with incredible accuracy. Wearing leather armor to stay light on their feet, they can pinpoint exposed enemies for extra damage and utilize a variety of specialized tactical arrows.',
+          description: 'Masters of the bow who can ground flying enemies with incredible accuracy. Wearing leather armor to stay light on their feet.',
           hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Leather Armor Proficiency', 'Aerial Sniper'], 
           features: [
             { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that has been exposed or isolated.' }, 
             { name: 'Specialist Arrows', description: 'Carry a quiver of special arrows (Fire, Frost, Tether) for different tactical situations.' },
-            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies and grounded enemies are grounded more easily.' }
+            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
           ], 
           initialSpells: [], 
           authorId: 'Orestara', authorName: 'Orestara'
@@ -336,7 +398,7 @@ const App: React.FC = () => {
         {
           id: 'basic-dark-knight',
           name: 'Dark Knight',
-          description: 'A grim order of knights who discard shields for massive two-handed blades. They fuel their dark aether with raw emotion—most notably Love—to drain life from enemies and shield allies with barriers of shadows. They can manifest a shadowy simulacrum and temporarily cheat death through the Living Dead ability.',
+          description: 'A grim order of knights who fuel their dark aether with raw emotion to drain life from enemies and shield allies.',
           hitDie: 'd12',
           startingHp: 12,
           hpPerLevel: 7,
@@ -344,26 +406,13 @@ const App: React.FC = () => {
           preferredStats: ['Strength', 'Charisma'],
           bonuses: ['Two-Handed Mastery', 'Heavy Armor Proficiency', 'Intimidation Mastery'],
           features: [
-            { 
-              name: 'Living Shadow', 
-              description: 'Spend an action to conjure a shadowy simulacrum. It fights at your side for 1 minute, dealing half your weapon damage as necrotic damage.',
-              locked: true 
-            },
-            { 
-              name: 'Living Dead', 
-              description: 'When reduced to 0 HP, you do not fall. Instead, for 10 seconds, you cannot be killed and your lifesteal is tripled. If you do not receive healing equal to your Maximum HP by the end, you must succeed a DC 15 Death Saving Throw or die instantly.',
-              locked: true 
-            },
-            { 
-              name: 'Cold Bite', 
-              description: 'Your controlled darkness chills the air. Enemies within 10ft take a -2 penalty to attack rolls as the air freezes around them.',
-              locked: true 
-            }
+            { name: 'Living Shadow', description: 'Spend an action to conjure a shadowy simulacrum. It fights at your side for 1 minute.' },
+            { name: 'Living Dead', description: 'When reduced to 0 HP, you cannot be killed for 10 seconds. Your lifesteal is tripled.' },
+            { name: 'Cold Bite', description: 'Enemies within 10ft take a -2 penalty to attack rolls as the air freezes around them.' }
           ],
           initialSpells: [
             { name: 'The Black Night', level: 1, school: 'Abjuration', description: 'Create a barrier of darkness around yourself or an ally equal to your level + CHA modifier.' },
-            { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from all enemies within 5ft, healing yourself for half the total damage.' },
-            { name: 'Dark Mind', level: 1, school: 'Abjuration', description: 'Fortify your mind against magic, gaining resistance to all elemental and arcane damage for 2 rounds.' }
+            { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from all enemies within 5ft, healing yourself for half.' }
           ],
           authorId: 'Orestara',
           authorName: 'Orestara'

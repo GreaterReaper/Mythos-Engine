@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell } from '../types';
+import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
 
 const INITIAL_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
@@ -150,6 +151,7 @@ interface CharacterCreatorProps {
   items?: Item[];
   notify: (message: string, type?: any) => void;
   reservoirReady: boolean;
+  currentUser: UserAccount;
 }
 
 const getModifier = (val: number) => {
@@ -157,7 +159,7 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify, reservoirReady }) => {
+const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify, reservoirReady, currentUser }) => {
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
   const [race, setRace] = useState<RaceType>('Human');
@@ -202,6 +204,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
   const handleStatChange = (stat: keyof Stats, delta: number) => {
     const newVal = stats[stat] + delta;
+    
+    // Architect bypass for Point Buy restrictions
+    if (currentUser.isAdmin) {
+      if (newVal < 1 || newVal > 30) return;
+      setStats(prev => ({ ...prev, [stat]: newVal }));
+      return;
+    }
+
     if (newVal < 8 || newVal > 15) return;
     const costDiff = (POINT_COSTS[newVal] || 0) - (POINT_COSTS[stats[stat]] || 0);
     if (pointsRemaining - costDiff < 0) return;
@@ -220,7 +230,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleCreate = async () => {
-    if (!name || !classId || !reservoirReady) return;
+    if (!name || !classId || (!reservoirReady && !currentUser.isAdmin)) return;
     setGenerating(true);
     try {
       const selectedClass = classes.find(c => c.id === classId);
@@ -254,7 +264,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleRerollStatsOnChar = async (char: Character) => {
-    if (!reservoirReady) return;
+    if (!reservoirReady && !currentUser.isAdmin) return;
     setRerollingStats(char.id);
     try {
       const cls = classes.find(c => c.id === char.classId);
@@ -292,7 +302,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleRerollFeats = async (char: Character) => {
-    if (!reservoirReady) return;
+    if (!reservoirReady && !currentUser.isAdmin) return;
     setRerollingFeats(char.id);
     try {
       const cls = classes.find(c => c.id === char.classId);
@@ -316,11 +326,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleGenerateSpells = async (char: Character) => {
-    if (!reservoirReady) return;
+    if (!reservoirReady && !currentUser.isAdmin) return;
     setLearningSpells(char.id);
     try {
       const cls = classes.find(c => c.id === char.classId);
       const spells = await generateSpellbook(cls?.name || 'Mage', cls?.description || '', char.level);
+      // Fix: Use 'c.id' instead of undefined 'i.id'
       setCharacters(prev => prev.map(c => c.id === char.id ? { ...c, knownSpells: spells } : c));
       notify("Arcane Grimoire Updated.", "success");
     } catch (e: any) { notify("Spells Failed to Coalesce.", "error"); } finally { setLearningSpells(null); }
@@ -345,8 +356,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-[450px]">
-          <div className="grim-card p-8 border-dashed border-[#b28a48]/20 border-2 rounded-sm bg-black shadow-2xl">
-            <h3 className="text-xl font-black mb-8 fantasy-font text-neutral-300">Recruit Hero</h3>
+          <div className={`grim-card p-8 border-2 rounded-sm bg-black shadow-2xl transition-all ${currentUser.isAdmin ? 'border-amber-500/40' : 'border-dashed border-[#b28a48]/20'}`}>
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black fantasy-font text-neutral-300">Summon Hero</h3>
+              {currentUser.isAdmin && (
+                <span className="text-[8px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-1 rounded-sm tracking-widest animate-pulse">ARCHITECT MODE</span>
+              )}
+            </div>
             <div className="space-y-6">
               <div className="space-y-1 text-left">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Identify Legend</label>
@@ -457,8 +473,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
               <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Base Statistics (Point Buy)</label>
-                  <span className="text-[9px] font-bold text-neutral-500 tracking-tighter">{pointsRemaining} PTS LEFT</span>
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Base Statistics {currentUser.isAdmin ? '(Unlocked)' : '(Point Buy)'}</label>
+                  {!currentUser.isAdmin && <span className="text-[9px] font-bold text-neutral-500 tracking-tighter">{pointsRemaining} PTS LEFT</span>}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {(Object.keys(INITIAL_STATS) as Array<keyof Stats>).map((s) => {
@@ -520,8 +536,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 />
               </div>
 
-              <button onClick={handleCreate} disabled={generating || !name || !classId || !reservoirReady} className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20 active:scale-95">
-                {generating ? 'COMMUNING WITH VOID...' : 'INSCRIBE LEGEND'}
+              <button 
+                onClick={handleCreate} 
+                disabled={generating || !name || !classId || (!reservoirReady && !currentUser.isAdmin)} 
+                className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20 active:scale-95 flex flex-col items-center gap-1"
+              >
+                {generating ? (
+                  <span>COMMUNING WITH VOID...</span>
+                ) : (
+                  <>
+                    <span>INSCRIBE LEGEND</span>
+                    {currentUser.isAdmin && <span className="text-[7px] text-amber-500/70 tracking-widest opacity-80 uppercase">Free Summoning</span>}
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -586,13 +613,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     </div>
                     <button 
                       onClick={() => handleRerollStatsOnChar(selectedChar)} 
-                      disabled={rerollingStats === selectedChar.id || !reservoirReady}
+                      disabled={rerollingStats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
                       className="text-[10px] font-black text-[#b28a48] hover:text-amber-700 uppercase transition-all disabled:opacity-20 flex items-center gap-2"
                     >
                       {rerollingStats === selectedChar.id ? 'REFORMING...' : (
                         <>
                           <span>Reweave 🎲</span>
-                          <span className="text-[8px] opacity-60">[-5⚡]</span>
+                          <span className="text-[8px] opacity-60">[{currentUser.isAdmin ? 'Free' : '-5⚡'}]</span>
                         </>
                       )}
                     </button>
@@ -644,13 +671,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     <h4 className="text-xl font-black fantasy-font text-neutral-400">Grimoire of Feats</h4>
                     <button 
                       onClick={() => handleRerollFeats(selectedChar)} 
-                      disabled={rerollingFeats === selectedChar.id || !reservoirReady}
+                      disabled={rerollingFeats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
                       className="text-[10px] font-black text-[#b28a48] hover:text-amber-700 uppercase transition-all disabled:opacity-20 flex items-center gap-2"
                     >
                       {rerollingFeats === selectedChar.id ? 'REWEAVING...' : (
                         <>
                           <span>Reweave 🎲</span>
-                          <span className="text-[8px] opacity-60">[-5⚡]</span>
+                          <span className="text-[8px] opacity-60">[{currentUser.isAdmin ? 'Free' : '-5⚡'}]</span>
                         </>
                       )}
                     </button>
@@ -723,13 +750,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     <h4 className="text-xl font-black fantasy-font text-neutral-400">The Grimoire (Spells)</h4>
                     <button 
                       onClick={() => handleGenerateSpells(selectedChar)} 
-                      disabled={learningSpells === selectedChar.id || !reservoirReady}
+                      disabled={learningSpells === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
                       className="text-[10px] font-black text-[#b28a48] hover:text-amber-700 uppercase transition-all disabled:opacity-20 flex items-center gap-2"
                     >
                       {learningSpells === selectedChar.id ? 'CHANNELING...' : (
                         <>
                           <span>Channel Grimoire 🔮</span>
-                          <span className="text-[8px] opacity-60">[-15⚡]</span>
+                          <span className="text-[8px] opacity-60">[{currentUser.isAdmin ? 'Free' : '-15⚡'}]</span>
                         </>
                       )}
                     </button>

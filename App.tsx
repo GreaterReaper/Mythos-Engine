@@ -94,31 +94,6 @@ const SYSTEM_MONSTERS: Monster[] = [
       { name: 'Goat\'s Bleat', effect: 'Allied creatures within 40ft regain 4d8 hit points.' }
     ],
     authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-shadow-stalker',
-    name: 'Shadow Stalker',
-    description: 'A lithe, spectral predator that vanishes into darkness, leaving only the sound of rattling chains.',
-    stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 13, wisdom: 14, charisma: 16 },
-    hp: 45,
-    ac: 15,
-    abilities: [
-      { name: 'Shadow Jump', effect: 'Teleport up to 30ft between areas of dim light as a bonus action.' },
-      { name: 'Sneak Attack', effect: 'Deals extra 3d6 damage if it has advantage on the attack.' }
-    ],
-    authorId: 'Orestara', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-harpy',
-    name: 'Siren Harpy',
-    description: 'A hideous fusion of woman and vulture, its song carries a magical weight that pulls even the strongest into a trance.',
-    stats: { strength: 12, dexterity: 13, constitution: 12, intelligence: 7, wisdom: 10, charisma: 13 },
-    hp: 38,
-    ac: 11,
-    abilities: [
-      { name: 'Luring Song', effect: 'Creatures within 300ft must succeed a DC 11 WIS save or be Charmed.' }
-    ],
-    authorId: 'Orestara', authorName: 'Orestara'
   }
 ];
 
@@ -178,12 +153,21 @@ const SYSTEM_ITEMS: Item[] = [
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
-    id: 'sys-warrior-plate',
-    name: 'Titan\'s Full Plate',
-    type: 'Armor',
-    description: 'Imposing plate armor that makes the wearer nearly unmovable.',
-    mechanics: [{ name: 'Unshakeable', description: 'AC 18. Advantage on saving throws against being knocked prone.' }],
-    lore: 'The imposing silhouette of a Warrior.',
+    id: 'sys-shadow-claymore',
+    name: 'Shadow Claymore',
+    type: 'Weapon',
+    description: 'A dark iron claymore that drinks the light around it.',
+    mechanics: [{ name: 'Abyssal Focus', description: 'Deals 2d6 slashing damage. Can be used as a spellcasting focus for Dark Knights.' }],
+    lore: 'A blade that requires one to gaze into the void to master.',
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-thief-daggers',
+    name: 'Assassin\'s Twin Daggers',
+    type: 'Weapon',
+    description: 'A pair of thin, razor-sharp daggers designed for rapid strikes.',
+    mechanics: [{ name: 'Finesse', description: 'Deals 1d4 piercing damage. Grants advantage on Sleight of Hand checks when held.' }],
+    lore: 'Silent tools for a silent profession.',
     authorId: 'Orestara', authorName: 'Orestara'
   }
 ];
@@ -291,7 +275,7 @@ const App: React.FC = () => {
                 classId: 'basic-fighter',
                 race: 'Human',
                 gender: 'Female',
-                description: "An energetic and impulsive swordswoman with a bright, playful personality. She's loud, expressive, and invades personal space, always full of restless enthusiasm.",
+                description: "An energetic and impulsive swordswoman with a bright, playful personality. She's loud, expressive, and invades personal space, always full of restless enthusiasm. Miri, Seris, and Lina are traveling companions and will always be found together.",
                 level: 1,
                 stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 9, wisdom: 11, charisma: 13 },
                 hp: 12, maxHp: 12,
@@ -308,9 +292,9 @@ const App: React.FC = () => {
                 classId: 'basic-archer',
                 race: 'Elf',
                 gender: 'Female',
-                description: "A reserved Elven archer, who prefers distance and quiet. Despite being easily flustered she tries to keep a cool and aloof façade, her blunt and sarcastic demeanor usually being spurred from embarrassment rather than anger.",
+                description: "A reserved Elven archer, who prefers distance and quiet. Despite being easily flustered she tries to keep a cool and aloof façade, her blunt and sarcastic demeanor usually being spurred from embarrassment rather than anger. Miri, Seris, and Lina are traveling companions and will always be found together.",
                 level: 1,
-                stats: { strength: 10, dexterity: 17, constitution: 14, intelligence: 13, wisdom: 14, charisma: 8 },
+                stats: { strength: 8, dexterity: 17, constitution: 13, intelligence: 14, wisdom: 14, charisma: 10 },
                 hp: 10, maxHp: 10,
                 feats: [
                     { name: 'Aloof Precision', description: 'Deals extra 1d6 damage to targets further than 40ft away.' },
@@ -325,7 +309,7 @@ const App: React.FC = () => {
                 classId: 'basic-mage',
                 race: 'Human',
                 gender: 'Female',
-                description: "A petite, shy priestess from a small rural chapel. She gets overwhelmed easily, but her gentle nature never wavers.",
+                description: "A petite, shy priestess from a small rural chapel. She gets overwhelmed easily, but her gentle nature never wavers. Miri, Seris, and Lina are traveling companions and will always be found together.",
                 level: 1,
                 stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
                 hp: 12, maxHp: 12,

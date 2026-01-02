@@ -225,6 +225,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         notify("Every legend requires a name and archetype.", "error");
         return;
     }
+    if (pointsRemaining < 0) {
+      notify("Your attributes exceed your fated limit. Use Point Buy.", "error");
+      return;
+    }
     if (!reservoirReady && !currentUser.isAdmin) return;
     
     setGenerating(true);
@@ -429,7 +433,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                         }`}
                       >
                         <button 
-                          onClick={() => setActiveTooltip(activeTooltip === s ? null : s)} 
                           className={`text-[8px] font-bold uppercase mb-1 tracking-tighter block w-full transition-colors ${
                             isPreferred ? 'text-amber-500' : 'text-neutral-600'
                           }`}
@@ -448,6 +451,16 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     );
                   })}
                 </div>
+              </div>
+
+              <div className="space-y-1 text-left">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Visual Details & Appearance</label>
+                <textarea 
+                  value={charDescription} 
+                  onChange={(e) => setCharDescription(e.target.value)} 
+                  placeholder="Inscribe details of their appearance and history..." 
+                  className="w-full bg-black border border-neutral-800 p-4 h-24 text-xs text-neutral-500 font-serif italic focus:border-[#b28a48] outline-none shadow-inner resize-none rounded-sm"
+                />
               </div>
 
               <button 

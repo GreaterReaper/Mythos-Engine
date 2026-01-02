@@ -269,22 +269,71 @@ const App: React.FC = () => {
     if (result === sides && sides >= 10) notify(`CRITICAL! Natural ${result} on d${sides}`, 'success');
   };
 
+  /**
+   * Admin-Only Aggregation Helper
+   * Scans localStorage to find all resources created by all users on this machine.
+   */
+  const aggregateAllResources = useCallback((suffix: string) => {
+    const aggregated: any[] = [];
+    const seenIds = new Set();
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.endsWith(suffix)) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '[]');
+          if (Array.isArray(data)) {
+            data.forEach(item => {
+              if (item.id && !seenIds.has(item.id)) {
+                aggregated.push(item);
+                seenIds.add(item.id);
+              }
+            });
+          }
+        } catch (e) {
+          console.error(`Aggregator: Corrupted data in ${key}`, e);
+        }
+      }
+    }
+    return aggregated;
+  }, []);
+
   useEffect(() => {
     if (currentUser) {
       const uPrefix = currentUser.username;
       (window as any).isMythosAdmin = !!currentUser.isAdmin;
-      const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
-      setCharacters(savedChars ? JSON.parse(savedChars) : []);
-      const savedClasses = localStorage.getItem(`${uPrefix}_mythos_classes`);
-      setClasses(savedClasses ? JSON.parse(savedClasses) : []);
-      const savedMonsters = localStorage.getItem(`${uPrefix}_mythos_monsters`);
-      setMonsters(savedMonsters ? JSON.parse(savedMonsters) : []);
-      const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
-      setItems(savedItems ? JSON.parse(savedItems) : []);
+      
+      if (currentUser.isAdmin) {
+        // Master Librarian Mode: Collect everything from everyone
+        const allChars = aggregateAllResources('_mythos_chars');
+        const allClasses = aggregateAllResources('_mythos_classes');
+        const allMonsters = aggregateAllResources('_mythos_monsters');
+        const allItems = aggregateAllResources('_mythos_items');
+        
+        setCharacters(allChars);
+        setClasses(allClasses);
+        setMonsters(allMonsters);
+        setItems(allItems);
+        
+        notify("Omniscience Enabled: All local archives merged.", "success");
+      } else {
+        // Standard Mode: Only load own data
+        const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
+        setCharacters(savedChars ? JSON.parse(savedChars) : []);
+        const savedClasses = localStorage.getItem(`${uPrefix}_mythos_classes`);
+        setClasses(savedClasses ? JSON.parse(savedClasses) : []);
+        const savedMonsters = localStorage.getItem(`${uPrefix}_mythos_monsters`);
+        setMonsters(savedMonsters ? JSON.parse(savedMonsters) : []);
+        const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
+        setItems(savedItems ? JSON.parse(savedItems) : []);
+      }
+
+      // Campaign loading is still prefix-specific (unique sagas)
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
       const campaignData = savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] };
       if (!campaignData.rules) campaignData.rules = [];
       setCampaign(campaignData);
+
       const today = new Date().toDateString();
       const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
       if (lastReset === today) {
@@ -297,7 +346,7 @@ const App: React.FC = () => {
     } else {
       (window as any).isMythosAdmin = false;
     }
-  }, [currentUser]);
+  }, [currentUser, aggregateAllResources, notify]);
 
   useEffect(() => {
     if (!currentUser) return;

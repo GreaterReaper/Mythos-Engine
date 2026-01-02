@@ -366,14 +366,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
-  // Spell Management Functions
+  // Spell Management Functions - Targeted for Admin control
   const startEditingSpell = (cls: ClassDef, idx: number) => {
-    if (!canEditOrManage(cls)) return;
+    if (!currentUser.isAdmin) {
+        notify("Only an Architect may manually rewrite existing incantations.", "error");
+        return;
+    }
     setEditingSpellIdx(idx);
     setSpellForm(cls.initialSpells ? { ...cls.initialSpells[idx] } : null);
   };
 
   const startAddingSpell = (clsId: string) => {
+    if (!currentUser.isAdmin) {
+        notify("Only an Architect may manually inscribe new spells.", "error");
+        return;
+    }
     setEditingSpellIdx(-1); // -1 signifies a new spell
     setSpellForm({ name: '', level: 0, school: 'Evocation', description: '' });
   };
@@ -384,7 +391,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const saveSpellEdit = (clsId: string) => {
-    if (!spellForm) return;
+    if (!spellForm || !currentUser.isAdmin) return;
     const updated = classes.map(c => {
       if (c.id !== clsId) return c;
       const spells = [...(c.initialSpells || [])];
@@ -397,11 +404,15 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     });
     updateAndSync(updated);
     cancelSpellEdit();
-    notify("Grimoire Updated", "success");
+    notify("Grimoire Updated by Architect.", "success");
   };
 
   const removeSpell = (clsId: string, idx: number) => {
-    if (!window.confirm("Banish this incantation?")) return;
+    if (!currentUser.isAdmin) {
+        notify("Only an Architect may purge inscribed spells.", "error");
+        return;
+    }
+    if (!window.confirm("Architect: Banish this incantation forever?")) return;
     const updated = classes.map(c => {
       if (c.id !== clsId) return c;
       const spells = [...(c.initialSpells || [])];
@@ -409,7 +420,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       return { ...c, initialSpells: spells };
     });
     updateAndSync(updated);
-    notify("Incantation Banished", "info");
+    notify("Incantation Purged.", "info");
   };
 
   return (
@@ -722,20 +733,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           <div>
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Archetype Spells</h5>
-                              {manageable && (
+                              {currentUser.isAdmin && (
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); startAddingSpell(c.id); }}
-                                  className="text-[8px] font-black text-[#b28a48] hover:text-white uppercase tracking-widest border border-[#b28a48]/30 px-2 py-0.5 rounded-sm"
+                                  className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest border border-amber-500/30 px-2 py-0.5 rounded-sm flex items-center gap-1"
                                 >
-                                  + Add Manual Spell
+                                  <span>+ Architect: Manual Spell</span>
                                 </button>
                               )}
                             </div>
                             
                             {(editingSpellIdx !== null && expandedId === c.id) && (
-                              <div className="bg-neutral-900 border border-amber-900/40 p-4 rounded-sm mb-4 space-y-3 animate-in fade-in zoom-in-95 text-left">
-                                <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-2">
-                                  {editingSpellIdx === -1 ? 'Inscribing New Spell' : 'Editing Spell Properties'}
+                              <div className="bg-neutral-900 border border-amber-900/40 p-4 rounded-sm mb-4 space-y-3 animate-in fade-in zoom-in-95 text-left shadow-2xl">
+                                <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-2 flex items-center justify-between">
+                                  <span>{editingSpellIdx === -1 ? 'Inscribing New Spell' : 'Editing Spell Properties'}</span>
+                                  <span className="bg-amber-900/20 px-1 rounded text-amber-600">Architect Mode</span>
                                 </p>
                                 <div className="grid grid-cols-2 gap-2">
                                   <div className="space-y-1">
@@ -743,7 +755,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     <input 
                                       value={spellForm?.name || ''} 
                                       onChange={(e) => setSpellForm(prev => prev ? {...prev, name: e.target.value} : null)}
-                                      className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-amber-600 outline-none" 
+                                      className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-amber-600 outline-none focus:border-amber-500" 
                                     />
                                   </div>
                                   <div className="space-y-1">
@@ -773,21 +785,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                   <textarea 
                                     value={spellForm?.description || ''} 
                                     onChange={(e) => setSpellForm(prev => prev ? {...prev, description: e.target.value} : null)}
-                                    className="w-full bg-black border border-neutral-800 text-[10px] p-2 h-20 text-neutral-400 outline-none font-serif italic"
+                                    className="w-full bg-black border border-neutral-800 text-[10px] p-2 h-20 text-neutral-400 outline-none font-serif italic focus:border-amber-900/40"
                                   />
                                 </div>
                                 <div className="flex gap-2 pt-2">
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); saveSpellEdit(c.id); }}
-                                    className="flex-1 bg-amber-600 text-black py-2 text-[8px] font-black uppercase tracking-widest rounded-sm"
+                                    className="flex-1 bg-amber-600 text-black py-2 text-[8px] font-black uppercase tracking-widest rounded-sm hover:bg-amber-500 transition-colors"
                                   >
-                                    Confirm
+                                    Commit Rite
                                   </button>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); cancelSpellEdit(); }}
-                                    className="flex-1 bg-neutral-800 text-white py-2 text-[8px] font-black uppercase tracking-widest rounded-sm"
+                                    className="flex-1 bg-neutral-800 text-white py-2 text-[8px] font-black uppercase tracking-widest rounded-sm hover:bg-neutral-700"
                                   >
-                                    Cancel
+                                    Abort
                                   </button>
                                 </div>
                               </div>
@@ -796,25 +808,25 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             <div className="grid grid-cols-1 gap-2">
                               {c.initialSpells && c.initialSpells.length > 0 ? (
                                 c.initialSpells.map((s, idx) => (
-                                  <div key={idx} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-left group/spell relative overflow-hidden">
+                                  <div key={idx} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-left group/spell relative overflow-hidden transition-all hover:bg-black/60">
                                     <div className="flex justify-between items-start">
                                       <div>
-                                        <p className="text-[10px] font-black text-amber-600 uppercase">{s.name}</p>
+                                        <p className="text-[10px] font-black text-amber-600 uppercase group-hover/spell:text-amber-500 transition-colors">{s.name}</p>
                                         <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest">{s.school} • LVL {s.level}</p>
                                       </div>
-                                      {manageable && (
-                                        <div className="flex gap-2 opacity-0 group-hover/spell:opacity-100 transition-opacity">
+                                      {currentUser.isAdmin && (
+                                        <div className="flex gap-2 opacity-0 group-hover/spell:opacity-100 transition-opacity translate-y-2 group-hover/spell:translate-y-0 duration-300">
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); startEditingSpell(c, idx); }}
-                                            className="text-[8px] text-blue-500 hover:text-white uppercase font-black"
+                                            className="text-[8px] text-blue-500 hover:text-white uppercase font-black px-1.5 py-0.5 bg-blue-900/10 rounded-sm border border-blue-900/30"
                                           >
-                                            Edit
+                                            Rewrite
                                           </button>
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); removeSpell(c.id, idx); }}
-                                            className="text-[8px] text-red-900 hover:text-red-500 uppercase font-black"
+                                            className="text-[8px] text-red-900 hover:text-red-500 uppercase font-black px-1.5 py-0.5 bg-red-900/10 rounded-sm border border-red-900/30"
                                           >
-                                            Banish
+                                            Purge
                                           </button>
                                         </div>
                                       )}

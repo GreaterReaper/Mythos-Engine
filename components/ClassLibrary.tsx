@@ -1,6 +1,7 @@
+
 import React, { useState, useMemo } from 'react';
-import { ClassDef, SyncMessage } from '../types';
-import { generateClassMechanics, rerollTraits } from '../services/gemini';
+import { ClassDef, SyncMessage, Spell } from '../types';
+import { generateClassMechanics, generateSpellbook, rerollTraits } from '../services/gemini';
 
 interface ClassLibraryProps {
   classes: ClassDef[];
@@ -15,6 +16,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [identifyingId, setIdentifyingId] = useState<string | null>(null);
+  const [learningSpellsId, setLearningSpellsId] = useState<string | null>(null);
   const [rerolling, setRerolling] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -23,8 +25,12 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     return classes.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
   }, [classes, search]);
 
+  // Updated to include records missing either stats or spells
   const legacyRecords = useMemo(() => {
-    return classes.filter(c => !c.preferredStats || c.preferredStats.length === 0);
+    return classes.filter(c => 
+      (!c.preferredStats || c.preferredStats.length === 0) || 
+      (!c.initialSpells || c.initialSpells.length === 0)
+    );
   }, [classes]);
 
   const handleCreate = async () => {
@@ -58,6 +64,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
+  // Full regeneration of archetype details
   const handleIdentifyDepths = async (cls: ClassDef) => {
     if (!reservoirReady || identifyingId) return;
     setIdentifyingId(cls.id);
@@ -81,11 +88,30 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
+  // Specific spell generation for old classes
+  const handleManifestSpells = async (cls: ClassDef) => {
+    if (!reservoirReady || learningSpellsId) return;
+    setLearningSpellsId(cls.id);
+    try {
+      // Use the character spellbook generator as a basis for archetype spells
+      const spells = await generateSpellbook(cls.name, cls.description, 3);
+      setClasses(prev => prev.map(c => c.id === cls.id ? {
+        ...c,
+        initialSpells: spells
+      } : c));
+      notify(`Grimoire for "${cls.name}" Inscribed`, "success");
+    } catch (e: any) {
+      notify(e.message, "error");
+    } finally {
+      setLearningSpellsId(null);
+    }
+  };
+
   const handleBulkManifest = async () => {
     if (!reservoirReady || loading || legacyRecords.length === 0) return;
     
     setLoading(true);
-    notify(`Rebuilding ${legacyRecords.length} Archetypes...`, "info");
+    notify(`Updating ${legacyRecords.length} Archetypes...`, "info");
 
     for (const cls of legacyRecords) {
       try {
@@ -100,7 +126,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
           initialSpells: mechanics.initialSpells || c.initialSpells
         } : c));
-        // Small delay to prevent aggressive rate limiting
         await new Promise(r => setTimeout(r, 800));
       } catch (e) {
         console.error(`Failed to manifest ${cls.name}`, e);
@@ -248,6 +273,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             {filteredClasses.map((c, idx) => {
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
+              const missingSpells = !c.initialSpells || c.initialSpells.length === 0;
 
               return (
                 <div 
@@ -284,12 +310,19 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             </div>
                           )}
                           <div>
-                            <h4 className="text-3xl font-black text-[#b28a48] fantasy-font tracking-widest uppercase">{c.name}</h4>
-                            {isLegacy && (
-                              <span className="text-[7px] font-black text-amber-700 uppercase tracking-widest bg-amber-950/20 px-2 py-0.5 rounded-sm border border-amber-900/30">
-                                Legacy Record
-                              </span>
-                            )}
+                            <div className="flex items-center gap-3">
+                              <h4 className="text-3xl font-black text-[#b28a48] fantasy-font tracking-widest uppercase">{c.name}</h4>
+                              {isLegacy && (
+                                <span className="text-[7px] font-black text-amber-700 uppercase tracking-widest bg-amber-950/20 px-2 py-0.5 rounded-sm border border-amber-900/30">
+                                  Legacy
+                                </span>
+                              )}
+                              {missingSpells && !isLegacy && (
+                                <span className="text-[7px] font-black text-blue-700 uppercase tracking-widest bg-blue-950/20 px-2 py-0.5 rounded-sm border border-blue-900/30">
+                                  No Spells
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -330,15 +363,26 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           <div>
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Core Attributes</h5>
-                              {isLegacy && (
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
-                                  disabled={identifyingId === c.id || !reservoirReady}
-                                  className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
-                                >
-                                  {identifyingId === c.id ? 'ANALYZING...' : 'Manifest Latent Power ⚡'}
-                                </button>
-                              )}
+                              <div className="flex gap-2">
+                                {missingSpells && !isLegacy && (
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
+                                    disabled={learningSpellsId === c.id || !reservoirReady}
+                                    className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
+                                  >
+                                    {learningSpellsId === c.id ? 'INSCRIBING...' : 'Inscribe Spells ✨'}
+                                  </button>
+                                )}
+                                {isLegacy && (
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
+                                    disabled={identifyingId === c.id || !reservoirReady}
+                                    className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                  >
+                                    {identifyingId === c.id ? 'ANALYZING...' : 'Manifest Depths ⚡'}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="bg-black/40 p-4 border border-neutral-900 rounded-sm text-left">
@@ -397,11 +441,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             </div>
                           )}
 
-                          {c.initialSpells && c.initialSpells.length > 0 && (
-                            <div>
-                              <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] border-b border-neutral-800 pb-2 mb-4 text-left">Archetype Spells</h5>
-                              <div className="grid grid-cols-1 gap-2">
-                                {c.initialSpells.map((s, idx) => (
+                          <div>
+                            <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] border-b border-neutral-800 pb-2 mb-4 text-left">Archetype Spells</h5>
+                            <div className="grid grid-cols-1 gap-2">
+                              {c.initialSpells && c.initialSpells.length > 0 ? (
+                                c.initialSpells.map((s, idx) => (
                                   <div key={idx} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-left">
                                     <div className="flex justify-between">
                                       <p className="text-[10px] font-black text-amber-600 uppercase">{s.name}</p>
@@ -409,10 +453,12 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     </div>
                                     <p className="text-[10px] text-neutral-400 font-serif italic line-clamp-1">{s.description}</p>
                                   </div>
-                                ))}
-                              </div>
+                                ))
+                              ) : (
+                                <p className="text-neutral-700 text-[10px] italic p-3 text-center border border-dashed border-neutral-900">No spells inscribed in grimoire</p>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
 
                         <div className="space-y-8">

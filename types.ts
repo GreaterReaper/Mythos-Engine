@@ -47,6 +47,13 @@ export interface Character {
   lockedStats?: (keyof Stats)[];
 }
 
+export interface Rule {
+  id: string;
+  category: string;
+  name: string;
+  content: string;
+}
+
 export interface ClassFeature extends Trait {}
 
 export interface ClassDef {
@@ -58,6 +65,7 @@ export interface ClassDef {
   hpPerLevel: number;
   spellSlots: number[];
   features: ClassFeature[];
+  initialSpells?: Spell[];
   preferredStats?: string[];
   bonuses?: string[];
 }
@@ -76,6 +84,7 @@ export interface Monster {
   hp: number;
   ac: number;
   abilities: MonsterAbility[];
+  legendaryActions?: MonsterAbility[];
   imageUrl?: string;
   isBoss?: boolean;
 }
@@ -105,6 +114,7 @@ export interface CampaignState {
   summary: string;
   logs: GameLog[];
   party: Character[];
+  rules: Rule[];
 }
 
 export type SyncMessageType = 

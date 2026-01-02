@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage } from '../types';
 import { generateClassMechanics, rerollTraits } from '../services/gemini';
@@ -43,7 +42,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         spellSlots: mechanics.spellSlots || [],
         preferredStats: mechanics.preferredStats || [],
         bonuses: mechanics.bonuses || [],
-        features: (mechanics.features || []).map(f => ({ ...f, locked: false })),
+        features: (mechanics.features || []).map((f: any) => ({ ...f, locked: false })),
+        initialSpells: mechanics.initialSpells || []
       };
       setClasses(prev => [...prev, newClass]);
       setName('');
@@ -70,7 +70,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : c.spellSlots,
         hitDie: mechanics.hitDie || c.hitDie,
         startingHp: mechanics.startingHp || c.startingHp,
-        hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel
+        hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
+        initialSpells: mechanics.initialSpells || c.initialSpells
       } : c));
       notify(`Depths of "${cls.name}" Manifested`, "success");
     } catch (e: any) {
@@ -96,7 +97,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           spellSlots: (mechanics.spellSlots && mechanics.spellSlots.length > 0) ? mechanics.spellSlots : c.spellSlots,
           hitDie: mechanics.hitDie || c.hitDie,
           startingHp: mechanics.startingHp || c.startingHp,
-          hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel
+          hpPerLevel: mechanics.hpPerLevel || c.hpPerLevel,
+          initialSpells: mechanics.initialSpells || c.initialSpells
         } : c));
         // Small delay to prevent aggressive rate limiting
         await new Promise(r => setTimeout(r, 800));
@@ -389,6 +391,23 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     <p className={`text-sm font-black ${slots > 0 ? 'text-amber-500' : 'text-neutral-800'}`}>
                                       {slots}
                                     </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {c.initialSpells && c.initialSpells.length > 0 && (
+                            <div>
+                              <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] border-b border-neutral-800 pb-2 mb-4 text-left">Archetype Spells</h5>
+                              <div className="grid grid-cols-1 gap-2">
+                                {c.initialSpells.map((s, idx) => (
+                                  <div key={idx} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-left">
+                                    <div className="flex justify-between">
+                                      <p className="text-[10px] font-black text-amber-600 uppercase">{s.name}</p>
+                                      <p className="text-[8px] text-neutral-600 font-black">LVL {s.level}</p>
+                                    </div>
+                                    <p className="text-[10px] text-neutral-400 font-serif italic line-clamp-1">{s.description}</p>
                                   </div>
                                 ))}
                               </div>

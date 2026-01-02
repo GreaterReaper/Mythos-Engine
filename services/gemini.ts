@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell } from "../types";
+import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
 
 const cleanJson = (text: string) => {
   if (!text) return '{}';
@@ -127,6 +127,34 @@ export const generateSpellbook = async (className: string, classDesc: string, ma
   });
 };
 
+export const generateRules = async (plot: string): Promise<Rule[]> => {
+  trackUsage('utility', 20);
+  return withRetry(async () => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Generate a set of 5 core TTRPG rules and mechanics for a dark fantasy setting with this plot: ${plot}. Focus on Combat, Magic, Death, and Sanity.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              category: { type: Type.STRING },
+              name: { type: Type.STRING },
+              content: { type: Type.STRING }
+            },
+            required: ["id", "category", "name", "content"]
+          }
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '[]'));
+  });
+};
+
 export const rerollTraits = async (
   contextType: string,
   contextName: string,
@@ -203,7 +231,7 @@ export const getDMResponse = async (history: any[], plot: string, input: string,
       model: model,
       contents: `Plot: ${plot}. Summary: ${summary}. Party: ${partyStr}. Action: ${input}. History: ${JSON.stringify(history.slice(-5))}`,
       config: {
-        systemInstruction: "You are a dark fantasy Dungeon Master. Be evocative, brief, and reactive. Focus on consequences.",
+        systemInstruction: "You are a dark fantasy Dungeon Master. Be evocative, brief, and reactive. Focus on consequences. If a roll is needed, explicitly tell the player which die to roll and what for (e.g., 'Roll a d20 for Perception').",
       }
     });
     return response.text || "The shadows lengthen, but the path remains unclear.";
@@ -262,7 +290,7 @@ export const generateClassMechanics = async (name: string, description: string):
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Design mechanics for class: ${name}. Lore: ${description}. Include primary stats and unique bonuses.`,
+      contents: `Design mechanics for class: ${name}. Lore: ${description}. Include primary stats, unique bonuses, and 3 thematic starting spells.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -274,9 +302,10 @@ export const generateClassMechanics = async (name: string, description: string):
             spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Number of spell slots for levels 1-5" },
             preferredStats: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Recommended core stats (e.g. Strength, Intelligence)" },
             bonuses: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Innate class proficiencies or minor passive bonuses" },
-            features: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } }
+            features: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } },
+            initialSpells: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, level: { type: Type.INTEGER }, school: { type: Type.STRING }, description: { type: Type.STRING } } } }
           },
-          required: ["hitDie", "startingHp", "hpPerLevel", "spellSlots", "preferredStats", "bonuses", "features"]
+          required: ["hitDie", "startingHp", "hpPerLevel", "spellSlots", "preferredStats", "bonuses", "features", "initialSpells"]
         }
       }
     });
@@ -289,7 +318,7 @@ export const generateMonsterStats = async (name: string, description: string, is
   return withRetry(async () => {
     const ai = getAI();
     const rolePrompt = isBoss 
-      ? "This is a LEGENDARY BOSS entity. It should be an overwhelming threat with high hit points (150-500+), formidable armor class (18-24), and complex, multi-stage or area-of-effect abilities. Focus on legendary actions or passive auras."
+      ? "This is a LEGENDARY BOSS entity. It should be an overwhelming threat with high hit points (150-500+), formidable armor class (18-24), and complex, multi-stage or area-of-effect abilities. You MUST generate exactly 3 'Legendary Actions' - these are powerful abilities the boss can use at the end of another creature's turn."
       : "This is a STANDARD MONSTER. It should be balanced for a typical encounter with appropriate hit points (20-100) and armor class (12-16).";
 
     const response = await ai.models.generateContent({
@@ -303,7 +332,8 @@ export const generateMonsterStats = async (name: string, description: string, is
             hp: { type: Type.INTEGER },
             ac: { type: Type.INTEGER },
             stats: { type: Type.OBJECT, properties: { strength: { type: Type.INTEGER }, dexterity: { type: Type.INTEGER }, constitution: { type: Type.INTEGER }, intelligence: { type: Type.INTEGER }, wisdom: { type: Type.INTEGER }, charisma: { type: Type.INTEGER } } },
-            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } } }
+            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } } },
+            legendaryActions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, effect: { type: Type.STRING } } }, description: "Special powerful actions used outside of regular turns. Only for bosses." }
           },
           required: ["hp", "ac", "stats", "abilities"]
         }

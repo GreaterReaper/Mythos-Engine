@@ -14,8 +14,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
     { id: 'campaign', label: 'Play', icon: '⚔️' },
     { id: 'characters', label: 'Party', icon: '👤' },
     { id: 'classes', label: 'Classes', icon: '📜' },
+    { id: 'spells', label: 'Spells', icon: '✨' },
     { id: 'bestiary', label: 'Bestiary', icon: '🐉' },
     { id: 'armory', label: 'Armory', icon: '🛡️' },
+    { id: 'rules', label: 'Rules', icon: '⚖️' },
     { id: 'multiplayer', label: 'Portal', icon: '🌀' },
     { id: 'archive', label: 'Archive', icon: '📦' },
   ];
@@ -37,12 +39,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1 overflow-y-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-4 px-5 py-3 rounded-sm transition-all relative group ${
+              className={`flex items-center gap-4 px-5 py-2.5 rounded-sm transition-all relative group ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-[#1a1a1a] to-transparent text-[#b28a48] border-l-2 border-[#b28a48]'
                   : 'text-neutral-500 hover:text-neutral-200 hover:bg-neutral-900/50'
@@ -77,12 +79,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
       </nav>
 
       {/* Mobile Bottom Nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#080808] border-t border-[#1a1a1a] flex items-center justify-around px-2 py-3 backdrop-blur-md bg-opacity-95">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#080808] border-t border-[#1a1a1a] flex items-center justify-around px-2 py-3 backdrop-blur-md bg-opacity-95 overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 flex-1 transition-all ${
+            className={`flex flex-col items-center gap-1 min-w-[60px] transition-all ${
               activeTab === tab.id
                 ? 'text-[#b28a48]'
                 : 'text-neutral-600'
@@ -94,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
         ))}
         <button
           onClick={onSignOut}
-          className="flex flex-col items-center gap-1 flex-1 text-red-900/60"
+          className="flex flex-col items-center gap-1 min-w-[60px] text-red-900/60"
         >
           <span className="text-xl">🚪</span>
           <span className="text-[9px] font-black uppercase tracking-tight">Sever</span>

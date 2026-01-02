@@ -21,6 +21,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   const [isBoss, setIsBoss] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rerolling, setRerolling] = useState<string | null>(null);
+  const [rerollingLegendary, setRerollingLegendary] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
@@ -59,6 +60,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         hp: stats.hp || 50,
         ac: stats.ac || 15,
         abilities: (stats.abilities || []).map((a: any) => ({ ...a, locked: false })),
+        legendaryActions: isBoss ? (stats.legendaryActions || []).map((a: any) => ({ ...a, locked: false })) : [],
         imageUrl
       };
       
@@ -76,42 +78,67 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
     }
   };
 
-  const toggleLock = (monsterId: string, abilityIdx: number) => {
+  const toggleLock = (monsterId: string, abilityIdx: number, type: 'standard' | 'legendary' = 'standard') => {
     setMonsters(prev => prev.map(m => {
       if (m.id !== monsterId) return m;
-      const newAbilities = [...m.abilities];
-      newAbilities[abilityIdx] = { ...newAbilities[abilityIdx], locked: !newAbilities[abilityIdx].locked };
-      return { ...m, abilities: newAbilities };
+      if (type === 'standard') {
+        const newAbilities = [...m.abilities];
+        newAbilities[abilityIdx] = { ...newAbilities[abilityIdx], locked: !newAbilities[abilityIdx].locked };
+        return { ...m, abilities: newAbilities };
+      } else {
+        const newLegendary = [...(m.legendaryActions || [])];
+        newLegendary[abilityIdx] = { ...newLegendary[abilityIdx], locked: !newLegendary[abilityIdx].locked };
+        return { ...m, legendaryActions: newLegendary };
+      }
     }));
   };
 
-  const handleReroll = (e: React.MouseEvent, monster: Monster) => {
+  const handleReroll = (e: React.MouseEvent, monster: Monster, type: 'standard' | 'legendary' = 'standard') => {
     e.stopPropagation();
     if (!reservoirReady) return;
-    setRerolling(monster.id);
-    const traitFormat = monster.abilities.map(a => ({ name: a.name, description: a.effect, locked: a.locked }));
-    rerollTraits('monster', monster.name, monster.description, traitFormat)
+    
+    if (type === 'standard') setRerolling(monster.id);
+    else setRerollingLegendary(monster.id);
+
+    const sourceList = type === 'standard' ? monster.abilities : (monster.legendaryActions || []);
+    const traitFormat = sourceList.map(a => ({ name: a.name, description: a.effect, locked: a.locked }));
+    
+    const contextType = type === 'standard' ? 'monster ability' : 'legendary boss action';
+    
+    rerollTraits(contextType, monster.name, monster.description, traitFormat)
       .then(updated => {
         setMonsters(prev => prev.map(m => {
           if (m.id !== monster.id) return m;
           
           let updateIdx = 0;
-          const finalMergedAbilities = m.abilities.map(original => {
-             if (original.locked) return original;
-             const replacement = updated[updateIdx];
-             updateIdx++;
-             return replacement ? { name: replacement.name, effect: replacement.description, locked: false } : original;
-          });
-
-          return { ...m, abilities: finalMergedAbilities };
+          if (type === 'standard') {
+            const finalMergedAbilities = m.abilities.map(original => {
+               if (original.locked) return original;
+               const replacement = updated[updateIdx];
+               updateIdx++;
+               return replacement ? { name: replacement.name, effect: replacement.description, locked: false } : original;
+            });
+            return { ...m, abilities: finalMergedAbilities };
+          } else {
+            const finalMergedLegendary = (m.legendaryActions || []).map(original => {
+               if (original.locked) return original;
+               const replacement = updated[updateIdx];
+               updateIdx++;
+               return replacement ? { name: replacement.name, effect: replacement.description, locked: false } : original;
+            });
+            return { ...m, legendaryActions: finalMergedLegendary };
+          }
         }));
-        notify("Monstrous traits rewoven.", "success");
+        notify(`${type === 'standard' ? 'Abilities' : 'Legendary Actions'} rewoven.`, "success");
       })
       .catch(err => {
         console.error(err);
         notify(err.message || "The spirits refuse to change this creature.", "error");
       })
-      .finally(() => setRerolling(null));
+      .finally(() => {
+        setRerolling(null);
+        setRerollingLegendary(null);
+      });
   };
 
   const handleDelete = (e: React.MouseEvent, monster: Monster) => {
@@ -127,7 +154,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
       broadcast({
         type: 'SHARE_RESOURCE',
         payload: {
-          resourceType: 'class',
+          resourceType: 'monster',
           resourceData: monster
         }
       });
@@ -224,6 +251,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                       <div>
                         <div className="flex items-center gap-3 text-left">
                           <h4 className={`text-3xl font-black fantasy-font tracking-widest ${m.isBoss ? 'text-red-500' : 'text-[#b28a48]'}`}>{m.name}</h4>
+                          {m.isBoss && <span className="text-[8px] font-black text-white bg-red-600 px-2 py-0.5 rounded-sm tracking-widest animate-pulse">LEGENDARY</span>}
                         </div>
                         <p className={`text-neutral-400 mt-2 font-serif italic text-left ${expandedId === m.id ? '' : 'line-clamp-2'}`}>{m.description}</p>
                       </div>
@@ -260,41 +288,79 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                           <div key={s} className="bg-black/40 p-2 border border-neutral-900 rounded-sm text-center">
                             <div className="text-[7px] font-black text-neutral-700 uppercase">{s.slice(0, 3)}</div>
                             <div className="text-sm font-black text-[#b28a48]">{v}</div>
-                            {/* FIX: Explicitly cast v to number to match getModifier's expected parameter type */}
                             <div className="text-[8px] font-bold text-neutral-600">{getModifier(v as number)}</div>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
-                        <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
-                        <button 
-                          onClick={(e) => handleReroll(e, m)}
-                          disabled={rerolling === m.id || !reservoirReady}
-                          className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20"
-                        >
-                          {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        {m.abilities.map((a, i) => (
-                          <div 
-                            key={i} 
-                            onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i); }}
-                            className={`p-4 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
+                    <div className="space-y-8">
+                      {/* Standard Abilities Section */}
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+                          <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
+                          <button 
+                            onClick={(e) => handleReroll(e, m, 'standard')}
+                            disabled={rerolling === m.id || !reservoirReady}
+                            className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20"
                           >
-                            <div className="flex items-center gap-3">
-                              <span className={`text-lg ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
-                              <div>
-                                <h6 className={`text-xs font-black uppercase tracking-wider ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
-                                <p className="text-[11px] text-neutral-500 italic font-serif leading-relaxed">{a.effect}</p>
+                            {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {m.abilities.map((a, i) => (
+                            <div 
+                              key={i} 
+                              onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'standard'); }}
+                              className={`p-4 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-amber-950/10 border-amber-900/40' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`text-lg ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                                <div>
+                                  <h6 className={`text-xs font-black uppercase tracking-wider ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
+                                  <p className="text-[11px] text-neutral-500 italic font-serif leading-relaxed">{a.effect}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
+
+                      {/* Legendary Actions Section */}
+                      {m.isBoss && m.legendaryActions && m.legendaryActions.length > 0 && (
+                        <div className="space-y-4 pt-4 border-t border-red-950/30">
+                          <div className="flex justify-between items-center border-b border-red-900/20 pb-2">
+                            <h5 className="text-[10px] font-black text-red-500 uppercase tracking-widest text-left">Legendary Actions</h5>
+                            <button 
+                              onClick={(e) => handleReroll(e, m, 'legendary')}
+                              disabled={rerollingLegendary === m.id || !reservoirReady}
+                              className="text-[8px] font-black text-red-400 hover:text-red-200 uppercase tracking-widest disabled:opacity-20"
+                            >
+                              {rerollingLegendary === m.id ? 'REFORMING...' : 'Reweave Legends 🎲'}
+                            </button>
+                          </div>
+                          <div className="space-y-3">
+                            {m.legendaryActions.map((a, i) => (
+                              <div 
+                                key={i} 
+                                onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'legendary'); }}
+                                className={`p-4 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-red-950/20 border-red-900/40' : 'bg-black/60 border-red-950/10 hover:border-red-900/30'}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-lg ${a.locked ? 'text-red-500' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                                  <div>
+                                    <h6 className={`text-xs font-black uppercase tracking-wider ${a.locked ? 'text-red-400' : 'text-red-500/80'}`}>{a.name}</h6>
+                                    <p className="text-[11px] text-neutral-400 italic font-serif leading-relaxed">{a.effect}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-[7px] text-red-900 uppercase font-black tracking-widest text-center mt-2 italic">
+                            Used at the end of another creature's turn
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

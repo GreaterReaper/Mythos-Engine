@@ -356,7 +356,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                         </button>
                         
                         {activeTooltip === s && (
-                          <div className="absolute z-50 bg-neutral-900 border border-amber-900/60 p-3 text-[10px] text-neutral-200 italic font-serif leading-relaxed bottom-full left-0 right-0 mb-2 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-bottom-2">
+                          <div className="absolute z-50 bg-neutral-900 border border-amber-900/60 p-3 text-[10px] text-neutral-200 italic font-serif italic leading-relaxed bottom-full left-0 right-0 mb-2 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-bottom-2">
                             <div className="text-[#b28a48] font-black uppercase tracking-widest text-[8px] mb-1 border-b border-amber-900/20 pb-1">{s} Role</div>
                             {STAT_DESCRIPTIONS[s]}
                             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutral-900 border-r border-b border-amber-900/60 rotate-45"></div>
@@ -588,7 +588,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
                 <section className="space-y-6">
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-4">
-                    <h4 className="text-xl font-black fantasy-font text-neutral-400">Sacred Arts (Spells)</h4>
+                    <h4 className="text-xl font-black fantasy-font text-neutral-400">The Grimoire (Spells)</h4>
                     <button 
                       onClick={() => handleGenerateSpells(selectedChar)} 
                       disabled={learningSpells === selectedChar.id || !reservoirReady}
@@ -610,15 +610,27 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       </div>
                     ) : (
                       selectedChar.knownSpells.map((spell, i) => (
-                        <div key={i} className="p-6 bg-black border border-neutral-900 rounded-sm hover:border-[#b28a48]/30 transition-colors group/spell text-left">
-                          <div className="flex justify-between items-start mb-3">
+                        <div key={i} className="p-6 bg-black border border-neutral-900 rounded-sm hover:border-[#b28a48]/30 transition-colors group/spell text-left relative">
+                          <div className="flex justify-between items-start mb-1">
                             <div>
-                              <h6 className="text-sm font-black text-amber-600 uppercase tracking-widest">{spell.name}</h6>
+                              <h6 
+                                className="text-sm font-black text-amber-600 uppercase tracking-widest cursor-help relative"
+                                onMouseEnter={() => setActiveTooltip(`spell_${i}`)}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                              >
+                                {spell.name}
+                                {activeTooltip === `spell_${i}` && (
+                                  <div className="absolute z-[120] bottom-full left-0 mb-3 w-72 p-4 bg-neutral-900 border border-amber-900/60 rounded-sm shadow-[0_10px_40px_rgba(0,0,0,0.9)] animate-in fade-in zoom-in-95 pointer-events-none">
+                                    <div className="text-[8px] font-black text-[#b28a48] uppercase tracking-widest border-b border-amber-900/20 pb-2 mb-2">Arcane Properties</div>
+                                    <p className="text-[11px] text-neutral-200 font-serif italic leading-relaxed">{spell.description}</p>
+                                    <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-neutral-900 border-r border-b border-amber-900/60 rotate-45"></div>
+                                  </div>
+                                )}
+                              </h6>
                               <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest mt-0.5">{spell.school} • Level {spell.level}</p>
                             </div>
                             <div className="w-2 h-2 rounded-full bg-amber-900/40 group-hover/spell:bg-amber-500 animate-pulse"></div>
                           </div>
-                          <p className="text-xs text-neutral-400 font-serif leading-relaxed italic">{spell.description}</p>
                         </div>
                       ))
                     )}

@@ -1,6 +1,5 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount } from './types';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Rule, Spell } from './types';
 import Sidebar from './components/Sidebar';
 import CampaignView from './components/CampaignView';
 import CharacterCreator from './components/CharacterCreator';
@@ -10,6 +9,8 @@ import ClassLibrary from './components/ClassLibrary';
 import MultiplayerPanel from './components/MultiplayerPanel';
 import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
+import SpellCodex from './components/SpellCodex';
+import RulesManifest from './components/RulesManifest';
 import Peer, { DataConnection } from 'peerjs';
 
 interface Notification {
@@ -30,7 +31,7 @@ const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive'>('campaign');
+  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'rules'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const [diceTrayOpen, setDiceTrayOpen] = useState(false);
@@ -58,7 +59,7 @@ const App: React.FC = () => {
   const [classes, setClasses] = useState<ClassDef[]>([]);
   const [monsters, setMonsters] = useState<Monster[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [] });
+  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [] });
 
   const [peerId, setPeerId] = useState<string>('');
   const [isHost, setIsHost] = useState<boolean>(true);
@@ -73,6 +74,14 @@ const App: React.FC = () => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 7000);
   }, []);
+
+  const diceNeeded = useMemo(() => {
+    if (campaign.logs.length === 0) return false;
+    const lastLog = campaign.logs[campaign.logs.length - 1];
+    if (lastLog.role !== 'dm') return false;
+    const triggerWords = ['roll', 'die', 'dice', 'd20', 'd100', 'd12', 'd10', 'd8', 'd6', 'd4'];
+    return triggerWords.some(word => lastLog.content.toLowerCase().includes(word));
+  }, [campaign.logs]);
 
   const handleRollDice = (sides: number) => {
     const result = Math.floor(Math.random() * sides) + 1;
@@ -101,7 +110,7 @@ const App: React.FC = () => {
       const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
       setItems(savedItems ? JSON.parse(savedItems) : []);
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
-      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [] });
+      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] });
 
       const today = new Date().toDateString();
       const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
@@ -297,11 +306,13 @@ const App: React.FC = () => {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={() => setCurrentUser(null)} user={currentUser} />
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
+          {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
+          {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoir >= 1 && !isExhausted} broadcast={broadcast} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {
               if (connections.length === 0) return;
               const state: any = {};
@@ -380,7 +391,9 @@ const App: React.FC = () => {
             )}
           </div>
         )}
-        <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'}`}>🎲</button>
+        {(diceTrayOpen || diceNeeded) && (
+          <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'} ${diceNeeded && !diceTrayOpen ? 'animate-bounce border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''}`}>🎲</button>
+        )}
       </div>
     </div>
   );

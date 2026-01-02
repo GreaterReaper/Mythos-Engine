@@ -80,8 +80,16 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
       model: 'gemini-2.5-flash-image',
       contents: { parts: parts },
     });
-    const imgPart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-    return imgPart ? `data:image/png;base64,${imgPart.inlineData.data}` : '';
+    
+    const candidate = response.candidates?.[0];
+    if (!candidate?.content?.parts) return '';
+    
+    const imgPart = candidate.content.parts.find(p => p.inlineData);
+    if (imgPart?.inlineData?.data) {
+      const mime = imgPart.inlineData.mimeType || 'image/png';
+      return `data:${mime};base64,${imgPart.inlineData.data}`;
+    }
+    return '';
   });
 };
 
@@ -131,34 +139,6 @@ export const generateSpellbook = async (className: string, classDesc: string, ma
               description: { type: Type.STRING }
             },
             required: ["name", "level", "school", "description"]
-          }
-        }
-      }
-    });
-    return JSON.parse(cleanJson(response.text || '[]'));
-  });
-};
-
-export const generateRules = async (plot: string): Promise<Rule[]> => {
-  trackUsage('utility', 20);
-  return withRetry(async () => {
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Generate a set of 6 fundamental TTRPG rules. Plot: ${plot}. Ensure content is professional manual-style text.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.STRING },
-              category: { type: Type.STRING },
-              name: { type: Type.STRING },
-              content: { type: Type.STRING }
-            },
-            required: ["id", "category", "name", "content"]
           }
         }
       }
@@ -409,5 +389,36 @@ export const generateItemMechanics = async (name: string, type: string, descript
       }
     });
     return JSON.parse(cleanJson(response.text || '{}'));
+  });
+};
+
+// Added generateRules function for campaign laws
+export const generateRules = async (plot: string): Promise<Rule[]> => {
+  trackUsage('utility', 20);
+  return withRetry(async () => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Generate 5 fundamental TTRPG core rules for the campaign setting: ${plot}. 
+      Include categories like 'Combat', 'Magic', 'Exploration', 'Social'. 
+      RULES: Output ONLY JSON. Each rule must have a unique id (short string), category, name, and mechanical description.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING },
+              category: { type: Type.STRING },
+              name: { type: Type.STRING },
+              content: { type: Type.STRING }
+            },
+            required: ["id", "category", "name", "content"]
+          }
+        }
+      }
+    });
+    return JSON.parse(cleanJson(response.text || '[]'));
   });
 };

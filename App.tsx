@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Rule, Spell } from './types';
+import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
 import CampaignView from './components/CampaignView';
 import CharacterCreator from './components/CharacterCreator';
@@ -10,7 +10,6 @@ import MultiplayerPanel from './components/MultiplayerPanel';
 import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import SpellCodex from './components/SpellCodex';
-import RulesManifest from './components/RulesManifest';
 import Peer, { DataConnection } from 'peerjs';
 
 interface Notification {
@@ -128,7 +127,7 @@ const SYSTEM_ITEMS: Item[] = [
   {
     id: 'sys-healing-potion',
     name: 'Lesser Healing Potion',
-    type: 'Weapon', // Using 'Weapon' as per the existing type definition logic for consumables in manifestBasics
+    type: 'Weapon', 
     description: 'A bubbling red liquid that smells of medicinal cherries.',
     mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points as an action.' }],
     lore: 'Brewed in the temple of the Dawn Mother to aid travelers.',
@@ -170,7 +169,7 @@ const SYSTEM_ITEMS: Item[] = [
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'rules'>('campaign');
+  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const [diceTrayOpen, setDiceTrayOpen] = useState(false);
@@ -198,7 +197,7 @@ const App: React.FC = () => {
   const [classes, setClasses] = useState<ClassDef[]>([]);
   const [monsters, setMonsters] = useState<Monster[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [] });
+  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [] });
 
   const [peerId, setPeerId] = useState<string>('');
   const [isHost, setIsHost] = useState<boolean>(true);
@@ -231,11 +230,8 @@ const App: React.FC = () => {
           if (alreadyKnown) return;
 
           let shouldAdd = false;
-          // Healers / Divine
           if ((isDivine || isDruidic) && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify') || common.name.includes('Cure'))) shouldAdd = true;
-          // Arcane / Offensive
           if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) shouldAdd = true;
-          // Universal cantrips
           if (['Guidance', 'Light', 'Detect Magic', 'Mage Hand'].includes(common.name)) shouldAdd = true;
 
           if (shouldAdd) newSpells.push(common);
@@ -341,7 +337,7 @@ const App: React.FC = () => {
       const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
       setItems(savedItems ? JSON.parse(savedItems) : []);
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
-      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] });
+      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [] });
 
       const today = new Date().toDateString();
       const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
@@ -543,7 +539,6 @@ const App: React.FC = () => {
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
-          {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoir >= 1 && !isExhausted} broadcast={broadcast} setActiveTab={setActiveTab} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {
               if (connections.length === 0) return;
               const state: any = {};

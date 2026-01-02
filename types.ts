@@ -47,13 +47,6 @@ export interface Character {
   lockedStats?: (keyof Stats)[];
 }
 
-export interface Rule {
-  id: string;
-  category: string;
-  name: string;
-  content: string;
-}
-
 export interface ClassFeature extends Trait {}
 
 export interface ClassDef {
@@ -109,6 +102,14 @@ export interface GameLog {
   timestamp: number;
   senderId?: string;
   senderName?: string;
+}
+
+// Added Rule interface for campaign laws
+export interface Rule {
+  id: string;
+  category: string;
+  name: string;
+  content: string;
 }
 
 export interface CampaignState {

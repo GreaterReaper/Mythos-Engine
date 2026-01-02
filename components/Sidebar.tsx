@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { UserAccount } from '../types';
 
@@ -17,7 +16,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
     { id: 'spells', label: 'Spells', icon: '✨' },
     { id: 'bestiary', label: 'Bestiary', icon: '🐉' },
     { id: 'armory', label: 'Armory', icon: '🛡️' },
-    { id: 'rules', label: 'Rules', icon: '⚖️' },
     { id: 'multiplayer', label: 'Portal', icon: '🌀' },
     { id: 'archive', label: 'Archive', icon: '📦' },
   ];

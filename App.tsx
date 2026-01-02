@@ -53,8 +53,7 @@ const SYSTEM_MONSTERS: Monster[] = [
     stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 },
     hp: 7,
     ac: 13,
-    abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }],
-    imageUrl: 'https://images.unsplash.com/photo-1519074063912-ad25b5ce495c?auto=format&fit=crop&q=80&w=400'
+    abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }]
   },
   {
     id: 'sys-skeleton',
@@ -63,8 +62,7 @@ const SYSTEM_MONSTERS: Monster[] = [
     stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 },
     hp: 13,
     ac: 13,
-    abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
-    imageUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?auto=format&fit=crop&q=80&w=400'
+    abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }]
   },
   {
     id: 'sys-orc',
@@ -73,8 +71,7 @@ const SYSTEM_MONSTERS: Monster[] = [
     stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
     hp: 15,
     ac: 13,
-    abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }],
-    imageUrl: 'https://images.unsplash.com/photo-1605142859862-978be7eba909?auto=format&fit=crop&q=80&w=400'
+    abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }]
   },
   {
     id: 'sys-boss-sentinel',
@@ -91,8 +88,7 @@ const SYSTEM_MONSTERS: Monster[] = [
     legendaryActions: [
       { name: 'Obsidian Smash', effect: 'Make one slam attack (+8 to hit, 3d10+5 bludgeoning).' },
       { name: 'Ley Pulse', effect: 'Emanate a wave of force. Nearby creatures must succeed a DC 15 STR save or be knocked prone.' }
-    ],
-    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=400'
+    ]
   },
   {
     id: 'sys-boss-malakor',
@@ -109,8 +105,7 @@ const SYSTEM_MONSTERS: Monster[] = [
     legendaryActions: [
       { name: 'Cantrip', effect: 'Cast a cantrip or level 1 spell.' },
       { name: 'Siphon Vitality', effect: 'A creature within 60ft must make a DC 16 CON save or take 3d8 necrotic damage, healing Malakor for half.' }
-    ],
-    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=400'
+    ]
   }
 ];
 
@@ -121,8 +116,7 @@ const SYSTEM_ITEMS: Item[] = [
     type: 'Weapon',
     description: 'A well-balanced blade of cold-forged iron. Reliable and versatile.',
     mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage (1d10 if used with two hands).' }],
-    lore: 'Standard issue for the King\'s Guard, forged in the royal foundry.',
-    imageUrl: 'https://images.unsplash.com/photo-1513360371669-4ada307f8df8?auto=format&fit=crop&q=80&w=400'
+    lore: 'Standard issue for the King\'s Guard, forged in the royal foundry.'
   },
   {
     id: 'sys-healing-potion',
@@ -130,8 +124,7 @@ const SYSTEM_ITEMS: Item[] = [
     type: 'Weapon', 
     description: 'A bubbling red liquid that smells of medicinal cherries.',
     mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points as an action.' }],
-    lore: 'Brewed in the temple of the Dawn Mother to aid travelers.',
-    imageUrl: 'https://images.unsplash.com/photo-1527333656061-ca7adf608ae1?auto=format&fit=crop&q=80&w=400'
+    lore: 'Brewed in the temple of the Dawn Mother to aid travelers.'
   },
   {
     id: 'sys-plate-armor',
@@ -139,32 +132,7 @@ const SYSTEM_ITEMS: Item[] = [
     type: 'Armor',
     description: 'Interlocking metal plates covering the entire body over a suit of chain mail.',
     mechanics: [{ name: 'Heavy Protection', description: 'Grants an AC of 18. Disadvantage on Stealth checks.' }],
-    lore: 'Worn by knights of the highest order, polished to a mirror finish.',
-    imageUrl: 'https://images.unsplash.com/photo-1548366478-29497e008a09?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'sys-relic-sunblade',
-    name: 'Sun-Seeker\'s Blade',
-    type: 'Weapon',
-    description: 'A longsword with a blade made of literal, solid light. It hums with celestial energy.',
-    mechanics: [
-      { name: 'Sunlight', description: 'Deals 1d8 radiant damage. The blade sheds bright light in a 15ft radius.' },
-      { name: 'Undead Scourge', description: 'Deals an extra 1d8 radiant damage to undead targets.' }
-    ],
-    lore: 'Said to be a fragment of a dying star, wielded by the first Solar Paladin.',
-    imageUrl: 'https://images.unsplash.com/photo-1519750783826-e2420f4d687f?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    id: 'sys-relic-voidplate',
-    name: 'Void-Hardened Plate',
-    type: 'Armor',
-    description: 'Armor forged from metal cooled in the vacuum between stars. It seems to swallow nearby light.',
-    mechanics: [
-      { name: 'Void Ward', description: 'Grants resistance to necrotic and force damage.' },
-      { name: 'Singularity AC', description: 'AC 19. Attackers cannot have advantage on attacks against the wearer.' }
-    ],
-    lore: 'Found in the wreckage of a crashed obsidian spire. It pulses with a dark, steady rhythm.',
-    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&q=80&w=400'
+    lore: 'Worn by knights of the highest order, polished to a mirror finish.'
   }
 ];
 
@@ -197,7 +165,6 @@ const App: React.FC = () => {
   const [classes, setClasses] = useState<ClassDef[]>([]);
   const [monsters, setMonsters] = useState<Monster[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  /* Initialize campaign with rules array */
   const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [] });
 
   const [peerId, setPeerId] = useState<string>('');
@@ -224,35 +191,41 @@ const App: React.FC = () => {
       }
 
       const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
-      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver');
-      const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar');
-      const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild');
+      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver') || classKeywords.includes('warlock') || classKeywords.includes('spells');
+      const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar') || classKeywords.includes('divine') || classKeywords.includes('sacred');
+      const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild') || classKeywords.includes('primal') || classKeywords.includes('beast') || classKeywords.includes('flora');
       
-      const newSpells = [...(cls.initialSpells || [])];
+      // Filter existing spells that definitely don't fit based on strict thematic grounds
+      let currentSpells = (cls.initialSpells || []).filter(s => {
+          const sName = s.name.toLowerCase();
+          const sSchool = s.school.toLowerCase();
+          // Arcane rarely has cure/heal unless specific lore
+          if (isArcane && !isDivine && !isDruidic && (sName.includes('cure') || sName.includes('heal'))) return false;
+          // Divine rarely has destructive conjuration unless "wrath" type lore
+          if (isDivine && !isArcane && sSchool === 'conjuration' && !sName.includes('weapon') && !sName.includes('spirit')) return false;
+          return true;
+      });
       
       COMMON_SPELLS.forEach(common => {
-        const alreadyKnown = newSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
+        const alreadyKnown = currentSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
         if (alreadyKnown) return;
 
         let shouldAdd = false;
-        if ((isDivine || isDruidic) && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify') || common.name.includes('Cure'))) shouldAdd = true;
-        if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) shouldAdd = true;
+        const cName = common.name.toLowerCase();
         
-        // Very basic neutral utility
-        if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
+        // Thematic matching
+        if ((isDivine || isDruidic) && (cName.includes('heal') || cName.includes('restoration') || cName.includes('revivify') || cName.includes('cure'))) shouldAdd = true;
+        if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) {
+             if (!cName.includes('healing')) shouldAdd = true;
+        }
+        
+        // Neutral utility
+        if (['Guidance', 'Light', 'Detect Magic', 'Mage Hand'].includes(common.name)) shouldAdd = true;
 
-        if (shouldAdd) newSpells.push(common);
+        if (shouldAdd) currentSpells.push(common);
       });
       
-      // Filter out spells that explicitly don't fit if it's strictly divine or arcane
-      const finalSpells = newSpells.filter(s => {
-          const sName = s.name.toLowerCase();
-          // Arcane classes shouldn't have "Healing Word" usually unless stated
-          if (isArcane && !isDivine && sName.includes('healing word')) return false;
-          return true;
-      });
-
-      return { ...cls, initialSpells: finalSpells };
+      return { ...cls, initialSpells: currentSpells };
     });
   }, []);
 
@@ -351,7 +324,6 @@ const App: React.FC = () => {
       const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
       setItems(savedItems ? JSON.parse(savedItems) : []);
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
-      /* Ensure rules array is present even if restoring older data */
       const campaignData = savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] };
       if (!campaignData.rules) campaignData.rules = [];
       setCampaign(campaignData);

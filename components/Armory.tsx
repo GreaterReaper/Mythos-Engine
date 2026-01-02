@@ -64,6 +64,45 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     }
   };
 
+  const handleRegenerateMissingImages = async () => {
+    if (!reservoirReady || loading) return;
+    setLoading(true);
+    notify("Forging Visual Relics for the Armory...", "info");
+    const list = [...items];
+    let count = 0;
+    try {
+      for (let i = 0; i < list.length; i++) {
+        if (!list[i].imageUrl) {
+          const img = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${list[i].type} called "${list[i].name}". Lore: ${list[i].description}. Obsidian and gold accents.`);
+          list[i] = { ...list[i], imageUrl: img };
+          setItems([...list]);
+          count++;
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      notify(`Visualized ${count} relics.`, "success");
+    } catch (e) {
+      notify("Ether interference stopped relic manifestation.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegenerateSingleImage = async (e: React.MouseEvent, item: Item) => {
+    e.stopPropagation();
+    if (!reservoirReady || loading) return;
+    setLoading(true);
+    try {
+      const img = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${item.type} called "${item.name}". Lore: ${item.description}. Obsidian and gold accents.`);
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, imageUrl: img } : i));
+      notify(`Sigil for ${item.name} manifest.`, "success");
+    } catch (e) {
+      notify("Failed to reweave sigil.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleLock = (itemId: string, mechIdx: number) => {
     setItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
@@ -130,13 +169,23 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
           <p className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black mt-2">Relics of Power & Protection</p>
         </div>
         
-        <button 
-          onClick={() => manifestBasics && manifestBasics('items')}
-          className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-        >
-          <span className="animate-pulse">✨</span>
-          Manifest Relic Archive
-        </button>
+        <div className="flex gap-2">
+           <button 
+            onClick={handleRegenerateMissingImages}
+            disabled={loading || !reservoirReady}
+            className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95"
+           >
+            <span className="text-sm">🖼️</span>
+            Manifest Visuals
+           </button>
+           <button 
+            onClick={() => manifestBasics && manifestBasics('items')}
+            className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+           >
+            <span className="animate-pulse">✨</span>
+            Manifest Relics
+           </button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -240,8 +289,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative grayscale group-hover:grayscale-0 transition-all duration-700 overflow-hidden flex-shrink-0 ${expandedId === item.id ? 'grayscale-0' : ''}`}>
-                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover transform transition-transform duration-1000 group-hover:scale-110" alt={item.name} onError={(e) => e.currentTarget.style.display = 'none'} /> : null}
-                    {!item.imageUrl && <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
+                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover transform transition-transform duration-1000 group-hover:scale-110" alt={item.name} onError={(e) => e.currentTarget.style.display = 'none'} /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl opacity-20">⚔️</div>}
                   </div>
                   
                   <div className="p-8 flex-1 flex flex-col justify-between">
@@ -270,6 +318,16 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
                 {expandedId === item.id && (
                   <div className="p-8 md:p-12 border-t border-neutral-900 bg-black/40 space-y-12 animate-in slide-in-from-top-2 duration-500">
+                    <div className="flex justify-end">
+                        <button 
+                           onClick={(e) => handleRegenerateSingleImage(e, item)}
+                           disabled={loading || !reservoirReady}
+                           className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all"
+                        >
+                           <span>Regenerate Sigil 🖼️</span>
+                        </button>
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 text-left">
                       <div className="space-y-6">
                         <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.4em] border-b border-neutral-900 pb-2">Ancient Lore</h5>

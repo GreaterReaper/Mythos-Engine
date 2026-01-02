@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage, Spell, UserAccount, Item } from '../types';
-import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment } from '../services/gemini';
+import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage } from '../services/gemini';
 
 interface ClassLibraryProps {
   classes: ClassDef[];
@@ -52,6 +52,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     setLoading(true);
     try {
       const mechanics = await generateClassMechanics(name, description);
+      const hasSpells = mechanics.spellSlots && mechanics.spellSlots.some((s: number) => s > 0);
       const newClass: ClassDef = {
         id: Math.random().toString(36).substr(2, 9),
         name,
@@ -71,18 +72,23 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       const updatedList = syncSpells ? syncSpells([...classes, newClass]) : [...classes, newClass];
       updateAndSync(updatedList);
       
-      // Auto-generate starter equipment
+      // Auto-generate starter equipment with contextual images
       try {
-        const signatureItems = await generateClassEquipment(name, description);
-        const keyedItems = signatureItems.map(si => ({ ...si, id: Math.random().toString(36).substr(2, 9) }));
+        const signatureItems = await generateClassEquipment(name, description, newClass.hitDie, hasSpells);
+        const keyedItems = [];
+        for (const si of signatureItems) {
+            const imgUrl = await generateImage(`TTRPG concept art: ${si.name}, a signature ${si.type} for a ${name} hero. Lore: ${description}. Item Lore: ${si.lore}. Highly detailed obsidian and gold accents, cinematic lighting.`);
+            keyedItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
+            await new Promise(r => setTimeout(r, 1000)); // Rate limit breathing room
+        }
         setItems(prev => [...prev, ...keyedItems]);
         if (broadcast) {
           keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
         }
-        notify(`Archetype and Signature Gear Bound`, "success");
+        notify(`Archetype and Signature Gear Manifested.`, "success");
       } catch (itemErr) {
         console.error("Failed to forge starter items:", itemErr);
-        notify(`Archetype Bound, but the Forge failed to yield relics.`, "info");
+        notify(`Archetype Bound, but visuals failed to coalesce.`, "info");
       }
 
       setName('');
@@ -100,13 +106,19 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     if (!reservoirReady || forgingHeirloomId) return;
     setForgingHeirloomId(cls.id);
     try {
-      const signatureItems = await generateClassEquipment(cls.name, cls.description);
-      const keyedItems = signatureItems.map(si => ({ ...si, id: Math.random().toString(36).substr(2, 9) }));
+      const hasSpells = cls.spellSlots && cls.spellSlots.some(s => s > 0);
+      const signatureItems = await generateClassEquipment(cls.name, cls.description, cls.hitDie, hasSpells);
+      const keyedItems = [];
+      for (const si of signatureItems) {
+        const imgUrl = await generateImage(`Sigil item: ${si.name} (${si.type}). Bound to archetype ${cls.name}. Class themes: ${cls.description}. Item Details: ${si.description}. Dark moody painting.`);
+        keyedItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
+        await new Promise(r => setTimeout(r, 1000));
+      }
       setItems(prev => [...prev, ...keyedItems]);
       if (broadcast) {
         keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
       }
-      notify(`Heirlooms of "${cls.name}" Manifested in Armory`, "success");
+      notify(`Heirlooms of "${cls.name}" forged with visuals.`, "success");
     } catch (e: any) {
       notify(e.message, "error");
     } finally {
@@ -115,7 +127,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleIdentifyDepths = async (cls: ClassDef) => {
-    if (!isAuthor(cls)) {
+    if (!isAuthor(cls) && cls.authorId !== 'system') {
       notify("Only the original author can manifest these depths.", "error");
       return;
     }
@@ -145,7 +157,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleManifestSpells = async (cls: ClassDef) => {
-    if (!isAuthor(cls)) {
+    if (!isAuthor(cls) && cls.authorId !== 'system') {
       notify("Only the original author can inscribe these spells.", "error");
       return;
     }
@@ -204,24 +216,33 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const handleBulkGearManifest = async () => {
     if (!reservoirReady || loading) return;
     setLoading(true);
-    notify("Manifesting Signature Gear for all Archetypes...", "info");
+    notify("Manifesting Signature Relics for Archetypes...", "info");
     
     try {
+      let count = 0;
       for (const cls of classes) {
-        // We only generate if gear doesn't clearly exist for this class name in armory already to prevent spam
-        const existingNames = items.map(i => i.name.toLowerCase());
-        const signatureItems = await generateClassEquipment(cls.name, cls.description);
-        const newItems = signatureItems
-          .filter(si => !existingNames.includes(si.name.toLowerCase()))
-          .map(si => ({ ...si, id: Math.random().toString(36).substr(2, 9) }));
+        // Check if archetype gear already exists to prevent spam
+        const classTerms = cls.name.toLowerCase().split(' ');
+        const exists = items.some(i => classTerms.some(term => i.name.toLowerCase().includes(term) || i.description.toLowerCase().includes(term)));
         
-        if (newItems.length > 0) {
-          setItems(prev => [...prev, ...newItems]);
-          if (broadcast) newItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
+        if (!exists || cls.authorId === 'system') {
+          const hasSpells = cls.spellSlots && cls.spellSlots.some(s => s > 0);
+          const signatureItems = await generateClassEquipment(cls.name, cls.description, cls.hitDie, hasSpells);
+          const newItems = [];
+          for (const si of signatureItems) {
+            const imgUrl = await generateImage(`High-fidelity TTRPG relic: ${si.name}. For class ${cls.name}. Lore: ${cls.description}. Item Power: ${si.description}. Cinematic dark fantasy masterpiece.`);
+            newItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
+            await new Promise(r => setTimeout(r, 1200));
+          }
+          
+          if (newItems.length > 0) {
+            setItems(prev => [...prev, ...newItems]);
+            if (broadcast) newItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
+            count++;
+          }
         }
-        await new Promise(r => setTimeout(r, 1000));
       }
-      notify("Relic Armory Updated for Fellowship", "success");
+      notify(`Signature Relics for ${count} Archetypes added to Armory.`, "success");
     } catch (e: any) {
       notify("Ether instability during mass forging.", "error");
     } finally {
@@ -230,7 +251,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const toggleFeatureLock = (cls: ClassDef, featIdx: number) => {
-    if (!isAuthor(cls)) {
+    if (!isAuthor(cls) && cls.authorId !== 'system') {
       notify("The grimoire prevents you from locking features of foreign archetypes.", "error");
       return;
     }
@@ -257,7 +278,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleReroll = async (cls: ClassDef) => {
-    if (!isAuthor(cls)) {
+    if (!isAuthor(cls) && cls.authorId !== 'system') {
       notify("Only the author may reweave this archetype's destiny.", "error");
       return;
     }
@@ -305,7 +326,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleDelete = (e: React.MouseEvent, cls: ClassDef) => {
     e.stopPropagation();
-    if (!isAuthor(cls)) {
+    if (!isAuthor(cls) && cls.authorId !== 'system') {
       notify("You cannot banish what you did not create.", "error");
       return;
     }
@@ -330,17 +351,17 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
           >
             <span className="text-sm">🛡️</span>
-            Manifest All Gear
+            Manifest All Archetype Gear
           </button>
 
-          {legacyRecords.some(c => isAuthor(c) || c.authorId === 'system') && (
+          {(legacyRecords.some(c => isAuthor(c) || c.authorId === 'system')) && (
             <button 
               onClick={handleBulkManifest}
               disabled={loading || !reservoirReady}
               className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
             >
               <span className="animate-pulse">✨</span>
-              Synchronize Grimoire
+              Synchronize Legacies
             </button>
           )}
         </div>
@@ -401,7 +422,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
               const missingSpells = !c.initialSpells || c.initialSpells.length === 0;
-              const userIsAuthor = isAuthor(c);
+              const userIsAuthorOrSystem = isAuthor(c) || c.authorId === 'system';
 
               return (
                 <div 
@@ -417,7 +438,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                     <div className="flex-1 text-left">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-4">
-                          {!search && userIsAuthor && (
+                          {!search && userIsAuthorOrSystem && (
                             <div className="flex flex-col gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={(e) => handleMove(e, c.id, 'up')}
@@ -445,7 +466,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                   Legacy
                                 </span>
                               )}
-                              {userIsAuthor ? (
+                              {isAuthor(c) ? (
                                 <span className="text-[7px] font-black text-green-700 uppercase tracking-widest bg-green-950/20 px-2 py-0.5 rounded-sm border border-green-900/30">
                                   Your Legend
                                 </span>
@@ -465,7 +486,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           >
                             🌀
                           </button>
-                          {userIsAuthor && (
+                          {userIsAuthorOrSystem && (
                             <button 
                               onClick={(e) => handleDelete(e, c)} 
                               className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
@@ -503,10 +524,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                   disabled={forgingHeirloomId === c.id || !reservoirReady}
                                   className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
                                 >
-                                  {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Heirloom ⚔️'}
+                                  {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Relics ⚔️'}
                                 </button>
                                 
-                                {userIsAuthor && (
+                                {userIsAuthorOrSystem && (
                                   <>
                                     {(missingSpells || expandedId === c.id) && (
                                       <button 
@@ -610,7 +631,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                         <div className="space-y-8">
                           <div className="flex justify-between items-end border-b border-neutral-800 pb-2 mb-4">
                             <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em]">Archetype Features</h5>
-                            {userIsAuthor ? (
+                            {userIsAuthorOrSystem ? (
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleReroll(c); }}
                                 disabled={rerolling === c.id || !reservoirReady}
@@ -632,7 +653,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 onClick={(e) => { e.stopPropagation(); toggleFeatureLock(c, i); }}
                                 className={`p-6 border transition-all rounded-sm relative group/feat flex flex-col justify-center min-h-[100px] text-left ${
                                   f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'
-                                } ${!userIsAuthor ? 'cursor-default' : 'cursor-pointer'}`}
+                                } ${!userIsAuthorOrSystem ? 'cursor-default' : 'cursor-pointer'}`}
                               >
                                 <div className="flex items-start gap-4">
                                   <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-600' : 'text-neutral-800'}`}>
@@ -647,7 +668,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     </p>
                                   </div>
                                 </div>
-                                {f.locked && !userIsAuthor && (
+                                {f.locked && !userIsAuthorOrSystem && (
                                   <div className="absolute top-2 right-2 text-[8px] font-black text-amber-900/40 uppercase tracking-widest">
                                     Author Locked
                                   </div>

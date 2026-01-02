@@ -78,6 +78,45 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
     }
   };
 
+  const handleRegenerateMissingImages = async () => {
+    if (!reservoirReady || loading) return;
+    setLoading(true);
+    notify("Manifesting Visuals for the Unseen...", "info");
+    const list = [...monsters];
+    let count = 0;
+    try {
+      for (let i = 0; i < list.length; i++) {
+        if (!list[i].imageUrl) {
+          const img = await generateImage(`Full body illustration of a ${list[i].isBoss ? 'LEGENDARY' : ''} monster: ${list[i].description}`);
+          list[i] = { ...list[i], imageUrl: img };
+          setMonsters([...list]);
+          count++;
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
+      notify(`Visualized ${count} horrors.`, "success");
+    } catch (e) {
+      notify("Ether interference stopped visual manifestation.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegenerateSingleImage = async (e: React.MouseEvent, monster: Monster) => {
+    e.stopPropagation();
+    if (!reservoirReady || loading) return;
+    setLoading(true);
+    try {
+      const img = await generateImage(`Full body illustration of a ${monster.isBoss ? 'LEGENDARY' : ''} monster: ${monster.description}`);
+      setMonsters(prev => prev.map(m => m.id === monster.id ? { ...m, imageUrl: img } : m));
+      notify(`Sigil for ${monster.name} manifest.`, "success");
+    } catch (e) {
+      notify("Failed to reweave sigil.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleLock = (monsterId: string, abilityIdx: number, type: 'standard' | 'legendary' = 'standard') => {
     setMonsters(prev => prev.map(m => {
       if (m.id !== monsterId) return m;
@@ -172,13 +211,23 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
           <p className="text-[10px] text-neutral-500 uppercase tracking-[0.4em] font-black mt-2">Codex of Horrors & Guardians</p>
         </div>
         
-        <button 
-          onClick={() => manifestBasics && manifestBasics('monsters')}
-          className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
-        >
-          <span className="animate-pulse">✨</span>
-          Manifest System Archive
-        </button>
+        <div className="flex gap-2">
+           <button 
+            onClick={handleRegenerateMissingImages}
+            disabled={loading || !reservoirReady}
+            className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95"
+           >
+            <span className="text-sm">🖼️</span>
+            Manifest Visuals
+           </button>
+           <button 
+            onClick={() => manifestBasics && manifestBasics('monsters')}
+            className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+           >
+            <span className="animate-pulse">✨</span>
+            Manifest Archives
+           </button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -273,8 +322,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative flex-shrink-0 transition-all duration-700 grayscale group-hover:grayscale-0 ${expandedId === m.id ? 'grayscale-0' : ''}`}>
-                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" alt={m.name} onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
-                    {!m.imageUrl && <div className="w-full h-full bg-black flex items-center justify-center text-6xl">🐉</div>}
+                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" alt={m.name} onError={(e) => (e.currentTarget.style.display = 'none')} /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl opacity-30">🐉</div>}
                   </div>
                   
                   <div className="p-8 flex-1 flex flex-col justify-between">
@@ -302,96 +350,108 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                 </div>
 
                 {expandedId === m.id && (
-                  <div className={`p-8 border-t bg-black/40 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-2 duration-500 ${m.isBoss ? 'border-red-900/20' : 'border-neutral-900'}`}>
-                    <div className="space-y-6">
-                      <h5 className={`text-[10px] font-black uppercase tracking-widest border-b pb-2 text-left ${m.isBoss ? 'text-red-400 border-red-950' : 'text-neutral-500 border-neutral-800'}`}>Combat Statistics</h5>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className={`bg-black/60 p-5 border rounded-sm text-center ${m.isBoss ? 'border-red-900/30' : 'border-neutral-900'}`}>
-                          <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Vitality (HP)</div>
-                          <div className={`text-3xl font-black ${m.isBoss ? 'text-red-500 drop-shadow-[0_0_10px_rgba(220,38,38,0.2)]' : 'text-amber-500'}`}>{m.hp}</div>
-                        </div>
-                        <div className={`bg-black/60 p-5 border rounded-sm text-center ${m.isBoss ? 'border-red-900/30' : 'border-neutral-900'}`}>
-                          <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Protection (AC)</div>
-                          <div className="text-3xl font-black text-neutral-200">{m.ac}</div>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        {(Object.keys(m.stats) as Array<keyof Stats>).map((s) => (
-                          <div key={s} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-center group/stat">
-                            <div className="text-[7px] font-black text-neutral-700 uppercase mb-1">{s.slice(0, 3)}</div>
-                            <div className="text-lg font-black text-[#b28a48]">{m.stats[s]}</div>
-                            <div className="text-[9px] font-bold text-neutral-500 bg-neutral-950/50 mt-1 py-0.5 rounded-sm">
-                              {getModifier(m.stats[s] as number)}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  <div className={`p-8 border-t bg-black/40 animate-in slide-in-from-top-2 duration-500 ${m.isBoss ? 'border-red-900/20' : 'border-neutral-900'}`}>
+                    <div className="flex justify-end mb-6">
+                        <button 
+                           onClick={(e) => handleRegenerateSingleImage(e, m)}
+                           disabled={loading || !reservoirReady}
+                           className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all"
+                        >
+                           <span>Regenerate Sigil 🖼️</span>
+                        </button>
                     </div>
 
-                    <div className="space-y-8">
-                      {/* Standard Abilities Section */}
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
-                          <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
-                          <button 
-                            onClick={(e) => handleReroll(e, m, 'standard')}
-                            disabled={rerolling === m.id || !reservoirReady}
-                            className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20 transition-colors"
-                          >
-                            {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
-                          </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-6">
+                        <h5 className={`text-[10px] font-black uppercase tracking-widest border-b pb-2 text-left ${m.isBoss ? 'text-red-400 border-red-950' : 'text-neutral-500 border-neutral-800'}`}>Combat Statistics</h5>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className={`bg-black/60 p-5 border rounded-sm text-center ${m.isBoss ? 'border-red-900/30' : 'border-neutral-900'}`}>
+                            <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Vitality (HP)</div>
+                            <div className={`text-3xl font-black ${m.isBoss ? 'text-red-500 drop-shadow-[0_0_10px_rgba(220,38,38,0.2)]' : 'text-amber-500'}`}>{m.hp}</div>
+                          </div>
+                          <div className={`bg-black/60 p-5 border rounded-sm text-center ${m.isBoss ? 'border-red-900/30' : 'border-neutral-900'}`}>
+                            <div className="text-[8px] font-black text-neutral-600 uppercase mb-1">Protection (AC)</div>
+                            <div className="text-3xl font-black text-neutral-200">{m.ac}</div>
+                          </div>
                         </div>
-                        <div className="space-y-3">
-                          {m.abilities.map((a, i) => (
-                            <div 
-                              key={i} 
-                              onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'standard'); }}
-                              className={`p-5 border rounded-sm cursor-pointer transition-all text-left group/abil ${a.locked ? 'bg-amber-950/10 border-amber-900/40 shadow-inner' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
-                            >
-                              <div className="flex items-center gap-4">
-                                <span className={`text-xl ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
-                                <div>
-                                  <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
-                                  <p className="text-xs text-neutral-400 italic font-serif leading-relaxed opacity-80">{a.effect}</p>
-                                </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {(Object.keys(m.stats) as Array<keyof Stats>).map((s) => (
+                            <div key={s} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-center group/stat">
+                              <div className="text-[7px] font-black text-neutral-700 uppercase mb-1">{s.slice(0, 3)}</div>
+                              <div className="text-lg font-black text-[#b28a48]">{m.stats[s]}</div>
+                              <div className="text-[9px] font-bold text-neutral-500 bg-neutral-950/50 mt-1 py-0.5 rounded-sm">
+                                {getModifier(m.stats[s] as number)}
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
 
-                      {/* Legendary Actions Section */}
-                      {m.isBoss && m.legendaryActions && m.legendaryActions.length > 0 && (
-                        <div className="space-y-4 pt-4 border-t border-red-950/30">
-                          <div className="flex justify-between items-center border-b border-red-900/20 pb-2">
-                            <h5 className="text-[10px] font-black text-red-500 uppercase tracking-widest text-left">Legendary Actions</h5>
+                      <div className="space-y-8">
+                        {/* Standard Abilities Section */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
+                            <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
                             <button 
-                              onClick={(e) => handleReroll(e, m, 'legendary')}
-                              disabled={rerollingLegendary === m.id || !reservoirReady}
-                              className="text-[8px] font-black text-red-400 hover:text-red-200 uppercase tracking-widest disabled:opacity-20 transition-colors"
+                              onClick={(e) => handleReroll(e, m, 'standard')}
+                              disabled={rerolling === m.id || !reservoirReady}
+                              className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20 transition-colors"
                             >
-                              {rerollingLegendary === m.id ? 'REWEAVING...' : 'Reweave Legends 🎲'}
+                              {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
                             </button>
                           </div>
                           <div className="space-y-3">
-                            {m.legendaryActions.map((a, i) => (
+                            {m.abilities.map((a, i) => (
                               <div 
                                 key={i} 
-                                onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'legendary'); }}
-                                className={`p-5 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-red-950/20 border-red-900/40' : 'bg-black/60 border-red-950/10 hover:border-red-900/30'}`}
+                                onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'standard'); }}
+                                className={`p-5 border rounded-sm cursor-pointer transition-all text-left group/abil ${a.locked ? 'bg-amber-950/10 border-amber-900/40 shadow-inner' : 'bg-black/40 border-neutral-900 hover:border-neutral-700'}`}
                               >
                                 <div className="flex items-center gap-4">
-                                  <span className={`text-xl ${a.locked ? 'text-red-500' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                                  <span className={`text-xl ${a.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
                                   <div>
-                                    <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${a.locked ? 'text-red-400' : 'text-red-500/80'}`}>{a.name}</h6>
-                                    <p className="text-xs text-neutral-300 italic font-serif leading-relaxed opacity-80">{a.effect}</p>
+                                    <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${a.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{a.name}</h6>
+                                    <p className="text-xs text-neutral-400 italic font-serif leading-relaxed opacity-80">{a.effect}</p>
                                   </div>
                                 </div>
                               </div>
                             ))}
                           </div>
                         </div>
-                      )}
+
+                        {/* Legendary Actions Section */}
+                        {m.isBoss && m.legendaryActions && m.legendaryActions.length > 0 && (
+                          <div className="space-y-4 pt-4 border-t border-red-950/30">
+                            <div className="flex justify-between items-center border-b border-red-900/20 pb-2">
+                              <h5 className="text-[10px] font-black text-red-500 uppercase tracking-widest text-left">Legendary Actions</h5>
+                              <button 
+                                onClick={(e) => handleReroll(e, m, 'legendary')}
+                                disabled={rerollingLegendary === m.id || !reservoirReady}
+                                className="text-[8px] font-black text-red-400 hover:text-red-200 uppercase tracking-widest disabled:opacity-20 transition-colors"
+                              >
+                                {rerollingLegendary === m.id ? 'REWEAVING...' : 'Reweave Legends 🎲'}
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              {m.legendaryActions.map((a, i) => (
+                                <div 
+                                  key={i} 
+                                  onClick={(e) => { e.stopPropagation(); toggleLock(m.id, i, 'legendary'); }}
+                                  className={`p-5 border rounded-sm cursor-pointer transition-all text-left ${a.locked ? 'bg-red-950/20 border-red-900/40' : 'bg-black/60 border-red-950/10 hover:border-red-900/30'}`}
+                                >
+                                  <div className="flex items-center gap-4">
+                                    <span className={`text-xl ${a.locked ? 'text-red-500' : 'text-neutral-800'}`}>{a.locked ? '†' : '○'}</span>
+                                    <div>
+                                      <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${a.locked ? 'text-red-400' : 'text-red-500/80'}`}>{a.name}</h6>
+                                      <p className="text-xs text-neutral-300 italic font-serif leading-relaxed opacity-80">{a.effect}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

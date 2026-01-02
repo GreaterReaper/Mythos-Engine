@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
+import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell, ItemMechanic } from './types';
 import Sidebar from './components/Sidebar';
 import CampaignView from './components/CampaignView';
 import CharacterCreator from './components/CharacterCreator';
@@ -79,7 +79,7 @@ const SYSTEM_MONSTERS: Monster[] = [
   {
     id: 'sys-gorechimera',
     name: 'Gorechimera',
-    description: 'A terrifying legendary beast with the head and shoulders of a lion, the body and head of a goat, and a serpent tail that spews venom. Its skin is a ghastly pallid shade compared to standard chimeras.',
+    description: 'A terrifying legendary beast with the head and shoulders of a lion, the body and head of a goat, and a serpent tail that spews venom.',
     isBoss: true,
     stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 12, wisdom: 16, charisma: 14 },
     hp: 240,
@@ -103,8 +103,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Standard Longsword',
     type: 'Weapon',
     description: 'A well-balanced one-handed blade of cold-forged iron.',
-    mechanics: [{ name: 'Parry', description: 'As a reaction, add +2 to AC against one melee attack.' }],
-    lore: 'Standard issue for the King\'s Guard, forged under the eye of Orestara.',
+    mechanics: [
+      { name: 'Parry', description: 'As a reaction, add +2 to AC against one melee attack.' },
+      { name: 'Versatile', description: 'Can be used with two hands to deal 1d10 damage instead of 1d8.' }
+    ],
+    lore: 'Standard issue for the King\'s Guard. Reliable and ubiquitous.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -112,8 +115,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Titan Zweihänder',
     type: 'Weapon',
     description: 'A massive two-handed sword that hums with the roar of a Warrior.',
-    mechanics: [{ name: 'Heavy Impact', description: 'Deals 2d6 slashing damage. On a critical hit, the target is knocked Prone.' }],
-    lore: 'Forged for Warriors who serve as the vanguard. Focuses on pure physical devastation.',
+    mechanics: [
+      { name: 'Heavy Impact', description: 'Deals 2d6 slashing damage. On a critical hit, the target is knocked Prone.' },
+      { name: 'Warrior\'s Reach', description: 'Increases melee reach by 5ft due to its immense length.' }
+    ],
+    lore: 'Forged for the physical Vanguard. It prioritizes raw weight and control over magical finesse.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -121,8 +127,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Abyssal Executioner',
     type: 'Weapon',
     description: 'A jagged greatsword that bleeds black smoke. Signature weapon of the Dark Knight.',
-    mechanics: [{ name: 'Siphon Soul', description: 'Deals 1d10 slashing + 1d6 necrotic damage. Restore HP equal to half the necrotic damage dealt.' }],
-    lore: 'A blade that requires one to gaze into the void to master. Focuses on magical life-drain.',
+    mechanics: [
+      { name: 'Siphon Soul', description: 'Deals 1d10 slashing + 1d6 necrotic damage. Restore HP equal to half the necrotic damage dealt.' },
+      { name: 'Void Channel', description: 'Functions as a spellcasting focus for Dark Knight spells, pulsing with forbidden energy.' }
+    ],
+    lore: 'A blade that requires one to gaze into the void. It rewards the wearer for every drop of blood spilled.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -131,10 +140,10 @@ const SYSTEM_ITEMS: Item[] = [
     type: 'Armor',
     description: 'A legendary mirrored shield that reflects the silver light of a dying sun.',
     mechanics: [
-      { name: 'Gaze Reflection', description: 'When targeted by a gaze-based attack, the wielder can reflect the effect back at the source (DC 15 Dexterity save to activate).' },
+      { name: 'Gaze Reflection', description: 'When targeted by a gaze-based attack (e.g., Petrification, Charm), the wielder can reflect the effect back at the source with a successful DC 15 Dexterity save.' },
       { name: 'Silvery Guard', description: 'Grants +2 AC and resistance to Radiant damage.' }
     ],
-    lore: 'Forged to hunt the Gorgon queens in the twilight of the first age.',
+    lore: 'Forged to hunt the Gorgon queens. Its surface is so perfect it seems to hold a piece of the twilight sky.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -142,8 +151,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Order Kite Shield',
     type: 'Armor',
     description: 'A heavy steel shield bearing the insignia of the Royal Order.',
-    mechanics: [{ name: 'Bastion', description: 'While holding this shield, you can use your reaction to grant an adjacent ally +2 AC until the start of your next turn.' }],
-    lore: 'Standard protection for the frontline guardians of the realm.',
+    mechanics: [
+      { name: 'Bastion', description: 'While holding this shield, you can use your reaction to grant an adjacent ally +2 AC until the start of your next turn.' },
+      { name: 'Shield Bash', description: 'Allows a bonus action strike for 1d4 blunt damage; flinches small enemies.' }
+    ],
+    lore: 'Standard protection for the frontline guardians of civilization.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -151,8 +163,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Cuirass of the Ebon Void',
     type: 'Armor',
     description: 'Heavy plate armor for Dark Knights that resonates with the wearer\'s conviction.',
-    mechanics: [{ name: 'Soul Resonance', description: 'While wearing this armor, add your Charisma modifier to your Armor Class (max +2).' }],
-    lore: 'Forged from meteorite iron cooled in the blood of shadows.',
+    mechanics: [
+      { name: 'Soul Resonance', description: 'While wearing this armor, add your Charisma modifier to your Armor Class (max +2).' },
+      { name: 'Shadow Weave', description: 'Grants resistance to Necrotic damage.' }
+    ],
+    lore: 'Forged from meteorite iron cooled in the blood of shadows. It feels lighter to those who embrace the darkness.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -160,8 +175,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Titan\'s Full Plate',
     type: 'Armor',
     description: 'Imposing full plate armor for Warriors who stand immovable.',
-    mechanics: [{ name: 'Unshakeable', description: 'Base AC 18. Advantage on saving throws against being moved or knocked Prone.' }],
-    lore: 'The literal wall between the party and death.',
+    mechanics: [
+      { name: 'Unshakeable', description: 'Base AC 18. Advantage on saving throws against being moved or knocked Prone.' },
+      { name: 'Physical Fortress', description: 'Reduces all non-magical bludgeoning, piercing, and slashing damage by 3.' }
+    ],
+    lore: 'The literal wall between the party and death. Every scratch is a testament to its endurance.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -169,17 +187,23 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Crest of Mercy',
     type: 'Weapon',
     description: 'A white-ash staff that pulses with soft golden light.',
-    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by the wielder by 2 per die rolled.' }],
-    lore: 'A gift from Orestara to the first Mages of the Order.',
+    mechanics: [
+      { name: 'Mercy Aura', description: 'Increases all healing spells cast by the wielder by 2 per die rolled.' },
+      { name: 'Peaceful Focus', description: 'Grants advantage on Wisdom (Medicine) checks.' }
+    ],
+    lore: 'A gift from Orestara to the first Mages of the Order. It hums a low, soothing note.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
     id: 'sys-sky-piercer-bow',
     name: 'Sky-Piercer Bow',
     type: 'Weapon',
-    description: 'A masterfully crafted bow that can ground flying beasts.',
-    mechanics: [{ name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies or targets further than 60ft away.' }],
-    lore: 'Heavens are no sanctuary from an Archer\'s arrow.',
+    description: 'A masterfully crafted bow that can ground flying beasts and strike from extreme distances.',
+    mechanics: [
+      { name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies or targets further than 60ft away.' },
+      { name: 'True Flight', description: 'Arrows ignore half and three-quarters cover.' }
+    ],
+    lore: 'Heavens are no sanctuary. Legends say its string is woven from captured wind.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -187,8 +211,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Assassin\'s Twin Daggers',
     type: 'Weapon',
     description: 'A pair of thin, black-steel daggers designed for silent lethality.',
-    mechanics: [{ name: 'Finesse Striking', description: 'Deals 1d4 piercing. On a surprise attack, deal an extra 2d6 poison damage.' }],
-    lore: 'Tools for the Thief who strikes from the unseen dark.',
+    mechanics: [
+      { name: 'Finesse Striking', description: 'Deals 1d4 piercing. On a surprise attack, deal an extra 2d6 poison damage.' },
+      { name: 'Quick Reflexes', description: 'Grants a +2 bonus to Initiative while both daggers are held.' }
+    ],
+    lore: 'Tools for the Thief who strikes from the unseen dark. They leave no trace but the silence they create.',
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
@@ -196,8 +223,11 @@ const SYSTEM_ITEMS: Item[] = [
     name: 'Staff of Destructive Will',
     type: 'Weapon',
     description: 'A tall staff capped with a burning ruby, used by high Sorcerers.',
-    mechanics: [{ name: 'Arcane Explosion', description: 'Once per rest, double the area of effect of your next destructive spell.' }],
-    lore: 'A channel for raw elemental power that tests the wielder\'s spirit.',
+    mechanics: [
+      { name: 'Arcane Explosion', description: 'Once per rest, double the area of effect of your next destructive spell.' },
+      { name: 'Elemental Empowerment', description: 'Offensive spells ignore resistance to Fire or Cold damage.' }
+    ],
+    lore: 'A channel for raw power that tests the spirit of those who would wield it.',
     authorId: 'Orestara', authorName: 'Orestara'
   }
 ];
@@ -247,6 +277,45 @@ const App: React.FC = () => {
     }, 7000);
   }, []);
 
+  /**
+   * Deduplicates and merges items by name. 
+   * If names match, descriptions and lore are combined, and mechanics are merged uniquely.
+   */
+  const deduplicateAndMergeItems = useCallback((itemList: Item[]): Item[] => {
+    const merged: Record<string, Item> = {};
+
+    itemList.forEach(item => {
+      const key = item.name.trim().toLowerCase();
+      if (!merged[key]) {
+        merged[key] = { ...item };
+      } else {
+        const existing = merged[key];
+        
+        // Merge descriptions if distinct
+        if (!existing.description.toLowerCase().includes(item.description.toLowerCase().trim())) {
+          existing.description = existing.description.trim() + " " + item.description.trim();
+        }
+        
+        // Merge mechanics by name uniquely
+        const existingMechNames = new Set(existing.mechanics.map(m => m.name.toLowerCase().trim()));
+        item.mechanics.forEach(m => {
+          const mName = m.name.toLowerCase().trim();
+          if (!existingMechNames.has(mName)) {
+            existing.mechanics.push(m);
+            existingMechNames.add(mName);
+          }
+        });
+        
+        // Merge lore if distinct
+        if (!existing.lore.toLowerCase().includes(item.lore.toLowerCase().trim())) {
+          existing.lore = existing.lore.trim() + " " + item.lore.trim();
+        }
+      }
+    });
+
+    return Object.values(merged);
+  }, []);
+
   const syncAllClassesToSpells = useCallback((classList: ClassDef[]): ClassDef[] => {
     return classList.map(cls => {
       const hasSlots = cls.spellSlots && cls.spellSlots.some(s => s > 0);
@@ -293,9 +362,10 @@ const App: React.FC = () => {
       setMonsters(prev => [...prev, ...monstersToAdd]);
     }
     if (scope === 'all' || scope === 'items') {
-      const existingIds = new Set(items.map(i => i.id));
-      const itemsToAdd = SYSTEM_ITEMS.filter(i => !existingIds.has(i.id));
-      setItems(prev => [...prev, ...itemsToAdd]);
+      setItems(prev => {
+        const combined = [...prev, ...SYSTEM_ITEMS];
+        return deduplicateAndMergeItems(combined);
+      });
     }
     if (scope === 'all' || scope === 'heroes') {
         const heroes: Character[] = [
@@ -305,13 +375,13 @@ const App: React.FC = () => {
                 classId: 'basic-fighter',
                 race: 'Human',
                 gender: 'Female',
-                description: "An energetic swordswoman with a playful personality. Loud and restless. Miri, Lina, and Seris are traveling companions and will always be found together.",
+                description: "An energetic and impulsive swordswoman with a bright, playful personality. Miri, Lina, and Seris are inseparable traveling companions; where one is found, the other two are always nearby.",
                 level: 1,
                 stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 },
                 hp: 12, maxHp: 12,
                 feats: [
                     { name: 'Restless Spirit', description: 'Gains +2 to Initiative and cannot be surprised while conscious.' },
-                    { name: 'Sword Waltz', description: 'Bonus action to give an enemy disadvantage on their next attack.' }
+                    { name: 'Sword Waltz', description: 'When using a one-handed sword, you can use a bonus action to fluster an enemy, giving them disadvantage on their next attack.' }
                 ],
                 inventory: ['sys-iron-longsword', 'sys-order-kite-shield'],
                 isPlayer: true
@@ -322,13 +392,13 @@ const App: React.FC = () => {
                 classId: 'basic-archer',
                 race: 'Elf',
                 gender: 'Female',
-                description: "A reserved Elven archer who keeps a cool façade. Easily flustered. Part of the inseparable trio with Miri and Lina; they are never found apart.",
+                description: "A reserved Elven archer who prefers distance and quiet. Part of the inseparable trio with Miri and Lina; they are never found apart.",
                 level: 1,
                 stats: { strength: 8, dexterity: 17, constitution: 12, intelligence: 16, wisdom: 14, charisma: 10 },
                 hp: 10, maxHp: 10,
                 feats: [
-                    { name: 'Aloof Precision', description: 'Extra 1d6 damage to targets further than 40ft away.' },
-                    { name: 'Defensive Sarcasm', description: 'Force a DC 12 WIS save or Charm an enemy that misses you.' }
+                    { name: 'Aloof Precision', description: 'Deals extra 1d6 damage to targets further than 40ft away.' },
+                    { name: 'Defensive Sarcasm', description: 'When an enemy misses you, you can deliver a blunt retort, forcing them to make a DC 12 WIS save or be Charmed by your composure.' }
                 ],
                 inventory: ['sys-sky-piercer-bow'],
                 isPlayer: false
@@ -339,17 +409,17 @@ const App: React.FC = () => {
                 classId: 'basic-mage',
                 race: 'Human',
                 gender: 'Female',
-                description: "A gentle priestess from a rural chapel. Shy and overwhelmed easily. Inseparably bound to her companions Miri and Seris; where one is, all are.",
+                description: "A gentle priestess from a rural chapel. Member of the inseparable traveling party with Miri and Seris; where one is, all are.",
                 level: 1,
                 stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
                 hp: 12, maxHp: 12,
                 feats: [
-                    { name: 'Rural Kindness', description: 'Healing grants the target a +2 bonus to their next save.' },
+                    { name: 'Rural Kindness', description: 'Healing grants the target a +2 bonus to their next saving throw.' },
                     { name: 'Quiet Devotion', description: 'Can cast supportive spells silently once per rest.' }
                 ],
                 inventory: ['sys-menders-staff'],
                 knownSpells: [
-                  { name: 'Blessing of the Chapel', level: 1, school: 'Abjuration', description: 'Target gains +1 AC and Necrotic resistance for 1 minute.' }
+                  { name: 'Blessing of the Chapel', level: 1, school: 'Abjuration', description: 'Target gains +1 AC and resistance to necrotic damage for 1 minute.' }
                 ],
                 isPlayer: false
             }
@@ -366,8 +436,8 @@ const App: React.FC = () => {
           description: 'Mighty physical vanguards who focus on heavy weapons and unbreakable defense.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery'], 
           features: [
-            { name: 'Mighty Roar', description: 'Unleash a roar granting 1d8+Level temporary hit points.' }, 
-            { name: 'Crushing Blow', description: 'Critical hits knock enemies prone.' }
+            { name: 'Mighty Roar', description: 'Unleash a roar that invigorates you and allies, granting 1d8+Level temporary hit points.' }, 
+            { name: 'Crushing Blow', description: 'Attacks easily knock enemies prone on critical hits or high strength checks.' }
           ], 
           initialSpells: [], 
           authorId: 'Orestara', authorName: 'Orestara'
@@ -378,8 +448,8 @@ const App: React.FC = () => {
           description: 'Balanced masters of combat techniques and defensive shielding.',
           hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency'], 
           features: [
-            { name: 'Shield Bash', description: 'Strike with a shield for blunt damage and flinching.' }, 
-            { name: 'Firm Bastion', description: 'Protect adjacent allies as a reaction.' }
+            { name: 'Shield Bash', description: 'Strike with your shield for blunt damage, causing flinching.' }, 
+            { name: 'Firm Bastion', description: 'While holding a shield, you can protect adjacent allies as a reaction.' }
           ], 
           initialSpells: [], 
           authorId: 'Orestara', authorName: 'Orestara'
@@ -390,11 +460,11 @@ const App: React.FC = () => {
           description: 'Masters of raw elemental magic who turn the tide of battle with destruction.',
           hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction'], 
           features: [
-            { name: 'Spell Memory', description: 'Cast a memorized spell without a slot once per rest.' }, 
-            { name: 'Destructive Tide', description: 'Offensive spells deal extra damage based on Charisma.' }
+            { name: 'Spell Memory', description: 'Commit a single spell to memory to cast without expending a slot once per rest.' }, 
+            { name: 'Destructive Tide', description: 'Offensive spells deal additional damage based on your Charisma modifier.' }
           ], 
           initialSpells: [
-            { name: 'Arcane Ruin', level: 1, school: 'Evocation', description: 'A burst of raw energy dealing 3d6 force damage.' }
+            { name: 'Arcane Ruin', level: 1, school: 'Evocation', description: 'A burst of raw energy dealing 3d6 force damage to an area.' }
           ], 
           authorId: 'Orestara', authorName: 'Orestara'
         },
@@ -402,24 +472,25 @@ const App: React.FC = () => {
           id: 'basic-mage',
           name: 'Mage',
           description: 'Supportive aether-users who heal wounds and shield the fellowship.',
-          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Healing Mastery'], 
+          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Greater Healing Mastery'], 
           features: [
-            { name: 'Resonant Benediction', description: 'Healing spells affect one additional nearby ally.' }, 
-            { name: 'Vital Flow', description: 'Bonus action to restore 1d10 + WIS hit points.' }
+            { name: 'Resonant Benediction', description: 'When you cast a healing spell, choose one additional ally within 15ft for half healing.' }, 
+            { name: 'Vital Flow', description: 'Channel aether to restore 1d10 + WIS hit points as a bonus action.' }
           ], 
           initialSpells: [
-            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Shimmering barrier for allies for 2 rounds.' }
+            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier for 2 rounds.' },
+            { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'Heals all allies in a 30ft radius for 2d8 + WIS modifier.' }
           ], 
           authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-thief',
           name: 'Thief',
-          description: 'Masters of stealth and precision strikes who excel at unseen lethality.',
+          description: 'Masters of stealth and dual-daggers who strike from the shadows.',
           hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Stealth Proficiency'], 
           features: [
-            { name: 'Executioner\'s Strike', description: 'Execute a grappled or surprised human-sized enemy.' }, 
-            { name: 'Smoke Escape', description: 'Reaction to vanish and disengage instantly.' }
+            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized enemy that is currently grappled or surprised.' }, 
+            { name: 'Smoke Escape', description: 'Throw down a smoke bomb as a reaction or bonus action to vanish and disengage instantly.' }
           ], 
           initialSpells: [], 
           authorId: 'Orestara', authorName: 'Orestara'
@@ -427,11 +498,11 @@ const App: React.FC = () => {
         {
           id: 'basic-archer',
           name: 'Archer',
-          description: 'Deadly marksmen who ground aerial threats with supernatural accuracy.',
+          description: 'Masters of the bow who can ground flying enemies with incredible accuracy.',
           hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Aerial Sniper'], 
           features: [
-            { name: 'Exposed Weakness', description: 'Extra damage against isolated enemies.' }, 
-            { name: 'Sky Guard', description: 'Advantage on attack rolls against flying enemies.' }
+            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that is isolated.' }, 
+            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
           ], 
           initialSpells: [], 
           authorId: 'Orestara', authorName: 'Orestara'
@@ -442,11 +513,11 @@ const App: React.FC = () => {
           description: 'Warriors who channel forbidden aether to siphon life and shield with shadows.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [2, 0, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Two-Handed Mastery', 'Soul-Resonance'],
           features: [
-            { name: 'Living Shadow', description: 'Conjure a shadowy simulacrum to fight alongside you.' },
+            { name: 'Living Shadow', description: 'Spend an action to conjure a shadowy simulacrum to fight alongside you.' },
             { name: 'Living Dead', description: 'Stay active at 0 HP for 10 seconds with tripled lifesteal.' }
           ],
           initialSpells: [
-            { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from nearby enemies, healing for half.' }
+            { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from nearby enemies, healing yourself for half.' }
           ],
           authorId: 'Orestara', authorName: 'Orestara'
         }
@@ -512,7 +583,7 @@ const App: React.FC = () => {
         setCharacters(allChars);
         setClasses(allClasses);
         setMonsters(allMonsters);
-        setItems(allItems);
+        setItems(deduplicateAndMergeItems(allItems));
         
         notify("Omniscience Enabled.", "success");
       } else {
@@ -523,7 +594,7 @@ const App: React.FC = () => {
         const savedMonsters = localStorage.getItem(`${uPrefix}_mythos_monsters`);
         setMonsters(savedMonsters ? JSON.parse(savedMonsters) : []);
         const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
-        setItems(savedItems ? JSON.parse(savedItems) : []);
+        setItems(deduplicateAndMergeItems(savedItems ? JSON.parse(savedItems) : []));
       }
 
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
@@ -543,7 +614,7 @@ const App: React.FC = () => {
     } else {
       (window as any).isMythosAdmin = false;
     }
-  }, [currentUser, aggregateAllResources, notify]);
+  }, [currentUser, aggregateAllResources, notify, deduplicateAndMergeItems]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -619,17 +690,17 @@ const App: React.FC = () => {
           const { resourceType, resourceData } = msg.payload;
           if (resourceType === 'class') setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
           else if (resourceType === 'monster') setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
-          else if (resourceType === 'item') setItems(prev => prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]);
+          else if (resourceType === 'item') setItems(prev => deduplicateAndMergeItems(prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]));
           notify(`Resource received: ${resourceData.name}`, 'success');
           break;
         case 'NEW_LOG': setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] })); break;
         case 'SUMMARY_UPDATE': setCampaign(prev => ({ ...prev, summary: msg.payload })); break;
-        case 'GIVE_LOOT': setItems(prev => [...prev, msg.payload]); notify(`Loot received: ${msg.payload.name}`, 'info'); break;
+        case 'GIVE_LOOT': setItems(prev => deduplicateAndMergeItems([...prev, msg.payload])); notify(`Loot received: ${msg.payload.name}`, 'info'); break;
         case 'STATE_UPDATE':
           if (msg.payload.campaign) setCampaign(msg.payload.campaign);
           if (msg.payload.classes) setClasses(msg.payload.classes);
           if (msg.payload.monsters) setMonsters(msg.payload.monsters);
-          if (msg.payload.items) setItems(msg.payload.items);
+          if (msg.payload.items) setItems(deduplicateAndMergeItems(msg.payload.items));
           if (msg.payload.characters) setCharacters(msg.payload.characters);
           notify("Chronicle synchronized", "info");
           break;
@@ -639,7 +710,7 @@ const App: React.FC = () => {
       setConnections(prev => prev.filter(c => c.peer !== conn.peer));
       setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Connection lost with ${conn.peer}`, type: 'warn', timestamp: Date.now() }]);
     });
-  }, [notify]);
+  }, [notify, deduplicateAndMergeItems]);
 
   const initPeer = useCallback((customId?: string) => {
     if (peerRef.current) peerRef.current.destroy();
@@ -684,9 +755,9 @@ const App: React.FC = () => {
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcadeReady} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} user={currentUser} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} syncSpells={syncAllClassesToSpells} currentUser={currentUser} items={items} setItems={setItems} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} syncSpells={syncAllClassesToSpells} currentUser={currentUser} items={items} setItems={(val) => setItems(typeof val === 'function' ? (prev) => deduplicateAndMergeItems(val(prev)) : deduplicateAndMergeItems(val))} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
-          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
+          {activeTab === 'armory' && <Armory items={items} setItems={(val) => setItems(typeof val === 'function' ? (prev) => deduplicateAndMergeItems(val(prev)) : deduplicateAndMergeItems(val))} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); connectToHost(id); }} setIsHost={setIsHost} forceSync={(selection) => {
               if (connections.length === 0) return;
@@ -698,7 +769,7 @@ const App: React.FC = () => {
               if (selection.campaign) state.campaign = campaign;
               broadcast({ type: 'STATE_UPDATE', payload: state });
           }} kickSoul={(id) => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(d.items); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} />}
+          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={(d) => { setCharacters(d.characters); setClasses(d.classes); setMonsters(d.monsters); setItems(deduplicateAndMergeItems(d.items)); setCampaign(d.campaign); }} manifestBasics={() => manifestBasics('all')} />}
         </div>
       </main>
 

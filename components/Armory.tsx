@@ -240,7 +240,8 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative grayscale group-hover:grayscale-0 transition-all duration-700 overflow-hidden flex-shrink-0 ${expandedId === item.id ? 'grayscale-0' : ''}`}>
-                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover transform transition-transform duration-1000 group-hover:scale-110" alt={item.name} /> : <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
+                    {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover transform transition-transform duration-1000 group-hover:scale-110" alt={item.name} onError={(e) => e.currentTarget.style.display = 'none'} /> : null}
+                    {!item.imageUrl && <div className="w-full h-full bg-black flex items-center justify-center text-4xl">⚔️</div>}
                   </div>
                   
                   <div className="p-8 flex-1 flex flex-col justify-between">
@@ -303,9 +304,6 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                             </div>
                           ))}
                         </div>
-                        {item.mechanics.length === 0 && (
-                          <p className="text-neutral-700 text-xs italic p-4 text-center border border-dashed border-neutral-900">No properties inscribed.</p>
-                        )}
                       </div>
                     </div>
                   </div>

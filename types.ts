@@ -1,3 +1,4 @@
+
 export interface UserAccount {
   username: string;
   displayName: string;
@@ -104,7 +105,7 @@ export interface GameLog {
   senderName?: string;
 }
 
-// Added Rule interface for campaign laws
+/* Define Rule interface for TTRPG mechanics */
 export interface Rule {
   id: string;
   category: string;

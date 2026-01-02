@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -197,7 +198,8 @@ const App: React.FC = () => {
   const [classes, setClasses] = useState<ClassDef[]>([]);
   const [monsters, setMonsters] = useState<Monster[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [] });
+  /* Initialize campaign with rules array */
+  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [] });
 
   const [peerId, setPeerId] = useState<string>('');
   const [isHost, setIsHost] = useState<boolean>(true);
@@ -337,7 +339,10 @@ const App: React.FC = () => {
       const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
       setItems(savedItems ? JSON.parse(savedItems) : []);
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
-      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [] });
+      /* Ensure rules array is present even if restoring older data */
+      const campaignData = savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] };
+      if (!campaignData.rules) campaignData.rules = [];
+      setCampaign(campaignData);
 
       const today = new Date().toDateString();
       const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);

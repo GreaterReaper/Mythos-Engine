@@ -273,7 +273,8 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
               >
                 <div className="flex flex-col md:flex-row">
                   <div className={`h-48 md:h-auto md:w-56 relative flex-shrink-0 transition-all duration-700 grayscale group-hover:grayscale-0 ${expandedId === m.id ? 'grayscale-0' : ''}`}>
-                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" alt={m.name} /> : <div className="w-full h-full bg-black flex items-center justify-center text-6xl">🐉</div>}
+                    {m.imageUrl ? <img src={m.imageUrl} className="w-full h-full object-cover" alt={m.name} onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
+                    {!m.imageUrl && <div className="w-full h-full bg-black flex items-center justify-center text-6xl">🐉</div>}
                   </div>
                   
                   <div className="p-8 flex-1 flex flex-col justify-between">
@@ -388,11 +389,6 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                                 </div>
                               </div>
                             ))}
-                          </div>
-                          <div className="p-3 bg-red-950/10 border border-red-900/20 text-center rounded-sm">
-                             <p className="text-[8px] text-red-700 uppercase font-black tracking-widest italic">
-                                Legendary Actions are triggered at the end of another creature's turn.
-                             </p>
                           </div>
                         </div>
                       )}

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CampaignState, GameLog, Character, ClassDef, SyncMessage, Item } from '../types';
 import { getDMResponse, generateSmartLoot, generateSummary } from '../services/gemini';
@@ -67,7 +66,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       content: `The adventure begins. Your story of "${campaign.plot}" unfolds as the world takes shape. What is your first move?`,
       timestamp: Date.now()
     };
-    setCampaign(prev => ({ ...prev, logs: [initialLog], summary: 'The saga begins with a new party of heroes.', rules: [], party: [] }));
+    setCampaign(prev => ({ ...prev, logs: [initialLog], summary: 'The saga begins with a new party of heroes.', party: [] }));
     broadcast({ type: 'NEW_LOG', payload: initialLog });
   };
 
@@ -298,7 +297,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         </div>
       </div>
 
-      {/* Sheets Panel - Mobile Friendly Overlays */}
+      {/* Sheets Panel */}
       {sheetOpen && (
         <div className="fixed inset-0 z-[100] bg-black md:bg-black/95 backdrop-blur-md animate-in slide-in-from-left duration-300 overflow-y-auto">
            <div className="p-4 md:p-8 h-full flex flex-col max-w-4xl mx-auto">
@@ -341,8 +340,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                              {Object.entries(c.stats).map(([s, v]) => (
                                <div key={s} className="bg-black/60 p-2 md:p-3 border border-neutral-800 rounded-sm text-center shadow-inner">
                                   <p className="text-[7px] md:text-[8px] text-neutral-600 font-black uppercase">{s.slice(0,3)}</p>
-                                  <p className="text-base md:text-lg font-black text-amber-600">{v}</p>
-                                  {/* Fix: Explicitly cast v to number for the arithmetic operation to prevent TS errors in environments where Object.entries returns any or unknown */}
+                                  <p className="text-base md:text-lg font-black text-amber-600">{v as number}</p>
                                   <p className="text-[8px] text-neutral-700 font-black">+{Math.floor(((v as number)-10)/2)}</p>
                                </div>
                              ))}
@@ -392,7 +390,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         </div>
       )}
 
-      {/* Recruitment Panel - Mobile Friendly */}
+      {/* Recruitment Panel */}
       {recruitmentOpen && (
         <div className="fixed inset-0 z-[100] bg-black md:bg-black/95 backdrop-blur-md animate-in slide-in-from-right duration-300 overflow-y-auto">
            <div className="p-4 md:p-8 h-full flex flex-col max-w-2xl mx-auto">

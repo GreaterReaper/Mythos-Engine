@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
 
@@ -71,7 +72,9 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
   trackUsage('utility', 25); 
   return withRetry(async () => {
     const ai = getAI();
-    const parts: any[] = [{ text: prompt }];
+    const enhancedPrompt = `High quality professional dark fantasy TTRPG concept art illustration: ${prompt}. Atmospheric lighting, detailed textures, obsidian and gold accents.`;
+    
+    const parts: any[] = [{ text: enhancedPrompt }];
     if (referenceBase64) {
       const base64Data = referenceBase64.includes(',') ? referenceBase64.split(',')[1] : referenceBase64;
       parts.unshift({ inlineData: { data: base64Data, mimeType: 'image/png' } });
@@ -81,13 +84,12 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
       contents: { parts: parts },
     });
     
-    const candidate = response.candidates?.[0];
-    if (!candidate?.content?.parts) return '';
-    
-    const imgPart = candidate.content.parts.find(p => p.inlineData);
-    if (imgPart?.inlineData?.data) {
-      const mime = imgPart.inlineData.mimeType || 'image/png';
-      return `data:${mime};base64,${imgPart.inlineData.data}`;
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData?.data) {
+        const mime = part.inlineData.mimeType || 'image/png';
+        const cleanData = part.inlineData.data.replace(/[\n\r\s]/g, "");
+        return `data:${mime};base64,${cleanData}`;
+      }
     }
     return '';
   });
@@ -392,16 +394,16 @@ export const generateItemMechanics = async (name: string, type: string, descript
   });
 };
 
-// Added generateRules function for campaign laws
+/* Generate 5 core TTRPG rules based on campaign plot */
 export const generateRules = async (plot: string): Promise<Rule[]> => {
-  trackUsage('utility', 20);
+  trackUsage('utility', 15);
   return withRetry(async () => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate 5 fundamental TTRPG core rules for the campaign setting: ${plot}. 
-      Include categories like 'Combat', 'Magic', 'Exploration', 'Social'. 
-      RULES: Output ONLY JSON. Each rule must have a unique id (short string), category, name, and mechanical description.`,
+      contents: `Design 5 core TTRPG rules for a world described as: ${plot}. 
+      The rules should cover core mechanics like combat, magic, health, and world interaction.
+      Output ONLY JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -410,11 +412,11 @@ export const generateRules = async (plot: string): Promise<Rule[]> => {
             type: Type.OBJECT,
             properties: {
               id: { type: Type.STRING },
-              category: { type: Type.STRING },
               name: { type: Type.STRING },
+              category: { type: Type.STRING },
               content: { type: Type.STRING }
             },
-            required: ["id", "category", "name", "content"]
+            required: ["id", "name", "category", "content"]
           }
         }
       }

@@ -14,8 +14,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
     { id: 'characters', label: 'Party', icon: '👤' },
     { id: 'classes', label: 'Classes', icon: '📜' },
     { id: 'spells', label: 'Spells', icon: '✨' },
-    { id: 'bestiary', label: 'Bestiary', icon: '🐉' },
-    { id: 'armory', label: 'Armory', icon: '🛡️' },
+    { id: 'bestiary', label: 'Beasts', icon: '🐉' },
+    { id: 'armory', label: 'Gear', icon: '🛡️' },
     { id: 'multiplayer', label: 'Portal', icon: '🌀' },
     { id: 'archive', label: 'Archive', icon: '📦' },
   ];
@@ -74,38 +74,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
             <span className="text-lg group-hover:scale-110 transition-transform">🚪</span>
             <span className="font-bold text-[10px] uppercase tracking-widest">Sever Bond</span>
           </button>
-          <div className="p-4 border-t border-[#1a1a1a]">
-            <div className="flex items-center gap-2 text-[10px] text-neutral-600 uppercase font-bold tracking-tighter">
-              <span className="w-2 h-2 rounded-full bg-amber-900 animate-pulse"></span>
-              Mythos Engine Online
-            </div>
-          </div>
         </div>
       </nav>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#080808] border-t border-[#1a1a1a] flex items-center justify-around px-2 py-3 backdrop-blur-md bg-opacity-95 overflow-x-auto scrollbar-hide">
+      {/* Mobile Bottom Nav - Optimized for Safe Areas and Touch */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#080808]/95 backdrop-blur-lg border-t border-[#1a1a1a] flex items-center justify-around px-2 pb-[calc(10px+var(--safe-bottom))] pt-3 overflow-x-auto scrollbar-hide">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 min-w-[60px] transition-all ${
+            className={`flex flex-col items-center gap-1 min-w-[54px] flex-1 transition-all py-1 ${
               activeTab === tab.id
-                ? 'text-[#b28a48]'
+                ? 'text-[#b28a48] scale-110'
                 : 'text-neutral-600'
             }`}
           >
             <span className="text-xl">{tab.icon}</span>
-            <span className="text-[9px] font-black uppercase tracking-tight">{tab.label}</span>
+            <span className="text-[8px] font-black uppercase tracking-tight">{tab.label}</span>
+            {activeTab === tab.id && (
+              <div className="w-1 h-1 bg-[#b28a48] rounded-full mt-0.5"></div>
+            )}
           </button>
         ))}
-        <button
-          onClick={onSignOut}
-          className="flex flex-col items-center gap-1 min-w-[60px] text-red-900/60"
-        >
-          <span className="text-xl">🚪</span>
-          <span className="text-[9px] font-black uppercase tracking-tight">Sever</span>
-        </button>
       </nav>
     </>
   );

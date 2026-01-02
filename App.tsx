@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -681,7 +680,9 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={() => setCurrentUser(null)} user={currentUser} />
-      <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-24 lg:pb-0">
+      
+      {/* Main content container with safe area awareness */}
+      <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-[calc(80px+var(--safe-bottom))] lg:pb-0 pt-[calc(64px+var(--safe-top))] lg:pt-0">
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcadeReady} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} user={currentUser} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
@@ -703,39 +704,41 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <div className="fixed top-24 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      {/* Notifications - adjust top for safe area on mobile */}
+      <div className="fixed top-[calc(70px+var(--safe-top))] right-4 z-[100] flex flex-col gap-2 pointer-events-none w-[calc(100%-32px)] md:w-auto items-end">
         {notifications.map(n => (
-          <div key={n.id} className={`p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[280px] ${n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'}`}>
+          <div key={n.id} className={`p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[240px] max-w-full md:min-w-[280px] ${n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'}`}>
             <p className="text-[10px] leading-relaxed font-bold opacity-90">{n.message}</p>
           </div>
         ))}
       </div>
 
-      <div className="fixed top-0 right-0 left-0 lg:left-64 h-16 z-[60] bg-black/80 backdrop-blur-md border-b border-neutral-900 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-8">
+      {/* Header - Safe top aware */}
+      <div className="fixed top-0 right-0 left-0 lg:left-64 h-[calc(64px+var(--safe-top))] z-[60] bg-black/80 backdrop-blur-md border-b border-neutral-900 px-6 flex items-center justify-between pt-[var(--safe-top)]">
+        <div className="flex items-center gap-4 md:gap-8">
            <div className="flex flex-col items-end">
               <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Resonance</span>
               <span className={`text-sm font-black ${currentUser.isAdmin ? 'text-blue-400' : (arcaneTokens < 1 ? 'text-red-500' : 'text-[#b28a48]')}`}>{currentUser.isAdmin ? '∞' : Math.floor(arcaneTokens)} / 3</span>
            </div>
-           <div className="w-32 h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
+           <div className="w-20 md:w-32 h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
               <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : (isExhausted ? 'bg-red-600' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : (isExhausted ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir)}%` }}></div>
            </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden sm:flex items-center gap-4 md:gap-8">
            <div className="flex flex-col items-start gap-1">
-              <div className="flex justify-between w-24">
-                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Fidelity (Pro)</span>
+              <div className="flex justify-between w-20 md:w-24">
+                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Fidelity</span>
                 <span className={`text-[7px] font-bold ${proPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyProUsed}/${DAILY_PRO_LIMIT}`}</span>
               </div>
-              <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
+              <div className="w-20 md:w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
                 <div className={`h-full transition-all duration-1000 ${currentUser.isAdmin ? 'bg-blue-500' : (proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : proPercent}%` }}></div>
               </div>
            </div>
 
-           <div className="flex flex-col items-start gap-1">
+           <div className="hidden md:flex flex-col items-start gap-1">
               <div className="flex justify-between w-24">
-                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Velocity (Flash)</span>
+                <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Velocity</span>
                 <span className={`text-[7px] font-bold ${flashPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyFlashUsed}/${DAILY_FLASH_LIMIT}`}</span>
               </div>
               <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
@@ -745,7 +748,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-24 lg:bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
+      <div className="fixed bottom-[calc(90px+var(--safe-bottom))] lg:bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
         {diceTrayOpen && (
           <div className="grim-card w-64 p-4 border border-[#b28a48]/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
             <div className="flex justify-between items-center mb-4 border-b border-[#b28a48]/10 pb-2">

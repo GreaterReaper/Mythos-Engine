@@ -17,6 +17,8 @@
             --blood: #4a0404;
             --iron: #1a1a1a;
             --gold: #b28a48;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
         }
         body {
             font-family: 'Inter', sans-serif;
@@ -25,11 +27,17 @@
             background-image: 
                 radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%),
                 url('https://www.transparenttextures.com/patterns/dark-leather.png');
-            overscroll-behavior-y: contain;
+            overscroll-behavior-y: none;
             margin: 0;
             padding: 0;
-            min-height: 100vh;
+            height: 100svh;
+            width: 100vw;
+            overflow: hidden;
             -webkit-tap-highlight-color: transparent;
+        }
+        #root {
+            height: 100%;
+            width: 100%;
         }
         h1, h2, h3, .fantasy-font {
             font-family: 'Cinzel', serif;
@@ -68,6 +76,16 @@
         .animate-notification {
             animation: slide-in 0.3s ease-out forwards;
         }
+        
+        /* Mobile Touch Optimizations */
+        @media (max-width: 768px) {
+            button {
+                min-height: 44px; /* Standard touch target height */
+            }
+            input, select, textarea {
+                font-size: 16px !important; /* Prevent iOS auto-zoom on focus */
+            }
+        }
     </style>
 <script type="importmap">
 {
@@ -88,14 +106,5 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
-    </script>
 </body>
 </html>

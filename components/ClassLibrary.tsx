@@ -26,6 +26,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Manual Spell Edit State
+  const [editingSpellIdx, setEditingSpellIdx] = useState<number | null>(null);
+  const [spellForm, setSpellForm] = useState<Spell | null>(null);
+
   // Admin Manual Fields
   const [manualMode, setManualMode] = useState(false);
   const [manualHitDie, setManualHitDie] = useState('d8');
@@ -362,6 +366,52 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
+  // Spell Management Functions
+  const startEditingSpell = (cls: ClassDef, idx: number) => {
+    if (!canEditOrManage(cls)) return;
+    setEditingSpellIdx(idx);
+    setSpellForm(cls.initialSpells ? { ...cls.initialSpells[idx] } : null);
+  };
+
+  const startAddingSpell = (clsId: string) => {
+    setEditingSpellIdx(-1); // -1 signifies a new spell
+    setSpellForm({ name: '', level: 0, school: 'Evocation', description: '' });
+  };
+
+  const cancelSpellEdit = () => {
+    setEditingSpellIdx(null);
+    setSpellForm(null);
+  };
+
+  const saveSpellEdit = (clsId: string) => {
+    if (!spellForm) return;
+    const updated = classes.map(c => {
+      if (c.id !== clsId) return c;
+      const spells = [...(c.initialSpells || [])];
+      if (editingSpellIdx === -1) {
+        spells.push(spellForm);
+      } else if (editingSpellIdx !== null) {
+        spells[editingSpellIdx] = spellForm;
+      }
+      return { ...c, initialSpells: spells };
+    });
+    updateAndSync(updated);
+    cancelSpellEdit();
+    notify("Grimoire Updated", "success");
+  };
+
+  const removeSpell = (clsId: string, idx: number) => {
+    if (!window.confirm("Banish this incantation?")) return;
+    const updated = classes.map(c => {
+      if (c.id !== clsId) return c;
+      const spells = [...(c.initialSpells || [])];
+      spells.splice(idx, 1);
+      return { ...c, initialSpells: spells };
+    });
+    updateAndSync(updated);
+    notify("Incantation Banished", "info");
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <div className="text-center lg:text-left flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -670,16 +720,106 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           )}
 
                           <div>
-                            <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] border-b border-neutral-800 pb-2 mb-4 text-left">Archetype Spells</h5>
+                            <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
+                              <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Archetype Spells</h5>
+                              {manageable && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); startAddingSpell(c.id); }}
+                                  className="text-[8px] font-black text-[#b28a48] hover:text-white uppercase tracking-widest border border-[#b28a48]/30 px-2 py-0.5 rounded-sm"
+                                >
+                                  + Add Manual Spell
+                                </button>
+                              )}
+                            </div>
+                            
+                            {(editingSpellIdx !== null && expandedId === c.id) && (
+                              <div className="bg-neutral-900 border border-amber-900/40 p-4 rounded-sm mb-4 space-y-3 animate-in fade-in zoom-in-95 text-left">
+                                <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-2">
+                                  {editingSpellIdx === -1 ? 'Inscribing New Spell' : 'Editing Spell Properties'}
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <label className="text-[7px] text-neutral-600 font-black uppercase">Name</label>
+                                    <input 
+                                      value={spellForm?.name || ''} 
+                                      onChange={(e) => setSpellForm(prev => prev ? {...prev, name: e.target.value} : null)}
+                                      className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-amber-600 outline-none" 
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[7px] text-neutral-600 font-black uppercase">Level</label>
+                                    <input 
+                                      type="number" 
+                                      value={spellForm?.level || 0} 
+                                      onChange={(e) => setSpellForm(prev => prev ? {...prev, level: parseInt(e.target.value) || 0} : null)}
+                                      className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-neutral-300 outline-none" 
+                                    />
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[7px] text-neutral-600 font-black uppercase">School</label>
+                                  <select 
+                                    value={spellForm?.school || 'Evocation'} 
+                                    onChange={(e) => setSpellForm(prev => prev ? {...prev, school: e.target.value} : null)}
+                                    className="w-full bg-black border border-neutral-800 text-[10px] p-2 text-neutral-300 outline-none"
+                                  >
+                                    {['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation'].map(s => (
+                                      <option key={s} value={s}>{s}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[7px] text-neutral-600 font-black uppercase">Mechanical Text</label>
+                                  <textarea 
+                                    value={spellForm?.description || ''} 
+                                    onChange={(e) => setSpellForm(prev => prev ? {...prev, description: e.target.value} : null)}
+                                    className="w-full bg-black border border-neutral-800 text-[10px] p-2 h-20 text-neutral-400 outline-none font-serif italic"
+                                  />
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); saveSpellEdit(c.id); }}
+                                    className="flex-1 bg-amber-600 text-black py-2 text-[8px] font-black uppercase tracking-widest rounded-sm"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); cancelSpellEdit(); }}
+                                    className="flex-1 bg-neutral-800 text-white py-2 text-[8px] font-black uppercase tracking-widest rounded-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="grid grid-cols-1 gap-2">
                               {c.initialSpells && c.initialSpells.length > 0 ? (
                                 c.initialSpells.map((s, idx) => (
-                                  <div key={idx} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-left">
-                                    <div className="flex justify-between">
-                                      <p className="text-[10px] font-black text-amber-600 uppercase">{s.name}</p>
-                                      <p className="text-[8px] text-neutral-600 font-black">LVL {s.level}</p>
+                                  <div key={idx} className="bg-black/40 p-3 border border-neutral-900 rounded-sm text-left group/spell relative overflow-hidden">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <p className="text-[10px] font-black text-amber-600 uppercase">{s.name}</p>
+                                        <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest">{s.school} • LVL {s.level}</p>
+                                      </div>
+                                      {manageable && (
+                                        <div className="flex gap-2 opacity-0 group-hover/spell:opacity-100 transition-opacity">
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); startEditingSpell(c, idx); }}
+                                            className="text-[8px] text-blue-500 hover:text-white uppercase font-black"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); removeSpell(c.id, idx); }}
+                                            className="text-[8px] text-red-900 hover:text-red-500 uppercase font-black"
+                                          >
+                                            Banish
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
-                                    <p className="text-[10px] text-neutral-400 font-serif italic line-clamp-2 leading-relaxed">{s.description}</p>
+                                    <p className="text-[10px] text-neutral-400 font-serif italic line-clamp-2 leading-relaxed mt-1">{s.description}</p>
                                   </div>
                                 ))
                               ) : (

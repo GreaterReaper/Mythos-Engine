@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -217,30 +216,43 @@ const App: React.FC = () => {
 
   const syncAllClassesToSpells = useCallback((classList: ClassDef[]): ClassDef[] => {
     return classList.map(cls => {
-      const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
-      const isSpellcaster = cls.spellSlots && cls.spellSlots.some(s => s > 0);
+      const hasSlots = cls.spellSlots && cls.spellSlots.some(s => s > 0);
       
+      // If the class has NO spell slots, it should have NO spells.
+      if (!hasSlots) {
+        return { ...cls, initialSpells: [] };
+      }
+
+      const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
       const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver');
       const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar');
       const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild');
       
       const newSpells = [...(cls.initialSpells || [])];
       
-      if (isSpellcaster) {
-        COMMON_SPELLS.forEach(common => {
-          const alreadyKnown = newSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
-          if (alreadyKnown) return;
+      COMMON_SPELLS.forEach(common => {
+        const alreadyKnown = newSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
+        if (alreadyKnown) return;
 
-          let shouldAdd = false;
-          if ((isDivine || isDruidic) && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify') || common.name.includes('Cure'))) shouldAdd = true;
-          if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) shouldAdd = true;
-          if (['Guidance', 'Light', 'Detect Magic', 'Mage Hand'].includes(common.name)) shouldAdd = true;
+        let shouldAdd = false;
+        if ((isDivine || isDruidic) && (common.name.includes('Heal') || common.name.includes('Restoration') || common.name.includes('Revivify') || common.name.includes('Cure'))) shouldAdd = true;
+        if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) shouldAdd = true;
+        
+        // Very basic neutral utility
+        if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
 
-          if (shouldAdd) newSpells.push(common);
-        });
-      }
+        if (shouldAdd) newSpells.push(common);
+      });
       
-      return { ...cls, initialSpells: newSpells };
+      // Filter out spells that explicitly don't fit if it's strictly divine or arcane
+      const finalSpells = newSpells.filter(s => {
+          const sName = s.name.toLowerCase();
+          // Arcane classes shouldn't have "Healing Word" usually unless stated
+          if (isArcane && !isDivine && sName.includes('healing word')) return false;
+          return true;
+      });
+
+      return { ...cls, initialSpells: finalSpells };
     });
   }, []);
 

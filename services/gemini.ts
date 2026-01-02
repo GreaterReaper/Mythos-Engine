@@ -1,5 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
+// Added missing Rule import
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
 
 const cleanJson = (text: string) => {
@@ -266,14 +267,17 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
   });
 };
 
-export const generateClassEquipment = async (className: string, classDesc: string): Promise<Item[]> => {
+export const generateClassEquipment = async (className: string, classDesc: string, hitDie: string = 'd8', hasSpells: boolean = false): Promise<Item[]> => {
   trackUsage('utility', 15);
   return withRetry(async () => {
     const ai = getAI();
+    const isMartialCaster = (hitDie === 'd10' || hitDie === 'd12') && hasSpells;
+    const focusNote = isMartialCaster ? "IMPORTANT: This class is a martial spellcaster. Their primary signature weapon MUST also function as their arcane focus. Mention this focus property in the item's mechanical description." : "";
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate 2 thematic signature weapons for the class: ${className}. Lore: ${classDesc}. 
-      RULES: mechanics MUST be pure rules-text.`,
+      contents: `Generate 2 thematic signature weapons or armor for the class: ${className}. Lore: ${classDesc}. 
+      RULES: mechanics MUST be pure rules-text. ${focusNote}`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -282,7 +286,7 @@ export const generateClassEquipment = async (className: string, classDesc: strin
             type: Type.OBJECT,
             properties: {
               name: { type: Type.STRING },
-              type: { type: Type.STRING, enum: ["Weapon"] },
+              type: { type: Type.STRING, enum: ["Weapon", "Armor"] },
               description: { type: Type.STRING },
               mechanics: { 
                 type: Type.ARRAY, 

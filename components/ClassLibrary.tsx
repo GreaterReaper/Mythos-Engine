@@ -97,10 +97,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleManifestHeirloom = async (cls: ClassDef) => {
-    if (!isAuthor(cls)) {
-      notify("Only the original author can manifest these heirlooms.", "error");
-      return;
-    }
     if (!reservoirReady || forgingHeirloomId) return;
     setForgingHeirloomId(cls.id);
     try {
@@ -205,6 +201,34 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     notify("Grimoire Synchronization Complete", "success");
   };
 
+  const handleBulkGearManifest = async () => {
+    if (!reservoirReady || loading) return;
+    setLoading(true);
+    notify("Manifesting Signature Gear for all Archetypes...", "info");
+    
+    try {
+      for (const cls of classes) {
+        // We only generate if gear doesn't clearly exist for this class name in armory already to prevent spam
+        const existingNames = items.map(i => i.name.toLowerCase());
+        const signatureItems = await generateClassEquipment(cls.name, cls.description);
+        const newItems = signatureItems
+          .filter(si => !existingNames.includes(si.name.toLowerCase()))
+          .map(si => ({ ...si, id: Math.random().toString(36).substr(2, 9) }));
+        
+        if (newItems.length > 0) {
+          setItems(prev => [...prev, ...newItems]);
+          if (broadcast) newItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
+        }
+        await new Promise(r => setTimeout(r, 1000));
+      }
+      notify("Relic Armory Updated for Fellowship", "success");
+    } catch (e: any) {
+      notify("Ether instability during mass forging.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleFeatureLock = (cls: ClassDef, featIdx: number) => {
     if (!isAuthor(cls)) {
       notify("The grimoire prevents you from locking features of foreign archetypes.", "error");
@@ -299,16 +323,27 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           <p className="text-neutral-500 text-xs uppercase tracking-widest font-black mt-2">Design your legends. AI translates lore into mechanics.</p>
         </div>
         
-        {legacyRecords.some(c => isAuthor(c) || c.authorId === 'system') && (
+        <div className="flex flex-wrap gap-2 justify-center lg:justify-end">
           <button 
-            onClick={handleBulkManifest}
+            onClick={handleBulkGearManifest}
             disabled={loading || !reservoirReady}
-            className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+            className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
           >
-            <span className="animate-pulse">✨</span>
-            Synchronize Grimoire
+            <span className="text-sm">🛡️</span>
+            Manifest All Gear
           </button>
-        )}
+
+          {legacyRecords.some(c => isAuthor(c) || c.authorId === 'system') && (
+            <button 
+              onClick={handleBulkManifest}
+              disabled={loading || !reservoirReady}
+              className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+            >
+              <span className="animate-pulse">✨</span>
+              Synchronize Grimoire
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -463,15 +498,16 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Core Attributes</h5>
                               <div className="flex gap-2">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleManifestHeirloom(c); }}
+                                  disabled={forgingHeirloomId === c.id || !reservoirReady}
+                                  className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                >
+                                  {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Heirloom ⚔️'}
+                                </button>
+                                
                                 {userIsAuthor && (
                                   <>
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); handleManifestHeirloom(c); }}
-                                      disabled={forgingHeirloomId === c.id || !reservoirReady}
-                                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
-                                    >
-                                      {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Heirloom ⚔️'}
-                                    </button>
                                     {(missingSpells || expandedId === c.id) && (
                                       <button 
                                         onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
@@ -491,11 +527,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                       </button>
                                     )}
                                   </>
-                                )}
-                                {!userIsAuthor && (
-                                  <div className="text-[8px] font-black text-neutral-700 uppercase tracking-widest flex items-center gap-2 border border-neutral-900/40 px-2 py-1 rounded-sm">
-                                    Sigil Locked 🔒
-                                  </div>
                                 )}
                               </div>
                             </div>

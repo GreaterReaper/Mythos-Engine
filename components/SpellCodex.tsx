@@ -15,7 +15,7 @@ interface SpellWithMetadata extends Spell {
 const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) => {
   const [search, setSearch] = useState('');
   const [selectedClassId, setSelectedClassId] = useState<string>('all');
-  const [hoveredSpell, setHoveredSpell] = useState<number | null>(null);
+  const [hoveredSpellId, setHoveredSpellId] = useState<string | null>(null);
 
   const allSpells = useMemo(() => {
     const list: SpellWithMetadata[] = [];
@@ -56,7 +56,7 @@ const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) 
     const hasSpells = cls.spellSlots && cls.spellSlots.some(s => s > 0);
     
     if (isMartial && hasSpells) {
-      return "Martial Archetype: This hero's primary weapon serves as their arcane focus.";
+      return "Martial Channeling: As a martial archetype, this hero utilizes their primary weapon as their arcane focus.";
     }
     return null;
   };
@@ -96,12 +96,13 @@ const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {filteredSpells.map((s, i) => {
             const martialFocus = getFocusLore(s.classId);
+            const spellUniqueId = `${s.name}-${i}`;
             return (
               <div 
-                key={i} 
-                className="grim-card p-5 md:p-6 border-neutral-900 border-2 rounded-sm text-left group hover:border-[#b28a48]/40 transition-all shadow-xl relative"
-                onMouseEnter={() => setHoveredSpell(i)}
-                onMouseLeave={() => setHoveredSpell(null)}
+                key={spellUniqueId} 
+                className="grim-card p-5 md:p-6 border-neutral-900 border-2 rounded-sm text-left group hover:border-[#b28a48]/40 transition-all shadow-xl relative !overflow-visible"
+                onMouseEnter={() => setHoveredSpellId(spellUniqueId)}
+                onMouseLeave={() => setHoveredSpellId(null)}
               >
                  <div className="flex justify-between items-start mb-3 md:mb-4">
                     <div>
@@ -114,24 +115,46 @@ const SpellCodex: React.FC<SpellCodexProps> = ({ characters, classes, notify }) 
                  </div>
                  <p className="text-xs md:text-sm text-neutral-400 font-serif italic leading-relaxed line-clamp-2">{s.description}</p>
                  
-                 {/* Tooltip */}
-                 {hoveredSpell === i && (
-                   <div className="absolute z-50 bottom-full left-0 mb-2 w-full min-w-[280px] bg-[#0c0c0c] border border-amber-900/60 p-4 rounded-sm shadow-[0_10px_40px_rgba(0,0,0,0.9)] animate-in fade-in zoom-in-95">
-                      <div className="flex justify-between items-center mb-2 border-b border-amber-900/20 pb-2">
-                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">{s.name}</span>
-                        <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">{s.school} (LVL {s.level})</span>
-                      </div>
-                      <p className="text-xs text-neutral-200 font-serif leading-relaxed italic mb-3">
-                        {s.description}
-                      </p>
-                      {martialFocus && (
-                        <div className="pt-2 border-t border-amber-900/10">
-                           <p className="text-[8px] text-amber-600 uppercase font-black tracking-widest italic flex items-center gap-2">
-                             <span className="text-xs">⚔️</span> {martialFocus}
-                           </p>
+                 {/* Enhanced Tooltip */}
+                 {hoveredSpellId === spellUniqueId && (
+                   <div className="absolute z-[100] bottom-[calc(100%+10px)] left-0 w-full min-w-[300px] bg-[#080808] border border-amber-900/60 p-5 rounded-sm shadow-[0_20px_50px_rgba(0,0,0,0.95)] animate-in fade-in zoom-in-95 pointer-events-none">
+                      <div className="flex justify-between items-center mb-3 border-b border-amber-900/30 pb-2">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-amber-500 uppercase tracking-[0.2em]">{s.name}</span>
+                          <span className="text-[7px] font-black text-neutral-500 uppercase tracking-widest">{s.source}</span>
                         </div>
-                      )}
-                      <div className="absolute -bottom-1.5 left-6 w-3 h-3 bg-[#0c0c0c] border-r border-b border-amber-900/60 rotate-45"></div>
+                        <div className="text-right">
+                          <div className="text-[8px] font-black text-neutral-400 uppercase tracking-widest">Level {s.level}</div>
+                          <div className="text-[8px] font-black text-amber-700 uppercase tracking-widest">{s.school}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <p className="text-xs text-neutral-300 font-serif leading-relaxed italic border-l border-amber-900/20 pl-3">
+                          {s.description}
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <div className="bg-black/40 border border-neutral-800 p-2 rounded-sm">
+                            <span className="text-[7px] font-black text-neutral-600 uppercase block mb-1">Arcane Mod</span>
+                            <span className="text-[9px] font-black text-amber-600 uppercase tracking-tighter">School: {s.school}</span>
+                          </div>
+                          <div className="bg-black/40 border border-neutral-800 p-2 rounded-sm text-right">
+                            <span className="text-[7px] font-black text-neutral-600 uppercase block mb-1">Complexity</span>
+                            <span className="text-[9px] font-black text-neutral-400 uppercase">Tier {s.level + 1}</span>
+                          </div>
+                        </div>
+
+                        {martialFocus && (
+                          <div className="pt-3 border-t border-amber-900/10">
+                             <p className="text-[8px] text-amber-500/80 uppercase font-black tracking-widest italic flex items-center gap-2 leading-tight">
+                               <span className="text-sm">⚔️</span> {martialFocus}
+                             </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="absolute -bottom-1.5 left-6 w-3 h-3 bg-[#080808] border-r border-b border-amber-900/60 rotate-45"></div>
                    </div>
                  )}
               </div>

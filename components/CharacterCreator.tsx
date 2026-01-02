@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -221,7 +222,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleCreate = async () => {
-    if (!name || !classId || (!reservoirReady && !currentUser.isAdmin)) return;
+    if (!name || !classId) {
+        notify("Every legend requires a name and archetype.", "error");
+        return;
+    }
+    if (!reservoirReady && !currentUser.isAdmin) return;
+    
     setGenerating(true);
     try {
       const selectedClass = classes.find(c => c.id === classId);
@@ -246,7 +252,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       setCharacters(prev => [...prev, newChar]);
       setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS); setRefImage(null);
       setSelectedCharacterId(newChar.id);
-      notify(`${name} Bound.`, "success");
+      notify(`${name} Bound to the Chronicle.`, "success");
     } catch (e: any) { 
       notify(e.message || "Summoning Failed.", "error"); 
     } finally { 
@@ -342,13 +348,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     <div className="space-y-12 pb-12 pt-16">
       <div className="text-center">
         <h2 className="text-4xl font-black fantasy-font text-[#b28a48]">The Fellowship</h2>
+        <p className="text-neutral-600 text-xs uppercase tracking-[0.4em] mt-2">Party Assembly & Chronicle Binding</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-[450px]">
           <div className={`grim-card p-8 border-2 rounded-sm bg-black shadow-2xl transition-all ${currentUser.isAdmin ? 'border-amber-500/40' : 'border-dashed border-[#b28a48]/20'}`}>
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black fantasy-font text-neutral-300">Summon Hero</h3>
+              <h3 className="text-xl font-black fantasy-font text-neutral-300 uppercase tracking-widest">Summon Hero</h3>
               {currentUser.isAdmin && (
                 <span className="text-[8px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-1 rounded-sm tracking-widest animate-pulse">ARCHITECT MODE</span>
               )}
@@ -385,7 +392,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       onChange={(e) => setClassId(e.target.value)} 
                       className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none focus:border-[#b28a48] appearance-none cursor-pointer"
                     >
-                      <option value="">Path...</option>
+                      <option value="">Select Path...</option>
                       {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
@@ -464,7 +471,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Base Statistics (Point Buy)</label>
-                  <span className="text-[9px] font-bold text-neutral-500 tracking-tighter">{pointsRemaining} PTS LEFT</span>
+                  <span className={`text-[9px] font-bold tracking-tighter ${pointsRemaining < 0 ? 'text-red-500 animate-pulse' : 'text-neutral-500'}`}>{pointsRemaining} PTS LEFT</span>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {(Object.keys(INITIAL_STATS) as Array<keyof Stats>).map((s) => {
@@ -492,7 +499,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                           <div className="absolute z-50 bg-neutral-900 border border-amber-900/60 p-3 text-[10px] text-neutral-200 italic font-serif italic leading-relaxed bottom-full left-0 right-0 mb-2 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-bottom-2">
                             <div className="text-[#b28a48] font-black uppercase tracking-widest text-[8px] mb-1 border-b border-amber-900/20 pb-1">{s} Role</div>
                             {STAT_DESCRIPTIONS[s]}
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutral-900 border-r border-b border-amber-900/60 rotate-45"></div>
+                            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-neutral-900 border-r border-b border-amber-900/60 rotate-45"></div>
                           </div>
                         )}
                         
@@ -501,7 +508,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                           <span className={`text-sm font-black min-w-[1.2rem] ${bonus > 0 ? 'text-green-500 drop-shadow-[0_2px_12px_rgba(34,197,94,0.3)]' : isPreferred ? 'text-amber-500' : 'text-[#b28a48]'}`}>
                             {valWithBonus}
                           </span>
-                          <button onClick={() => handleStatChange(s, 1)} className="text-neutral-700 hover:text-green-500 font-black px-1 text-lg"> + </button>
+                          <button onClick={() => handleStatChange(s, 1)} className="text-neutral-700 hover:text-red-500 font-black px-1 text-lg"> + </button>
                         </div>
                         <div className={`text-[7px] font-black uppercase mt-1 ${isPreferred ? 'text-amber-700' : 'text-neutral-700'}`}>
                           MOD: {getModifier(valWithBonus)}
@@ -528,7 +535,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
               <button 
                 onClick={handleCreate} 
-                disabled={generating || !name || !classId || (!reservoirReady && !currentUser.isAdmin)} 
+                disabled={generating || !name || !classId || pointsRemaining < 0 || (!reservoirReady && !currentUser.isAdmin)} 
                 className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20 active:scale-95 flex flex-col items-center gap-1"
               >
                 {generating ? (
@@ -598,8 +605,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <section className="space-y-8">
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-4">
                     <div>
-                      <h4 className="text-xl font-black fantasy-font text-neutral-400">Sacred Attributes</h4>
-                      <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest mt-1">SIGIL LOCK ATTRIBUTES TO PRESERVE DURING REWEAVING</p>
+                      <h4 className="text-xl font-black fantasy-font text-neutral-400 uppercase">Sacred Attributes</h4>
+                      <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest mt-1">LOCK ATTRIBUTES TO PRESERVE DURING REWEAVING</p>
                     </div>
                     <button 
                       onClick={() => handleRerollStatsOnChar(selectedChar)} 
@@ -608,7 +615,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     >
                       {rerollingStats === selectedChar.id ? 'REFORMING...' : (
                         <>
-                          <span>Reweave 🎲</span>
+                          <span>Reweave Fate 🎲</span>
                           <span className="text-[8px] opacity-60">[{currentUser.isAdmin ? 'Free' : '-5⚡'}]</span>
                         </>
                       )}
@@ -631,7 +638,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                           >
                             {stat.slice(0, 3)} ⓘ
                           </button>
-                          <span className="w-5"></span>
                         </div>
                         
                         {activeTooltip === stat + '_sel' && (
@@ -648,9 +654,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                             {getModifier(selectedChar.stats[stat])}
                           </div>
                         </div>
-                        <div className="mt-4 text-[7px] font-black uppercase tracking-tighter opacity-40 group-hover/statCard:opacity-100 transition-opacity">
-                          {selectedChar.lockedStats?.includes(stat) ? 'SIGIL BOUND' : 'FATE UNSEALED'}
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -658,7 +661,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
                 <section className="space-y-6">
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-4">
-                    <h4 className="text-xl font-black fantasy-font text-neutral-400">Grimoire of Feats</h4>
+                    <h4 className="text-xl font-black fantasy-font text-neutral-400 uppercase">Grimoire of Feats</h4>
                     <button 
                       onClick={() => handleRerollFeats(selectedChar)} 
                       disabled={rerollingFeats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
@@ -666,7 +669,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     >
                       {rerollingFeats === selectedChar.id ? 'REWEAVING...' : (
                         <>
-                          <span>Reweave 🎲</span>
+                          <span>Reweave Destinies 🎲</span>
                           <span className="text-[8px] opacity-60">[{currentUser.isAdmin ? 'Free' : '-5⚡'}]</span>
                         </>
                       )}
@@ -690,16 +693,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                                <p className="text-xs text-neutral-500 italic font-serif leading-relaxed">{f.description}</p>
                              </div>
                           </div>
-                          {f.locked && (
-                            <div className="absolute top-2 right-3 text-[7px] font-black text-amber-900 uppercase tracking-widest">
-                              {innate ? 'INNATE' : 'SIGIL BOUND'}
-                            </div>
-                          )}
-                          {!f.locked && (
-                             <div className="absolute top-2 right-3 text-[7px] font-black text-neutral-800 uppercase tracking-widest opacity-0 group-hover/feat:opacity-100 transition-opacity">
-                               FATE UNSEALED
-                             </div>
-                          )}
                         </div>
                       );
                     })}
@@ -708,17 +701,17 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
                 <section className="space-y-6">
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-4">
-                    <h4 className="text-xl font-black fantasy-font text-neutral-400">The Vault (Inventory)</h4>
+                    <h4 className="text-xl font-black fantasy-font text-neutral-400 uppercase">Artifact Vault</h4>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {charInventory.length === 0 ? (
                       <div className="col-span-full py-12 text-center border-2 border-dashed border-neutral-900 opacity-30 flex flex-col items-center">
-                        <span className="text-2xl mb-2">🎒</span>
-                        <p className="text-[10px] uppercase tracking-widest font-black">Vault is currently empty</p>
+                        <span className="text-2xl mb-2 opacity-20">🎒</span>
+                        <p className="text-[10px] uppercase tracking-widest font-black">Vault Empty</p>
                       </div>
                     ) : (
                       charInventory.map((item, i) => (
-                        <div key={item.id} className="p-5 bg-black border border-neutral-900 rounded-sm flex items-start gap-4 group/invItem text-left">
+                        <div key={item.id} className="p-5 bg-black border border-neutral-900 rounded-sm flex items-start gap-4 group/invItem text-left shadow-lg">
                           <div className="w-12 h-12 rounded-sm border border-[#b28a48]/20 overflow-hidden flex-shrink-0">
                             {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <div className="w-full h-full flex items-center justify-center bg-neutral-950 text-xl">⚔️</div>}
                           </div>
@@ -734,60 +727,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     )}
                   </div>
                 </section>
-
-                <section className="space-y-6">
-                  <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-4">
-                    <h4 className="text-xl font-black fantasy-font text-neutral-400">The Grimoire (Spells)</h4>
-                    <button 
-                      onClick={() => handleGenerateSpells(selectedChar)} 
-                      disabled={learningSpells === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
-                      className="text-[10px] font-black text-[#b28a48] hover:text-amber-700 uppercase transition-all disabled:opacity-20 flex items-center gap-2"
-                    >
-                      {learningSpells === selectedChar.id ? 'CHANNELING...' : (
-                        <>
-                          <span>Channel Grimoire 🔮</span>
-                          <span className="text-[8px] opacity-60">[{currentUser.isAdmin ? 'Free' : '-15⚡'}]</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {(!selectedChar.knownSpells || selectedChar.knownSpells.length === 0) ? (
-                      <div className="col-span-full py-12 text-center border-2 border-dashed border-neutral-900 opacity-30 flex flex-col items-center">
-                        <span className="text-2xl mb-2">✨</span>
-                        <p className="text-[10px] uppercase tracking-widest font-black">No Spells Inscribed</p>
-                      </div>
-                    ) : (
-                      selectedChar.knownSpells.map((spell, i) => (
-                        <div key={i} className="p-6 bg-black border border-neutral-900 rounded-sm hover:border-[#b28a48]/30 transition-colors group/spell text-left relative">
-                          <div className="flex justify-between items-start mb-1">
-                            <div>
-                              <h6 
-                                className="text-sm font-black text-amber-600 uppercase tracking-widest cursor-help relative"
-                                onMouseEnter={() => setActiveTooltip(`spell_${i}`)}
-                                onMouseLeave={() => setActiveTooltip(null)}
-                              >
-                                {spell.name}
-                                {activeTooltip === `spell_${i}` && (
-                                  <div className="absolute z-[120] bottom-full left-0 mb-3 w-72 p-4 bg-neutral-900 border border-amber-900/60 rounded-sm shadow-[0_10px_40px_rgba(0,0,0,0.9)] animate-in fade-in zoom-in-95 pointer-events-none">
-                                    <div className="text-[8px] font-black text-[#b28a48] uppercase tracking-widest border-b border-amber-900/20 pb-2 mb-2">Arcane Properties</div>
-                                    <p className="text-[11px] text-neutral-200 font-serif italic leading-relaxed">{spell.description}</p>
-                                    <div className="absolute -bottom-1.5 left-4 w-3 h-3 bg-neutral-900 border-r border-b border-amber-900/60 rotate-45"></div>
-                                  </div>
-                                )}
-                              </h6>
-                              <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest mt-0.5">{spell.school} • Level {spell.level}</p>
-                            </div>
-                            <div className="w-2 h-2 rounded-full bg-amber-900/40 group-hover/spell:bg-amber-500 animate-pulse"></div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </section>
               </div>
               <div className="mt-20 pt-12 border-t border-neutral-900 text-center">
-                <button onClick={() => setSelectedCharacterId(null)} className="text-[11px] font-black text-neutral-800 hover:text-[#b28a48] uppercase tracking-[0.8em] transition-all pb-12">Close Chronicle</button>
+                <button onClick={() => setSelectedCharacterId(null)} className="text-[11px] font-black text-neutral-800 hover:text-[#b28a48] uppercase tracking-[0.8em] transition-all pb-12">Close Grimoire Entry</button>
               </div>
             </div>
           </div>

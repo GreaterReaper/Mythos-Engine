@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -79,33 +80,32 @@ const SYSTEM_MONSTERS: Monster[] = [
   {
     id: 'sys-gorechimera',
     name: 'Gorechimera',
-    description: 'A pallid, nightmare variant of the standard Chimera. It features the head and shoulders of a lion, the body and head of a goat, and a serpent tail that spews lethal venom.',
+    description: 'A terrifying legendary beast with the head and shoulders of a lion, the body and head of a goat, and a serpent tail that spews venom. Its skin is a ghastly pallid shade compared to standard chimeras.',
     isBoss: true,
     stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 12, wisdom: 16, charisma: 14 },
     hp: 240,
     ac: 18,
     abilities: [
-      { name: 'Venomous Serpent', effect: 'The tail spews a 15ft cone of venom. Targets take 4d6 poison damage and are Poisoned (DC 16 CON half).' },
-      { name: 'Lion head Rend', effect: 'Melee weapon attack: +10 to hit, reach 10ft. Deals 3d10+6 slashing damage.' },
-      { name: 'Goat head Restoration', effect: 'The goat head can use its action to revive one non-boss Monster to half HP or fully heal one of the Gorechimera\'s other heads.' }
+      { name: 'Venomous Serpent', effect: 'Tail spray deals 4d6 poison damage and target is Poisoned (DC 16 CON half).' },
+      { name: 'Lion Head Rend', effect: 'Melee weapon attack: +10 to hit, 10ft reach. Deals 3d10+6 slashing damage.' },
+      { name: 'Goat Head Restoration', effect: 'Goat head can use its action to revive one slain non-boss monster within 30ft to half HP, or fully heal its other heads.' }
     ],
     legendaryActions: [
-      { name: 'Triple Strike', effect: 'Each head makes an attack against a different target.' },
-      { name: 'Goat\'s Bleat', effect: 'A magical pulse heals all allied creatures within 40ft for 4d8 + 4 HP.' },
-      { name: 'Serpent Lash', effect: 'Attacks with its tail; target is Restrained and Poisoned until the end of its next turn.' }
+      { name: 'Triple Strike', effect: 'Each head makes one attack against a different target.' },
+      { name: 'Goat\'s Bleat', effect: 'Allied creatures within 40ft regain 4d8 hit points.' }
     ],
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
-    id: 'sys-wraith',
-    name: 'Sorrowful Wraith',
-    description: 'A flickering shade of blue-black smoke, reaching out with frozen claws for the warmth of the living.',
-    stats: { strength: 6, dexterity: 16, constitution: 16, intelligence: 12, wisdom: 14, charisma: 15 },
-    hp: 67,
-    ac: 13,
+    id: 'sys-shadow-stalker',
+    name: 'Shadow Stalker',
+    description: 'A lithe, spectral predator that vanishes into darkness, leaving only the sound of rattling chains.',
+    stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 13, wisdom: 14, charisma: 16 },
+    hp: 45,
+    ac: 15,
     abilities: [
-      { name: 'Incorporeal Movement', effect: 'Can move through other creatures and objects as if they were difficult terrain.' },
-      { name: 'Life Drain', effect: 'Melee spell attack: target takes 4d8 necrotic damage and its HP max is reduced by that amount.' }
+      { name: 'Shadow Jump', effect: 'Teleport up to 30ft between areas of dim light as a bonus action.' },
+      { name: 'Sneak Attack', effect: 'Deals extra 3d6 damage if it has advantage on the attack.' }
     ],
     authorId: 'Orestara', authorName: 'Orestara'
   },
@@ -117,8 +117,7 @@ const SYSTEM_MONSTERS: Monster[] = [
     hp: 38,
     ac: 11,
     abilities: [
-      { name: 'Luring Song', effect: 'Allies within 300ft who hear it must succeed a DC 11 WIS save or be Charmed.' },
-      { name: 'Claws', effect: 'Melee weapon attack: +3 to hit, deals 2d4+1 slashing damage.' }
+      { name: 'Luring Song', effect: 'Creatures within 300ft must succeed a DC 11 WIS save or be Charmed.' }
     ],
     authorId: 'Orestara', authorName: 'Orestara'
   }
@@ -144,12 +143,48 @@ const SYSTEM_ITEMS: Item[] = [
     authorId: 'Orestara', authorName: 'Orestara'
   },
   {
+    id: 'sys-kite-shield',
+    name: 'Order Kite Shield',
+    type: 'Armor',
+    description: 'A heavy steel shield with reinforced edges.',
+    mechanics: [{ name: 'Bastion', description: 'Grants +2 AC. Allows Shield Bash for 1d4 blunt damage and flinching.' }],
+    lore: 'The literal wall between life and death.',
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
     id: 'sys-menders-staff',
     name: 'Crest of Mercy',
     type: 'Weapon',
     description: 'A white-ash staff that pulses with soft golden light.',
-    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled. Grants resistance to necrotic damage.' }],
+    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled.' }],
     lore: 'A gift from Orestara to the first Mages of the Order.',
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-sky-piercer-bow',
+    name: 'Sky-Piercer Bow',
+    type: 'Weapon',
+    description: 'A masterfully crafted bow that can ground flying beasts.',
+    mechanics: [{ name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies.' }],
+    lore: 'Heavens are no sanctuary from an Archer\'s arrow.',
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-archsorcerer-staff',
+    name: 'Staff of Destructive Will',
+    type: 'Weapon',
+    description: 'A long staff used by Sorcerers to channel tide-turning magic.',
+    mechanics: [{ name: 'Arcane Amplifier', description: 'Grants +1 to spell attack rolls. Complements Spell Memory.' }],
+    lore: 'A channel for raw elemental destruction.',
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-warrior-plate',
+    name: 'Titan\'s Full Plate',
+    type: 'Armor',
+    description: 'Imposing plate armor that makes the wearer nearly unmovable.',
+    mechanics: [{ name: 'Unshakeable', description: 'AC 18. Advantage on saving throws against being knocked prone.' }],
+    lore: 'The imposing silhouette of a Warrior.',
     authorId: 'Orestara', authorName: 'Orestara'
   }
 ];
@@ -250,65 +285,65 @@ const App: React.FC = () => {
       setItems(prev => [...prev, ...itemsToAdd]);
     }
     if (scope === 'all' || scope === 'heroes') {
-      const heroes: Character[] = [
-        {
-          id: 'hero-miri',
-          name: 'Miri',
-          classId: 'basic-fighter',
-          race: 'Human',
-          gender: 'Female',
-          description: "An energetic and impulsive swordswoman with a bright, playful personality. She's loud, expressive, and often invades personal space, always full of restless enthusiasm.",
-          level: 1,
-          stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 11, wisdom: 11, charisma: 11 },
-          hp: 12, maxHp: 12,
-          feats: [
-            { name: 'Restless Spirit', description: 'Miri has advantage on initiative rolls and cannot be surprised.' },
-            { name: 'Sword Mastery', description: 'Deals extra 1d4 damage with one-handed swords.' }
-          ],
-          inventory: ['sys-iron-longsword'],
-          isPlayer: true
-        },
-        {
-          id: 'hero-seris',
-          name: 'Seris',
-          classId: 'basic-archer',
-          race: 'Elf',
-          gender: 'Female',
-          description: "A reserved Elven archer who prefers distance and quiet. Despite being easily flustered she tries to keep a cool and aloof façade. Her blunt and sarcastic demeanor usually spurs from embarrassment rather than anger.",
-          level: 1,
-          stats: { strength: 8, dexterity: 17, constitution: 13, intelligence: 14, wisdom: 14, charisma: 10 },
-          hp: 9, maxHp: 9,
-          feats: [
-            { name: 'Aloof Precision', description: 'Gains a +2 bonus to attack rolls if no allies are within 10ft.' },
-            { name: 'Keen Senses', description: 'Heritage grants advantage on Perception checks.' }
-          ],
-          inventory: ['sys-sky-piercer-bow'],
-          isPlayer: false
-        },
-        {
-          id: 'hero-lina',
-          name: 'Lina',
-          classId: 'basic-mage',
-          race: 'Human',
-          gender: 'Female',
-          description: "A petite, shy priestess from a small rural chapel. She gets overwhelmed easily, but her gentle nature never wavers even in the heat of battle.",
-          level: 1,
-          stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
-          hp: 12, maxHp: 12,
-          feats: [
-            { name: 'Rural Kindness', description: 'When Lina heals a target, they gain a 1d4 bonus to their next saving throw.' },
-            { name: 'Petite Stature', description: 'Has advantage on Stealth checks to hide in small spaces.' }
-          ],
-          inventory: ['sys-menders-staff'],
-          knownSpells: [
-            { name: 'Blessing of the Chapel', level: 1, school: 'Abjuration', description: 'Target gains +1 to AC and saves for 1 minute.' }
-          ],
-          isPlayer: false
-        }
-      ];
-      const existingHeroIds = new Set(characters.map(c => c.id));
-      const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
-      setCharacters(prev => [...prev, ...heroesToAdd]);
+        const heroes: Character[] = [
+            {
+                id: 'hero-miri',
+                name: 'Miri',
+                classId: 'basic-fighter',
+                race: 'Human',
+                gender: 'Female',
+                description: "An energetic and impulsive swordswoman with a bright, playful personality. She's loud, expressive, and invades personal space, always full of restless enthusiasm.",
+                level: 1,
+                stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 9, wisdom: 11, charisma: 13 },
+                hp: 12, maxHp: 12,
+                feats: [
+                    { name: 'Restless Spirit', description: 'Gains +2 to Initiative and cannot be surprised while conscious.' },
+                    { name: 'Sword Waltz', description: 'When using a one-handed sword, you can use a bonus action to fluster an enemy, giving them disadvantage on their next attack.' }
+                ],
+                inventory: ['sys-iron-longsword', 'sys-kite-shield'],
+                isPlayer: true
+            },
+            {
+                id: 'hero-seris',
+                name: 'Seris',
+                classId: 'basic-archer',
+                race: 'Elf',
+                gender: 'Female',
+                description: "A reserved Elven archer, who prefers distance and quiet. Despite being easily flustered she tries to keep a cool and aloof façade, her blunt and sarcastic demeanor usually being spurred from embarrassment rather than anger.",
+                level: 1,
+                stats: { strength: 10, dexterity: 17, constitution: 14, intelligence: 13, wisdom: 14, charisma: 8 },
+                hp: 10, maxHp: 10,
+                feats: [
+                    { name: 'Aloof Precision', description: 'Deals extra 1d6 damage to targets further than 40ft away.' },
+                    { name: 'Defensive Sarcasm', description: 'When an enemy misses you, you can use a reaction to deliver a blunt retort, forcing them to make a DC 12 WIS save or be Charmed by your "coolness" for 1 round.' }
+                ],
+                inventory: ['sys-sky-piercer-bow'],
+                isPlayer: false
+            },
+            {
+                id: 'hero-lina',
+                name: 'Lina',
+                classId: 'basic-mage',
+                race: 'Human',
+                gender: 'Female',
+                description: "A petite, shy priestess from a small rural chapel. She gets overwhelmed easily, but her gentle nature never wavers.",
+                level: 1,
+                stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
+                hp: 12, maxHp: 12,
+                feats: [
+                    { name: 'Rural Kindness', description: 'When healing an ally, they gain a +2 bonus to their next saving throw.' },
+                    { name: 'Quiet Devotion', description: 'Can cast supportive spells silently and without components once per rest.' }
+                ],
+                inventory: ['sys-menders-staff'],
+                knownSpells: [
+                  { name: 'Blessing of the Chapel', level: 1, school: 'Abjuration', description: 'Target gains +1 to AC and resistance to necrotic damage for 1 minute.' }
+                ],
+                isPlayer: false
+            }
+        ];
+        const existingHeroIds = new Set(characters.map(c => c.id));
+        const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
+        setCharacters(prev => [...prev, ...heroesToAdd]);
     }
     if (scope === 'all') {
       const basicClasses: ClassDef[] = [
@@ -362,7 +397,7 @@ const App: React.FC = () => {
             { name: 'Vital Flow', description: 'Channel aether to restore 1d10 + WIS hit points to a wounded ally as a bonus action (3 uses per rest).' }
           ], 
           initialSpells: [
-            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier. Grants +2 AC for 2 rounds.' },
+            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier. Grants +2 AC and resistance to magical damage for 2 rounds.' },
             { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'A soothing blue mist heals all allies in a 30ft radius for 2d8 + WIS modifier.' },
             { name: 'Sanctuary of Light', level: 2, school: 'Abjuration', description: 'Designates a 10ft circle. Allies inside cannot be targeted by single-target attacks.' },
             { name: 'Spirit Mend', level: 3, school: 'Necromancy', description: 'Regenerate 10 HP at the start of each of the target\'s turns for 1 minute.' },

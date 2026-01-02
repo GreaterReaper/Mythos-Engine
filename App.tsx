@@ -119,20 +119,68 @@ const SYSTEM_ITEMS: Item[] = [
     lore: 'Standard issue for the King\'s Guard, forged in the royal foundry.'
   },
   {
-    id: 'sys-healing-potion',
-    name: 'Lesser Healing Potion',
-    type: 'Weapon', 
-    description: 'A bubbling red liquid that smells of medicinal cherries.',
-    mechanics: [{ name: 'Restoration', description: 'Regain 2d4 + 2 hit points as an action.' }],
-    lore: 'Brewed in the temple of the Dawn Mother to aid travelers.'
+    id: 'sys-greatsword-warrior',
+    name: 'Gargantuan Greatsword',
+    type: 'Weapon',
+    description: 'A massive blade that requires both hands to even lift.',
+    mechanics: [{ name: 'Heavy Cleave', description: 'Deals 2d6 slashing damage. On a critical hit, the target is knocked prone.' }],
+    lore: 'Wielded by the front-line giants of the Warrior Order.'
   },
   {
-    id: 'sys-plate-armor',
-    name: 'Steel Plate Armor',
+    id: 'sys-kite-shield-fighter',
+    name: 'Order Kite Shield',
     type: 'Armor',
-    description: 'Interlocking metal plates covering the entire body over a suit of chain mail.',
-    mechanics: [{ name: 'Heavy Protection', description: 'Grants an AC of 18. Disadvantage on Stealth checks.' }],
-    lore: 'Worn by knights of the highest order, polished to a mirror finish.'
+    description: 'A reinforced shield bearing the insignia of the frontline champions.',
+    mechanics: [{ name: 'Bastion', description: 'Grants +2 AC and allows for Shield Bash maneuvers.' }],
+    lore: 'The literal wall between civilization and the dark.'
+  },
+  {
+    id: 'sys-dual-daggers-thief',
+    name: 'Whisper-Steel Daggers',
+    type: 'Weapon',
+    description: 'A pair of identical daggers coated in a non-reflective black finish.',
+    mechanics: [{ name: 'Twin Fangs', description: 'Allows for an additional off-hand attack as a bonus action (1d4 each).' }],
+    lore: 'Quiet as a heartbeat, deadly as a shadow.'
+  },
+  {
+    id: 'sys-longbow-archer',
+    name: 'Sky-Piercer Bow',
+    type: 'Weapon',
+    description: 'A masterfully curved longbow made of treated yew.',
+    mechanics: [{ name: 'Aerial Accuracy', description: '1d8 piercing damage. Gains advantage against flying targets.' }],
+    lore: 'If you can see it in the sky, you can ground it.'
+  },
+  {
+    id: 'sys-greatstaff-sorcerer',
+    name: 'Channeling Greatstaff',
+    type: 'Weapon',
+    description: 'A long, gnarled staff capped with a pulsating focusing crystal.',
+    mechanics: [{ name: 'Arcane Amplifier', description: 'Grants +1 to spell attack rolls and spell save DCs.' }],
+    lore: 'A conduit for raw, unbridled destruction.'
+  },
+  {
+    id: 'sys-small-staff-mage',
+    name: 'Menders Walking Stick',
+    type: 'Weapon',
+    description: 'A short, light staff inscribed with protective runes.',
+    mechanics: [{ name: 'Supportive Echo', description: 'When casting a buff spell, its duration is increased by 1 round.' }],
+    lore: 'A gentle tool for a gentle soul.'
+  },
+  {
+    id: 'sys-plate-armor-heavy',
+    name: 'Warrior\'s Full Plate',
+    type: 'Armor',
+    description: 'Imposing plates of blackened steel.',
+    mechanics: [{ name: 'Heavy Juggernaut', description: 'AC 18. Advantage on checks against being knocked prone.' }],
+    lore: 'Only the strongest can endure the weight of such justice.'
+  },
+  {
+    id: 'sys-leather-armor-light',
+    name: 'Scout\'s Leather Garb',
+    type: 'Armor',
+    description: 'Supple leather that allows for full range of motion.',
+    mechanics: [{ name: 'Light Footed', description: 'AC 11 + Dex. Does not impose disadvantage on Stealth.' }],
+    lore: 'Protection that never slows you down.'
   }
 ];
 
@@ -236,14 +284,81 @@ const App: React.FC = () => {
         {
           id: 'basic-warrior',
           name: 'Warrior',
-          description: 'A master of martial combat, relying on strength and steel.',
-          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency', 'Martial Weapon Mastery'], features: [{ name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' }, { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }], initialSpells: [], authorId: 'system', authorName: 'Ancient Grimoire'
+          description: 'Mighty warriors who wield two-handed swords and hammers. They invigorate themselves and allies with a roar. Wearing heavy plate armor, they deliver crushing blows that knock foes prone and can charge their swings for devastating damage.',
+          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery', 'Prone Resistance'], 
+          features: [
+            { name: 'Mighty Roar', description: 'Unleash a roar that invigorates you and allies, granting temp HP.' }, 
+            { name: 'Crushing Blow', description: 'Attack has a high chance of knocking enemies prone.' }, 
+            { name: 'Charged Swing', description: 'Charge an attack over one turn; power increases with damage received during charge. More likely to be targeted while charging.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Ancient Grimoire'
         },
         {
-          id: 'basic-arcanist',
-          name: 'Arcanist',
-          description: 'A wielder of the fundamental forces of the universe.',
-          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Wisdom'], bonuses: ['Arcane Recovery', 'Spell Sniper'], features: [{ name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' }, { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }], initialSpells: [], authorId: 'system', authorName: 'Ancient Grimoire'
+          id: 'basic-fighter',
+          name: 'Fighter',
+          description: 'Champions of the frontline who bear the brunt of damage with shields firm. Wielding one-handed blades or maces, they excel in defensive combat and can use their shield to bash and flinch enemies.',
+          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency', 'Defense Bonus (+2 AC with Shield)'], 
+          features: [
+            { name: 'Shield Bash', description: 'Strike with your shield for blunt damage, flinching targets human-sized or smaller.' }, 
+            { name: 'Iron Guard', description: 'Take the brunt of an attack for an adjacent ally.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Ancient Grimoire'
+        },
+        {
+          id: 'basic-sorcerer',
+          name: 'Sorcerer',
+          description: 'Masters of raw magical destruction who wield long staves and robes. They excel at tide-turning offensive magic and possess the unique ability to commit a spell to memory for an instant, cost-free cast.',
+          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Arcane Potency', 'Staff Mastery', 'Robe Defense'], 
+          features: [
+            { name: 'Spell Memory', description: 'Once per rest, cast a committed spell instantly and for free.' }, 
+            { name: 'Destructive Overload', description: 'Your offensive spells deal additional damage at the risk of arcane backlash.' }
+          ], 
+          initialSpells: [
+            { name: 'Arcane Surge', level: 1, school: 'Evocation', description: 'Unleash a wave of pure force dealing 3d6 damage to all adjacent enemies.' },
+            { name: 'Shatter Memory', level: 2, school: 'Evocation', description: 'Target creature takes 4d8 damage and loses their next reaction.' }
+          ], 
+          authorId: 'system', authorName: 'Ancient Grimoire'
+        },
+        {
+          id: 'basic-mage',
+          name: 'Mage',
+          description: 'Supportive spellcasters who focus on healing and empowering their fellowship. Wielding small staves, they weave AOE buffs that protect all allies within range.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 2, 0], preferredStats: ['Wisdom', 'Intelligence'], bonuses: ['Supportive Resonance', 'Healer\'s Intuition'], 
+          features: [
+            { name: 'Aetheric Buffs', description: 'Supportive spells and buffs target all allies within a 15ft range.' }, 
+            { name: 'Vital Flow', description: 'Channel aether to restore hit points to a wounded ally.' }
+          ], 
+          initialSpells: [
+            { name: 'Aura of Protection', level: 1, school: 'Abjuration', description: 'All allies within 15ft gain +1 to all saving throws.' },
+            { name: 'Mass Restoration', level: 2, school: 'Abjuration', description: 'Heal all allies within 20ft for 2d6 + WIS modifier.' }
+          ], 
+          authorId: 'system', authorName: 'Ancient Grimoire'
+        },
+        {
+          id: 'basic-thief',
+          name: 'Thief',
+          description: 'Masters of stealth and dual-daggers who strike from the shadows. They can execute incapacitated foes and vanish in a cloud of smoke when the odds turn against them.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Wield Mastery', 'Leather Armor Mastery', 'Stealth Proficiency'], 
+          features: [
+            { name: 'Instant Execution', description: 'Instantly slay a human-sized or smaller enemy grappled by an ally.' }, 
+            { name: 'Smoke Bomb', description: 'Throw a bomb to vanish and disengage from combat instantly.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Ancient Grimoire'
+        },
+        {
+          id: 'basic-archer',
+          name: 'Archer',
+          description: 'Masters of the bow who can ground flying foes with ease. They wear leather armor and light equipment to remain mobile while picking off exposed enemies with specialized arrows.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor Proficiency', 'Longbow Mastery', 'Aerial Accuracy'], 
+          features: [
+            { name: 'Precision Shot', description: 'Deal extra damage against a single exposed enemy.' }, 
+            { name: 'Special Arrows', description: 'Use specialized arrows (Fire, Frost, Blunt) for various tactical effects.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Ancient Grimoire'
         },
         {
           id: 'basic-dark-knight',

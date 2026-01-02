@@ -185,24 +185,31 @@ const App: React.FC = () => {
     return classList.map(cls => {
       const hasSlots = cls.spellSlots && cls.spellSlots.some(s => s > 0);
       
-      // If the class has NO spell slots, it should have NO spells.
+      // STRICTURE: No slots = No spells.
       if (!hasSlots) {
         return { ...cls, initialSpells: [] };
       }
 
       const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
-      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver') || classKeywords.includes('warlock') || classKeywords.includes('spells');
+      const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver') || classKeywords.includes('warlock') || classKeywords.includes('spell');
       const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar') || classKeywords.includes('divine') || classKeywords.includes('sacred');
       const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild') || classKeywords.includes('primal') || classKeywords.includes('beast') || classKeywords.includes('flora');
       
-      // Filter existing spells that definitely don't fit based on strict thematic grounds
+      // Filter existing spells strictly based on thematic intent
       let currentSpells = (cls.initialSpells || []).filter(s => {
           const sName = s.name.toLowerCase();
           const sSchool = s.school.toLowerCase();
-          // Arcane rarely has cure/heal unless specific lore
-          if (isArcane && !isDivine && !isDruidic && (sName.includes('cure') || sName.includes('heal'))) return false;
-          // Divine rarely has destructive conjuration unless "wrath" type lore
-          if (isDivine && !isArcane && sSchool === 'conjuration' && !sName.includes('weapon') && !sName.includes('spirit')) return false;
+          
+          // ARCANE STRICTURE: No healing
+          if (isArcane && !isDivine && !isDruidic && (sName.includes('cure') || sName.includes('heal') || sName.includes('revivify') || sName.includes('restoration'))) return false;
+          
+          // DIVINE STRICTURE: No arcane destruction (Fireball, Magic Missile) unless specific Wrath keywords
+          const isOffensiveArcane = sName.includes('fireball') || sName.includes('missile') || sName.includes('lightning') || sName.includes('acid');
+          if (isDivine && !isArcane && isOffensiveArcane && !classKeywords.includes('wrath') && !classKeywords.includes('war') && !classKeywords.includes('vengeance')) return false;
+
+          // NATURE STRICTURE: No mechanical or strictly "Urban/Social" magic unless appropriate
+          if (isDruidic && !isArcane && !isDivine && (sName.includes('mage hand') || sName.includes('spiritual weapon'))) return false;
+
           return true;
       });
       
@@ -213,16 +220,21 @@ const App: React.FC = () => {
         let shouldAdd = false;
         const cName = common.name.toLowerCase();
         
-        // Thematic matching
+        // Match common spells by keywords and class role
         if ((isDivine || isDruidic) && (cName.includes('heal') || cName.includes('restoration') || cName.includes('revivify') || cName.includes('cure'))) shouldAdd = true;
         if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) {
              if (!cName.includes('healing')) shouldAdd = true;
         }
         
-        // Neutral utility
-        if (['Guidance', 'Light', 'Detect Magic', 'Mage Hand'].includes(common.name)) shouldAdd = true;
+        // Neutral utility essentials
+        if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
+        if (['Mage Hand'].includes(common.name) && isArcane) shouldAdd = true;
 
-        if (shouldAdd) currentSpells.push(common);
+        if (shouldAdd) {
+            // Final check: if we added it but it violates stricture, don't.
+            if (isArcane && !isDivine && (cName.includes('healing') || cName.includes('cure'))) shouldAdd = false;
+            if (shouldAdd) currentSpells.push(common);
+        }
       });
       
       return { ...cls, initialSpells: currentSpells };

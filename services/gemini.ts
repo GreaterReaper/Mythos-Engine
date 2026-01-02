@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 // Added missing Rule import
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
@@ -127,8 +126,11 @@ export const generateSpellbook = async (className: string, classDesc: string, ma
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Generate 4 thematic unique spells for a level ${maxLevel} ${className}. Lore: ${classDesc}. 
-      CRITICAL RULE: The 'description' MUST ONLY contain mechanical effects and dice rolls (e.g., "Deals 2d6 cold damage"). 
-      DO NOT include ANY internal thoughts, technical notes, or preamble like "Let's go" or "Done" in the description.`,
+      THEMATIC INTEGRITY RULES:
+      - If the class description is Arcane/Wizardly, include NO healing/restoration.
+      - If the class description is Divine/Priestly, focus on buffs, healing, and holy fire.
+      - If the class description is Druidic/Nature, focus on beasts and elements.
+      CRITICAL RULE: The 'description' MUST ONLY contain mechanical effects and dice rolls.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -326,8 +328,10 @@ export const generateClassMechanics = async (name: string, description: string):
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Design mechanics for class: ${name}. Lore: ${description}. 
-      CRITICAL: Spell/Feature descriptions MUST include specific mechanics and dice rolls. 
-      STRICTLY FORBIDDEN: Do not include ANY technical preamble, prompts, or model reasoning in the description fields.`,
+      THEMATIC INTEGRITY RULE: 
+      - Wizard/Arcanist/Mage archetypes MUST NOT have healing spells (Cure Wounds, etc.).
+      - Cleric/Priest archetypes MUST NOT have purely destructive arcane spells like Fireball unless thematic for their deity.
+      - Ensure all spells and features match the class flavor description.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

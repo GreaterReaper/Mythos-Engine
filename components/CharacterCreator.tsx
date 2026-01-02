@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -20,6 +21,15 @@ const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   Dwarf: { constitution: 2, strength: 2 },
   Elf: { dexterity: 2, intelligence: 2 },
   'Half-Elf': { charisma: 2, dexterity: 1, wisdom: 1 },
+  Orc: { strength: 2, constitution: 1 },
+  Goblin: { dexterity: 2, constitution: 1 },
+  Kobold: { dexterity: 2 },
+  Tiefling: { charisma: 2, intelligence: 1 },
+  Dragonborn: { strength: 2, charisma: 1 },
+  Tabaxi: { dexterity: 2, charisma: 1 },
+  Lizardfolk: { constitution: 2, wisdom: 1 },
+  Minotaur: { strength: 2, constitution: 1 },
+  Satyr: { charisma: 2, dexterity: 1 },
 };
 
 const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Trait[] }> = {
@@ -58,6 +68,78 @@ const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Tr
     traits: [
       { name: 'Fey Ancestry', description: 'Shared heritage provides resistance to charms and sleep.', locked: true },
       { name: 'Skill Versatility', description: 'Extraordinarily adaptable, gaining mastery in two extra skills.', locked: true }
+    ]
+  },
+  Orc: {
+    icon: '👹',
+    flavor: 'Brutish and powerful, orcs are warriors of primal strength and ferocity.',
+    traits: [
+      { name: 'Aggressive', description: 'As a bonus action, move up to your speed toward an enemy you can see.', locked: true },
+      { name: 'Primal Intuition', description: 'Proficiency in two skills from: Animal Handling, Insight, Intimidation, Nature, Perception, and Survival.', locked: true }
+    ]
+  },
+  Goblin: {
+    icon: '👺',
+    flavor: 'Small, cunning, and surprisingly hardy, goblins survive through wit and agility.',
+    traits: [
+      { name: 'Nimble Escape', description: 'Can take the Disengage or Hide action as a bonus action on each of your turns.', locked: true },
+      { name: 'Fury of the Small', description: 'Deal extra damage to a creature of a size category larger than you.', locked: true }
+    ]
+  },
+  Kobold: {
+    icon: '🦎',
+    flavor: 'Clever tunnel-dwellers who use numbers and ingenuity to overcome larger foes.',
+    traits: [
+      { name: 'Pack Tactics', description: 'Advantage on attack rolls against a creature if at least one ally is within 5 feet of the creature.', locked: true },
+      { name: 'Sunlight Sensitivity', description: 'Disadvantage on attack rolls and Perception checks that rely on sight when in direct sunlight.', locked: true }
+    ]
+  },
+  Tiefling: {
+    icon: '🔥',
+    flavor: 'Touched by infernal bloodlines, tieflings carry the mark of the abyss in their eyes and spells.',
+    traits: [
+      { name: 'Hellish Resistance', description: 'Resistance to fire damage.', locked: true },
+      { name: 'Infernal Legacy', description: 'Innate knowledge of the Thaumaturgy cantrip and later more powerful hellish magic.', locked: true }
+    ]
+  },
+  Dragonborn: {
+    icon: '🐲',
+    flavor: 'Heirs to the ancient dragons, possessing their elemental breath and unyielding pride.',
+    traits: [
+      { name: 'Draconic Ancestry', description: 'Elemental damage resistance based on your dragon ancestor.', locked: true },
+      { name: 'Breath Weapon', description: 'Use your action to exhale destructive elemental energy in a cone or line.', locked: true }
+    ]
+  },
+  Tabaxi: {
+    icon: '🐱',
+    flavor: 'Agile cat-folk from distant lands with an insatiable curiosity and natural grace.',
+    traits: [
+      { name: 'Feline Agility', description: 'Double your speed for one turn during combat.', locked: true },
+      { name: 'Cat\'s Claws', description: 'Natural claws that deal 1d4 slashing damage and provide a climbing speed.', locked: true }
+    ]
+  },
+  Lizardfolk: {
+    icon: '🐊',
+    flavor: 'Pragmatic reptilians who view the world through the lens of survival and ancient instinct.',
+    traits: [
+      { name: 'Natural Armor', description: 'Tough scales provide a base AC of 13 + Dexterity modifier.', locked: true },
+      { name: 'Hungry Jaws', description: 'As a bonus action, make a special bite attack to gain temporary hit points.', locked: true }
+    ]
+  },
+  Minotaur: {
+    icon: '🐂',
+    flavor: 'Powerfully built kin of the labyrinth, possessing unyielding strength and innate navigation.',
+    traits: [
+      { name: 'Goring Rush', description: 'After using the Dash action, make a melee attack with your horns as a bonus action.', locked: true },
+      { name: 'Hammering Horns', description: 'Use your horns to shove a creature as a bonus action after a melee hit.', locked: true }
+    ]
+  },
+  Satyr: {
+    icon: '🐐',
+    flavor: 'Whimsical fey-touched wanderers who find magic in song, dance, and the wild.',
+    traits: [
+      { name: 'Mirthful Leaps', description: 'Add a d8 to the distance of any jump you make.', locked: true },
+      { name: 'Magic Resistance', description: 'Advantage on saving throws against spells and other magical effects.', locked: true }
     ]
   },
 };
@@ -272,6 +354,40 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-xs tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none font-bold uppercase" />
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 text-left">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Gender Identity</label>
+                  <div className="relative">
+                    <select 
+                      value={gender} 
+                      onChange={(e) => setGender(e.target.value as GenderType)} 
+                      className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48]"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Non-binary">Non-binary</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
+                  </div>
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Archetype Path</label>
+                  <div className="relative">
+                    <select 
+                      value={classId} 
+                      onChange={(e) => setClassId(e.target.value)} 
+                      className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none focus:border-[#b28a48] appearance-none cursor-pointer"
+                    >
+                      <option value="">Path...</option>
+                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-1 text-left">
                 <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Sigil Reference (Optional)</label>
                 <div 
@@ -377,7 +493,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                         
                         <div className="flex items-center justify-center gap-2">
                           <button onClick={() => handleStatChange(s, -1)} className="text-neutral-700 hover:text-red-500 font-black px-1 text-lg"> - </button>
-                          <span className={`text-sm font-black min-w-[1.2rem] ${bonus > 0 ? 'text-green-500 drop-shadow-[0_0_5px_rgba(34,197,94,0.3)]' : isPreferred ? 'text-amber-500' : 'text-[#b28a48]'}`}>
+                          <span className={`text-sm font-black min-w-[1.2rem] ${bonus > 0 ? 'text-green-500 drop-shadow-[0_2px_12px_rgba(34,197,94,0.3)]' : isPreferred ? 'text-amber-500' : 'text-[#b28a48]'}`}>
                             {valWithBonus}
                           </span>
                           <button onClick={() => handleStatChange(s, 1)} className="text-neutral-700 hover:text-green-500 font-black px-1 text-lg"> + </button>
@@ -396,18 +512,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               </div>
 
               <div className="space-y-1 text-left">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Archetype & Appearance</label>
-                <div className="relative mb-2">
-                  <select 
-                    value={classId} 
-                    onChange={(e) => setClassId(e.target.value)} 
-                    className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none focus:border-[#b28a48] appearance-none cursor-pointer"
-                  >
-                    <option value="">Choose Path...</option>
-                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-[#b28a48] opacity-50 font-black">▼</div>
-                </div>
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Visual Details & Appearance</label>
                 <textarea 
                   value={charDescription} 
                   onChange={(e) => setCharDescription(e.target.value)} 
@@ -467,7 +572,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                 <div className="absolute bottom-0 left-0 right-0 p-10 text-left">
                   <h3 className="text-5xl font-black fantasy-font text-[#b28a48] mb-2">{selectedChar.name}</h3>
-                  <p className="text-xs uppercase tracking-[0.6em] text-neutral-500 font-black">{selectedChar.race} {selectedClass?.name}</p>
+                  <p className="text-xs uppercase tracking-[0.6em] text-neutral-500 font-black">{selectedChar.gender} • {selectedChar.race} {selectedClass?.name}</p>
                 </div>
               </div>
             </div>

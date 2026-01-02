@@ -72,14 +72,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       const updatedList = syncSpells ? syncSpells([...classes, newClass]) : [...classes, newClass];
       updateAndSync(updatedList);
       
-      // Auto-generate starter equipment with contextual images
+      // Auto-generate starter equipment with context-aware images
       try {
         const signatureItems = await generateClassEquipment(name, description, newClass.hitDie, hasSpells);
         const keyedItems = [];
         for (const si of signatureItems) {
             const imgUrl = await generateImage(`TTRPG concept art: ${si.name}, a signature ${si.type} for a ${name} hero. Lore: ${description}. Item Lore: ${si.lore}. Highly detailed obsidian and gold accents, cinematic lighting.`);
             keyedItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
-            await new Promise(r => setTimeout(r, 1000)); // Rate limit breathing room
+            await new Promise(r => setTimeout(r, 1000)); // Breathing room for image generation
         }
         setItems(prev => [...prev, ...keyedItems]);
         if (broadcast) {
@@ -110,7 +110,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       const signatureItems = await generateClassEquipment(cls.name, cls.description, cls.hitDie, hasSpells);
       const keyedItems = [];
       for (const si of signatureItems) {
-        const imgUrl = await generateImage(`Sigil item: ${si.name} (${si.type}). Bound to archetype ${cls.name}. Class themes: ${cls.description}. Item Details: ${si.description}. Dark moody painting.`);
+        const imgUrl = await generateImage(`Signature relic: ${si.name} (${si.type}). Bound to class ${cls.name}. Theme: ${cls.description}. Item Details: ${si.description}. Dark moody painting.`);
         keyedItems.push({ ...si, id: Math.random().toString(36).substr(2, 9), imageUrl: imgUrl });
         await new Promise(r => setTimeout(r, 1000));
       }
@@ -118,7 +118,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       if (broadcast) {
         keyedItems.forEach(ki => broadcast({ type: 'GIVE_LOOT', payload: ki }));
       }
-      notify(`Heirlooms of "${cls.name}" forged with visuals.`, "success");
+      notify(`Heirlooms manifest in Armory`, "success");
     } catch (e: any) {
       notify(e.message, "error");
     } finally {
@@ -497,7 +497,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           )}
                         </div>
                       </div>
-                      <p className={`text-base text-neutral-400 mt-4 italic font-serif leading-relaxed ${expandedId === c.id ? '' : 'line-clamp-2'}`}>
+                      <p className={`text-base text-neutral-400 mt-4 italic font-serif italic leading-relaxed ${expandedId === c.id ? '' : 'line-clamp-2'}`}>
                         {c.description}
                       </p>
                     </div>

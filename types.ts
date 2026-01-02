@@ -19,7 +19,22 @@ export interface Trait {
   locked?: boolean;
 }
 
-export type RaceType = 'Human' | 'Variant Human' | 'Dwarf' | 'Elf' | 'Half-Elf';
+export type RaceType = 
+  | 'Human' 
+  | 'Variant Human' 
+  | 'Dwarf' 
+  | 'Elf' 
+  | 'Half-Elf' 
+  | 'Orc' 
+  | 'Goblin' 
+  | 'Kobold' 
+  | 'Tiefling' 
+  | 'Dragonborn'
+  | 'Tabaxi'
+  | 'Lizardfolk'
+  | 'Minotaur'
+  | 'Satyr';
+
 export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
 
 export interface Spell {

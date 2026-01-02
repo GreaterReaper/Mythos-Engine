@@ -160,8 +160,6 @@ const App: React.FC = () => {
   const [dailyProUsed, setDailyProUsed] = useState<number>(0);
   const [dailyFlashUsed, setDailyFlashUsed] = useState<number>(0);
 
-  const lastLockoutTriggered = useRef<number>(0);
-
   const [characters, setCharacters] = useState<Character[]>([]);
   const [classes, setClasses] = useState<ClassDef[]>([]);
   const [monsters, setMonsters] = useState<Monster[]>([]);
@@ -185,59 +183,38 @@ const App: React.FC = () => {
   const syncAllClassesToSpells = useCallback((classList: ClassDef[]): ClassDef[] => {
     return classList.map(cls => {
       const hasSlots = cls.spellSlots && cls.spellSlots.some(s => s > 0);
-      
-      // STRICTURE: No slots = No spells.
-      if (!hasSlots) {
-        return { ...cls, initialSpells: [] };
-      }
+      if (!hasSlots) return { ...cls, initialSpells: [] };
 
       const classKeywords = (cls.name + ' ' + cls.description).toLowerCase();
       const isArcane = classKeywords.includes('mage') || classKeywords.includes('wizard') || classKeywords.includes('sorcerer') || classKeywords.includes('arcan') || classKeywords.includes('void') || classKeywords.includes('blood') || classKeywords.includes('weaver') || classKeywords.includes('warlock') || classKeywords.includes('spell');
       const isDivine = classKeywords.includes('cleric') || classKeywords.includes('paladin') || classKeywords.includes('priest') || classKeywords.includes('holy') || classKeywords.includes('light') || classKeywords.includes('templar') || classKeywords.includes('divine') || classKeywords.includes('sacred');
       const isDruidic = classKeywords.includes('druid') || classKeywords.includes('ranger') || classKeywords.includes('nature') || classKeywords.includes('wild') || classKeywords.includes('primal') || classKeywords.includes('beast') || classKeywords.includes('flora');
       
-      // Filter existing spells strictly based on thematic intent
       let currentSpells = (cls.initialSpells || []).filter(s => {
           const sName = s.name.toLowerCase();
-          const sSchool = s.school.toLowerCase();
-          
-          // ARCANE STRICTURE: No healing
           if (isArcane && !isDivine && !isDruidic && (sName.includes('cure') || sName.includes('heal') || sName.includes('revivify') || sName.includes('restoration'))) return false;
-          
-          // DIVINE STRICTURE: No arcane destruction (Fireball, Magic Missile) unless specific Wrath keywords
           const isOffensiveArcane = sName.includes('fireball') || sName.includes('missile') || sName.includes('lightning') || sName.includes('acid');
           if (isDivine && !isArcane && isOffensiveArcane && !classKeywords.includes('wrath') && !classKeywords.includes('war') && !classKeywords.includes('vengeance')) return false;
-
-          // NATURE STRICTURE: No mechanical or strictly "Urban/Social" magic unless appropriate
           if (isDruidic && !isArcane && !isDivine && (sName.includes('mage hand') || sName.includes('spiritual weapon'))) return false;
-
           return true;
       });
       
       COMMON_SPELLS.forEach(common => {
         const alreadyKnown = currentSpells.some(s => s.name.toLowerCase() === common.name.toLowerCase());
         if (alreadyKnown) return;
-
         let shouldAdd = false;
         const cName = common.name.toLowerCase();
-        
-        // Match common spells by keywords and class role
         if ((isDivine || isDruidic) && (cName.includes('heal') || cName.includes('restoration') || cName.includes('revivify') || cName.includes('cure'))) shouldAdd = true;
         if (isArcane && (common.school === 'Evocation' || common.school === 'Conjuration' || common.school === 'Divination')) {
              if (!cName.includes('healing')) shouldAdd = true;
         }
-        
-        // Neutral utility essentials
         if (['Guidance', 'Light', 'Detect Magic'].includes(common.name)) shouldAdd = true;
         if (['Mage Hand'].includes(common.name) && isArcane) shouldAdd = true;
-
         if (shouldAdd) {
-            // Final check: if we added it but it violates stricture, don't.
             if (isArcane && !isDivine && (cName.includes('healing') || cName.includes('cure'))) shouldAdd = false;
             if (shouldAdd) currentSpells.push(common);
         }
       });
-      
       return { ...cls, initialSpells: currentSpells };
     });
   }, []);
@@ -248,58 +225,30 @@ const App: React.FC = () => {
       const monstersToAdd = SYSTEM_MONSTERS.filter(m => !existingIds.has(m.id));
       setMonsters(prev => [...prev, ...monstersToAdd]);
     }
-
     if (scope === 'all' || scope === 'items') {
       const existingIds = new Set(items.map(i => i.id));
       const itemsToAdd = SYSTEM_ITEMS.filter(i => !existingIds.has(i.id));
       setItems(prev => [...prev, ...itemsToAdd]);
     }
-
     if (scope === 'all') {
       const basicClasses: ClassDef[] = [
         {
           id: 'basic-warrior',
           name: 'Warrior',
           description: 'A master of martial combat, relying on strength and steel.',
-          hitDie: 'd10',
-          startingHp: 10,
-          hpPerLevel: 6,
-          spellSlots: [0, 0, 0],
-          preferredStats: ['Strength', 'Constitution'],
-          bonuses: ['Heavy Armor Proficiency', 'Martial Weapon Mastery'],
-          features: [
-            { name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' },
-            { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }
-          ],
-          initialSpells: [],
-          authorId: 'system',
-          authorName: 'Ancient Grimoire'
+          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency', 'Martial Weapon Mastery'], features: [{ name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' }, { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }], initialSpells: [], authorId: 'system', authorName: 'Ancient Grimoire'
         },
         {
           id: 'basic-arcanist',
           name: 'Arcanist',
           description: 'A wielder of the fundamental forces of the universe.',
-          hitDie: 'd6',
-          startingHp: 6,
-          hpPerLevel: 4,
-          spellSlots: [4, 2, 0],
-          preferredStats: ['Intelligence', 'Wisdom'],
-          bonuses: ['Arcane Recovery', 'Spell Sniper'],
-          features: [
-            { name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' },
-            { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }
-          ],
-          initialSpells: [],
-          authorId: 'system',
-          authorName: 'Ancient Grimoire'
+          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Wisdom'], bonuses: ['Arcane Recovery', 'Spell Sniper'], features: [{ name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' }, { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }], initialSpells: [], authorId: 'system', authorName: 'Ancient Grimoire'
         }
       ];
-
       const syncedClasses = syncAllClassesToSpells([...classes.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
       setClasses(syncedClasses);
     }
-    
-    notify("Arcanum Synchronized. Basic content manifested.", "success");
+    notify("Arcanum Synchronized.", "success");
   };
 
   const diceNeeded = useMemo(() => {
@@ -312,17 +261,10 @@ const App: React.FC = () => {
 
   const handleRollDice = (sides: number) => {
     const result = Math.floor(Math.random() * sides) + 1;
-    const roll: DiceRoll = {
-      id: Math.random().toString(36).substr(2, 9),
-      sides,
-      result,
-      timestamp: Date.now()
-    };
+    const roll: DiceRoll = { id: Math.random().toString(36).substr(2, 9), sides, result, timestamp: Date.now() };
     setLastRoll(roll);
     setRollHistory(prev => [roll, ...prev].slice(0, 10));
-    if (result === sides && sides >= 10) {
-      notify(`CRITICAL! Natural ${result} on d${sides}`, 'success');
-    }
+    if (result === sides && sides >= 10) notify(`CRITICAL! Natural ${result} on d${sides}`, 'success');
   };
 
   useEffect(() => {
@@ -340,7 +282,6 @@ const App: React.FC = () => {
       const campaignData = savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] };
       if (!campaignData.rules) campaignData.rules = [];
       setCampaign(campaignData);
-
       const today = new Date().toDateString();
       const lastReset = localStorage.getItem(`${uPrefix}_mythos_last_reset_day`);
       if (lastReset === today) {
@@ -348,8 +289,7 @@ const App: React.FC = () => {
         setDailyFlashUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_flash_used`) || '0'));
       } else {
         localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
-        setDailyProUsed(0);
-        setDailyFlashUsed(0);
+        setDailyProUsed(0); setDailyFlashUsed(0);
       }
     }
   }, [currentUser]);
@@ -379,15 +319,15 @@ const App: React.FC = () => {
     }, 1000);
 
     const handleUsage = (e: any) => {
+      // Bypassed for admins: skip usage increments
+      if (currentUser?.isAdmin) return;
+
       const { type, cost } = e.detail;
       if (type === 'dm') {
         setArcaneTokens(prev => Math.max(prev - 1, 0));
         setDmModel(currentModel => {
-          if (currentModel.includes('pro')) {
-            setDailyProUsed(p => p + 1);
-          } else {
-            setDailyFlashUsed(p => p + 1);
-          }
+          if (currentModel.includes('pro')) setDailyProUsed(p => p + 1);
+          else setDailyFlashUsed(p => p + 1);
           return currentModel;
         });
       }
@@ -398,6 +338,9 @@ const App: React.FC = () => {
     };
 
     const handleError = (e: any) => {
+      // Bypassed for admins: ignore lockout and quota events
+      if (currentUser?.isAdmin) return;
+
       if (e.detail.isRateLimit) {
         setLockoutTime(LOCKOUT_DURATION);
         notify("Ley Lines Overloaded.", "error");
@@ -415,64 +358,39 @@ const App: React.FC = () => {
       window.removeEventListener('mythos:arcane_use' as any, handleUsage);
       window.removeEventListener('mythos:arcane_error' as any, handleError);
     };
-  }, [notify]);
+  }, [notify, currentUser]);
 
   const setupConnection = useCallback((conn: DataConnection) => {
     conn.on('open', () => {
       setConnections(prev => [...prev, conn]);
-      setServerLogs(prev => [...prev, {
-        id: Math.random().toString(36),
-        message: `Resonance established with ${conn.peer}`,
-        type: 'success',
-        timestamp: Date.now()
-      }]);
+      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Resonance established with ${conn.peer}`, type: 'success', timestamp: Date.now() }]);
     });
-
     conn.on('data', (data: any) => {
       const msg = data as SyncMessage;
       switch (msg.type) {
         case 'SHARE_RESOURCE':
           const { resourceType, resourceData } = msg.payload;
-          if (resourceType === 'class') {
-            setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
-            notify(`New Archetype received: ${resourceData.name}`, 'success');
-          } else if (resourceType === 'monster') {
-            setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
-            notify(`New Horror added to Bestiary: ${resourceData.name}`, 'success');
-          } else if (resourceType === 'item') {
-            setItems(prev => prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]);
-            notify(`New Relic received: ${resourceData.name}`, 'success');
-          }
+          if (resourceType === 'class') setClasses(prev => prev.some(c => c.id === resourceData.id) ? prev : [...prev, resourceData]);
+          else if (resourceType === 'monster') setMonsters(prev => prev.some(m => m.id === resourceData.id) ? prev : [...prev, resourceData]);
+          else if (resourceType === 'item') setItems(prev => prev.some(i => i.id === resourceData.id) ? prev : [...prev, resourceData]);
+          notify(`Resource received: ${resourceData.name}`, 'success');
           break;
-        case 'NEW_LOG':
-          setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] }));
-          break;
-        case 'SUMMARY_UPDATE':
-          setCampaign(prev => ({ ...prev, summary: msg.payload }));
-          break;
-        case 'GIVE_LOOT':
-          setItems(prev => [...prev, msg.payload]);
-          notify(`The party received loot: ${msg.payload.name}`, 'info');
-          break;
+        case 'NEW_LOG': setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] })); break;
+        case 'SUMMARY_UPDATE': setCampaign(prev => ({ ...prev, summary: msg.payload })); break;
+        case 'GIVE_LOOT': setItems(prev => [...prev, msg.payload]); notify(`Loot received: ${msg.payload.name}`, 'info'); break;
         case 'STATE_UPDATE':
           if (msg.payload.campaign) setCampaign(msg.payload.campaign);
           if (msg.payload.classes) setClasses(msg.payload.classes);
           if (msg.payload.monsters) setMonsters(msg.payload.monsters);
           if (msg.payload.items) setItems(msg.payload.items);
           if (msg.payload.characters) setCharacters(msg.payload.characters);
-          notify("Chronicle state synchronized", "info");
+          notify("Chronicle synchronized", "info");
           break;
       }
     });
-
     conn.on('close', () => {
       setConnections(prev => prev.filter(c => c.peer !== conn.peer));
-      setServerLogs(prev => [...prev, {
-        id: Math.random().toString(36),
-        message: `Connection lost with ${conn.peer}`,
-        type: 'warn',
-        timestamp: Date.now()
-      }]);
+      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Connection lost with ${conn.peer}`, type: 'warn', timestamp: Date.now() }]);
     });
   }, [notify]);
 
@@ -480,40 +398,18 @@ const App: React.FC = () => {
     if (peerRef.current) peerRef.current.destroy();
     const peer = customId ? new Peer(customId) : new Peer();
     peerRef.current = peer;
-    
     peer.on('open', (id) => {
       setPeerId(id);
-      setServerLogs(prev => [...prev, {
-        id: Math.random().toString(36),
-        message: `Local sigil manifested: ${id}`,
-        type: 'info',
-        timestamp: Date.now()
-      }]);
+      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Local sigil: ${id}`, type: 'info', timestamp: Date.now() }]);
     });
-
-    peer.on('connection', (conn) => {
-      setupConnection(conn);
-    });
-
+    peer.on('connection', (conn) => setupConnection(conn));
     peer.on('error', (err) => {
-      console.error("PeerJS Error:", err);
-      setServerLogs(prev => [...prev, {
-        id: Math.random().toString(36),
-        message: `Ether instability: ${err.type}`,
-        type: 'error',
-        timestamp: Date.now()
-      }]);
-      if (err.type === 'unavailable-id') {
-        notify("This shared code is already taken.", "error");
-      }
+      setServerLogs(prev => [...prev, { id: Math.random().toString(36), message: `Instability: ${err.type}`, type: 'error', timestamp: Date.now() }]);
     });
   }, [setupConnection, notify]);
 
   const connectToHost = useCallback((hostSigil: string) => {
-    if (!peerRef.current || !peerRef.current.open) {
-      notify("Portal not ready. Inscribe your sigil first.", "error");
-      return;
-    }
+    if (!peerRef.current || !peerRef.current.open) { notify("Portal not ready.", "error"); return; }
     const conn = peerRef.current.connect(hostSigil);
     setupConnection(conn);
   }, [setupConnection, notify]);
@@ -530,7 +426,6 @@ const App: React.FC = () => {
   const proPercent = (dailyProUsed / DAILY_PRO_LIMIT) * 100;
   const flashPercent = (dailyFlashUsed / DAILY_FLASH_LIMIT) * 100;
 
-  // Admin users bypass resonance and reservoir bucket checks
   const arcadeReady = currentUser.isAdmin || (arcaneTokens >= 1 && !isExhausted);
   const reservoirReady = currentUser.isAdmin || (reservoir >= 1 && !isExhausted);
 
@@ -582,20 +477,20 @@ const App: React.FC = () => {
            <div className="flex flex-col items-start gap-1">
               <div className="flex justify-between w-24">
                 <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Fidelity (Pro)</span>
-                <span className={`text-[7px] font-bold ${proPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{dailyProUsed}/{DAILY_PRO_LIMIT}</span>
+                <span className={`text-[7px] font-bold ${proPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyProUsed}/${DAILY_PRO_LIMIT}`}</span>
               </div>
               <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
-                <div className={`h-full transition-all duration-1000 ${proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${proPercent}%` }}></div>
+                <div className={`h-full transition-all duration-1000 ${proPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${currentUser.isAdmin ? 100 : proPercent}%` }}></div>
               </div>
            </div>
 
            <div className="flex flex-col items-start gap-1">
               <div className="flex justify-between w-24">
                 <span className="text-[7px] font-black text-neutral-500 uppercase tracking-tighter">Velocity (Flash)</span>
-                <span className={`text-[7px] font-bold ${flashPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{dailyFlashUsed}/{DAILY_FLASH_LIMIT}</span>
+                <span className={`text-[7px] font-bold ${flashPercent > 80 ? 'text-red-500' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : `${dailyFlashUsed}/${DAILY_FLASH_LIMIT}`}</span>
               </div>
               <div className="w-24 h-1 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
-                <div className={`h-full transition-all duration-1000 ${flashPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${flashPercent}%` }}></div>
+                <div className={`h-full transition-all duration-1000 ${flashPercent > 80 ? 'bg-red-500' : 'bg-[#b28a48]'}`} style={{ width: `${currentUser.isAdmin ? 100 : flashPercent}%` }}></div>
               </div>
            </div>
         </div>

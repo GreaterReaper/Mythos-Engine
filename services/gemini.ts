@@ -16,19 +16,21 @@ const cleanJson = (text: string) => {
   return cleaned;
 };
 
+const isAdmin = () => (window as any).isMythosAdmin === true;
+
 const trackUsage = (type: 'dm' | 'utility', cost: number = 0) => {
+  if (isAdmin()) return; // Architect Bypass: Don't track usage for admins
   window.dispatchEvent(new CustomEvent('mythos:arcane_use', { detail: { type, cost } }));
 };
 
 const reportError = (isRateLimit: boolean, isQuotaExceeded: boolean = false) => {
+  if (isAdmin()) return; // Architect Bypass: Don't trigger global UI lockouts for admin errors
   window.dispatchEvent(new CustomEvent('mythos:arcane_error', { detail: { isRateLimit, isQuotaExceeded } }));
 };
 
 const isHardLockoutActive = () => {
   return window.sessionStorage.getItem('mythos_lockout_active') === 'true';
 };
-
-const isAdmin = () => (window as any).isMythosAdmin === true;
 
 const getAI = () => {
   const apiKey = process.env.API_KEY;

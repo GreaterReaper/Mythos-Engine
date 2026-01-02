@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { CampaignState, GameLog, Character, ClassDef, SyncMessage, Item } from '../types';
+import { CampaignState, GameLog, Character, ClassDef, SyncMessage, Item, UserAccount } from '../types';
 import { getDMResponse, generateSmartLoot, generateSummary } from '../services/gemini';
 
 interface CampaignViewProps {
@@ -17,12 +17,13 @@ interface CampaignViewProps {
   isQuotaExhausted: boolean;
   localResetTime: string;
   items: Item[];
+  user: UserAccount;
 }
 
 const CampaignView: React.FC<CampaignViewProps> = ({ 
   campaign, setCampaign, characters, broadcast, isHost, 
   classes, playerName, notify, arcadeReady, dmModel, 
-  setDmModel, isQuotaExhausted, localResetTime, items
+  setDmModel, isQuotaExhausted, localResetTime, items, user
 }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -240,7 +241,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         ref={scrollRef}
         className="flex-1 bg-neutral-950/40 rounded-sm border border-[#1a1a1a] overflow-y-auto p-4 md:p-8 space-y-6 scrollbar-hide"
       >
-        {isQuotaExhausted && dmModel.includes('pro') && (
+        {isQuotaExhausted && dmModel.includes('pro') && !user.isAdmin && (
           <div className="bg-red-950/20 border-2 border-red-900 p-4 text-center mb-6 rounded-sm shadow-2xl">
              <h4 className="text-red-500 font-black text-[10px] uppercase tracking-widest mb-1">
                Ancestral Quota Exhausted

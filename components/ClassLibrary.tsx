@@ -49,6 +49,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     return cls.authorId === currentUser.username;
   };
 
+  const canEditOrManage = (cls: ClassDef) => {
+    return currentUser.isAdmin || isAuthor(cls) || cls.authorId === 'system';
+  };
+
   const updateAndSync = (newList: ClassDef[]) => {
     setClasses(newList);
     if (broadcast) {
@@ -58,12 +62,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleCreate = async () => {
     if (!name || !description || loading) return;
-    if (!manualMode && !reservoirReady) return;
+    if (!manualMode && !reservoirReady && !currentUser.isAdmin) return;
 
     setLoading(true);
     try {
       let mechanics;
-      let imageUrl = '';
       
       if (manualMode && currentUser.isAdmin) {
         mechanics = {
@@ -101,7 +104,6 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
       updateAndSync(updatedList);
       
       if (!manualMode) {
-        // Auto-generate starter equipment only in AI mode
         try {
           const signatureItems = await generateClassEquipment(name, description, newClass.hitDie, hasSpells);
           const keyedItems = [];
@@ -132,7 +134,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleManifestHeirloom = async (cls: ClassDef) => {
-    if (!reservoirReady || forgingHeirloomId) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || forgingHeirloomId) return;
     setForgingHeirloomId(cls.id);
     try {
       const hasSpells = cls.spellSlots && cls.spellSlots.some(s => s > 0);
@@ -156,11 +158,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleIdentifyDepths = async (cls: ClassDef) => {
-    if (!isAuthor(cls) && cls.authorId !== 'system') {
-      notify("Only the original author can manifest these depths.", "error");
+    if (!canEditOrManage(cls)) {
+      notify("Only authors or architects can recalibrate this archetype.", "error");
       return;
     }
-    if (!reservoirReady || identifyingId) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || identifyingId) return;
     setIdentifyingId(cls.id);
     try {
       const mechanics = await generateClassMechanics(cls.name, cls.description);
@@ -187,11 +189,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleManifestSpells = async (cls: ClassDef) => {
-    if (!isAuthor(cls) && cls.authorId !== 'system') {
-      notify("Only the original author can inscribe these spells.", "error");
+    if (!canEditOrManage(cls)) {
+      notify("Only authors or architects can inscribe these spells.", "error");
       return;
     }
-    if (!reservoirReady || learningSpellsId) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || learningSpellsId) return;
     setLearningSpellsId(cls.id);
     try {
       const uniqueSpells = await generateSpellbook(cls.name, cls.description, 3);
@@ -211,15 +213,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleBulkManifest = async () => {
-    if (!reservoirReady || loading || legacyRecords.length === 0) return;
+    const listToProcess = currentUser.isAdmin ? classes : legacyRecords.filter(canEditOrManage);
+    if ((!reservoirReady && !currentUser.isAdmin) || loading || listToProcess.length === 0) return;
     
     setLoading(true);
-    notify(`Purging & Recalibrating ${legacyRecords.length} Archetypes...`, "info");
+    notify(`Purging & Recalibrating ${listToProcess.length} Archetypes...`, "info");
 
     let currentClasses = [...classes];
-    for (const cls of legacyRecords) {
-      if (!isAuthor(cls) && cls.authorId !== 'system') continue;
-      
+    for (const cls of listToProcess) {
       try {
         const mechanics = await generateClassMechanics(cls.name, cls.description);
         currentClasses = currentClasses.map(c => c.id === cls.id ? {
@@ -244,7 +245,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleBulkGearManifest = async () => {
-    if (!reservoirReady || loading) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
     notify("Manifesting Signature Relics for Archetypes...", "info");
     
@@ -254,7 +255,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         const classTerms = cls.name.toLowerCase().split(' ');
         const exists = items.some(i => classTerms.some(term => i.name.toLowerCase().includes(term) || i.description.toLowerCase().includes(term)));
         
-        if (!exists || cls.authorId === 'system') {
+        if (!exists || canEditOrManage(cls)) {
           const hasSpells = cls.spellSlots && cls.spellSlots.some(s => s > 0);
           const signatureItems = await generateClassEquipment(cls.name, cls.description, cls.hitDie, hasSpells);
           const newItems = [];
@@ -280,7 +281,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const toggleFeatureLock = (cls: ClassDef, featIdx: number) => {
-    if (!isAuthor(cls) && cls.authorId !== 'system') {
+    if (!canEditOrManage(cls)) {
       notify("The grimoire prevents you from locking features of foreign archetypes.", "error");
       return;
     }
@@ -307,11 +308,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleReroll = async (cls: ClassDef) => {
-    if (!isAuthor(cls) && cls.authorId !== 'system') {
-      notify("Only the author may reweave this archetype's destiny.", "error");
+    if (!canEditOrManage(cls)) {
+      notify("Only authors or architects may reweave this archetype's destiny.", "error");
       return;
     }
-    if (!reservoirReady) return;
+    if (!reservoirReady && !currentUser.isAdmin) return;
     setRerolling(cls.id);
     try {
       const updated = await rerollTraits('class', cls.name, cls.description, cls.features);
@@ -372,21 +373,21 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         <div className="flex flex-wrap gap-2 justify-center lg:justify-end">
           <button 
             onClick={handleBulkGearManifest}
-            disabled={loading || !reservoirReady}
+            disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
             className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
           >
             <span className="text-sm">🛡️</span>
             Manifest All Archetype Gear
           </button>
 
-          {(legacyRecords.some(c => isAuthor(c) || c.authorId === 'system')) && (
+          {(currentUser.isAdmin || legacyRecords.some(canEditOrManage)) && (
             <button 
               onClick={handleBulkManifest}
-              disabled={loading || !reservoirReady}
+              disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
               className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
             >
               <span className="animate-pulse">✨</span>
-              Purge & Sync Legacies
+              {currentUser.isAdmin ? 'Force Re-sync All Archetypes' : 'Purge & Sync Legacies'}
             </button>
           )}
         </div>
@@ -453,13 +454,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
               <button 
                 onClick={handleCreate} 
-                disabled={loading || !name || (!manualMode && !reservoirReady)} 
+                disabled={loading || !name || (!manualMode && !reservoirReady && !currentUser.isAdmin)} 
                 className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.5em] text-[#b28a48] hover:border-[#b28a48] transition-all shadow-xl active:scale-[0.98] disabled:opacity-20 flex flex-col items-center gap-1"
               >
                 {loading ? 'BINDING SOUL...' : (manualMode ? 'INSCRIBE MANUALLY' : (
                   <>
                     <span>FORGE ARCHETYPE</span>
-                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-15⚡ ESSENCE]</span>
+                    <span className="text-[8px] text-amber-600/80 tracking-widest">{currentUser.isAdmin ? '[∞ ARCHITECT]' : '[-15⚡ ESSENCE]'}</span>
                   </>
                 ))}
               </button>
@@ -483,7 +484,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
               const hasCorruptedArcanum = c.spellSlots && c.spellSlots.every(s => s === 0) && c.initialSpells && c.initialSpells.length > 0;
-              const userIsAuthorOrSystem = isAuthor(c) || c.authorId === 'system';
+              const manageable = canEditOrManage(c);
 
               return (
                 <div 
@@ -585,32 +586,28 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                               <div className="flex gap-2">
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); handleManifestHeirloom(c); }}
-                                  disabled={forgingHeirloomId === c.id || !reservoirReady}
+                                  disabled={forgingHeirloomId === c.id || (!reservoirReady && !currentUser.isAdmin)}
                                   className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
                                 >
                                   {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Relics ⚔️'}
                                 </button>
                                 
-                                {userIsAuthorOrSystem && (
+                                {manageable && (
                                   <>
-                                    {(expandedId === c.id) && (
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
-                                        disabled={learningSpellsId === c.id || !reservoirReady}
-                                        className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
-                                      >
-                                        {learningSpellsId === c.id ? 'SYNCHRONIZING...' : 'Sync Arcanum ✨'}
-                                      </button>
-                                    )}
-                                    {(isLegacy || hasCorruptedArcanum) && (
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
-                                        disabled={identifyingId === c.id || !reservoirReady}
-                                        className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
-                                      >
-                                        {identifyingId === c.id ? 'REASSIGNING...' : 'Recalibrate Slots ⚡'}
-                                      </button>
-                                    )}
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
+                                      disabled={learningSpellsId === c.id || (!reservoirReady && !currentUser.isAdmin)}
+                                      className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
+                                    >
+                                      {learningSpellsId === c.id ? 'SYNCHRONIZING...' : 'Sync Arcanum ✨'}
+                                    </button>
+                                    <button 
+                                      onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
+                                      disabled={identifyingId === c.id || (!reservoirReady && !currentUser.isAdmin)}
+                                      className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                    >
+                                      {identifyingId === c.id ? 'REASSIGNING...' : 'Recalibrate Slots ⚡'}
+                                    </button>
                                   </>
                                 )}
                               </div>
@@ -695,10 +692,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                         <div className="space-y-8">
                           <div className="flex justify-between items-end border-b border-neutral-800 pb-2 mb-4">
                             <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em]">Archetype Features</h5>
-                            {userIsAuthorOrSystem ? (
+                            {manageable ? (
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleReroll(c); }}
-                                disabled={rerolling === c.id || !reservoirReady}
+                                disabled={rerolling === c.id || (!reservoirReady && !currentUser.isAdmin)}
                                 className="text-[10px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20"
                               >
                                 {rerolling === c.id ? 'REWEAVING...' : <span>Reroll Unlocked 🎲</span>}
@@ -717,7 +714,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 onClick={(e) => { e.stopPropagation(); toggleFeatureLock(c, i); }}
                                 className={`p-6 border transition-all rounded-sm relative group/feat flex flex-col justify-center min-h-[100px] text-left ${
                                   f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'
-                                } ${!userIsAuthorOrSystem ? 'cursor-default' : 'cursor-pointer'}`}
+                                } ${!manageable ? 'cursor-default' : 'cursor-pointer'}`}
                               >
                                 <div className="flex items-start gap-4">
                                   <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-600' : 'text-neutral-800'}`}>
@@ -732,7 +729,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     </p>
                                   </div>
                                 </div>
-                                {f.locked && !userIsAuthorOrSystem && (
+                                {f.locked && !manageable && (
                                   <div className="absolute top-2 right-2 text-[8px] font-black text-amber-900/40 uppercase tracking-widest">
                                     Author Locked
                                   </div>

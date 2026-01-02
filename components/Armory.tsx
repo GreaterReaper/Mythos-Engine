@@ -45,7 +45,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
   const handleCreate = async () => {
     if (!name || !description || loading) return;
-    if (!manualMode && !reservoirReady) return;
+    if (!manualMode && !reservoirReady && !currentUser.isAdmin) return;
 
     setLoading(true);
     try {
@@ -85,7 +85,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   };
 
   const handleRegenerateMissingImages = async () => {
-    if (!reservoirReady || loading) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
     notify("Forging Visual Relics for the Armory...", "info");
     const list = [...items];
@@ -110,7 +110,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
   const handleRegenerateSingleImage = async (e: React.MouseEvent, item: Item) => {
     e.stopPropagation();
-    if (!reservoirReady || loading) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
     try {
       const img = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${item.type} called "${item.name}". Lore: ${item.description}. Obsidian and gold accents.`);
@@ -133,7 +133,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   };
 
   const handleReroll = async (item: Item) => {
-    if (!reservoirReady) return;
+    if (!reservoirReady && !currentUser.isAdmin) return;
     setRerolling(item.id);
     try {
       const updated = await rerollTraits('item', item.name, item.description, item.mechanics);
@@ -192,7 +192,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
         <div className="flex gap-2">
            <button 
             onClick={handleRegenerateMissingImages}
-            disabled={loading || !reservoirReady}
+            disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
             className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95"
            >
             <span className="text-sm">🖼️</span>
@@ -272,13 +272,13 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
               <button 
                 onClick={handleCreate} 
-                disabled={loading || !name || (!manualMode && !reservoirReady)} 
+                disabled={loading || !name || (!manualMode && !reservoirReady && !currentUser.isAdmin)} 
                 className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 text-[#b28a48] py-5 text-[11px] font-black uppercase tracking-[0.4em] transition-all disabled:opacity-20 shadow-xl active:scale-95 flex flex-col items-center gap-1"
               >
                 {loading ? 'BINDING RELIC...' : (manualMode ? 'FORGE MANUALLY' : (
                   <>
                     <span>FORGE RELIC</span>
-                    <span className="text-[8px] text-amber-600/80 tracking-widest">[-10⚡ ESSENCE]</span>
+                    <span className="text-[8px] opacity-70 uppercase tracking-widest">{currentUser.isAdmin ? '[∞ ARCHITECT]' : '[-10⚡ ESSENCE]'}</span>
                   </>
                 ))}
               </button>
@@ -363,7 +363,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                     <div className="flex justify-end">
                         <button 
                            onClick={(e) => handleRegenerateSingleImage(e, item)}
-                           disabled={loading || !reservoirReady}
+                           disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
                            className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all"
                         >
                            <span>Regenerate Sigil 🖼️</span>
@@ -381,7 +381,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.4em]">Arcane Properties</h5>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleReroll(item); }}
-                            disabled={rerolling === item.id || !reservoirReady}
+                            disabled={rerolling === item.id || (!reservoirReady && !currentUser.isAdmin)}
                             className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 disabled:opacity-20"
                           >
                             {rerolling === item.id ? 'REWEAVING...' : <span>Reroll Properties 🎲</span>}

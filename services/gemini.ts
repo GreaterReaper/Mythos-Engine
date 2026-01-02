@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule } from "../types";
 
@@ -37,7 +36,11 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
+/**
+ * withRetry handles API retries and model fallbacks.
+ * For Admins: If a Pro model hits a quota, it automatically attempts to use the Flash model to satisfy the request.
+ */
+async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
   const admin = isAdmin();
   if (!admin && isHardLockoutActive()) throw new Error("RECALIBRATION_IN_PROGRESS");
   
@@ -50,12 +53,20 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, initialDelay = 50
 
     if (isQuota) {
       reportError(true, true);
-      // Architects do not see the specific Quota Exhausted error if we can help it
+      // For Admins, we don't throw immediately. We let the retry logic try to fallback to Flash if possible.
       if (!admin) throw new Error("DAILY_QUOTA_EXHAUSTED");
+      
+      // Admin Fallback: If they were using Pro, try forcing Flash for this specific attempt
+      console.warn("Admin Quota hit. Attempting Flash fallback...");
+      try {
+        return await fn('gemini-3-flash-preview');
+      } catch (fallbackError) {
+        // If fallback also fails, proceed to standard retry
+      }
     }
 
-    if (retries > 0 && isRateLimit) {
-      const wait = admin ? initialDelay / 2 : initialDelay; // Faster retries for admins
+    if (retries > 0 && (isRateLimit || isQuota)) {
+      const wait = admin ? 1000 : initialDelay; // Faster retries for admins
       await new Promise(resolve => setTimeout(resolve, wait));
       return withRetry(fn, retries - 1, initialDelay * 2);
     }
@@ -103,10 +114,10 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
 
 export const generateCharacterFeats = async (className: string, description: string): Promise<Trait[]> => {
   trackUsage('utility', 10);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. 
       RULES: Output ONLY JSON. Field 'description' MUST be pure mechanical rules-text. NO conversational text.`,
       config: {
@@ -127,10 +138,10 @@ export const generateCharacterFeats = async (className: string, description: str
 
 export const generateSpellbook = async (className: string, classDesc: string, maxLevel: number): Promise<Spell[]> => {
   trackUsage('utility', 15);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate 4 thematic unique spells for a level ${maxLevel} ${className}. Lore: ${classDesc}. 
       THEMATIC INTEGRITY RULES:
       - If the class description is Arcane/Wizardly, include NO healing/restoration.
@@ -165,14 +176,14 @@ export const rerollTraits = async (
   existingTraits: Trait[]
 ): Promise<Trait[]> => {
   trackUsage('utility', 5);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const locked = existingTraits.filter(t => t.locked);
     const countToGenerate = Math.max(0, existingTraits.length - locked.length);
     if (countToGenerate === 0) return locked;
 
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate ${countToGenerate} NEW unique ${contextType} traits for "${contextName}". 
       Description must be strictly mechanical rules-text. Context: ${contextDesc}`,
       config: {
@@ -198,10 +209,10 @@ export const rerollStats = async (
   lockedStats: (keyof Stats)[]
 ): Promise<Stats> => {
   trackUsage('utility', 5);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Reroll stats for "${name}" (${className}). Locked: ${lockedStats.join(',')}.`,
       config: {
         responseMimeType: "application/json",
@@ -227,11 +238,11 @@ export const rerollStats = async (
 
 export const getDMResponse = async (history: any[], plot: string, input: string, party: Character[], summary: string, model: string) => {
   trackUsage('dm');
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const partyStr = party.map(c => `${c.name} (${c.race} ${c.level})`).join(", ");
     const response = await ai.models.generateContent({
-      model: model,
+      model: forcedModel || model,
       contents: `Plot: ${plot}. Summary: ${summary}. Party: ${partyStr}. Action: ${input}. History: ${JSON.stringify(history.slice(-5))}`,
       config: {
         systemInstruction: "You are a dark fantasy Dungeon Master. Be evocative, brief, and reactive. Focus on consequences. If a roll is needed, explicitly tell the player which die to roll and what for (e.g., 'Roll a d20 for Perception').",
@@ -243,11 +254,11 @@ export const getDMResponse = async (history: any[], plot: string, input: string,
 
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
   trackUsage('utility', 15);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const partyDesc = party.map(p => `${p.name} (${p.race} ${classes.find(c => c.id === p.classId)?.name})`).join(", ");
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Forge a legendary item for: ${partyDesc}. 
       Mechanics description must be pure rules text.`,
       config: {
@@ -277,13 +288,13 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
 
 export const generateClassEquipment = async (className: string, classDesc: string, hitDie: string = 'd8', hasSpells: boolean = false): Promise<Item[]> => {
   trackUsage('utility', 15);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const isMartialCaster = (hitDie === 'd10' || hitDie === 'd12') && hasSpells;
     const focusNote = isMartialCaster ? "IMPORTANT: This class is a martial spellcaster. Their primary signature weapon MUST also function as their arcane focus. Mention this focus property in the item's mechanical description." : "";
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate 2 thematic signature weapons or armor for the class: ${className}. Lore: ${classDesc}. 
       RULES: mechanics MUST be pure rules-text. ${focusNote}`,
       config: {
@@ -316,10 +327,10 @@ export const generateClassEquipment = async (className: string, classDesc: strin
 
 export const generateSummary = async (logs: GameLog[], currentSummary: string): Promise<string> => {
   trackUsage('utility', 5);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Update TTRPG summary. Current: ${currentSummary}. New events: ${logs.map(l => l.content).join(" ")}`,
       config: { systemInstruction: "Update the summary of the TTRPG saga in 2 sentences." }
     });
@@ -329,10 +340,10 @@ export const generateSummary = async (logs: GameLog[], currentSummary: string): 
 
 export const generateClassMechanics = async (name: string, description: string): Promise<any> => {
   trackUsage('utility', 10);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Design mechanics for class: ${name}. Lore: ${description}. 
       SPELL SLOT RULES:
       - If the class is Martial/Physical (Fighter, Barbarian, Rogue style), spellSlots MUST be [0, 0, 0].
@@ -367,10 +378,10 @@ export const generateClassMechanics = async (name: string, description: string):
 
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean): Promise<any> => {
   trackUsage('utility', 10);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate monster stats for: ${name}. Description: ${description}. Is Boss: ${isBoss}. Rules text only.`,
       config: {
         responseMimeType: "application/json",
@@ -393,10 +404,10 @@ export const generateMonsterStats = async (name: string, description: string, is
 
 export const generateItemMechanics = async (name: string, type: string, description: string): Promise<any> => {
   trackUsage('utility', 10);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Forge item mechanics for ${type}: ${name}. Lore: ${description}. Rules text only.`,
       config: {
         responseMimeType: "application/json",
@@ -415,10 +426,10 @@ export const generateItemMechanics = async (name: string, type: string, descript
 
 export const generateRules = async (plot: string): Promise<Rule[]> => {
   trackUsage('utility', 15);
-  return withRetry(async () => {
+  return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: forcedModel || 'gemini-3-flash-preview',
       contents: `Design 5 core TTRPG rules for a world described as: ${plot}. 
       The rules should cover core mechanics like combat, magic, health, and world interaction.
       Output ONLY JSON.`,

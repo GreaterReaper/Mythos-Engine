@@ -54,7 +54,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
   const handleCreate = async () => {
     if (!name || !description || loading) return;
-    if (!manualMode && !reservoirReady) return;
+    if (!manualMode && !reservoirReady && !currentUser.isAdmin) return;
 
     setLoading(true);
     try {
@@ -102,7 +102,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   };
 
   const handleRegenerateMissingImages = async () => {
-    if (!reservoirReady || loading) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
     notify("Manifesting Visuals for the Unseen...", "info");
     const list = [...monsters];
@@ -127,7 +127,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
   const handleRegenerateSingleImage = async (e: React.MouseEvent, monster: Monster) => {
     e.stopPropagation();
-    if (!reservoirReady || loading) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
     try {
       const img = await generateImage(`Full body illustration of a ${monster.isBoss ? 'LEGENDARY' : ''} monster: ${monster.description}`);
@@ -157,7 +157,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
   const handleReroll = (e: React.MouseEvent, monster: Monster, type: 'standard' | 'legendary' = 'standard') => {
     e.stopPropagation();
-    if (!reservoirReady) return;
+    if (!reservoirReady && !currentUser.isAdmin) return;
     
     if (type === 'standard') setRerolling(monster.id);
     else setRerollingLegendary(monster.id);
@@ -241,7 +241,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         <div className="flex gap-2">
            <button 
             onClick={handleRegenerateMissingImages}
-            disabled={loading || !reservoirReady}
+            disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
             className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95"
            >
             <span className="text-sm">🖼️</span>
@@ -330,12 +330,13 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
               <button
                 onClick={handleCreate}
-                disabled={loading || !name || (!manualMode && !reservoirReady)}
+                disabled={loading || !name || (!manualMode && !reservoirReady && !currentUser.isAdmin)}
                 className={`px-8 py-5 rounded-sm font-black w-full text-[11px] uppercase tracking-[0.4em] transition-all shadow-xl flex flex-col items-center gap-1 ${isBoss ? 'bg-red-800 hover:bg-red-700 text-white' : 'bg-[#b28a48] hover:bg-[#cbb07a] text-black'} disabled:opacity-20 active:scale-95`}
               >
                 {loading ? 'BINDING FORM...' : (manualMode ? 'INSCRIBE MANUALLY' : (
                   <>
                     <span>{isBoss ? 'SUMMON BOSS' : 'INSCRIBE BESTIARY'}</span>
+                    <span className="text-[8px] opacity-70 uppercase tracking-widest">{currentUser.isAdmin ? '[∞ ARCHITECT]' : '[-10⚡ ESSENCE]'}</span>
                   </>
                 ))}
               </button>
@@ -415,7 +416,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                     <div className="flex justify-end mb-6">
                         <button 
                            onClick={(e) => handleRegenerateSingleImage(e, m)}
-                           disabled={loading || !reservoirReady}
+                           disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
                            className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all"
                         >
                            <span>Regenerate Sigil 🖼️</span>
@@ -455,7 +456,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                             <h5 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest text-left">Lethal Abilities</h5>
                             <button 
                               onClick={(e) => handleReroll(e, m, 'standard')}
-                              disabled={rerolling === m.id || !reservoirReady}
+                              disabled={rerolling === m.id || (!reservoirReady && !currentUser.isAdmin)}
                               className="text-[8px] font-black text-amber-600 hover:text-amber-400 uppercase tracking-widest disabled:opacity-20 transition-colors"
                             >
                               {rerolling === m.id ? 'REFORMING...' : 'Reroll Mutations 🎲'}
@@ -487,7 +488,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                               <h5 className="text-[10px] font-black text-red-500 uppercase tracking-widest text-left">Legendary Actions</h5>
                               <button 
                                 onClick={(e) => handleReroll(e, m, 'legendary')}
-                                disabled={rerollingLegendary === m.id || !reservoirReady}
+                                disabled={rerollingLegendary === m.id || (!reservoirReady && !currentUser.isAdmin)}
                                 className="text-[8px] font-black text-red-400 hover:text-red-200 uppercase tracking-widest disabled:opacity-20 transition-colors"
                               >
                                 {rerollingLegendary === m.id ? 'REWEAVING...' : 'Reweave Legends 🎲'}

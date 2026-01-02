@@ -53,7 +53,8 @@ const SYSTEM_MONSTERS: Monster[] = [
     stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 },
     hp: 7,
     ac: 13,
-    abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }]
+    abilities: [{ name: 'Nimble Escape', effect: 'Can Disengage or Hide as a bonus action.' }],
+    authorId: 'Orestara', authorName: 'Orestara'
   },
   {
     id: 'sys-skeleton',
@@ -62,125 +63,94 @@ const SYSTEM_MONSTERS: Monster[] = [
     stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 },
     hp: 13,
     ac: 13,
-    abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }]
+    abilities: [{ name: 'Undead Fortitude', effect: 'If reduced to 0 HP, stay at 1 HP on a successful CON save.' }],
+    authorId: 'Orestara', authorName: 'Orestara'
   },
   {
     id: 'sys-orc',
     name: 'Orc Marauder',
     description: 'A hulking brute with grey skin and teeth, wielding a rusted greataxe and driven by bloodlust.',
     stats: { strength: 16, dexterity: 12, constitution: 16, intelligence: 7, wisdom: 11, charisma: 10 },
-    hp: 15,
-    ac: 13,
-    abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }]
+    hp: 18,
+    ac: 14,
+    abilities: [{ name: 'Aggressive', effect: 'As a bonus action, move up to its speed toward a hostile creature it can see.' }],
+    authorId: 'Orestara', authorName: 'Orestara'
   },
   {
-    id: 'sys-boss-sentinel',
-    name: 'The Obsidian Sentinel',
-    description: 'A towering construct of dark stone and glowing ley-veins, guarding ancient vaults from intruders.',
+    id: 'sys-gorechimera',
+    name: 'Gorechimera',
+    description: 'A nightmare beast with the head of a lion, the body and head of a goat, and a venomous serpent for a tail. Its pallid skin marks it as a far more dangerous variant of the standard Chimera.',
     isBoss: true,
-    stats: { strength: 20, dexterity: 8, constitution: 20, intelligence: 3, wisdom: 11, charisma: 1 },
-    hp: 120,
-    ac: 18,
+    stats: { strength: 20, dexterity: 12, constitution: 18, intelligence: 11, wisdom: 14, charisma: 10 },
+    hp: 185,
+    ac: 17,
     abilities: [
-      { name: 'Immutable Form', effect: 'Immune to any effect that would alter its form.' },
-      { name: 'Magic Resistance', effect: 'Advantage on saving throws against spells and other magical effects.' }
+      { name: 'Venomous Serpent', effect: 'Serpent tail attacks deal 2d6 piercing + 3d6 poison damage. Target must succeed DC 15 CON save or be Poisoned.' },
+      { name: 'Lion Head Rend', effect: 'Multi-attack with claws and bite. Deals 2d10+5 slashing damage per hit.' },
+      { name: 'Goat Head Revival', effect: 'The goat head can revive one slain non-boss monster within 30ft or fully heal one of its other heads once per turn.' }
     ],
     legendaryActions: [
-      { name: 'Obsidian Smash', effect: 'Make one slam attack (+8 to hit, 3d10+5 bludgeoning).' },
-      { name: 'Ley Pulse', effect: 'Emanate a wave of force. Nearby creatures must succeed a DC 15 STR save or be knocked prone.' }
-    ]
+      { name: 'Triple Strike', effect: 'All three heads attack different targets simultaneously.' },
+      { name: 'Venom Cloud', effect: 'Serpent tail spews a 15ft cone of poison. 6d6 poison damage (DEX save half).' },
+      { name: 'Healers Bleat', effect: 'The goat head releases a pulse that heals all allies within 30ft for 4d8 hit points.' }
+    ],
+    authorId: 'Orestara', authorName: 'Orestara'
   },
   {
-    id: 'sys-boss-malakor',
-    name: 'Malakor the Betrayer',
-    description: 'A fallen wizard whose soul is bound to a necrotic shroud. He seeks the erasure of all history to end his eternal pain.',
-    isBoss: true,
-    stats: { strength: 8, dexterity: 14, constitution: 16, intelligence: 20, wisdom: 14, charisma: 18 },
-    hp: 95,
+    id: 'sys-shadow-stalker',
+    name: 'Shadow Stalker',
+    description: 'A lithe, spectral predator that vanishes into darkness, leaving only the sound of rattling chains.',
+    stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 13, wisdom: 14, charisma: 16 },
+    hp: 45,
     ac: 15,
     abilities: [
-      { name: 'Ethereal Jaunt', effect: 'As a bonus action, magically shift from the Material Plane to the Ethereal Plane, or vice-versa.' },
-      { name: 'Grasp of the Grave', effect: 'Melee weapon attack deals 4d6 necrotic damage and the target is grappled (DC 15 ESC).' }
+      { name: 'Shadow Jump', effect: 'Teleport up to 30ft from one area of dim light to another as a bonus action.' },
+      { name: 'Sneak Attack', effect: 'Deals extra 3d6 damage if it has advantage on the attack.' }
     ],
-    legendaryActions: [
-      { name: 'Cantrip', effect: 'Cast a cantrip or level 1 spell.' },
-      { name: 'Siphon Vitality', effect: 'A creature within 60ft must make a DC 16 CON save or take 3d8 necrotic damage, healing Malakor for half.' }
-    ]
+    authorId: 'Orestara', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-ancient-golem',
+    name: 'Obsidian Golem',
+    description: 'A massive construct of polished dark stone, immune to simple weapons and tireless in its vigil.',
+    stats: { strength: 22, dexterity: 9, constitution: 20, intelligence: 3, wisdom: 11, charisma: 1 },
+    hp: 95,
+    ac: 18,
+    abilities: [
+      { name: 'Magic Resistance', effect: 'Advantage on saves against spells.' },
+      { name: 'Immutable Form', effect: 'Immune to any effect that would change its shape.' }
+    ],
+    authorId: 'Orestara', authorName: 'Orestara'
   }
 ];
 
 const SYSTEM_ITEMS: Item[] = [
   {
     id: 'sys-iron-longsword',
-    name: 'Iron Longsword',
+    name: 'Standard Longsword',
     type: 'Weapon',
-    description: 'A well-balanced blade of cold-forged iron. Reliable and versatile.',
-    mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage (1d10 if used with two hands).' }],
-    lore: 'Standard issue for the King\'s Guard, forged in the royal foundry.'
+    description: 'A well-balanced one-handed blade of cold-forged iron.',
+    mechanics: [{ name: 'Slashing', description: 'Deals 1d8 slashing damage.' }],
+    lore: 'Standard issue for the King\'s Guard, forged under the eye of Orestara.',
+    authorId: 'Orestara', authorName: 'Orestara'
   },
   {
-    id: 'sys-greatsword-warrior',
-    name: 'Gargantuan Greatsword',
+    id: 'sys-gargantuan-greatsword',
+    name: 'Titan Zweihänder',
     type: 'Weapon',
-    description: 'A massive blade that requires both hands to even lift.',
-    mechanics: [{ name: 'Heavy Cleave', description: 'Deals 2d6 slashing damage. On a critical hit, the target is knocked prone.' }],
-    lore: 'Wielded by the front-line giants of the Warrior Order.'
+    description: 'A massive two-handed sword that hums with the roar of a Warrior.',
+    mechanics: [{ name: 'Heavy Impact', description: 'Deals 2d6 slashing damage. Critical hits knock foes prone.' }],
+    lore: 'Forged by Orestara for those who take the front line with a roar.',
+    authorId: 'Orestara', authorName: 'Orestara'
   },
   {
-    id: 'sys-kite-shield-fighter',
-    name: 'Order Kite Shield',
-    type: 'Armor',
-    description: 'A reinforced shield bearing the insignia of the frontline champions.',
-    mechanics: [{ name: 'Bastion', description: 'Grants +2 AC and allows for Shield Bash maneuvers.' }],
-    lore: 'The literal wall between civilization and the dark.'
-  },
-  {
-    id: 'sys-dual-daggers-thief',
-    name: 'Whisper-Steel Daggers',
+    id: 'sys-menders-staff',
+    name: 'Crest of Mercy',
     type: 'Weapon',
-    description: 'A pair of identical daggers coated in a non-reflective black finish.',
-    mechanics: [{ name: 'Twin Fangs', description: 'Allows for an additional off-hand attack as a bonus action (1d4 each).' }],
-    lore: 'Quiet as a heartbeat, deadly as a shadow.'
-  },
-  {
-    id: 'sys-longbow-archer',
-    name: 'Sky-Piercer Bow',
-    type: 'Weapon',
-    description: 'A masterfully curved longbow made of treated yew.',
-    mechanics: [{ name: 'Aerial Accuracy', description: '1d8 piercing damage. Gains advantage against flying targets.' }],
-    lore: 'If you can see it in the sky, you can ground it.'
-  },
-  {
-    id: 'sys-greatstaff-sorcerer',
-    name: 'Channeling Greatstaff',
-    type: 'Weapon',
-    description: 'A long, gnarled staff capped with a pulsating focusing crystal.',
-    mechanics: [{ name: 'Arcane Amplifier', description: 'Grants +1 to spell attack rolls and spell save DCs.' }],
-    lore: 'A conduit for raw, unbridled destruction.'
-  },
-  {
-    id: 'sys-small-staff-mage',
-    name: 'Menders Walking Stick',
-    type: 'Weapon',
-    description: 'A short, light staff inscribed with protective runes.',
-    mechanics: [{ name: 'Supportive Echo', description: 'When casting a buff spell, its duration is increased by 1 round.' }],
-    lore: 'A gentle tool for a gentle soul.'
-  },
-  {
-    id: 'sys-plate-armor-heavy',
-    name: 'Warrior\'s Full Plate',
-    type: 'Armor',
-    description: 'Imposing plates of blackened steel.',
-    mechanics: [{ name: 'Heavy Juggernaut', description: 'AC 18. Advantage on checks against being knocked prone.' }],
-    lore: 'Only the strongest can endure the weight of such justice.'
-  },
-  {
-    id: 'sys-leather-armor-light',
-    name: 'Scout\'s Leather Garb',
-    type: 'Armor',
-    description: 'Supple leather that allows for full range of motion.',
-    mechanics: [{ name: 'Light Footed', description: 'AC 11 + Dex. Does not impose disadvantage on Stealth.' }],
-    lore: 'Protection that never slows you down.'
+    description: 'A white-ash staff that pulses with soft golden light.',
+    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled.' }],
+    lore: 'A gift from Orestara to the first Mages of the Order.',
+    authorId: 'Orestara', authorName: 'Orestara'
   }
 ];
 
@@ -284,86 +254,89 @@ const App: React.FC = () => {
         {
           id: 'basic-warrior',
           name: 'Warrior',
-          description: 'Mighty warriors who wield two-handed swords and hammers. They invigorate themselves and allies with a roar. Wearing heavy plate armor, they deliver crushing blows that knock foes prone and can charge their swings for devastating damage.',
+          description: 'Mighty warriors who wield two-handed swords and hammers. They invigorate themselves and allies with a mighty roar. Wearing imposing full plate armor, they possess naturally high resistance to being knocked prone. Their crushing blows send foes reeling, easily knocking them prone. They can charge up an attack that grows in strength based on damage taken during the charge, unleashing a devastating downward swing.',
           hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery', 'Prone Resistance'], 
           features: [
-            { name: 'Mighty Roar', description: 'Unleash a roar that invigorates you and allies, granting temp HP.' }, 
-            { name: 'Crushing Blow', description: 'Attack has a high chance of knocking enemies prone.' }, 
-            { name: 'Charged Swing', description: 'Charge an attack over one turn; power increases with damage received during charge. More likely to be targeted while charging.' }
+            { name: 'Mighty Roar', description: 'Unleash a roar that invigorates you and allies, granting 1d8+Level temporary hit points.' }, 
+            { name: 'Crushing Blow', description: 'Attacks easily knock enemies prone. Success on critical hits or high strength checks.' }, 
+            { name: 'Vengeful Charge', description: 'Ready a downward swing for 1 turn. Damage taken during the charge is added to the attack\'s power. You are more likely to be targeted while charging.' }
           ], 
           initialSpells: [], 
-          authorId: 'system', authorName: 'Ancient Grimoire'
+          authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-fighter',
           name: 'Fighter',
-          description: 'Champions of the frontline who bear the brunt of damage with shields firm. Wielding one-handed blades or maces, they excel in defensive combat and can use their shield to bash and flinch enemies.',
-          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency', 'Defense Bonus (+2 AC with Shield)'], 
+          description: 'Champions of the frontline who bear the brunt of damage with shields held firm. Wielding one-handed blades or maces paired with a shield, they excel in defensive combat. Their plate armor and shield mastery make them a wall of steel capable of causing beasts to flinch with powerful shield bashes.',
+          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency', 'Shield AC Bonus (+2)'], 
           features: [
-            { name: 'Shield Bash', description: 'Strike with your shield for blunt damage, flinching targets human-sized or smaller.' }, 
-            { name: 'Iron Guard', description: 'Take the brunt of an attack for an adjacent ally.' }
+            { name: 'Shield Bash', description: 'Strike with your shield for blunt damage, causing all but the largest beasts to flinch.' }, 
+            { name: 'Firm Bastion', description: 'While holding a shield, your AC is further increased and you can protect adjacent allies as a reaction.' }
           ], 
           initialSpells: [], 
-          authorId: 'system', authorName: 'Ancient Grimoire'
+          authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-sorcerer',
           name: 'Sorcerer',
-          description: 'Masters of raw magical destruction who wield long staves and robes. They excel at tide-turning offensive magic and possess the unique ability to commit a spell to memory for an instant, cost-free cast.',
-          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Arcane Potency', 'Staff Mastery', 'Robe Defense'], 
+          description: 'Masters of magic who wield long staves and wear robed attire. They excel at casting highly destructive magic that can turn the tide of battle. They possess the unique ability to commit a single spell to memory, allowing it to be cast instantly and for free, including their most powerful incantations.',
+          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction', 'Robe Defense'], 
           features: [
-            { name: 'Spell Memory', description: 'Once per rest, cast a committed spell instantly and for free.' }, 
-            { name: 'Destructive Overload', description: 'Your offensive spells deal additional damage at the risk of arcane backlash.' }
+            { name: 'Spell Memory', description: 'Commit a single spell to memory. Once per rest, cast this spell instantly and without expending a spell slot.' }, 
+            { name: 'Destructive Tide', description: 'Offensive spells deal additional elemental damage based on your Charisma modifier.' }
           ], 
           initialSpells: [
-            { name: 'Arcane Surge', level: 1, school: 'Evocation', description: 'Unleash a wave of pure force dealing 3d6 damage to all adjacent enemies.' },
-            { name: 'Shatter Memory', level: 2, school: 'Evocation', description: 'Target creature takes 4d8 damage and loses their next reaction.' }
+            { name: 'Arcane Ruin', level: 1, school: 'Evocation', description: 'A burst of raw energy dealing 3d6 force damage to an area.' },
+            { name: 'Shatter Memory', level: 2, school: 'Illusion', description: 'Confuses a target, dealing 4d8 psychic damage and disrupting their concentration.' }
           ], 
-          authorId: 'system', authorName: 'Ancient Grimoire'
+          authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-mage',
           name: 'Mage',
-          description: 'Supportive spellcasters who focus on healing and empowering their fellowship. Wielding small staves, they weave AOE buffs that protect all allies within range.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 2, 0], preferredStats: ['Wisdom', 'Intelligence'], bonuses: ['Supportive Resonance', 'Healer\'s Intuition'], 
+          description: 'The ultimate supportive spellcaster. Mages focus on empowering, healing, and shielding their fellowship. They excel at casting wide-area buffs and powerful restorative rites, using small staves to channel pure, benevolent aether.',
+          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Greater Healing Mastery', 'Robe Defense'], 
           features: [
-            { name: 'Aetheric Buffs', description: 'Supportive spells and buffs target all allies within a 15ft range.' }, 
-            { name: 'Vital Flow', description: 'Channel aether to restore hit points to a wounded ally.' }
+            { name: 'Resonant Benediction', description: 'When you cast a healing spell on an ally, you may choose one additional ally within 15ft to receive half the healing.' }, 
+            { name: 'Vital Flow', description: 'Channel aether to restore 1d10 + WIS hit points to a wounded ally as a bonus action (3 uses per rest).' }
           ], 
           initialSpells: [
-            { name: 'Aura of Protection', level: 1, school: 'Abjuration', description: 'All allies within 15ft gain +1 to all saving throws.' },
-            { name: 'Mass Restoration', level: 2, school: 'Abjuration', description: 'Heal all allies within 20ft for 2d6 + WIS modifier.' }
+            { name: 'Aetheric Aegis', level: 1, school: 'Abjuration', description: 'Surrounds all allies within 20ft with a shimmering barrier. Grants +2 AC and resistance to magical damage for 2 rounds.' },
+            { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'A soothing blue mist heals all allies in a 30ft radius for 2d8 + WIS modifier.' },
+            { name: 'Sanctuary of Light', level: 2, school: 'Abjuration', description: 'Designates a 10ft circle. Allies inside cannot be targeted by single-target attacks.' },
+            { name: 'Spirit Mend', level: 3, school: 'Necromancy', description: 'Regenerate 10 HP at the start of each of the target\'s turns for 1 minute.' }
           ], 
-          authorId: 'system', authorName: 'Ancient Grimoire'
+          authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-thief',
           name: 'Thief',
-          description: 'Masters of stealth and dual-daggers who strike from the shadows. They can execute incapacitated foes and vanish in a cloud of smoke when the odds turn against them.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Wield Mastery', 'Leather Armor Mastery', 'Stealth Proficiency'], 
+          description: 'Masters of stealth and dual-daggers who strike from the shadows. Wearing leather armor to remain agile, they can instantly execute human-sized enemies or smaller that have been grappled by allies. When cornered, they use smoke bombs to vanish and pick off weaker targets.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Leather Armor Mastery', 'Stealth Proficiency'], 
           features: [
-            { name: 'Instant Execution', description: 'Instantly slay a human-sized or smaller enemy grappled by an ally.' }, 
-            { name: 'Smoke Bomb', description: 'Throw a bomb to vanish and disengage from combat instantly.' }
+            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized or smaller enemy that is currently grappled by an ally.' }, 
+            { name: 'Smoke Escape', description: 'Throw down a smoke bomb as a reaction or bonus action to vanish and disengage instantly.' }
           ], 
           initialSpells: [], 
-          authorId: 'system', authorName: 'Ancient Grimoire'
+          authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-archer',
           name: 'Archer',
-          description: 'Masters of the bow who can ground flying foes with ease. They wear leather armor and light equipment to remain mobile while picking off exposed enemies with specialized arrows.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor Proficiency', 'Longbow Mastery', 'Aerial Accuracy'], 
+          description: 'Masters of the bow who can ground flying enemies with incredible accuracy. Wearing leather armor to stay light on their feet, they can pinpoint exposed enemies for extra damage and utilize a variety of specialized tactical arrows.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Leather Armor Proficiency', 'Aerial Sniper'], 
           features: [
-            { name: 'Precision Shot', description: 'Deal extra damage against a single exposed enemy.' }, 
-            { name: 'Special Arrows', description: 'Use specialized arrows (Fire, Frost, Blunt) for various tactical effects.' }
+            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that has been exposed or isolated.' }, 
+            { name: 'Specialist Arrows', description: 'Carry a quiver of special arrows (Fire, Frost, Tether) for different tactical situations.' },
+            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies and grounded enemies are grounded more easily.' }
           ], 
           initialSpells: [], 
-          authorId: 'system', authorName: 'Ancient Grimoire'
+          authorId: 'Orestara', authorName: 'Orestara'
         },
         {
           id: 'basic-dark-knight',
           name: 'Dark Knight',
-          description: 'A grim order of knights who discard shields for massive two-handed blades. They fuel their dark aether with raw emotion—most notably Love—to drain life from enemies and shield allies with barriers of shadows.',
+          description: 'A grim order of knights who discard shields for massive two-handed blades. They fuel their dark aether with raw emotion—most notably Love—to drain life from enemies and shield allies with barriers of shadows. They can manifest a shadowy simulacrum and temporarily cheat death through the Living Dead ability.',
           hitDie: 'd12',
           startingHp: 12,
           hpPerLevel: 7,
@@ -390,8 +363,7 @@ const App: React.FC = () => {
           initialSpells: [
             { name: 'The Black Night', level: 1, school: 'Abjuration', description: 'Create a barrier of darkness around yourself or an ally equal to your level + CHA modifier.' },
             { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 2d6 health from all enemies within 5ft, healing yourself for half the total damage.' },
-            { name: 'Dark Mind', level: 1, school: 'Abjuration', description: 'Fortify your mind against magic, gaining resistance to all elemental and arcane damage for 2 rounds.' },
-            { name: 'Shadow Wall', level: 2, school: 'Evocation', description: 'A wall of absolute shadow erupts. Enemies passing through take necrotic damage and are Chilled.' }
+            { name: 'Dark Mind', level: 1, school: 'Abjuration', description: 'Fortify your mind against magic, gaining resistance to all elemental and arcane damage for 2 rounds.' }
           ],
           authorId: 'Orestara',
           authorName: 'Orestara'
@@ -419,10 +391,6 @@ const App: React.FC = () => {
     if (result === sides && sides >= 10) notify(`CRITICAL! Natural ${result} on d${sides}`, 'success');
   };
 
-  /**
-   * Admin-Only Aggregation Helper
-   * Scans localStorage to find all resources created by all users on this machine.
-   */
   const aggregateAllResources = useCallback((suffix: string) => {
     const aggregated: any[] = [];
     const seenIds = new Set();
@@ -454,20 +422,18 @@ const App: React.FC = () => {
       (window as any).isMythosAdmin = !!currentUser.isAdmin;
       
       if (currentUser.isAdmin) {
-        // Master Librarian Mode: Collect everything from everyone
         const allChars = aggregateAllResources('_mythos_chars');
         const allClasses = aggregateAllResources('_mythos_classes');
         const allMonsters = aggregateAllResources('_mythos_monsters');
         const allItems = aggregateAllResources('_mythos_items');
         
         setCharacters(allChars);
-        setClasses(allChars);
+        setClasses(allClasses);
         setMonsters(allMonsters);
         setItems(allItems);
         
         notify("Omniscience Enabled: All local archives merged.", "success");
       } else {
-        // Standard Mode: Only load own data
         const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
         setCharacters(savedChars ? JSON.parse(savedChars) : []);
         const savedClasses = localStorage.getItem(`${uPrefix}_mythos_classes`);
@@ -478,7 +444,6 @@ const App: React.FC = () => {
         setItems(savedItems ? JSON.parse(savedItems) : []);
       }
 
-      // Campaign loading is still prefix-specific (unique sagas)
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
       const campaignData = savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] };
       if (!campaignData.rules) campaignData.rules = [];

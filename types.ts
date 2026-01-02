@@ -99,6 +99,8 @@ export interface Monster {
   legendaryActions?: MonsterAbility[];
   imageUrl?: string;
   isBoss?: boolean;
+  authorId?: string;
+  authorName?: string;
 }
 
 export interface ItemMechanic extends Trait {}
@@ -111,6 +113,8 @@ export interface Item {
   mechanics: ItemMechanic[];
   lore: string;
   imageUrl?: string;
+  authorId?: string;
+  authorName?: string;
 }
 
 export interface GameLog {

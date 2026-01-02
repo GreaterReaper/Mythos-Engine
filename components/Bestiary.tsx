@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Monster, Stats, SyncMessage, UserAccount, MonsterAbility } from '../types';
 import { generateMonsterStats, generateImage, rerollTraits, generateMonsterAbilities, getArchitectAdvice } from '../services/gemini';
@@ -100,7 +101,9 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         ac: stats.ac || 15,
         abilities: (stats.abilities || []).map((a: any) => ({ ...a, locked: false })),
         legendaryActions: isBoss ? (stats.legendaryActions || []).map((a: any) => ({ ...a, locked: false })) : [],
-        imageUrl
+        imageUrl,
+        authorId: currentUser.username,
+        authorName: currentUser.displayName
       };
       
       setMonsters(prev => [...prev, newMonster]);
@@ -374,7 +377,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                     {(Object.keys(manualStats) as Array<keyof Stats>).map(s => (
                       <div key={s}>
                         <label className="text-[6px] text-neutral-600 font-black uppercase block mb-1">{s.slice(0,3)}</label>
-                        <input type="number" value={manualStats[s]} onChange={(e) => handleStatChange(s, parseInt(e.target.value))} className="w-full bg-black border border-neutral-900 text-[9px] p-1.5 text-neutral-400 outline-none" />
+                        <input type="number" value={manualStats[s]} onChange={(e) => handleStatChange(s, parseInt(e.target.value))} className="w-full bg-black border border-neutral-800 text-[9px] p-1.5 text-neutral-400 outline-none" />
                       </div>
                     ))}
                   </div>
@@ -469,7 +472,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                         <div className="flex items-center gap-3">
                           <h4 className={`text-3xl font-black fantasy-font tracking-widest ${m.isBoss ? 'text-red-500 drop-shadow-[0_2px_8px_rgba(220,38,38,0.4)]' : 'text-[#b28a48]'}`}>{m.name}</h4>
                           {m.isBoss && <span className="text-[8px] font-black text-white bg-red-600 px-2 py-0.5 rounded-sm tracking-widest animate-pulse">LEGENDARY</span>}
-                          {m.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-widest uppercase opacity-60">System Archive</span>}
+                          {m.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-widest uppercase opacity-60">By {m.authorName || 'Orestara'}</span>}
                         </div>
                         <p className={`text-neutral-400 mt-2 font-serif italic text-left leading-relaxed ${expandedId === m.id ? '' : 'line-clamp-2'}`}>{m.description}</p>
                       </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Item, ItemMechanic, SyncMessage, UserAccount } from '../types';
 import { generateItemMechanics, generateImage, rerollTraits, generateItemMechanicsList, getArchitectAdvice } from '../services/gemini';
@@ -84,7 +85,9 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
         name, type, description,
         mechanics: (mechanics).map((m: any) => ({ ...m, locked: false })),
         lore: lore,
-        imageUrl
+        imageUrl,
+        authorId: currentUser.username,
+        authorName: currentUser.displayName
       };
       setItems(prev => [...prev, newItem]);
       setName('');
@@ -419,7 +422,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
                           <h4 className="text-2xl md:text-3xl font-black fantasy-font text-[#b28a48] tracking-widest">{item.name}</h4>
-                          {item.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-[0.2em] uppercase opacity-60">System</span>}
+                          {item.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-[0.2em] uppercase opacity-60">By {item.authorName || 'Orestara'}</span>}
                         </div>
                         <div className="flex gap-2">
                           <button 
@@ -429,6 +432,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           >
                             🌀
                           </button>
+                          {/* Corrected handleDelete call to pass both event and item object */}
                           <button onClick={(e) => handleDelete(e, item)} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>
                         </div>
                       </div>

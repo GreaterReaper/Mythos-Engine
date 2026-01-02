@@ -68,6 +68,8 @@ export interface ClassDef {
   initialSpells?: Spell[];
   preferredStats?: string[];
   bonuses?: string[];
+  authorId?: string;
+  authorName?: string;
 }
 
 export interface MonsterAbility {

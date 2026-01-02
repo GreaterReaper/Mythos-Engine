@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ClassDef, SyncMessage, Spell } from '../types';
+import { ClassDef, SyncMessage, Spell, UserAccount } from '../types';
 import { generateClassMechanics, generateSpellbook, rerollTraits } from '../services/gemini';
 
 interface ClassLibraryProps {
@@ -9,9 +9,10 @@ interface ClassLibraryProps {
   notify: (msg: string, type?: any) => void;
   reservoirReady: boolean;
   syncSpells?: (classList: ClassDef[]) => ClassDef[];
+  currentUser: UserAccount;
 }
 
-const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady, syncSpells }) => {
+const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadcast, notify, reservoirReady, syncSpells, currentUser }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,17 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     );
   }, [classes]);
 
+  const isAuthor = (cls: ClassDef) => {
+    return cls.authorId === currentUser.username;
+  };
+
+  const updateAndSync = (newList: ClassDef[]) => {
+    setClasses(newList);
+    if (broadcast) {
+      broadcast({ type: 'STATE_UPDATE', payload: { classes: newList } });
+    }
+  };
+
   const handleCreate = async () => {
     if (!name || !description || loading || !reservoirReady) return;
     setLoading(true);
@@ -48,11 +60,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         preferredStats: mechanics.preferredStats || [],
         bonuses: mechanics.bonuses || [],
         features: (mechanics.features || []).map((f: any) => ({ ...f, locked: false })),
-        initialSpells: mechanics.initialSpells || []
+        initialSpells: mechanics.initialSpells || [],
+        authorId: currentUser.username,
+        authorName: currentUser.displayName
       };
       
       const updatedList = syncSpells ? syncSpells([...classes, newClass]) : [...classes, newClass];
-      setClasses(updatedList);
+      updateAndSync(updatedList);
       setName('');
       setDescription('');
       setExpandedId(newClass.id);
@@ -66,6 +80,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleIdentifyDepths = async (cls: ClassDef) => {
+    if (!isAuthor(cls)) {
+      notify("Only the original author can manifest these depths.", "error");
+      return;
+    }
     if (!reservoirReady || identifyingId) return;
     setIdentifyingId(cls.id);
     try {
@@ -81,7 +99,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         initialSpells: mechanics.initialSpells || c.initialSpells
       } : c);
       
-      setClasses(syncSpells ? syncSpells(updated) : updated);
+      const synced = syncSpells ? syncSpells(updated) : updated;
+      updateAndSync(synced);
       notify(`Depths of "${cls.name}" Manifested`, "success");
     } catch (e: any) {
       notify(e.message, "error");
@@ -91,6 +110,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleManifestSpells = async (cls: ClassDef) => {
+    if (!isAuthor(cls)) {
+      notify("Only the original author can inscribe these spells.", "error");
+      return;
+    }
     if (!reservoirReady || learningSpellsId) return;
     setLearningSpellsId(cls.id);
     try {
@@ -100,7 +123,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         initialSpells: uniqueSpells
       } : c);
       
-      setClasses(syncSpells ? syncSpells(updated) : updated);
+      const synced = syncSpells ? syncSpells(updated) : updated;
+      updateAndSync(synced);
       notify(`Grimoire for "${cls.name}" Inscribed`, "success");
     } catch (e: any) {
       notify(e.message, "error");
@@ -117,6 +141,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
     let currentClasses = [...classes];
     for (const cls of legacyRecords) {
+      // For bulk manifestation, we only update if user is author OR it's a system class (handled by App's manifestBasics normally)
+      if (!isAuthor(cls) && cls.authorId !== 'system') continue;
+      
       try {
         const mechanics = await generateClassMechanics(cls.name, cls.description);
         currentClasses = currentClasses.map(c => c.id === cls.id ? {
@@ -134,18 +161,24 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         console.error(`Failed to manifest ${cls.name}`, e);
       }
     }
-    setClasses(syncSpells ? syncSpells(currentClasses) : currentClasses);
+    const synced = syncSpells ? syncSpells(currentClasses) : currentClasses;
+    updateAndSync(synced);
     setLoading(false);
     notify("Grimoire Synchronization Complete", "success");
   };
 
-  const toggleFeatureLock = (clsId: string, featIdx: number) => {
-    setClasses(prev => prev.map(c => {
-      if (c.id !== clsId) return c;
+  const toggleFeatureLock = (cls: ClassDef, featIdx: number) => {
+    if (!isAuthor(cls)) {
+      notify("The grimoire prevents you from locking features of foreign archetypes.", "error");
+      return;
+    }
+    const updated = classes.map(c => {
+      if (c.id !== cls.id) return c;
       const newFeatures = [...c.features];
       newFeatures[featIdx] = { ...newFeatures[featIdx], locked: !newFeatures[featIdx].locked };
       return { ...c, features: newFeatures };
-    }));
+    });
+    updateAndSync(updated);
   };
 
   const handleMove = (e: React.MouseEvent, id: string, direction: 'up' | 'down') => {
@@ -158,15 +191,19 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     const newClasses = [...classes];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newClasses[index], newClasses[targetIndex]] = [newClasses[targetIndex], newClasses[index]];
-    setClasses(newClasses);
+    updateAndSync(newClasses);
   };
 
   const handleReroll = async (cls: ClassDef) => {
+    if (!isAuthor(cls)) {
+      notify("Only the author may reweave this archetype's destiny.", "error");
+      return;
+    }
     if (!reservoirReady) return;
     setRerolling(cls.id);
     try {
       const updated = await rerollTraits('class', cls.name, cls.description, cls.features);
-      setClasses(prev => prev.map(c => {
+      const newClasses = classes.map(c => {
         if (c.id !== cls.id) return c;
         
         let updateIdx = 0;
@@ -178,7 +215,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
         });
 
         return { ...c, features: finalMergedFeatures };
-      }));
+      });
+      updateAndSync(newClasses);
       notify("Features Rewoven", "success");
     } catch (e: any) {
       notify(e.message, "error");
@@ -203,6 +241,18 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     }
   };
 
+  const handleDelete = (e: React.MouseEvent, cls: ClassDef) => {
+    e.stopPropagation();
+    if (!isAuthor(cls)) {
+      notify("You cannot banish what you did not create.", "error");
+      return;
+    }
+    if (window.confirm("Banish this archetype from the grimoire forever?")) {
+      const updated = classes.filter(x => x.id !== cls.id);
+      updateAndSync(updated);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <div className="text-center lg:text-left flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
@@ -211,14 +261,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           <p className="text-neutral-500 text-xs uppercase tracking-widest font-black mt-2">Design your legends. AI translates lore into mechanics.</p>
         </div>
         
-        {legacyRecords.length > 0 && (
+        {legacyRecords.some(c => isAuthor(c) || c.authorId === 'system') && (
           <button 
             onClick={handleBulkManifest}
             disabled={loading || !reservoirReady}
             className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
           >
             <span className="animate-pulse">✨</span>
-            Synchronize Grimoire ({legacyRecords.length} Legacy)
+            Synchronize Grimoire
           </button>
         )}
       </div>
@@ -278,6 +328,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
               const missingSpells = !c.initialSpells || c.initialSpells.length === 0;
+              const userIsAuthor = isAuthor(c);
 
               return (
                 <div 
@@ -293,7 +344,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                     <div className="flex-1 text-left">
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-4">
-                          {!search && (
+                          {!search && userIsAuthor && (
                             <div className="flex flex-col gap-1 opacity-20 group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={(e) => handleMove(e, c.id, 'up')}
@@ -321,9 +372,13 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                   Legacy
                                 </span>
                               )}
-                              {missingSpells && !isLegacy && (
-                                <span className="text-[7px] font-black text-blue-700 uppercase tracking-widest bg-blue-950/20 px-2 py-0.5 rounded-sm border border-blue-900/30">
-                                  No Spells
+                              {userIsAuthor ? (
+                                <span className="text-[7px] font-black text-green-700 uppercase tracking-widest bg-green-950/20 px-2 py-0.5 rounded-sm border border-green-900/30">
+                                  Your Legend
+                                </span>
+                              ) : (
+                                <span className="text-[7px] font-black text-neutral-700 uppercase tracking-widest bg-neutral-950/40 px-2 py-0.5 rounded-sm border border-neutral-900/50">
+                                  By {c.authorName || 'Ancient Grimoire'}
                                 </span>
                               )}
                             </div>
@@ -337,13 +392,15 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           >
                             🌀
                           </button>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setClasses(prev => prev.filter(x => x.id !== c.id)); }} 
-                            className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
-                            title="Banish Archetype"
-                          >
-                            🗑️
-                          </button>
+                          {userIsAuthor && (
+                            <button 
+                              onClick={(e) => handleDelete(e, c)} 
+                              className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
+                              title="Banish Archetype"
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </div>
                       </div>
                       <p className={`text-base text-neutral-400 mt-4 italic font-serif leading-relaxed ${expandedId === c.id ? '' : 'line-clamp-2'}`}>
@@ -368,23 +425,32 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Core Attributes</h5>
                               <div className="flex gap-2">
-                                {(missingSpells || expandedId === c.id) && (
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
-                                    disabled={learningSpellsId === c.id || !reservoirReady}
-                                    className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
-                                  >
-                                    {learningSpellsId === c.id ? 'SYNCHRONIZING...' : 'Sync Arcanum ✨'}
-                                  </button>
+                                {userIsAuthor && (
+                                  <>
+                                    {(missingSpells || expandedId === c.id) && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
+                                        disabled={learningSpellsId === c.id || !reservoirReady}
+                                        className="text-[8px] font-black text-blue-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-blue-950/40 px-2 py-1 border border-blue-900/40 rounded-sm"
+                                      >
+                                        {learningSpellsId === c.id ? 'SYNCHRONIZING...' : 'Sync Arcanum ✨'}
+                                      </button>
+                                    )}
+                                    {isLegacy && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
+                                        disabled={identifyingId === c.id || !reservoirReady}
+                                        className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
+                                      >
+                                        {identifyingId === c.id ? 'ANALYZING...' : 'Manifest Depths ⚡'}
+                                      </button>
+                                    )}
+                                  </>
                                 )}
-                                {isLegacy && (
-                                  <button 
-                                    onClick={(e) => { e.stopPropagation(); handleIdentifyDepths(c); }}
-                                    disabled={identifyingId === c.id || !reservoirReady}
-                                    className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-2 transition-all bg-amber-950/40 px-2 py-1 border border-amber-900/40 rounded-sm"
-                                  >
-                                    {identifyingId === c.id ? 'ANALYZING...' : 'Manifest Depths ⚡'}
-                                  </button>
+                                {!userIsAuthor && (
+                                  <div className="text-[8px] font-black text-neutral-700 uppercase tracking-widest flex items-center gap-2 border border-neutral-900/40 px-2 py-1 rounded-sm">
+                                    Sigil Locked 🔒
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -468,23 +534,29 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                         <div className="space-y-8">
                           <div className="flex justify-between items-end border-b border-neutral-800 pb-2 mb-4">
                             <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em]">Archetype Features</h5>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); handleReroll(c); }}
-                              disabled={rerolling === c.id || !reservoirReady}
-                              className="text-[10px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20"
-                            >
-                              {rerolling === c.id ? 'REWEAVING...' : <span>Reroll Unlocked 🎲</span>}
-                            </button>
+                            {userIsAuthor ? (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleReroll(c); }}
+                                disabled={rerolling === c.id || !reservoirReady}
+                                className="text-[10px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-3 transition-all active:scale-95 disabled:opacity-20"
+                              >
+                                {rerolling === c.id ? 'REWEAVING...' : <span>Reroll Unlocked 🎲</span>}
+                              </button>
+                            ) : (
+                              <span className="text-[9px] font-black text-neutral-700 uppercase tracking-widest">
+                                Read Only
+                              </span>
+                            )}
                           </div>
 
                           <div className="space-y-4">
                             {c.features.map((f, i) => (
                               <div 
                                 key={i} 
-                                onClick={(e) => { e.stopPropagation(); toggleFeatureLock(c.id, i); }}
+                                onClick={(e) => { e.stopPropagation(); toggleFeatureLock(c, i); }}
                                 className={`p-6 border transition-all rounded-sm relative group/feat flex flex-col justify-center min-h-[100px] text-left ${
                                   f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'
-                                }`}
+                                } ${!userIsAuthor ? 'cursor-default' : 'cursor-pointer'}`}
                               >
                                 <div className="flex items-start gap-4">
                                   <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-600' : 'text-neutral-800'}`}>
@@ -499,6 +571,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                     </p>
                                   </div>
                                 </div>
+                                {f.locked && !userIsAuthor && (
+                                  <div className="absolute top-2 right-2 text-[8px] font-black text-amber-900/40 uppercase tracking-widest">
+                                    Author Locked
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

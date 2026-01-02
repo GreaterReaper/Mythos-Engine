@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -146,11 +145,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       const selectedClass = classes.find(c => c.id === classId);
       const prompt = `Fantasy TTRPG character portrait. A ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Atmosphere: dark fantasy, painted masterpiece. ${refImage ? "Strictly maintain the facial features and style from the reference image provided." : ""}`;
       
-      // CALL SEQUENTIALLY TO AVOID RATE LIMITS (429)
       const imageUrl = await generateImage(prompt, refImage || undefined);
       const classFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
       
-      const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true }));
+      const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true, isInnate: true } as any));
       const allFeats = [...racialFeats, ...classFeats];
       
       const newChar: Character = {
@@ -195,6 +193,20 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       const currentLocks = c.lockedStats || [];
       const newLocks = currentLocks.includes(stat) ? currentLocks.filter(s => s !== stat) : [...currentLocks, stat];
       return { ...c, lockedStats: newLocks };
+    }));
+  };
+
+  const toggleFeatLock = (charId: string, featIdx: number) => {
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId) return c;
+      const newFeats = [...c.feats];
+      const feat = newFeats[featIdx] as any;
+      if (feat.isInnate) {
+        notify("Innate heritage cannot be rewoven.", "info");
+        return c;
+      }
+      newFeats[featIdx] = { ...feat, locked: !feat.locked };
+      return { ...c, feats: newFeats };
     }));
   };
 
@@ -525,7 +537,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
                 <section className="space-y-6">
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-4">
-                    <h4 className="text-xl font-black fantasy-font text-neutral-400">Innate Mastery (Feats)</h4>
+                    <h4 className="text-xl font-black fantasy-font text-neutral-400">Grimoire of Feats</h4>
                     <button 
                       onClick={() => handleRerollFeats(selectedChar)} 
                       disabled={rerollingFeats === selectedChar.id || !reservoirReady}
@@ -540,20 +552,36 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     </button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {selectedChar.feats.map((f, i) => (
-                      <div key={i} className={`p-5 border rounded-sm flex flex-col justify-center min-h-[110px] transition-all relative ${f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'}`}>
-                        <div className="flex items-start gap-4">
-                           <span className={`text-xl mt-0.5 transition-colors ${f.locked ? 'text-amber-600' : 'text-neutral-800 opacity-20'}`}>
-                             {f.locked ? '†' : '○'}
-                           </span>
-                           <div>
-                             <h6 className={`text-sm font-black uppercase mb-1 tracking-wider ${f.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{f.name}</h6>
-                             <p className="text-xs text-neutral-500 italic font-serif leading-relaxed">{f.description}</p>
-                           </div>
+                    {selectedChar.feats.map((f, i) => {
+                      const innate = (f as any).isInnate;
+                      return (
+                        <div 
+                          key={i} 
+                          onClick={() => toggleFeatLock(selectedChar.id, i)}
+                          className={`p-5 border rounded-sm flex flex-col justify-center min-h-[110px] transition-all relative cursor-pointer group/feat ${f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'}`}
+                        >
+                          <div className="flex items-start gap-4">
+                             <span className={`text-xl mt-0.5 transition-colors ${f.locked ? 'text-amber-600' : 'text-neutral-800 opacity-20'}`}>
+                               {f.locked ? '†' : '○'}
+                             </span>
+                             <div>
+                               <h6 className={`text-sm font-black uppercase mb-1 tracking-wider ${f.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{f.name}</h6>
+                               <p className="text-xs text-neutral-500 italic font-serif leading-relaxed">{f.description}</p>
+                             </div>
+                          </div>
+                          {f.locked && (
+                            <div className="absolute top-2 right-3 text-[7px] font-black text-amber-900 uppercase tracking-widest">
+                              {innate ? 'INNATE' : 'SIGIL BOUND'}
+                            </div>
+                          )}
+                          {!f.locked && (
+                             <div className="absolute top-2 right-3 text-[7px] font-black text-neutral-800 uppercase tracking-widest opacity-0 group-hover/feat:opacity-100 transition-opacity">
+                               FATE UNSEALED
+                             </div>
+                          )}
                         </div>
-                        {f.locked && <div className="absolute top-2 right-3 text-[7px] font-black text-amber-900 uppercase tracking-widest">INNATE</div>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </section>
 

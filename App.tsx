@@ -275,7 +275,9 @@ const App: React.FC = () => {
             { name: 'Second Wind', description: 'Once per rest, regain 1d10 + Level HP as a bonus action.' },
             { name: 'Action Surge', description: 'Push past limits to take one additional action this turn.' }
           ],
-          initialSpells: []
+          initialSpells: [],
+          authorId: 'system',
+          authorName: 'Ancient Grimoire'
         },
         {
           id: 'basic-arcanist',
@@ -291,7 +293,9 @@ const App: React.FC = () => {
             { name: 'Spellbook', description: 'Maintain a collection of recorded incantations.' },
             { name: 'Arcane Focus', description: 'Use a staff or orb to channel destructive energies.' }
           ],
-          initialSpells: [] 
+          initialSpells: [],
+          authorId: 'system',
+          authorName: 'Ancient Grimoire'
         }
       ];
 
@@ -535,7 +539,7 @@ const App: React.FC = () => {
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcaneTokens >= 1 && !isExhausted} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} syncSpells={syncAllClassesToSpells} />}
+          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} syncSpells={syncAllClassesToSpells} currentUser={currentUser} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoir >= 1 && !isExhausted} manifestBasics={manifestBasics} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}

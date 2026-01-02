@@ -30,7 +30,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
           
           <div className="mt-6 p-4 bg-black/40 border border-[#b28a48]/10 rounded-sm relative overflow-hidden group">
             <div className="text-left">
-              <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest mb-1">Active Soul</p>
+              <div className="flex justify-between items-start mb-1">
+                <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest">Active Soul</p>
+                {user.isAdmin && (
+                  <span className="text-[7px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/30 px-1.5 py-0.5 rounded-sm tracking-tighter animate-pulse">
+                    ARCHITECT
+                  </span>
+                )}
+              </div>
               <h4 className="text-xs font-black text-[#b28a48] uppercase truncate">{user.displayName}</h4>
               <p className="text-[7px] text-neutral-700 font-mono mt-1">SIGIL ID: {user.username}</p>
             </div>

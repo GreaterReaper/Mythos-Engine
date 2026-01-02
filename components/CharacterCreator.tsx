@@ -343,6 +343,15 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     }));
   };
 
+  const handleDeleteCharacter = (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    if (window.confirm(`Banish ${name} from the Fellowship forever?`)) {
+      setCharacters(prev => prev.filter(c => c.id !== id));
+      notify(`${name} has returned to the ether.`, "info");
+      if (selectedCharacterId === id) setSelectedCharacterId(null);
+    }
+  };
+
   const selectedChar = characters.find(c => c.id === selectedCharacterId);
   const selectedClass = classes.find(c => c?.id === selectedChar?.classId);
   const charInventory = items.filter(i => selectedChar?.inventory.includes(i.id));
@@ -481,6 +490,18 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <div className="h-40 md:h-48 bg-black relative">
                   {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-5xl">👤</div>}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                  
+                  {/* Banish Button Overlay */}
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button 
+                      onClick={(e) => handleDeleteCharacter(e, char.id, char.name)}
+                      className="bg-black/60 hover:bg-red-950/80 p-2 rounded-full border border-red-900/30 text-red-500 transition-all active:scale-90"
+                      title="Banish Soul"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+
                   <div className="absolute bottom-3 left-4 right-4 text-left">
                      <h4 className="text-lg md:text-xl font-black fantasy-font text-[#b28a48]">{char.name}</h4>
                      <p className="text-[8px] text-neutral-400 uppercase font-bold tracking-widest">{char.race} • LVL {char.level}</p>
@@ -566,14 +587,20 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                          <span className="text-amber-600 mt-0.5">{f.locked ? '†' : '○'}</span>
                          <div>
                            <h6 className="text-[11px] font-black uppercase mb-1 tracking-wider text-[#b28a48]">{f.name}</h6>
-                           <p className="text-[10px] text-neutral-500 font-serif leading-relaxed italic">{f.description}</p>
+                           <p className="text-[10px] text-neutral-500 font-serif italic leading-relaxed italic">{f.description}</p>
                          </div>
                       </div>
                     ))}
                   </div>
                 </section>
               </div>
-              <div className="mt-12 text-center">
+              <div className="mt-12 flex flex-col items-center gap-6">
+                <button 
+                  onClick={(e) => handleDeleteCharacter(e, selectedChar.id, selectedChar.name)}
+                  className="text-[9px] font-black text-red-900/60 hover:text-red-500 uppercase tracking-[0.4em] transition-all border border-red-900/20 px-6 py-3 rounded-sm hover:bg-red-950/10"
+                >
+                  Banish Soul From Fellowship
+                </button>
                 <button onClick={() => setSelectedCharacterId(null)} className="text-[10px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.5em] transition-all">Close Entry</button>
               </div>
             </div>

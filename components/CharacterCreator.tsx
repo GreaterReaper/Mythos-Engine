@@ -1,10 +1,18 @@
 
 import React, { useState, useMemo } from 'react';
-import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, UserAccount, Spell } from '../types';
+import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, UserAccount, Spell, Rarity } from '../types';
 import { generateImage, generateCharacterFeats, rerollStats, generateCharacterAppearance } from '../services/gemini';
 
 const INITIAL_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
 const POINT_COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+
+const RARITY_COLORS: Record<string, string> = {
+  Common: 'text-neutral-500 border-neutral-800',
+  Uncommon: 'text-green-500 border-green-900/30',
+  Rare: 'text-blue-500 border-blue-900/30',
+  Epic: 'text-purple-500 border-purple-900/30',
+  Legendary: 'text-amber-500 border-amber-900/30'
+};
 
 const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   Human: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
@@ -245,7 +253,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                                             <span className="text-lg">{item.type === 'Weapon' ? '⚔️' : '🛡️'}</span>
                                             <div>
                                                 <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">{item.name}</p>
-                                                <p className="text-[8px] text-neutral-600 uppercase font-black">{item.type}</p>
+                                                <div className="flex items-center gap-2">
+                                                   <p className="text-[8px] text-neutral-600 uppercase font-black">{item.type}</p>
+                                                   <span className={`text-[6px] font-black uppercase px-1 border rounded-[2px] ${RARITY_COLORS[item.rarity || 'Common']}`}>{item.rarity || 'Common'}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

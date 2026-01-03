@@ -119,10 +119,13 @@ export interface ItemMechanic {
   locked?: boolean;
 }
 
+export type Rarity = 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
+
 export interface Item {
   id: string;
   name: string;
   type: 'Weapon' | 'Armor';
+  rarity: Rarity;
   description: string;
   mechanics: ItemMechanic[];
   lore: string;

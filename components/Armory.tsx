@@ -1,7 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
-import { Item, ItemMechanic, SyncMessage, UserAccount } from '../types';
+import { Item, ItemMechanic, SyncMessage, UserAccount, Rarity } from '../types';
 import { generateItemMechanics, generateImage, rerollTraits, generateItemMechanicsList, getArchitectAdvice } from '../services/gemini';
+
+const RARITY_COLORS: Record<Rarity, string> = {
+  Common: 'text-neutral-500 border-neutral-800 bg-neutral-900/30',
+  Uncommon: 'text-green-500 border-green-900/30 bg-green-950/10',
+  Rare: 'text-blue-500 border-blue-900/30 bg-blue-950/10',
+  Epic: 'text-purple-500 border-purple-900/30 bg-purple-950/10',
+  Legendary: 'text-amber-500 border-amber-900/30 bg-amber-950/10'
+};
 
 interface ArmoryProps {
   items: Item[];
@@ -16,6 +24,7 @@ interface ArmoryProps {
 const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady, manifestBasics, currentUser }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
+  const [rarity, setRarity] = useState<Rarity>('Common');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [rerolling, setRerolling] = useState<string | null>(null);
@@ -23,29 +32,27 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<'name' | 'type'>('name');
-
-  // Admin Manual Fields
-  const [manualMode, setManualMode] = useState(false);
-  const [manualLore, setManualLore] = useState('');
-  const [pendingMechanics, setPendingMechanics] = useState<ItemMechanic[]>([]);
-  const [suggestingMechanics, setSuggestingMechanics] = useState(false);
-  const [advice, setAdvice] = useState<string[]>([]);
-  const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [rarityFilter, setRarityFilter] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<'name' | 'type' | 'rarity'>('name');
 
   const filteredItems = useMemo(() => {
     return items
       .filter(i => {
         const matchesSearch = i.name.toLowerCase().includes(search.toLowerCase());
         const matchesType = typeFilter === 'All' || i.type === typeFilter;
-        return matchesSearch && matchesType;
+        const matchesRarity = rarityFilter === 'All' || i.rarity === rarityFilter;
+        return matchesSearch && matchesType && matchesRarity;
       })
       .sort((a, b) => {
         if (sortBy === 'name') return a.name.localeCompare(b.name);
         if (sortBy === 'type') return a.type.localeCompare(b.type);
+        if (sortBy === 'rarity') {
+            const order: Rarity[] = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+            return order.indexOf(b.rarity) - order.indexOf(a.rarity);
+        }
         return 0;
       });
-  }, [items, search, typeFilter, sortBy]);
+  }, [items, search, typeFilter, rarityFilter, sortBy]);
 
   const handleFetchAdvice = async () => {
     if (!name || !description || loadingAdvice) return;
@@ -59,6 +66,13 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       setLoadingAdvice(false);
     }
   };
+
+  const [advice, setAdvice] = useState<string[]>([]);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualLore, setManualLore] = useState('');
+  const [pendingMechanics, setPendingMechanics] = useState<ItemMechanic[]>([]);
+  const [suggestingMechanics, setSuggestingMechanics] = useState(false);
 
   const handleCreate = async () => {
     if (!name || !description || loading) return;
@@ -77,12 +91,12 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
         const result = await generateItemMechanics(name, type, description);
         mechanics = result.mechanics || [];
         lore = result.lore || description;
-        imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
+        imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${rarity} ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
       }
       
       const newItem: Item = {
         id: Math.random().toString(36).substr(2, 9),
-        name, type, description,
+        name, type, rarity, description,
         mechanics: (mechanics).map((m: any) => ({ ...m, locked: false })),
         lore: lore,
         imageUrl,
@@ -128,7 +142,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     try {
       for (let i = 0; i < list.length; i++) {
         if (!list[i].imageUrl) {
-          const img = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${list[i].type} called "${list[i].name}". Lore: ${list[i].description}. Obsidian and gold accents.`);
+          const img = await generateImage(`Full-frame cinematic fantasy portrait of a ${list[i].rarity} ${list[i].type} called "${list[i].name}". Lore: ${list[i].description}. Obsidian and gold accents.`);
           list[i] = { ...list[i], imageUrl: img };
           setItems([...list]);
           count++;
@@ -148,7 +162,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
     try {
-      const img = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${item.type} called "${item.name}". Lore: ${item.description}. Obsidian and gold accents.`);
+      const img = await generateImage(`Full-frame cinematic fantasy portrait of a ${item.rarity} ${item.type} called "${item.name}". Lore: ${item.description}. Obsidian and gold accents.`);
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, imageUrl: img } : i));
       notify(`Sigil for ${item.name} manifest.`, "success");
     } catch (e) {
@@ -279,18 +293,31 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Relic Category</label>
-                <div className="relative">
-                  <select 
-                    value={type} 
-                    onChange={(e) => setType(e.target.value as any)} 
-                    className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-neutral-400 uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48]"
-                  >
-                    <option value="Weapon">Weapon</option>
-                    <option value="Armor">Armor</option>
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-neutral-600 font-black">▼</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 text-left">
+                    <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest block">Relic Category</label>
+                    <select 
+                        value={type} 
+                        onChange={(e) => setType(e.target.value as any)} 
+                        className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-neutral-400 uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48]"
+                    >
+                        <option value="Weapon">Weapon</option>
+                        <option value="Armor">Armor</option>
+                    </select>
+                </div>
+                <div className="space-y-1 text-left">
+                    <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest block">Rarity</label>
+                    <select 
+                        value={rarity} 
+                        onChange={(e) => setRarity(e.target.value as any)} 
+                        className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-neutral-400 uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48]"
+                    >
+                        <option value="Common">Common</option>
+                        <option value="Uncommon">Uncommon</option>
+                        <option value="Rare">Rare</option>
+                        <option value="Epic">Epic</option>
+                        <option value="Legendary">Legendary</option>
+                    </select>
                 </div>
               </div>
 
@@ -410,14 +437,8 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                   <div className="text-6xl mb-6 opacity-30">🛡️</div>
                   <h3 className="text-xl font-black fantasy-font text-neutral-600 mb-4 uppercase tracking-[0.2em]">The Vault is Empty</h3>
                   <p className="text-xs text-neutral-500 max-w-sm font-serif italic mb-8">
-                    No relics have been forged or manifest in this chronicle yet.
+                    No relics matching your criteria have been manifest.
                   </p>
-                  <button 
-                    onClick={() => manifestBasics && manifestBasics('items')}
-                    className="bg-blue-950/20 border-2 border-blue-500/50 hover:bg-blue-500 text-blue-400 hover:text-white px-12 py-5 text-xs font-black uppercase tracking-[0.5em] transition-all shadow-[0_0_30px_rgba(59,130,246,0.1)] active:scale-95"
-                  >
-                    Manifest Relic Archive
-                  </button>
                </div>
             ) : filteredItems.map(item => (
               <div 
@@ -448,7 +469,12 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           {item.authorId !== 'system' && <button onClick={(e) => handleDelete(e, item)} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>}
                         </div>
                       </div>
-                      <p className="text-[9px] text-amber-900 uppercase tracking-[0.4em] font-black mb-3">{item.type}</p>
+                      <div className="flex items-center gap-3 mb-3">
+                         <p className="text-[9px] text-amber-900 uppercase tracking-[0.4em] font-black">{item.type}</p>
+                         <span className={`text-[8px] font-black uppercase px-2 py-0.5 border rounded-sm tracking-widest ${RARITY_COLORS[item.rarity || 'Common']}`}>
+                            {item.rarity || 'Common'}
+                         </span>
+                      </div>
                       <p className={`text-sm md:text-base text-neutral-400 font-serif italic leading-relaxed ${expandedId === item.id ? '' : 'line-clamp-2'}`}>{item.description}</p>
                     </div>
                   </div>

@@ -17,10 +17,10 @@ import SoulCairn from './components/SoulCairn';
 import { generateImage, generateRules } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
-const REGISTRY_VERSION = 19; 
+const REGISTRY_VERSION = 20; 
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v19-Static-Unity",
+  version: "March-2025-v20-Gear-Rarity-Expansion",
   classes: [
     {
       id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, they can shoot flying enemies out of the air with great accuracy. They pick a single enemy that is exposed to deal extra damage against. They wear leather armor to stay well protected, and light on their feet. They have special arrows capable of many things.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor', 'Bows', 'Fletching'], features: [
@@ -116,18 +116,33 @@ const MONTHLY_CONTENT = {
     { id: 'mon-gorechimera', name: 'The Gorechimera', description: 'Legendary three-headed beast of the Marches.', stats: { strength: 24, dexterity: 12, constitution: 22, intelligence: 14, wisdom: 14, charisma: 12 }, hp: 250, ac: 19, isBoss: true, abilities: [{ name: 'Lions Roar', effect: 'AOE Fear (DC 16 Wis).' }, { name: 'Serpent Sting', effect: 'Poison DOT.' }], authorId: 'system', size: 'Huge' as const }
   ],
   items: [
-    { id: 'itm-dk-greatsword', name: 'Fallen Star Claymore', type: 'Weapon' as const, description: 'A black blade that hums with sorrow.', mechanics: [{ name: 'Vicious Strike', description: 'Crit on 19-20.' }], lore: 'Order standard issue.', authorId: 'system' },
-    { id: 'itm-dk-plate', name: 'Shadow Plate', type: 'Armor' as const, description: 'Reflects no light.', mechanics: [{ name: 'Necrotic Ward', description: 'Resist shadow damage.' }], lore: 'Forged in darkness.', authorId: 'system' },
-    { id: 'itm-arch-bow', name: 'Sky-Piercer Bow', type: 'Weapon' as const, description: 'Yew bow with silk string.', mechanics: [{ name: 'True Sight', description: 'Ignore cover.' }], lore: 'Elven heritage.', authorId: 'system' },
-    { id: 'itm-thief-daggers', name: 'Void Fang Daggers', type: 'Weapon' as const, description: 'Obsidian teeth.', mechanics: [{ name: 'Lethal Precision', description: '+2 to Sneak Attack.' }], lore: 'Silent as death.', authorId: 'system' },
-    { id: 'itm-sorc-staff', name: 'Archon Staff', type: 'Weapon' as const, description: 'Crystal-tipped oak.', mechanics: [{ name: 'Mana Flow', description: '+1 Spell DC.' }], lore: 'Tower artifact.', authorId: 'system' },
-    { id: 'itm-mage-staff', name: 'Caduceus Wand', type: 'Weapon' as const, description: 'A small, ornate wand.', mechanics: [{ name: 'Mercy', description: '+1d4 to healing.' }], lore: 'Healing focus.', authorId: 'system' },
-    { id: 'itm-fig-sword', name: 'Gladiator Gladius', type: 'Weapon' as const, description: 'Balanced steel.', mechanics: [{ name: 'Swift Strike', description: 'Advantage on first turn.' }], lore: 'Frontline tool.', authorId: 'system' },
-    { id: 'itm-fig-shield', name: 'Great Aegis', type: 'Armor' as const, description: 'Massive steel shield.', mechanics: [{ name: 'Unbreakable', description: '+1 AC.' }], lore: 'Fortress guard.', authorId: 'system' },
-    { id: 'itm-leather-armor', name: 'Softened Hide', type: 'Armor' as const, description: 'Silent movement.', mechanics: [{ name: 'Muffled', description: '+2 Stealth.' }], lore: 'Wilderness gear.', authorId: 'system' },
-    { id: 'itm-robed-attire', name: 'Sage Robes', type: 'Armor' as const, description: 'Silken weave.', mechanics: [{ name: 'Aetheric', description: '+5 Mana.' }], lore: 'Academy robes.', authorId: 'system' },
-    { id: 'itm-full-plate', name: 'Steel Fortress', type: 'Armor' as const, description: 'Complete plate.', mechanics: [{ name: 'Heavy', description: 'Resist physical 2.' }], lore: 'Noble armor.', authorId: 'system' },
-    { id: 'itm-half-plate', name: 'Mercenary Half-Plate', type: 'Armor' as const, description: 'Reinforced leather/steel.', mechanics: [{ name: 'Rugged', description: '+1 AC.' }], lore: 'Veteran gear.', authorId: 'system' }
+    // --- Starting / Common ---
+    { id: 'itm-arch-bow', name: 'Weathered Yew Bow', type: 'Weapon' as const, rarity: 'Common' as const, description: 'A standard hunter\'s bow.', mechanics: [{ name: 'Steady Aim', description: '+1 to long range hit.' }], lore: 'Standard issue.', authorId: 'system' },
+    { id: 'itm-leather-armor', name: 'Cured Hide', type: 'Armor' as const, rarity: 'Common' as const, description: 'Flexible leather protection.', mechanics: [{ name: 'Quiet', description: 'No penalty to stealth.' }], lore: 'Common gear.', authorId: 'system' },
+    { id: 'itm-thief-daggers', name: 'Dull Daggers', type: 'Weapon' as const, rarity: 'Common' as const, description: 'A pair of simple iron blades.', mechanics: [{ name: 'Twin Strike', description: '+1 dmg if both hit.' }], lore: 'Discarded by better thieves.', authorId: 'system' },
+    { id: 'itm-sorc-staff', name: 'Oak Staff', type: 'Weapon' as const, rarity: 'Common' as const, description: 'A simple wooden focus.', mechanics: [{ name: 'Spark', description: 'Ignore 1 resistance point.' }], lore: 'Student gear.', authorId: 'system' },
+    { id: 'itm-mage-staff', name: 'Willow Wand', type: 'Weapon' as const, rarity: 'Common' as const, description: 'Supple wand for mending.', mechanics: [{ name: 'Mending', description: '+1 to small heals.' }], lore: 'Healing focus.', authorId: 'system' },
+    { id: 'itm-war-greatsword', name: 'Iron Claymore', type: 'Weapon' as const, rarity: 'Common' as const, description: 'Heavy and blunt.', mechanics: [{ name: 'Crushing', description: '+2 damage against shields.' }], lore: 'Recruit weapon.', authorId: 'system' },
+    { id: 'itm-fig-sword', name: 'Shortsword', type: 'Weapon' as const, rarity: 'Common' as const, description: 'Reliable steel.', mechanics: [{ name: 'Fast', description: '+1 initiative.' }], lore: 'Standard military.', authorId: 'system' },
+    { id: 'itm-fig-shield', name: 'Round Shield', type: 'Armor' as const, rarity: 'Common' as const, description: 'Reinforced wood.', mechanics: [{ name: 'Deflect', description: '+1 AC vs ranged.' }], lore: 'Basic defense.', authorId: 'system' },
+    { id: 'itm-half-plate', name: 'Scrap Plate', type: 'Armor' as const, rarity: 'Common' as const, description: 'Mismatched steel plates.', mechanics: [{ name: 'Heavy', description: '-5ft movement.' }], lore: 'Mercenary castoffs.', authorId: 'system' },
+    { id: 'itm-robed-attire', name: 'Canvas Robes', type: 'Armor' as const, rarity: 'Common' as const, description: 'Simple scholar attire.', mechanics: [{ name: 'Insulated', description: 'Cold resistance 1.' }], lore: 'Tavern wear.', authorId: 'system' },
+    { id: 'itm-full-plate', name: 'Iron Husk', type: 'Armor' as const, rarity: 'Common' as const, description: 'Complete but heavy.', mechanics: [{ name: 'Solid', description: 'Adv vs push.' }], lore: 'Vanguard starter.', authorId: 'system' },
+    { id: 'itm-dk-greatsword', name: 'Hollow Greatsword', type: 'Weapon' as const, rarity: 'Uncommon' as const, description: 'A heavy blade that feels lighter than it looks.', mechanics: [{ name: 'Ether Flow', description: 'Deals 1 necrotic on hit.' }], lore: 'Standard Dark Knight issue.', authorId: 'system' },
+    { id: 'itm-dk-plate', name: 'Lacquered Plate', type: 'Armor' as const, rarity: 'Uncommon' as const, description: 'Blackened steel.', mechanics: [{ name: 'Gloom', description: 'Stealth checks in darkness +1.' }], lore: 'Order uniform.', authorId: 'system' },
+
+    // --- Rare Tier ---
+    { id: 'itm-arch-bow-rare', name: 'Eagle-Sight Bow', type: 'Weapon' as const, rarity: 'Rare' as const, description: 'A precision-crafted yew bow.', mechanics: [{ name: 'Sky-Shot Accuracy', description: '+2 to attack rolls against flying targets.' }], lore: 'Standard issue for elven marksmen.', authorId: 'system' },
+    { id: 'itm-thief-rare', name: 'Void Fang Daggers', type: 'Weapon' as const, rarity: 'Rare' as const, description: 'Obsidian teeth.', mechanics: [{ name: 'Lethal Precision', description: '+2 to Sneak Attack.' }], lore: 'Silent as death.', authorId: 'system' },
+    { id: 'itm-sorc-rare', name: 'Archon Staff', type: 'Weapon' as const, rarity: 'Rare' as const, description: 'Crystal-tipped oak.', mechanics: [{ name: 'Mana Flow', description: '+1 Spell DC.' }], lore: 'Tower artifact.', authorId: 'system' },
+
+    // --- Epic Tier ---
+    { id: 'itm-dk-epic', name: 'Fallen Star Claymore', type: 'Weapon' as const, rarity: 'Epic' as const, description: 'A black blade that hums with sorrow.', mechanics: [{ name: 'Vicious Strike', description: 'Crit on 19-20.' }], lore: 'Forged from meteorite.', authorId: 'system' },
+    { id: 'itm-fig-epic', name: 'Great Aegis', type: 'Armor' as const, rarity: 'Epic' as const, description: 'Massive steel shield.', mechanics: [{ name: 'Unbreakable', description: '+1 AC.' }], lore: 'Fortress guard.', authorId: 'system' },
+
+    // --- Legendary Tier ---
+    { id: 'itm-leg-eternity', name: 'Sunder of Eternity', type: 'Weapon' as const, rarity: 'Legendary' as const, description: 'A blade that exists in two timelines.', mechanics: [{ name: 'Chronoshift', description: 'Attack twice on a crit.' }], lore: 'Wielded by the First Architect.', authorId: 'system' },
+    { id: 'itm-leg-shadow', name: 'Shadow of the Order', type: 'Armor' as const, rarity: 'Legendary' as const, description: 'Living darkness that adheres to the soul.', mechanics: [{ name: 'Intangible', description: 'Can move through walls once per day.' }], lore: 'The Grandmaster\'s burial shroud.', authorId: 'system' }
   ],
   heroes: [
     { 

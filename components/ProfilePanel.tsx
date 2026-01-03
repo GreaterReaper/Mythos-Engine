@@ -5,10 +5,12 @@ import { UserAccount } from '../types';
 interface ProfilePanelProps {
   user: UserAccount;
   onlineFriends?: string[];
+  onDeleteAccount?: () => void;
 }
 
-const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [] }) => {
+const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [], onDeleteAccount }) => {
   const [showPin, setShowPin] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   
   const friends = user.friends || [];
   const buildDate = new Date().toLocaleDateString();
@@ -61,7 +63,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [] })
               </section>
             </div>
 
-            <section className="pt-8 border-t border-[#b28a48]/10">
+            <section className="pt-8 border-t border-[#b28a48]/10 space-y-6">
               <div className="flex items-center justify-between text-neutral-700">
                 <div className="text-left">
                   <p className="text-[7px] font-black uppercase tracking-widest">Deployment Resonance</p>
@@ -71,6 +73,35 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [] })
                   <p className="text-[7px] font-black uppercase tracking-widest">Last Inscription</p>
                   <p className="text-[10px] font-black text-neutral-600">{buildDate}</p>
                 </div>
+              </div>
+
+              <div className="pt-4">
+                {!confirmDelete ? (
+                  <button 
+                    onClick={() => setConfirmDelete(true)}
+                    className="text-[8px] font-black text-red-900 hover:text-red-500 uppercase tracking-widest border border-red-900/20 px-4 py-2 rounded-sm transition-all"
+                  >
+                    Sever Soul from Engine
+                  </button>
+                ) : (
+                  <div className="flex flex-col items-start gap-3 p-4 bg-red-950/20 border border-red-900/40 rounded-sm">
+                    <p className="text-[9px] text-red-500 font-black uppercase tracking-widest">Permanent Erasure: Are you certain?</p>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={onDeleteAccount}
+                        className="bg-red-600 text-white px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-sm hover:bg-red-500"
+                      >
+                        Yes, Sever All Bonds
+                      </button>
+                      <button 
+                        onClick={() => setConfirmDelete(false)}
+                        className="bg-neutral-800 text-neutral-400 px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-sm hover:bg-neutral-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           </div>

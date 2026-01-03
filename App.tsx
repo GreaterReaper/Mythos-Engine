@@ -17,7 +17,7 @@ import SoulCairn from './components/SoulCairn';
 import { generateImage, generateRules } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
-const REGISTRY_VERSION = 29; 
+const REGISTRY_VERSION = 30; 
 
 export const MENTOR_TEMPLATES: Partial<Character>[] = [
   { 
@@ -64,146 +64,98 @@ export const MENTOR_TEMPLATES: Partial<Character>[] = [
 ];
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v29-Solo-Pioneer",
+  version: "March-2025-v30-The-Gore-Awakening",
+  // Fix: Added heroes property for manifestBasics usage
+  heroes: MENTOR_TEMPLATES,
   classes: [
     {
-      id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, they can shoot flying enemies out of the air with great accuracy. They pick a single enemy that is exposed to deal extra damage against. They wear leather armor to stay protected and light. They use special arrows for utility.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Bows', 'Leather Armor', 'Perception'], features: [
-        { name: 'Sky Shot', description: 'Perfect accuracy against flying targets, ignoring range penalties.' },
-        { name: 'Exposed Weakness', description: 'Once per turn, deal 1d10 bonus damage to a target engaged by an ally.' },
-        { name: 'Lightfoot Reflex', description: '+2 AC while in light armor if you have moved at least 15ft this turn.' },
-        { name: 'Trick Shot: Ricochet', description: 'If you hit, the arrow bounces to another target within 10ft for half damage.' },
-        { name: 'Volley of Thorns', description: 'Action: Fire a spray of arrows in a 15ft cone, dealing 3d6 piercing damage.' }
-      ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-arch-bow-1', 'itm-scout-leather']
-    },
-    {
-      id: 'cls-thief', name: 'Thief', description: 'Stealth masters using dual daggers. They can execute grappled targets and use smoke bombs to vanish.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Daggers', 'Stealth', 'Leather Armor'], features: [
-        { name: 'Cunning Infiltration', description: 'Gain advantage on Stealth checks and lockpicking.' },
-        { name: 'Instant Execution', description: 'As an action, instantly kill a human-sized or smaller target grappled by an ally.' },
-        { name: 'Smoke Screen', description: 'Bonus Action: Drop smoke. Become invisible and move 15ft without provoking opportunity attacks.' },
-        { name: 'Blade Waltz', description: 'When you hit with a dagger, you may make an off-hand attack as a free action.' },
-        { name: 'Vile Toxin', description: 'Your daggers deal an extra 1d6 poison damage to targets with missing health.' }
-      ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-thief-dags-1', 'itm-scout-leather']
-    },
-    {
-      id: 'cls-sorcerer', name: 'Sorcerer', description: 'Destructive spellcasters wielding long staves. They can memorize spells for instant, free casting.', hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 3, 2], preferredStats: ['Intelligence', 'Constitution'], bonuses: ['Long Staves', 'Robes', 'Arcana'], features: [
-        { name: 'Destructive Overload', description: 'Add your Intelligence modifier twice to any damaging spell rolls.' },
-        { name: 'Spell Memory', description: 'Commit one spell to memory; it becomes free to cast once per long rest.' },
-        { name: 'Arcane Surge', description: 'Expend half your movement to increase your next spell DC by 3.' },
-        { name: 'Aura of Arcane Shielding', description: 'While casting, gain temporary HP equal to 5 + Spell Level.' },
-        { name: 'Chaos Bolt', description: 'When you crit with a spell, the target is stunned for 1 turn.' }
+      id: 'cls-archer', name: 'Archer', description: 'Precision strikers who excel at distance and mobility.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [2, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Bows', 'Perception'], features: [
+        { name: 'Sky Shot', description: 'Ignore penalties for long range and flying targets.' },
+        { name: 'Exposed Weakness', description: '+1d10 damage to enemies engaged by allies.' },
+        { name: 'Lightfoot Reflex', description: '+2 AC after moving 15ft.' },
+        { name: 'Trick Shot', description: 'Bounce arrows to hit secondary targets.' },
+        { name: 'Volley of Thorns', description: '15ft cone attack dealing 3d6 piercing.' }
       ], initialSpells: [
-        { name: 'Flare', level: 3, school: 'Evocation', description: '10d6 fire damage in a 20ft radius.' },
-        { name: 'Mana Burst', level: 1, school: 'Evocation', description: '2d8 force damage in a 15ft cone.' },
-        { name: 'Mirror Image', level: 2, school: 'Illusion', description: 'Create 3 duplicates.' },
-        { name: 'Shatter Breath', level: 2, school: 'Evocation', description: 'Line of sound dealing 4d8 thunder damage.' },
-        { name: 'Void Singularity', level: 3, school: 'Conjuration', description: 'Pull all enemies within 30ft to a point; deal 6d6 force.' }
-      ], authorId: 'system', startingItemIds: ['itm-sorc-staff-1', 'itm-sage-robes']
+        { name: 'Pinning Shot', level: 1, school: 'Conjuration', description: 'Reduce target speed to 0.' },
+        { name: 'Hunter\'s Mark', level: 1, school: 'Divination', description: '+1d6 damage to specific target.' }
+      ], authorId: 'system', startingItemIds: ['itm-arch-bow-1', 'itm-scout-leather']
     },
     {
-      id: 'cls-mage', name: 'Mage', description: 'Supportive casters focused on healing and group buffs.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Small Staves', 'Robes', 'Insight'], features: [
-        { name: 'Resonant Buffs', description: 'Any single-target buff you cast spreads to all allies within 15ft.' },
-        { name: 'Divine Healing', description: 'Healing spells restore an additional 2d8 HP if the target is below half health.' },
-        { name: 'Beacon of Aura', description: 'Allies within 20ft are immune to being Charmed or Frightened.' },
-        { name: 'Mana Font', description: 'Recover one used Level 1 spell slot as a bonus action (1/day).' },
-        { name: 'Etheric Bond', description: 'Link your soul to an ally; you both share 50% of all incoming damage.' }
+      id: 'cls-dark-knight', name: 'Dark Knight', description: 'Gloom-armored warriors who trade life force for catastrophic power.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 2, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['2H Swords', 'Intimidation'], features: [
+        { name: 'Momentum Reaper', description: 'Move 10ft free after a kill.' },
+        { name: 'Living Dead', description: 'When hit by fatal damage, survive at 1 HP for one full combat turn (round). You must be healed for your Max HP total by the end of that turn or you perish.' },
+        { name: 'Living Shadow', description: 'A shadow duplicate copies 50% of your damage.' },
+        { name: 'Ignite Aether', description: 'Spend 10 HP for 2d10 necrotic damage.' },
+        { name: 'Chill of the Abyss', description: 'Enemies within 5ft suffer -2 to attacks.' }
       ], initialSpells: [
-        { name: 'Mass Regen', level: 3, school: 'Conjuration', description: 'Heal all allies for 1d8 every turn for 3 turns.' },
-        { name: 'Holy Veil', level: 1, school: 'Abjuration', description: 'Absorb 15 damage from one target.' },
-        { name: 'Benediction', level: 3, school: 'Evocation', description: 'Instantly restore all HP to one target.' },
-        { name: 'Celestial Light', level: 1, school: 'Evocation', description: 'Heal 2d8+Wis; grants target +2 AC for 1 turn.' },
-        { name: 'Aegis of Grace', level: 2, school: 'Abjuration', description: 'Allies gain resistance to magic damage for 2 turns.' }
-      ], authorId: 'system', startingItemIds: ['itm-mage-wand-1', 'itm-healer-robes']
-    },
-    {
-      id: 'cls-warrior', name: 'Warrior', description: 'Brutal frontliners with two-handed weapons and plate armor.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['2H Weapons', 'Heavy Armor', 'Athletics'], features: [
-        { name: 'Invigorating Roar', description: 'Action: All allies gain 15 Temp HP and Advantage on their next attack.' },
-        { name: 'Unstoppable Bulk', description: 'Immune to being knocked prone or pushed. Gain +1 AC for every 2 enemies adjacent.' },
-        { name: 'Concussive Blow', description: 'Successful hits force a DC 16 Str save or the target is knocked prone.' },
-        { name: 'Charged Devastation', description: 'Spend a turn charging. Your next hit deals 4x damage and creates a 10ft shockwave.' },
-        { name: 'Bloodlust Vanguard', description: 'Each time you take damage, your next attack deals +3 damage (stacks up to 15).' }
-      ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-war-claymore-1', 'itm-full-plate-1']
-    },
-    {
-      id: 'cls-fighter', name: 'Fighter', description: 'Shield-bearing masters of defense and crowd control.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Dexterity'], bonuses: ['1H Weapons', 'Shields', 'Heavy Armor'], features: [
-        { name: 'Shield Wall', description: 'Gain +2 AC and grant +2 AC to all adjacent allies while holding a shield.' },
-        { name: 'Shield Bash', description: 'Bonus Action: Hit for 1d8+Str. Target is stunned until end of their turn.' },
-        { name: 'Guardian Intercept', description: 'Reaction: Move up to 10ft to take the damage for an ally within reach.' },
-        { name: 'Steel Focus', description: 'Gain advantage on all Constitution saving throws to maintain concentration or resist exhaustion.' },
-        { name: 'Master Duelist', description: 'In 1v1 combat, you cannot be crit and you deal +5 damage.' }
-      ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-fig-sword-1', 'itm-fig-shield-1', 'itm-half-plate-1']
-    },
-    {
-      id: 'cls-dark-knight', name: 'Dark Knight', description: 'Heavy knights wielding 2H swords and life-draining dark magic.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 3, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['2H Swords', 'Heavy Armor', 'Intimidation'], features: [
-        { name: 'Momentum Reaper', description: 'Successful hits grant a 10ft free dash that ignores opportunity attacks.' },
-        { name: 'Living Dead', description: 'Survive fatal damage at 1 HP for 1 full combat turn (Until start of your next turn). Must be healed for your Max HP total by end of turn or die.' },
-        { name: 'Living Shadow', description: 'Summon a twin of shadow. It mimics your attacks for 2 turns at 50% damage.' },
-        { name: 'Ignite Aether', description: 'Sacrifice 10 HP to deal 2d10 necrotic damage on your next hit.' },
-        { name: 'Chill of the Abyss', description: 'Enemies within 5ft have -2 to all attack rolls and -10ft movement.' }
-      ], initialSpells: [
-        { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 1d8 HP from all adjacent enemies.' },
-        { name: 'Edge of Shadow', level: 2, school: 'Evocation', description: '30ft line of darkness dealing 4d8 damage.' },
-        { name: 'The Blackest Night', level: 3, school: 'Abjuration', description: 'Absorb damage = 25% Max HP. If broken, grant Dark Arts.' },
-        { name: 'Soul Grind', level: 1, school: 'Necromancy', description: 'Target takes 2d6 necrotic damage; you heal half.' },
-        { name: 'Dark Passenger', level: 2, school: 'Evocation', description: 'Wave of dark energy Blinds all in a 15ft cone.' }
+        { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 1d8 HP from all adjacent foes.' },
+        { name: 'The Blackest Night', level: 2, school: 'Abjuration', description: 'Absorb shield = 25% Max HP.' }
       ], authorId: 'system', startingItemIds: ['itm-dk-blade-1', 'itm-dk-plate-1']
+    },
+    {
+      id: 'cls-sorcerer', name: 'Sorcerer', description: 'Wielders of raw, chaotic magical essence.', hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 3, 2], preferredStats: ['Intelligence', 'Constitution'], bonuses: ['Staves', 'Arcana'], features: [
+        { name: 'Destructive Overload', description: 'Double Int mod on spell damage.' },
+        { name: 'Spell Memory', description: 'One spell cast per rest is free.' },
+        { name: 'Arcane Surge', description: 'Half movement for +3 Spell DC.' },
+        { name: 'Arcane Shielding', description: 'Gain Temp HP while casting.' },
+        { name: 'Chaos Bolt', description: 'Crits stun for 1 turn.' }
+      ], initialSpells: [
+        { name: 'Flare', level: 3, school: 'Evocation', description: 'Massive fire explosion.' },
+        { name: 'Mirror Image', level: 2, school: 'Illusion', description: 'Create 3 distracting clones.' }
+      ], authorId: 'system'
     }
   ],
   monsters: [
-    { id: 'mon-gob-scout', name: 'Goblin Skirmisher', description: 'A fast goblin with a shortbow.', stats: { strength: 8, dexterity: 16, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 }, hp: 15, ac: 14, abilities: [{ name: 'Nimble Escape', effect: 'Disengage as bonus action.' }], authorId: 'system', size: 'Small' as const },
-    { id: 'mon-gob-shaman', name: 'Goblin Witch-doctor', description: 'Casts primitive fire magic.', stats: { strength: 6, dexterity: 12, constitution: 12, intelligence: 14, wisdom: 14, charisma: 10 }, hp: 20, ac: 12, abilities: [{ name: 'Fire Spit', effect: 'Ranged attack 2d6 fire.' }], authorId: 'system', size: 'Small' as const },
-    { id: 'mon-wolf-shadow', name: 'Shadow Panther', description: 'A sleek beast that hunts in the dark.', stats: { strength: 14, dexterity: 18, constitution: 12, intelligence: 4, wisdom: 14, charisma: 6 }, hp: 35, ac: 15, abilities: [{ name: 'Pounce', effect: 'Jump 20ft and knock target prone.' }], authorId: 'system', size: 'Medium' as const },
-    { id: 'mon-boar-iron', name: 'Iron-hide Boar', description: 'A massive tusker with metallic fur.', stats: { strength: 18, dexterity: 8, constitution: 18, intelligence: 2, wisdom: 10, charisma: 4 }, hp: 50, ac: 16, abilities: [{ name: 'Tusk Charge', effect: 'Double damage on straight line moves.' }], authorId: 'system', size: 'Large' as const },
-    { id: 'mon-skeleton', name: 'Crypt Skeleton', description: 'Rattling bones in ancient armor.', stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 }, hp: 13, ac: 13, abilities: [{ name: 'Undead Resolve', effect: 'Resistant to piercing.' }], authorId: 'system', size: 'Medium' as const },
-    { id: 'mon-revenant', name: 'Vengeful Revenant', description: 'A tireless knight brought back by hate.', stats: { strength: 18, dexterity: 12, constitution: 20, intelligence: 10, wisdom: 12, charisma: 8 }, hp: 80, ac: 18, abilities: [{ name: 'Grip of Hate', effect: 'Target cannot move if hit.' }], authorId: 'system', size: 'Medium' as const },
-    { id: 'mon-mercenary', name: 'Iron Hand Mercenary', description: 'Professional soldier with a halberd.', stats: { strength: 16, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 }, hp: 45, ac: 15, abilities: [{ name: 'Cleave', effect: 'Hit 2 adjacent targets.' }], authorId: 'system', size: 'Medium' as const },
-    { id: 'mon-cultist', name: 'Void Cultist', description: 'Fanatic obsessed with the Eye.', stats: { strength: 10, dexterity: 12, constitution: 10, intelligence: 14, wisdom: 8, charisma: 16 }, hp: 25, ac: 11, abilities: [{ name: 'Self Sacrifice', effect: 'Explode on death dealing 3d6 void.' }], authorId: 'system', size: 'Medium' as const },
-    { id: 'mon-drake-vanguard', name: 'Drake-Vanguard', description: 'A half-dragon warrior with a molten blade.', stats: { strength: 20, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 110, ac: 19, abilities: [{ name: 'Flame Breath', effect: '4d6 fire cone.' }], authorId: 'system', size: 'Large' as const },
+    // Goblinoids
+    { id: 'mon-gob-1', name: 'Goblin Prowler', description: 'A sneaky goblin with a jagged blade.', stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 }, hp: 12, ac: 13, abilities: [{ name: 'Backstab', effect: '+1d6 damage on advantage.' }], size: 'Small', authorId: 'system' },
+    { id: 'mon-gob-2', name: 'Goblin Pyromaniac', description: 'Equipped with unstable fire flasks.', stats: { strength: 6, dexterity: 12, constitution: 10, intelligence: 12, wisdom: 10, charisma: 8 }, hp: 15, ac: 11, abilities: [{ name: 'Fire Flask', effect: '3d6 fire radius 5ft (One Use).' }], size: 'Small', authorId: 'system' },
+    { id: 'mon-gob-3', name: 'Hobgoblin Warlord', description: 'A disciplined commander of the horde.', stats: { strength: 16, dexterity: 12, constitution: 14, intelligence: 12, wisdom: 12, charisma: 14 }, hp: 45, ac: 17, abilities: [{ name: 'Martial Advantage', effect: '+2d6 damage if ally is nearby.' }], size: 'Medium', authorId: 'system' },
+    // Beasts
+    { id: 'mon-bst-1', name: 'Dire Wolf', description: 'A giant wolf with eyes like embers.', stats: { strength: 17, dexterity: 15, constitution: 15, intelligence: 3, wisdom: 12, charisma: 7 }, hp: 37, ac: 14, abilities: [{ name: 'Pack Tactics', effect: 'Advantage if ally is adjacent to target.' }], size: 'Large', authorId: 'system' },
+    { id: 'mon-bst-2', name: 'Venomspine Scorpion', description: 'A translucent desert horror.', stats: { strength: 12, dexterity: 16, constitution: 14, intelligence: 1, wisdom: 10, charisma: 2 }, hp: 25, ac: 16, abilities: [{ name: 'Deadly Sting', effect: 'Ongoing 1d10 poison damage.' }], size: 'Medium', authorId: 'system' },
+    { id: 'mon-bst-3', name: 'Shadow Panther', description: 'A cat made of living smoke.', stats: { strength: 14, dexterity: 18, constitution: 12, intelligence: 4, wisdom: 14, charisma: 8 }, hp: 55, ac: 15, abilities: [{ name: 'Pounce', effect: 'Knock prone on jump hits.' }], size: 'Large', authorId: 'system' },
+    // Undead
+    { id: 'mon-und-1', name: 'Crypt Ghoul', description: 'A hunched eater of the dead.', stats: { strength: 13, dexterity: 15, constitution: 10, intelligence: 7, wisdom: 10, charisma: 6 }, hp: 22, ac: 12, abilities: [{ name: 'Ghoul Fever', effect: 'Paralyze on hit (DC 12 Con).' }], size: 'Medium', authorId: 'system' },
+    { id: 'mon-und-2', name: 'Ancient Lich-Vestige', description: 'A decaying sorcerer holding a sliver of power.', stats: { strength: 10, dexterity: 12, constitution: 14, intelligence: 18, wisdom: 16, charisma: 14 }, hp: 60, ac: 13, abilities: [{ name: 'Cold Grasp', effect: '3d8 cold damage + slow.' }], size: 'Medium', authorId: 'system' },
+    { id: 'mon-und-3', name: 'Spectral Knight', description: 'Armor filled with spiteful fog.', stats: { strength: 16, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 12, charisma: 10 }, hp: 75, ac: 18, abilities: [{ name: 'Ghostly Blade', effect: 'Ignore 5 AC of target.' }], size: 'Medium', authorId: 'system' },
+    // Humanoid
+    { id: 'mon-hum-1', name: 'Bandit Cutthroat', description: 'Mercenary out for coin.', stats: { strength: 12, dexterity: 14, constitution: 12, intelligence: 10, wisdom: 10, charisma: 10 }, hp: 20, ac: 13, abilities: [{ name: 'Cheap Shot', effect: 'Stun on surprise hits.' }], size: 'Medium', authorId: 'system' },
+    { id: 'mon-hum-2', name: 'Void Cultist', description: 'Eyes glowing with purple flame.', stats: { strength: 10, dexterity: 12, constitution: 10, intelligence: 14, wisdom: 8, charisma: 16 }, hp: 25, ac: 11, abilities: [{ name: 'Self-Immolation', effect: 'Explode for 4d6 void on death.' }], size: 'Medium', authorId: 'system' },
+    // Draconian
+    { id: 'mon-drk-1', name: 'Kobold Wyrm-Acolyte', description: 'Small lizard worshipping dragons.', stats: { strength: 7, dexterity: 15, constitution: 9, intelligence: 8, wisdom: 7, charisma: 8 }, hp: 9, ac: 12, abilities: [{ name: 'Dragon Breath (Weak)', effect: '2d4 fire cone.' }], size: 'Small', authorId: 'system' },
+    { id: 'mon-drk-2', name: 'Drake Sentinel', description: 'Wingless dragon with stone-like scales.', stats: { strength: 19, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 12, charisma: 10 }, hp: 95, ac: 19, abilities: [{ name: 'Tail Sweep', effect: 'Knock 3 targets prone.' }], size: 'Large', authorId: 'system' },
+    { id: 'mon-drk-3', name: 'Storm Wyvern', description: 'A blue-scaled beast that crackles with electricity.', stats: { strength: 18, dexterity: 16, constitution: 16, intelligence: 6, wisdom: 14, charisma: 10 }, hp: 120, ac: 17, abilities: [{ name: 'Chain Lightning', effect: '4d6 lightning to 3 targets.' }], size: 'Huge', authorId: 'system' },
+    // Boss
     { 
       id: 'mon-gorechimera', 
       name: 'Gorechimera', 
       isBoss: true,
-      description: 'A terrifying hybrid with the head of a lion, body of a goat, and a venomous serpent tail. Its pallid skin shimmers with dark energy.', 
-      stats: { strength: 24, dexterity: 14, constitution: 22, intelligence: 12, wisdom: 16, charisma: 14 }, 
-      hp: 350, 
+      description: 'A terrifying hybrid with the head and shoulders of a lion, the body and head of a goat, and a venomous serpent tail. It has more pallid, deathly skin compared to its weaker variant.', 
+      stats: { strength: 24, dexterity: 14, constitution: 22, intelligence: 12, wisdom: 18, charisma: 14 }, 
+      hp: 400, 
       ac: 20, 
-      size: 'Huge' as const,
+      size: 'Huge',
       abilities: [
-        { name: 'Goat: Echo of Life', effect: 'Heals itself for 40 HP and revives one slain non-boss ally nearby.' },
-        { name: 'Lion: King\'s Roar', effect: 'Frightens all enemies within 60ft and deals 4d8 thunder damage.' },
-        { name: 'Serpent: Venomous Lash', effect: 'Tail strike deals 2d10 piercing + 4d6 poison (Ongoing).' }
+        { name: 'Lion: Kingly Roar', effect: '4d8 thunder damage + Frightened in 30ft.' },
+        { name: 'Serpent: Venomous Spray', effect: '30ft cone, 4d6 poison + ongoing blindness.' },
+        { name: 'Goat: Necrotic Mending', effect: 'Heals all heads for 50 HP and resurrects any non-boss ally within 30ft at 1 HP.' }
       ],
       legendaryActions: [
-        { name: 'Triple Strike', effect: 'Attacks with Lion, Goat, and Serpent in sequence.' },
-        { name: 'Pallid Mist', effect: 'Creates fog; become invisible until next action.' }
+        { name: 'Triple Fury', effect: 'One attack from each head in sequence.' },
+        { name: 'Pallid Shroud', effect: 'Becomes misty; attacks against it have disadvantage.' }
       ],
       authorId: 'system'
     }
   ],
   items: [
-    { id: 'itm-arch-bow-1', name: 'Huntsman Bow', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d8', damageType: 'Piercing', classRestrictions: ['cls-archer'], description: 'Reliable ash wood.', mechanics: [], lore: 'Scout issue.', authorId: 'system' },
-    { id: 'itm-thief-dags-1', name: 'Twin Stingers', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d4', damageType: 'Piercing', classRestrictions: ['cls-thief'], description: 'Lightweight blades.', mechanics: [], lore: 'Silent tools.', authorId: 'system' },
-    { id: 'itm-scout-leather', name: 'Scout Leathers', type: 'Armor' as const, rarity: 'Common' as const, ac: 11, classRestrictions: ['cls-archer', 'cls-thief'], description: 'Flexible hide.', mechanics: [], lore: 'Mass produced.', authorId: 'system' },
-    { id: 'itm-sorc-staff-1', name: 'Long Oak Staff', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d6', damageType: 'Bludgeoning', classRestrictions: ['cls-sorcerer'], description: 'Focus staff.', mechanics: [], lore: 'Student focus.', authorId: 'system' },
-    { id: 'itm-sage-robes', name: 'Sage Robes', type: 'Armor' as const, rarity: 'Common' as const, ac: 10, classRestrictions: ['cls-sorcerer', 'cls-mage'], description: 'Plain blue silk.', mechanics: [], lore: 'Academic wear.', authorId: 'system' },
-    { id: 'itm-mage-wand-1', name: 'Willow Wand', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d4', damageType: 'Force', classRestrictions: ['cls-mage'], description: 'Supple wand.', mechanics: [], lore: 'Healer focus.', authorId: 'system' },
-    { id: 'itm-healer-robes', name: 'Healer Vestments', type: 'Armor' as const, rarity: 'Common' as const, ac: 11, classRestrictions: ['cls-mage'], description: 'Blessed cloth.', mechanics: [], lore: 'Order issue.', authorId: 'system' },
-    { id: 'itm-war-claymore-1', name: 'Steel Claymore', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '2d6', damageType: 'Slashing', classRestrictions: ['cls-warrior', 'cls-dark-knight'], description: 'Massive sword.', mechanics: [], lore: 'Vanguard standard.', authorId: 'system' },
-    { id: 'itm-full-plate-1', name: 'Full Plate', type: 'Armor' as const, rarity: 'Common' as const, ac: 18, classRestrictions: ['cls-warrior', 'cls-dark-knight', 'cls-fighter'], description: 'Solid steel.', mechanics: [], lore: 'Heavy protection.', authorId: 'system' },
-    { id: 'itm-fig-sword-1', name: 'Arming Sword', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d8', damageType: 'Slashing', classRestrictions: ['cls-fighter'], description: 'Reliable blade.', mechanics: [], lore: 'Military standard.', authorId: 'system' },
-    { id: 'itm-fig-shield-1', name: 'Heater Shield', type: 'Armor' as const, rarity: 'Common' as const, ac: 2, classRestrictions: ['cls-fighter'], description: 'Reinforced steel.', mechanics: [], lore: 'Fighter basic.', authorId: 'system' },
-    { id: 'itm-half-plate-1', name: 'Half Plate', type: 'Armor' as const, rarity: 'Common' as const, ac: 15, classRestrictions: ['cls-fighter'], description: 'Partial coverage.', mechanics: [], lore: 'Veteran gear.', authorId: 'system' },
-    { id: 'itm-dk-blade-1', name: 'Soul-Reaper', type: 'Weapon' as const, rarity: 'Rare' as const, damageRoll: '2d6', damageType: 'Necrotic', classRestrictions: ['cls-dark-knight'], description: 'Blackened edge.', mechanics: [], lore: 'Order relic.', authorId: 'system' },
-    { id: 'itm-dk-plate-1', name: 'Gloom Plate', type: 'Armor' as const, rarity: 'Rare' as const, ac: 18, classRestrictions: ['cls-dark-knight'], description: 'Void-stained steel.', mechanics: [], lore: 'Dark Knight uniform.', authorId: 'system' }
+    { id: 'itm-dk-blade-1', name: 'Soul-Reaper', type: 'Weapon', rarity: 'Rare', damageRoll: '2d6', damageType: 'Necrotic', classRestrictions: ['cls-dark-knight'], description: 'Absorbs the dying light.', mechanics: [], lore: 'Forged in the Abyss.', authorId: 'system' },
+    { id: 'itm-arch-bow-1', name: 'Composite Longbow', type: 'Weapon', rarity: 'Common', damageRoll: '1d8', damageType: 'Piercing', classRestrictions: ['cls-archer'], description: 'Reinforced wood.', mechanics: [], lore: 'Standard scout issue.', authorId: 'system' }
   ],
-  heroes: MENTOR_TEMPLATES as Character[],
   initialCampaign: {
     plot: "The Grey Marches have been swallowed by a spectral fog. Shadows move within.",
-    summary: "You meet Miri, Lina, and Seris at the Rusty Tankard Tavern. They are veteran hunters who will mentor you as you seek to clear the mist.",
+    summary: "The Mentor Trio (Miri, Lina, Seris) awaits you at the Rusty Tankard.",
     locationName: "Rusty Tankard Tavern",
-    rules: [
-      { id: 'rule-1', category: 'Combat', name: 'Momentum', content: 'Moving 10ft adds +2 damage.' },
-      { id: 'rule-2', category: 'Progression', name: 'Experience', content: 'Gain EXP by defeating foes. Reach your threshold to ascend in power.' }
-    ]
+    rules: [{ id: 'r-1', category: 'Combat', name: 'Momentum', content: 'Moving 10ft adds +2 damage.' }]
   }
 };
 
@@ -241,6 +193,27 @@ const App: React.FC = () => {
 
   const handleSignOut = () => { localStorage.removeItem('mythos_active_session'); setCurrentUser(null); };
 
+  const handleDeleteAccount = useCallback(() => {
+    if (!currentUser) return;
+    if (!window.confirm("Permanently sever your soul and erase all locally stored legends? This cannot be undone.")) return;
+
+    const username = currentUser.username;
+    const localAccounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
+    const updatedAccounts = localAccounts.filter(a => a.username !== username);
+    
+    localStorage.setItem('mythos_accounts', JSON.stringify(updatedAccounts));
+    localStorage.removeItem(`${username}_mythos_chars`);
+    localStorage.removeItem(`${username}_mythos_classes`);
+    localStorage.removeItem(`${username}_mythos_monsters`);
+    localStorage.removeItem(`${username}_mythos_items`);
+    localStorage.removeItem(`${username}_mythos_graveyard`);
+    localStorage.removeItem(`${username}_mythos_campaign`);
+    localStorage.removeItem('mythos_active_session');
+
+    setCurrentUser(null);
+    notify("Soul bond severed. Identity erased from the Engine.", "error");
+  }, [currentUser, notify]);
+
   const banishToCairn = useCallback((type: keyof Graveyard, entity: any) => {
     const deletedAt = Date.now();
     const entityWithTimestamp = { ...entity, deletedAt };
@@ -257,14 +230,11 @@ const App: React.FC = () => {
   const restoreFromCairn = useCallback((type: keyof Graveyard, id: string) => {
     const entity = graveyard[type].find((e: any) => e.id === id);
     if (!entity) return;
-
     setGraveyard(prev => ({ ...prev, [type]: prev[type].filter((e: any) => e.id !== id) }));
-    
     if (type === 'characters') setCharacters(prev => [...prev, entity as Character]);
     if (type === 'monsters') setMonsters(prev => [...prev, entity as Monster]);
     if (type === 'items') setItems(prev => [...prev, entity as Item]);
     if (type === 'classes') setClasses(prev => [...prev, entity as ClassDef]);
-    
     notify(`${entity.name} resurrected.`, "success");
   }, [graveyard, notify]);
 
@@ -289,7 +259,7 @@ const App: React.FC = () => {
       return merged;
     });
     setCharacters(prev => {
-      const heroIds = MONTHLY_CONTENT.heroes.map(h => h.id);
+      const heroIds = MONTHLY_CONTENT.heroes.map(h => h.id!);
       return [...prev.filter(c => !heroIds.includes(c.id)), ...MONTHLY_CONTENT.heroes as any[]];
     });
     setCampaign(prev => ({
@@ -331,16 +301,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
-      <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-black/80 border-b border-[#b28a48]/20 backdrop-blur-md z-[100] h-16 shrink-0">
-        <button onClick={() => setMobileSidebarOpen(true)} className="text-[#b28a48] text-2xl p-2 active:scale-90 transition-transform">
-          ☰
-        </button>
-        <h1 className="text-lg font-black tracking-widest text-[#b28a48] fantasy-font truncate max-w-[60%]">
-          {campaign.locationName || 'Mythos Engine'}
-        </h1>
-        <div className="w-8"></div>
-      </header>
-
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -351,7 +311,6 @@ const App: React.FC = () => {
         mobileOpen={mobileSidebarOpen} 
         setMobileOpen={setMobileSidebarOpen} 
       />
-
       <main className={`flex-1 relative overflow-y-auto lg:h-full transition-all duration-300`}>
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} setCharacters={setCharacters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} />}
@@ -362,12 +321,11 @@ const App: React.FC = () => {
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
           {activeTab === 'rules' && <RulesManifest user={currentUser} campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={true} broadcast={broadcast} setActiveTab={setActiveTab} />}
           {activeTab === 'soul-cairn' && <SoulCairn graveyard={graveyard} onRestore={restoreFromCairn} onPurge={purgeFromCairn} />}
-          {activeTab === 'profile' && <ProfilePanel user={currentUser} />}
+          {activeTab === 'profile' && <ProfilePanel user={currentUser} onDeleteAccount={handleDeleteAccount} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={[]} joinSession={()=>{}} setIsHost={setIsHost} forceSync={()=>{}} kickSoul={()=>{}} rehostWithSigil={()=>{}} />}
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign }} onImport={()=>{}} manifestBasics={manifestBasics} />}
         </div>
       </main>
-
       <div className="fixed top-20 lg:top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
           <div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black/95 border ${n.type === 'error' ? 'border-red-900 text-red-400' : 'border-[#b28a48] text-[#b28a48]'} max-w-[280px] md:max-w-md`}>

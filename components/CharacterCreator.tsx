@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, UserAccount } from '../types';
+import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, UserAccount, Spell } from '../types';
 import { generateImage, generateCharacterFeats, rerollStats, generateCharacterAppearance } from '../services/gemini';
 
 const INITIAL_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
@@ -40,7 +40,7 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, notify, reservoirReady, currentUser, onBanish }) => {
+const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify, reservoirReady, currentUser, onBanish }) => {
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
   const [race, setRace] = useState<RaceType>('Human');
@@ -67,7 +67,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     try {
       const selectedClass = classes.find(c => c.id === classId);
       const imageUrl = await generateImage(`Portrait of a ${gender} ${race} ${selectedClass?.name}. ${charDescription}`);
-      // Ensure classes always have at least 5 feats if we generate them
       const feats = await generateCharacterFeats(selectedClass?.name || 'Hero', '');
       
       const newChar: Character = {
@@ -75,7 +74,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         name, classId, race, gender, description: charDescription, level: 1, 
         stats: { ...stats }, hp: 10, maxHp: 10, gold: 50, feats: feats.slice(0, 5), isPlayer: true, 
         inventory: selectedClass?.startingItemIds || [], size: 'Medium', imageUrl,
-        unspentAsiPoints: 0
+        unspentAsiPoints: 0,
+        knownSpells: selectedClass?.initialSpells || []
       };
       
       setCharacters(prev => [...prev, newChar]);
@@ -88,11 +88,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     setCharacters(prev => prev.map(c => {
       if (c.id !== charId || !c.unspentAsiPoints || c.unspentAsiPoints <= 0) return c;
       const newStats = { ...c.stats, [stat]: c.stats[stat] + 1 };
-      // Recalculate HP if CON changed
       let hp = c.hp;
       let maxHp = c.maxHp;
       if (stat === 'constitution') {
-        const hpGain = 1; // Simplification for ASI
+        const hpGain = 1; 
         hp += hpGain;
         maxHp += hpGain;
       }
@@ -103,6 +102,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
   const selectedChar = characters.find(c => c.id === selectedCharacterId);
   const selectedClass = classes.find(c => c.id === selectedChar?.classId);
+  
+  const charInventoryItems = useMemo(() => {
+    if (!selectedChar) return [];
+    return selectedChar.inventory.map(id => items.find(i => i.id === id)).filter(i => !!i) as Item[];
+  }, [selectedChar, items]);
+
+  const currentBonus = RACIAL_BONUSES[race];
 
   return (
     <div className="space-y-12 pb-24 text-left">
@@ -116,17 +122,27 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
           <h3 className="text-xl font-black fantasy-font text-neutral-300">Summon New Soul</h3>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] uppercase outline-none" />
           <div className="grid grid-cols-2 gap-4">
-            <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase">
-              <option value="Human">Human</option>
-              <option value="Elf">Elf</option>
-              <option value="Dwarf">Dwarf</option>
-              <option value="Half-Elf">Half-Elf</option>
-              <option value="Orc">Orc</option>
-            </select>
-            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase">
-              <option value="">PATH...</option>
-              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <div className="space-y-1">
+              <label className="text-[8px] text-neutral-600 font-black uppercase">Race Selection</label>
+              <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase">
+                {Object.keys(RACIAL_BONUSES).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <div className="p-2 bg-amber-950/20 border border-amber-900/30 rounded-sm">
+                 <p className="text-[7px] text-neutral-500 font-black uppercase mb-1">Innate Bonuses</p>
+                 <div className="flex flex-wrap gap-2">
+                    {Object.entries(currentBonus).map(([s, val]) => (
+                      <span key={s} className="text-[8px] text-amber-500 font-black uppercase">+{val} {s.slice(0,3)}</span>
+                    ))}
+                 </div>
+              </div>
+            </div>
+            <div className="space-y-1">
+               <label className="text-[8px] text-neutral-600 font-black uppercase">Legendary Path</label>
+               <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase h-[calc(100%-12px)]">
+                <option value="">PATH...</option>
+                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {(Object.keys(stats) as Array<keyof Stats>).map(s => (
@@ -172,44 +188,89 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       </div>
 
       {selectedChar && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-neutral-950 border border-[#b28a48]/30 rounded-sm shadow-2xl overflow-y-auto">
-            <button onClick={() => setSelectedCharacterId(null)} className="absolute top-4 right-4 text-neutral-600 hover:text-white text-2xl">✕</button>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-5xl my-auto bg-neutral-950 border border-[#b28a48]/30 rounded-sm shadow-2xl">
+            <button onClick={() => setSelectedCharacterId(null)} className="absolute top-4 right-4 text-neutral-600 hover:text-white text-2xl z-10">✕</button>
             <div className="p-8 md:p-12">
-               <div className="flex flex-col md:flex-row gap-8">
-                  <div className="w-full md:w-1/3 aspect-square bg-black rounded-sm border border-neutral-800 overflow-hidden shrink-0">
-                    {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className="w-full h-full object-cover" />}
+               <div className="flex flex-col lg:flex-row gap-12">
+                  <div className="w-full lg:w-1/3 space-y-6">
+                    <div className="aspect-square bg-black rounded-sm border border-neutral-800 overflow-hidden shrink-0 shadow-2xl">
+                      {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase text-neutral-600 tracking-widest border-b border-neutral-900 pb-2">Stats & Modifiers</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                            {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(s => (
+                                <div key={s} className="bg-black border border-neutral-900 p-2 rounded-sm text-center relative group">
+                                <p className="text-[7px] uppercase font-black text-neutral-600 mb-1">{s.slice(0,3)}</p>
+                                <p className="text-xl font-black text-white">{selectedChar.stats[s]}</p>
+                                <p className="text-[10px] text-[#b28a48]">{getModifier(selectedChar.stats[s])}</p>
+                                {selectedChar.unspentAsiPoints ? (
+                                    <button onClick={() => applyASI(selectedChar.id, s)} className="absolute -top-1 -right-1 bg-amber-500 text-black w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg">+</button>
+                                ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-6">
+
+                  <div className="flex-1 space-y-8 text-left">
                     <div>
-                      <h3 className="text-4xl font-black fantasy-font text-[#b28a48]">{selectedChar.name}</h3>
-                      <p className="text-sm text-neutral-500 uppercase tracking-widest">{selectedChar.race} {selectedClass?.name} • Level {selectedChar.level}</p>
-                      <p className="text-xs italic text-neutral-400 font-serif mt-2">"{selectedChar.description}"</p>
+                      <h3 className="text-4xl md:text-5xl font-black fantasy-font text-[#b28a48]">{selectedChar.name}</h3>
+                      <p className="text-sm text-neutral-500 uppercase tracking-widest font-black">{selectedChar.race} {selectedClass?.name} • Level {selectedChar.level}</p>
+                      <p className="text-xs italic text-neutral-400 font-serif mt-4 leading-relaxed border-l-2 border-[#b28a48]/20 pl-4">"{selectedChar.description}"</p>
                     </div>
                     
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                      {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(s => (
-                        <div key={s} className="bg-black border border-neutral-900 p-2 rounded-sm text-center relative group">
-                          <p className="text-[7px] uppercase font-black text-neutral-600 mb-1">{s.slice(0,3)}</p>
-                          <p className="text-xl font-black text-white">{selectedChar.stats[s]}</p>
-                          <p className="text-[10px] text-[#b28a48]">{getModifier(selectedChar.stats[s])}</p>
-                          {selectedChar.unspentAsiPoints ? (
-                            <button onClick={() => applyASI(selectedChar.id, s)} className="absolute -top-1 -right-1 bg-amber-500 text-black w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg">+</button>
-                          ) : null}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                            <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Traits & Feats</h4>
+                            <div className="space-y-3">
+                                {selectedChar.feats.length > 0 ? selectedChar.feats.map((f, i) => (
+                                <div key={i} className="p-3 bg-neutral-900/30 border border-neutral-800 rounded-sm hover:border-neutral-700 transition-colors">
+                                    <p className="text-[10px] font-black text-[#b28a48] uppercase">{f.name}</p>
+                                    <p className="text-[9px] text-neutral-500 italic leading-relaxed mt-1">{f.description}</p>
+                                </div>
+                                )) : (
+                                    <p className="text-[9px] text-neutral-700 italic">No special feats recorded...</p>
+                                )}
+                            </div>
                         </div>
-                      ))}
-                    </div>
 
-                    <div className="space-y-4">
-                      <h4 className="text-[10px] font-black uppercase text-neutral-600 tracking-widest border-b border-neutral-900 pb-2">Traits & Feats</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {selectedChar.feats.map((f, i) => (
-                          <div key={i} className="p-3 bg-neutral-900/30 border border-neutral-800 rounded-sm">
-                            <p className="text-[10px] font-black text-[#b28a48] uppercase">{f.name}</p>
-                            <p className="text-[9px] text-neutral-500 italic leading-relaxed">{f.description}</p>
-                          </div>
-                        ))}
-                      </div>
+                        <div className="space-y-6">
+                            <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Possessions</h4>
+                            <div className="space-y-2">
+                                {charInventoryItems.length > 0 ? charInventoryItems.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 bg-black/40 border border-neutral-900 rounded-sm">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-lg">{item.type === 'Weapon' ? '⚔️' : '🛡️'}</span>
+                                            <div>
+                                                <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">{item.name}</p>
+                                                <p className="text-[8px] text-neutral-600 uppercase font-black">{item.type}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <p className="text-[9px] text-neutral-700 italic">Inventory is empty...</p>
+                                )}
+                            </div>
+
+                            {(selectedChar.knownSpells && selectedChar.knownSpells.length > 0) && (
+                                <div className="pt-6">
+                                    <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Incantations</h4>
+                                    <div className="space-y-2 mt-4">
+                                        {selectedChar.knownSpells.map((spell, i) => (
+                                            <div key={i} className="p-3 bg-blue-950/10 border border-blue-900/20 rounded-sm">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{spell.name}</p>
+                                                    <span className="text-[8px] text-blue-900 font-black uppercase">LVL {spell.level}</span>
+                                                </div>
+                                                <p className="text-[9px] text-neutral-500 font-serif italic">{spell.description}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                   </div>
                </div>

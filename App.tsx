@@ -133,17 +133,43 @@ const MONTHLY_CONTENT = {
     { 
       id: 'hero-lina', name: 'Lina', classId: 'cls-mage', race: 'Human' as const, gender: 'Female' as const, gold: 50, 
       description: "A timid human mage with a soft voice. She clutches her holy symbol tightly whenever she's nervous.", level: 1, stats: { strength: 8, dexterity: 12, constitution: 13, intelligence: 14, wisdom: 16, charisma: 14 }, hp: 10, maxHp: 10, 
-      feats: [], inventory: ['itm-mage-staff', 'itm-robed-attire'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
+      feats: [
+        { name: 'Soothing Aura', description: 'Allies within 20 feet gain 1d4 temporary HP at the start of their turn.' },
+        { name: 'Saintly Resolve', description: 'Gain advantage on Concentration checks to maintain spells.' },
+        { name: 'Resonant Buffs', description: 'Single-target buffs automatically spread to all allies within 15ft.' },
+        { name: 'Divine Healing', description: 'Healing spells restore max health to targets below 25% HP.' },
+        { name: 'Protective Aura', description: 'Allies within 10ft gain +1 bonus to all Saving Throws.' }
+      ], 
+      knownSpells: [
+        { name: 'Holy Veil', level: 1, school: 'Abjuration', description: 'Shield an ally from 10 points of damage.' },
+        { name: 'Bless', level: 1, school: 'Enchantment', description: '+1d4 to attack and saves for 3 allies.' },
+        { name: 'Regen', level: 2, school: 'Conjuration', description: 'Target heals 1d8 at the start of their next 3 turns.' }
+      ],
+      inventory: ['itm-mage-staff', 'itm-robed-attire'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
     },
     { 
       id: 'hero-seris', name: 'Seris', classId: 'cls-archer', race: 'Elf' as const, gender: 'Female' as const, gold: 50, 
       description: "A stoic elf archer. Aloof and extremely logical, she speaks only when necessary for survival.", level: 1, stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 12, wisdom: 15, charisma: 8 }, hp: 11, maxHp: 11, 
-      feats: [], inventory: ['itm-arch-bow', 'itm-leather-armor'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
+      feats: [
+        { name: 'Sky Shot', description: 'Shoot flying enemies with perfect accuracy, ignoring range penalties.' },
+        { name: 'Exposed Weakness', description: 'Target an exposed enemy to deal an additional 1d8 damage.' },
+        { name: 'Lightfoot', description: 'AC bonus (+2) while moving at least 20ft in light armor.' },
+        { name: 'Special Arrows', description: 'Craft arrows with Fire (AOE), Ice (Slow), or Force (Knockback) effects.' },
+        { name: 'Rapid Fire', description: 'Fire twice as a single action, but with -2 to each attack roll.' }
+      ], 
+      inventory: ['itm-arch-bow', 'itm-leather-armor'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
     },
     { 
       id: 'hero-miri', name: 'Miri', classId: 'cls-fighter', race: 'Human' as const, gender: 'Female' as const, gold: 50, 
       description: "An energetic human fighter. She loves the thrill of the front line and emboldens the party with her bravery.", level: 1, stats: { strength: 16, dexterity: 14, constitution: 16, intelligence: 8, wisdom: 10, charisma: 12 }, hp: 12, maxHp: 12, 
-      feats: [], inventory: ['itm-fig-sword', 'itm-fig-shield', 'itm-half-plate'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
+      feats: [
+        { name: 'Shield Wall', description: 'Passive +2 AC bonus to yourself and any adjacent ally.' },
+        { name: 'Shield Bash', description: 'Bash for 1d6+Str damage and cause "Flinch" (lose reaction).' },
+        { name: 'Frontline Guardian', description: 'Intercept an attack meant for an ally within 5ft once per round.' },
+        { name: 'Steel Resolve', description: 'Ignore effects of one status condition for 1 minute (1/day).' },
+        { name: 'Master Duelist', description: 'Gain +2 to hit while no other allies are within 5ft of your target.' }
+      ], 
+      inventory: ['itm-fig-sword', 'itm-fig-shield', 'itm-half-plate'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
     }
   ],
   initialCampaign: {

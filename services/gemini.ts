@@ -584,8 +584,11 @@ export const generateRules = async (plot: string): Promise<Rule[]> => {
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
       contents: `Design 5 core TTRPG rules for a world described as: ${plot}. 
-      The rules should cover core mechanics like combat, magic, health, and world interaction.
-      Output ONLY JSON.`,
+      RULES:
+      - Prioritize mechanical balance and system parity.
+      - Ensure rules apply consistently across different character types.
+      - Focus on combat flow, magic limitations, health recovery, and exploration risks.
+      - Output ONLY JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

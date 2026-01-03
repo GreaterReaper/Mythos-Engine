@@ -117,6 +117,8 @@ const SYSTEM_ITEMS: Item[] = [
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'profile' | 'rules'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const currentRegVersion = parseInt(localStorage.getItem('mythos_registry_version') || '0');
@@ -448,16 +450,27 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={handleSignOut} user={currentUser} onlineFriends={onlineFriends} />
-      <main className="flex-1 relative overflow-y-auto scrollbar-hide pb-[calc(60px+var(--safe-bottom))] lg:pb-0 pt-[calc(48px+var(--safe-top))] lg:pt-0">
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={(tab) => { setActiveTab(tab); setMobileSidebarOpen(false); }} 
+        onSignOut={handleSignOut} 
+        user={currentUser} 
+        onlineFriends={onlineFriends} 
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        setMobileOpen={setMobileSidebarOpen}
+      />
+      
+      <main className={`flex-1 relative overflow-y-auto transition-all duration-300 pb-[calc(60px+var(--safe-bottom))] lg:pb-0 pt-[calc(48px+var(--safe-top))] lg:pt-0`}>
         <div className="p-3 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} manifestBasics={manifestBasics} setCharacters={setCharacters} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} manifestBasics={manifestBasics} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} items={items} setItems={setItems} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
-          {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoirReady} broadcast={broadcast} setActiveTab={setActiveTab} />}
+          {activeTab === 'rules' && <RulesManifest user={currentUser} campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoirReady} broadcast={broadcast} setActiveTab={setActiveTab} />}
           {activeTab === 'profile' && <ProfilePanel user={currentUser} onlineFriends={onlineFriends} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={[]} joinSession={(id) => { setIsHost(false); const conn = peerRef.current!.connect(id); setupConnection(conn); }} setIsHost={setIsHost} forceSync={(sel) => {
               const state: any = {};
@@ -470,8 +483,16 @@ const App: React.FC = () => {
       </main>
       
       {/* resonance header */}
-      <div className="fixed top-0 right-0 left-0 lg:left-64 h-[calc(48px+var(--safe-top))] z-[60] bg-black/85 backdrop-blur-lg border-b border-neutral-900 px-4 md:px-6 flex items-center justify-between pt-[var(--safe-top)]">
+      <div className={`fixed top-0 right-0 left-0 transition-all duration-300 lg:left-${sidebarCollapsed ? '20' : '64'} h-[calc(48px+var(--safe-top))] z-[60] bg-black/85 backdrop-blur-lg border-b border-neutral-900 px-4 md:px-6 flex items-center justify-between pt-[var(--safe-top)]`}>
         <div className="flex items-center gap-3 md:gap-8">
+           <button 
+             onClick={() => setMobileSidebarOpen(true)}
+             className="lg:hidden p-2 -ml-2 text-[#b28a48] hover:text-white transition-colors"
+           >
+             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+             </svg>
+           </button>
            <div className="flex flex-col items-end">
               <span className="text-[7px] font-black text-neutral-600 uppercase tracking-widest leading-none mb-0.5">Resonance</span>
               <span className={`text-[11px] font-black leading-none ${currentUser.isAdmin ? 'text-blue-400' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : reservoir} / 100</span>
@@ -480,8 +501,11 @@ const App: React.FC = () => {
               <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : 'bg-[#b28a48]'}`} style={{ width: `${currentUser.isAdmin ? 100 : reservoir}%` }}></div>
            </div>
         </div>
-        <div className="lg:hidden flex items-center gap-3">
-          <div className="fantasy-font text-[10px] text-[#b28a48] font-black tracking-widest uppercase">Mythos</div>
+        <div className="flex items-center gap-3">
+          <div className="fantasy-font text-[10px] text-[#b28a48] font-black tracking-widest uppercase hidden md:block">Mythos Engine</div>
+          {currentUser.isAdmin && (
+             <span className="text-[7px] font-black bg-blue-500/10 text-blue-500 border border-blue-500/30 px-2 py-1 rounded-sm tracking-widest uppercase">Admin Conduit</span>
+          )}
         </div>
       </div>
 

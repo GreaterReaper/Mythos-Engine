@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
-import { CampaignState, Rule, SyncMessage } from '../types';
+import { CampaignState, Rule, SyncMessage, UserAccount } from '../types';
 import { generateRules } from '../services/gemini';
 
 interface RulesManifestProps {
+  user: UserAccount;
   campaign: CampaignState;
   setCampaign: React.Dispatch<React.SetStateAction<CampaignState>>;
   notify: (msg: string, type?: any) => void;
@@ -12,20 +14,26 @@ interface RulesManifestProps {
   setActiveTab: (tab: any) => void;
 }
 
-const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, notify, isHost, reservoirReady, broadcast, setActiveTab }) => {
+const RulesManifest: React.FC<RulesManifestProps> = ({ user, campaign, setCampaign, notify, isHost, reservoirReady, broadcast, setActiveTab }) => {
   const [loading, setLoading] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [customContent, setCustomContent] = useState('');
 
+  const isAdmin = user.isAdmin === true;
+
   const handleManifestRules = async () => {
+    if (!isAdmin) {
+      notify("Only an Architect can reweave the fundamental laws.", "error");
+      return;
+    }
     if (!reservoirReady || loading) return;
     setLoading(true);
     try {
       const generated = await generateRules(campaign.plot);
       setCampaign(prev => ({ ...prev, rules: generated }));
       broadcast({ type: 'STATE_UPDATE', payload: { campaign: { ...campaign, rules: generated } } });
-      notify("Standard Mechanics Manifested.", "success");
+      notify("Laws of the Realm Synchronized.", "success");
     } catch (error: any) {
       notify(error.message || "Failed to manifest rules.", "error");
     } finally {
@@ -34,6 +42,7 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
   };
 
   const handleAddRule = () => {
+    if (!isAdmin) return;
     if (!customName || !customContent) return;
     const newRule: Rule = {
       id: Math.random().toString(36).substr(2, 9),
@@ -45,13 +54,15 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
     setCampaign(prev => ({ ...prev, rules: updatedRules }));
     broadcast({ type: 'STATE_UPDATE', payload: { campaign: { ...campaign, rules: updatedRules } } });
     setCustomName(''); setCustomCategory(''); setCustomContent('');
-    notify("Rule inscribed.", "success");
+    notify("Rule inscribed into the Codex.", "success");
   };
 
   const deleteRule = (id: string) => {
+    if (!isAdmin) return;
     const updatedRules = campaign.rules.filter(r => r.id !== id);
     setCampaign(prev => ({ ...prev, rules: updatedRules }));
     broadcast({ type: 'STATE_UPDATE', payload: { campaign: { ...campaign, rules: updatedRules } } });
+    notify("Law abolished.", "info");
   };
 
   return (
@@ -66,29 +77,33 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
         </button>
         <div className="text-center">
           <h2 className="text-3xl md:text-5xl font-black fantasy-font text-[#b28a48] drop-shadow-[0_2px_10px_rgba(178,138,72,0.3)]">Laws of the Realm</h2>
-          <p className="text-neutral-500 text-[10px] md:text-xs uppercase tracking-[0.4em] mt-2 font-black">Fundamental Mechanics & Social Contracts</p>
+          <p className="text-neutral-500 text-[10px] md:text-xs uppercase tracking-[0.4em] mt-2 font-black">Fundamental Mechanics & Balanced Constraints</p>
         </div>
         <div className="hidden md:block w-[180px]"></div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-12 items-start">
-        {/* Left Sidebar: Host Tools */}
-        {isHost && (
-          <div className="w-full lg:w-80 space-y-8 shrink-0">
-            <div className="grim-card p-6 border-2 border-[#b28a48]/20 rounded-sm shadow-2xl bg-black">
-              <h3 className="text-sm font-black fantasy-font text-[#b28a48] mb-6 uppercase tracking-widest border-b border-[#b28a48]/10 pb-2">Inscribe Law</h3>
+        {/* Left Sidebar: Architect Tools */}
+        {isAdmin && (
+          <div className="w-full lg:w-80 space-y-8 shrink-0 animate-in slide-in-from-left duration-500">
+            <div className="grim-card p-6 border-2 border-amber-500/30 rounded-sm shadow-2xl bg-black">
+              <div className="flex items-center justify-between mb-6 border-b border-amber-900/30 pb-2">
+                <h3 className="text-sm font-black fantasy-font text-amber-500 uppercase tracking-widest">Architect Codex</h3>
+                <span className="text-[7px] font-black bg-amber-500/10 text-amber-500 px-1.5 py-0.5 border border-amber-500/30 rounded-sm">ADMIN</span>
+              </div>
+              
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Rule Title</label>
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Law Title</label>
                   <input 
                     value={customName} 
                     onChange={(e) => setCustomName(e.target.value)}
                     placeholder="e.g. Mortal Fatigue..." 
-                    className="w-full bg-black border border-neutral-800 p-3 text-xs uppercase tracking-widest text-[#b28a48] outline-none focus:border-[#b28a48]"
+                    className="w-full bg-black border border-neutral-800 p-3 text-xs uppercase tracking-widest text-amber-500 outline-none focus:border-amber-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Category</label>
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Category</label>
                   <input 
                     value={customCategory} 
                     onChange={(e) => setCustomCategory(e.target.value)}
@@ -97,39 +112,37 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Mechanical Text</label>
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest text-left block">Mechanical Text</label>
                   <textarea 
                     value={customContent}
                     onChange={(e) => setCustomContent(e.target.value)}
-                    placeholder="Define the mechanical constraints..." 
+                    placeholder="Define the mechanical constraints precisely..." 
                     className="w-full bg-black border border-neutral-900 p-4 h-40 text-xs text-neutral-400 outline-none font-serif italic focus:border-neutral-700 resize-none"
                   />
                 </div>
                 <button 
                   onClick={handleAddRule}
                   disabled={!customName || !customContent}
-                  className="w-full bg-[#b28a48] hover:bg-[#cbb07a] text-black py-4 font-black text-[10px] uppercase tracking-[0.3em] disabled:opacity-20 transition-all shadow-xl active:scale-95"
+                  className="w-full bg-amber-600 hover:bg-amber-500 text-black py-4 font-black text-[10px] uppercase tracking-[0.3em] disabled:opacity-20 transition-all shadow-xl active:scale-95 rounded-sm"
                 >
-                  Confirm Inscription
+                  Inscribe New Law
                 </button>
               </div>
 
-              {campaign.rules.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-neutral-900">
-                  <button 
-                    onClick={handleManifestRules}
-                    disabled={loading || !reservoirReady}
-                    className="w-full bg-neutral-950 border border-amber-950/20 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-amber-700 hover:text-amber-500 hover:bg-black transition-all flex flex-col items-center gap-1 group"
-                  >
-                    {loading ? 'CHANNELING...' : (
-                      <>
-                        <span className="group-hover:animate-pulse">Manifest CORE RULES</span>
-                        <span className="text-[7px] opacity-40">[-20⚡ ESSENCE]</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
+              <div className="mt-8 pt-6 border-t border-amber-900/20">
+                <button 
+                  onClick={handleManifestRules}
+                  disabled={loading || !reservoirReady}
+                  className="w-full bg-neutral-950 border border-amber-950/20 py-4 text-[9px] font-black uppercase tracking-[0.2em] text-amber-700 hover:text-amber-500 hover:bg-black transition-all flex flex-col items-center gap-1 group rounded-sm"
+                >
+                  {loading ? 'REWEAVING REALITY...' : (
+                    <>
+                      <span className="group-hover:animate-pulse">Generate Balanced Laws</span>
+                      <span className="text-[7px] opacity-40">[-20⚡ ESSENCE]</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -141,19 +154,19 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
                <div className="text-6xl mb-6 opacity-40 drop-shadow-[0_0_20px_rgba(178,138,72,0.2)]">⚖️</div>
                <h3 className="text-xl font-black fantasy-font text-[#b28a48] mb-4 uppercase tracking-[0.2em]">The Codex is Empty</h3>
                <p className="text-xs md:text-sm text-neutral-500 max-w-md font-serif italic leading-relaxed mb-10">
-                 {isHost 
-                   ? "No laws have been inscribed for this realm yet. You may manifest the fundamental laws of TTRPGs or create your own custom mechanics."
-                   : "The Master of Fates has not yet inscribed the laws of this realm. Consult with your Dungeon Master to establish the rules of engagement."
+                 {isAdmin 
+                   ? "No laws have been inscribed for this realm. As an Architect, you can manifest fundamental balanced laws or craft custom mechanics."
+                   : "The Architect has not yet manifest the laws of this chronicle. Consult with your party leader to establish the rules of engagement."
                  }
                </p>
                
-               {isHost && (
+               {isAdmin && (
                  <button 
                    onClick={handleManifestRules}
                    disabled={loading || !reservoirReady}
                    className="bg-amber-950/20 border-2 border-[#b28a48] hover:bg-[#b28a48] text-[#b28a48] hover:text-black px-12 py-5 text-xs font-black uppercase tracking-[0.5em] transition-all shadow-[0_0_30px_rgba(178,138,72,0.1)] active:scale-95 disabled:opacity-20"
                  >
-                   {loading ? 'CHANNELING LEY LINES...' : 'MANIFEST CORE LAWS'}
+                   {loading ? 'REWEAVING REALITY...' : 'MANIFEST BALANCED LAWS'}
                  </button>
                )}
             </div>
@@ -169,7 +182,7 @@ const RulesManifest: React.FC<RulesManifestProps> = ({ campaign, setCampaign, no
                         <span className="text-[9px] font-black text-amber-800 uppercase tracking-[0.4em] block mb-2">{rule.category || 'GENERAL LAW'}</span>
                         <h3 className="text-2xl md:text-3xl font-black fantasy-font text-[#b28a48] tracking-widest drop-shadow-sm">{rule.name}</h3>
                       </div>
-                      {isHost && (
+                      {isAdmin && (
                         <button 
                           onClick={() => deleteRule(rule.id)} 
                           className="bg-red-950/10 border border-red-900/20 hover:border-red-600 hover:text-red-500 text-red-900 px-3 py-1.5 transition-all text-[9px] font-black uppercase tracking-widest rounded-sm"

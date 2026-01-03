@@ -38,6 +38,10 @@ const THEMATIC_SPELLS: Record<string, Spell[]> = {
     { name: 'Revitalizing Mist', level: 2, school: 'Evocation', description: 'Heals all allies in a 30ft radius for 2d8 + WIS modifier.' },
     { name: 'Guidance', level: 0, school: 'Divination', description: 'Target can roll a d4 and add it to one ability check.' },
     { name: 'Lesser Restoration', level: 2, school: 'Abjuration', description: 'End one disease or condition (blinded, deafened, paralyzed, poisoned).' }
+  ],
+  darkKnight: [
+    { name: 'Grave Touch', level: 1, school: 'Necromancy', description: 'Melee spell attack deals 1d10 necrotic damage; target cannot take reactions until your next turn.' },
+    { name: 'Void Shield', level: 1, school: 'Abjuration', description: 'Shadows coil around you, granting +2 AC and dealing 1d4 cold damage to attackers who hit you.' }
   ]
 };
 
@@ -88,6 +92,24 @@ const SYSTEM_ITEMS: Item[] = [
     description: 'Boiled leather armor reinforced with iron studs.',
     mechanics: [{ name: 'Light Mobility', description: 'Does not impose disadvantage on Stealth checks.' }],
     lore: 'Lightweight protection for the agile wanderer.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-ebony-greatsword',
+    name: 'Ebony Greatsword',
+    type: 'Weapon',
+    description: 'A massive blade of pitch-black metal that seems to drink the light.',
+    mechanics: [{ name: 'Heavy Cleave', description: 'On a critical hit, the target is knocked prone.' }],
+    lore: 'Forged in the heart of the Shadowfell for the first Dark Knights.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-dread-plate',
+    name: 'Dread Plate',
+    type: 'Armor',
+    description: 'Menacing plate armor etched with runes of suffering.',
+    mechanics: [{ name: 'Aura of Fear', description: 'Enemies within 5ft have -1 to attack rolls against you.' }],
+    lore: 'Armor that hums with the resonance of lost souls.',
     authorId: 'system', authorName: 'Orestara'
   }
 ];
@@ -270,7 +292,7 @@ const App: React.FC = () => {
       const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
-          try { i.imageUrl = await generateImage(`High-quality TTRPG artifact: ${i.name}.`); setItems(prev => [...prev.filter(pi => pi.id !== i.id), i]); } catch(e) {}
+          try { i.imageUrl = await generateImage(`High-quality TTRPG artifact: ${i.name}. Appearance: ${i.description}.`); setItems(prev => [...prev.filter(pi => pi.id !== i.id), i]); } catch(e) {}
         }
       }
       updatedItems = [...updatedItems.filter(i => !existingIds.has(i.id)), ...itemsToAdd];
@@ -283,6 +305,9 @@ const App: React.FC = () => {
         },
         {
           id: 'basic-mage', name: 'Mage', description: 'Supportive aether-users.', hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery'], startingItemIds: ['sys-oak-staff', 'sys-leather-armor'], features: [{ name: 'Vital Flow', description: 'Restore 1d10 hit points.' }], initialSpells: THEMATIC_SPELLS.mage, authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-dark-knight', name: 'Dark Knight', description: 'Vanguards of the void who trade vitality for ruinous power.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [2, 0, 0], preferredStats: ['Charisma', 'Strength'], bonuses: ['Heavy Armor Proficiency', 'Necrotic Affinity'], startingItemIds: ['sys-ebony-greatsword', 'sys-dread-plate'], features: [{ name: 'Soul-Resonance (Abyssal)', description: 'Gain Resonance stacks on kills or saves. Spend stacks to heal or deal necrotic ruin.' }], initialSpells: THEMATIC_SPELLS.darkKnight, authorId: 'system', authorName: 'Orestara'
         }
       ];
       updatedClasses = [...updatedClasses.filter(c => !c.id.startsWith('basic')), ...basicClasses];
@@ -308,6 +333,12 @@ const App: React.FC = () => {
               description: "Skin the color of polished obsidian. Flows in deep violet robes.", 
               level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 }, hp: 10, maxHp: 10, 
               feats: [{ name: 'Abyssal Spark', description: 'Fire damage ignores minor resistance.' }], inventory: ['sys-oak-staff', 'sys-leather-armor'], isPlayer: false, authorId: 'system', authorName: 'Orestara' 
+            },
+            { 
+              id: 'hero-vane', name: 'Vane', classId: 'basic-dark-knight', race: 'Variant Human', gender: 'Male', gold: 80, 
+              description: "A somber figure in heavy ebony plate. His eyes glow with a faint violet light when he channels his Soul-Resonance.", 
+              level: 1, stats: { strength: 15, dexterity: 10, constitution: 14, intelligence: 10, wisdom: 12, charisma: 16 }, hp: 10, maxHp: 10, 
+              feats: [{ name: 'Abyssal Pact', description: 'Immune to Frightened condition.' }], inventory: ['sys-ebony-greatsword', 'sys-dread-plate'], isPlayer: false, authorId: 'system', authorName: 'Orestara' 
             }
         ];
         for (let h of heroes) {

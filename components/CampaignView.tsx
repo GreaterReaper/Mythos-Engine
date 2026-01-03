@@ -23,7 +23,6 @@ interface CampaignViewProps {
   user: UserAccount;
 }
 
-const GRID_SIZE = 10;
 const SIZE_MAP = { Small: 0.8, Medium: 1, Large: 1.8, Huge: 2.8, Gargantuan: 4 };
 
 const CampaignView: React.FC<CampaignViewProps> = ({ 
@@ -36,7 +35,14 @@ const CampaignView: React.FC<CampaignViewProps> = ({
   const [fullscreenTactical, setFullscreenTactical] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [campaign.logs]);
+  useEffect(() => { 
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [campaign.logs]);
 
   // Logic to scale a mentor to a target level
   const getScaledMentor = useCallback((template: Partial<Character>, targetLevel: number): Character => {
@@ -53,7 +59,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     const hpPerLevel = cls?.hpPerLevel || 5;
     const conMod = Math.floor((scaledStats.constitution - 10) / 2);
     
-    // Fix: template.startingHp does not exist on Character. Mentor templates in App.tsx define base HP via the 'hp' property.
+    // template.hp serves as starting HP for mentors
     const scaledMaxHp = (template.hp || 10) + ((targetLevel - 1) * (hpPerLevel + conMod));
 
     return {
@@ -113,7 +119,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     setCharacters(prev => prev.map(c => {
       if (c.id !== charId) return c;
       
-      // Mentors don't use EXP, they scale automatically
       if (c.isMentor) {
         notify("Mentors scale automatically to match your prowess.", "info");
         return c;
@@ -173,7 +178,6 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         notify(`Fellowship gained ${amount} Essence.`, "info");
       }
 
-      // Check if DM is "summoning" mentors narratively
       if (dmText.toLowerCase().includes("summon the mentor trio") || dmText.toLowerCase().includes("miri, lina, and seris arrive")) {
         if (isHost) handleSummonMentors();
       }
@@ -285,36 +289,46 @@ const CampaignView: React.FC<CampaignViewProps> = ({
               <button onClick={() => setFullscreenTactical(true)} className="absolute top-2 right-2 z-10 bg-black/40 p-2 rounded text-[8px] font-black uppercase tracking-widest text-[#b28a48] lg:hidden">Full Screen ⛶</button>
             )}
             
-            <div className="relative border-2 border-neutral-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] touch-none" style={{ width: 'min(95vw, 600px)', aspectRatio: '1/1', background: 'radial-gradient(circle, #111 0%, #000 100%)' }}>
+            <div className="relative border-2 border-neutral-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] touch-none select-none" style={{ width: 'min(95vw, 600px)', aspectRatio: '1/1', background: 'radial-gradient(circle, #111 0%, #000 100%)' }}>
                <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 opacity-10 pointer-events-none">
                   {Array.from({length: 100}).map((_, i) => <div key={i} className="border-[0.5px] border-[#b28a48]/30"></div>)}
                </div>
                
                {campaign.party.map((c, i) => {
                  const pos = c.position || { x: 2 + i, y: 8 };
-                 const size = SIZE_MAP[c.size || 'Medium'] * 10;
+                 const size = (SIZE_MAP[c.size || 'Medium'] || 1) * 10;
                  return (
                    <div key={c.id} 
-                    className={`absolute ${c.isMentor ? 'bg-blue-600' : 'bg-amber-600'} rounded-full border-2 border-white shadow-lg flex items-center justify-center cursor-move transition-all duration-300 group touch-manipulation active:scale-125`}
+                    className={`absolute ${c.isMentor ? 'bg-blue-600' : 'bg-amber-600'} rounded-full border-2 border-white shadow-lg flex items-center justify-center cursor-move transition-all duration-300 group touch-manipulation active:scale-125 active:z-[100]`}
                     style={{ left: `${pos.x * 10}%`, top: `${pos.y * 10}%`, width: `${size}%`, height: `${size}%`, zIndex: 10 + i }}
                     onMouseDown={() => isHost && moveEntity(c.id, (pos.x + 1) % 10, pos.y)}
-                    onTouchStart={() => isHost && moveEntity(c.id, (pos.x + 1) % 10, pos.y)}
+                    onTouchStart={(e) => {
+                      if (isHost) {
+                        e.preventDefault();
+                        moveEntity(c.id, (pos.x + 1) % 10, pos.y);
+                      }
+                    }}
                    >
                      <span className="text-[8px] font-black text-white pointer-events-none uppercase">{c.name[0]}</span>
-                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black border border-white/20 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{c.name} {c.isMentor ? '(Mentor)' : ''}</div>
+                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black border border-white/20 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{c.name} {c.isMentor ? '(AI)' : ''}</div>
                    </div>
                  );
                })}
 
                {campaign.activeEnemies?.map((m, i) => {
                  const pos = m.position || { x: 4 + i, y: 2 };
-                 const size = SIZE_MAP[m.size || 'Medium'] * 10;
+                 const size = (SIZE_MAP[m.size || 'Medium'] || 1) * 10;
                  return (
                    <div key={m.id} 
-                    className="absolute bg-red-600 rounded-sm border-2 border-red-400 shadow-[0_0_15px_rgba(255,0,0,0.5)] flex items-center justify-center cursor-move transition-all duration-300 group touch-manipulation active:scale-125"
+                    className="absolute bg-red-600 rounded-sm border-2 border-red-400 shadow-[0_0_15px_rgba(255,0,0,0.5)] flex items-center justify-center cursor-move transition-all duration-300 group touch-manipulation active:scale-125 active:z-[100]"
                     style={{ left: `${pos.x * 10}%`, top: `${pos.y * 10}%`, width: `${size}%`, height: `${size}%`, zIndex: 50 + i }}
                     onMouseDown={() => isHost && moveEntity(m.id, pos.x, (pos.y + 1) % 10, true)}
-                    onTouchStart={() => isHost && moveEntity(m.id, pos.x, (pos.y + 1) % 10, true)}
+                    onTouchStart={(e) => {
+                      if (isHost) {
+                        e.preventDefault();
+                        moveEntity(m.id, pos.x, (pos.y + 1) % 10, true);
+                      }
+                    }}
                    >
                      <span className="text-[10px] pointer-events-none">💀</span>
                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-red-950 border border-red-500 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{m.name}</div>
@@ -326,12 +340,12 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         )}
       </div>
 
-      <div className="flex gap-2 pt-2 pb-safe">
+      <div className="flex gap-2 pt-2 pb-safe shrink-0">
         <input 
           value={input} onChange={(e) => setInput(e.target.value)} 
-          placeholder="Narrate your solo saga..." 
+          placeholder="Narrate your fate..." 
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          className="flex-1 bg-black border border-neutral-800 p-3 md:p-4 rounded-sm outline-none text-[#b28a48] font-serif italic text-sm md:text-base active:border-[#b28a48]/60" 
+          className="flex-1 bg-black border border-neutral-800 p-3 md:p-4 rounded-sm outline-none text-[#b28a48] font-serif italic text-sm md:text-base active:border-[#b28a48]/60 focus:bg-neutral-900 transition-colors" 
         />
         <button onClick={handleSendMessage} disabled={loading} className="bg-[#b28a48] text-black px-6 md:px-8 font-black text-xs uppercase tracking-widest active:scale-95 disabled:opacity-30 h-auto min-h-[44px]">
           {loading ? '...' : '⚔️'}

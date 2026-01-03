@@ -17,7 +17,7 @@ import SoulCairn from './components/SoulCairn';
 import { generateImage, generateRules } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
-const REGISTRY_VERSION = 30; 
+const REGISTRY_VERSION = 31; 
 
 export const MENTOR_TEMPLATES: Partial<Character>[] = [
   { 
@@ -64,8 +64,7 @@ export const MENTOR_TEMPLATES: Partial<Character>[] = [
 ];
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v30-The-Gore-Awakening",
-  // Fix: Added heroes property for manifestBasics usage
+  version: "March-2025-v31-Final-Polished",
   heroes: MENTOR_TEMPLATES,
   classes: [
     {
@@ -83,7 +82,7 @@ const MONTHLY_CONTENT = {
     {
       id: 'cls-dark-knight', name: 'Dark Knight', description: 'Gloom-armored warriors who trade life force for catastrophic power.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 2, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['2H Swords', 'Intimidation'], features: [
         { name: 'Momentum Reaper', description: 'Move 10ft free after a kill.' },
-        { name: 'Living Dead', description: 'When hit by fatal damage, survive at 1 HP for one full combat turn (round). You must be healed for your Max HP total by the end of that turn or you perish.' },
+        { name: 'Living Dead', description: 'When hit by fatal damage, survive at 1 HP for one full combat turn. You must be healed for your Max HP total by the end of that turn or you perish.' },
         { name: 'Living Shadow', description: 'A shadow duplicate copies 50% of your damage.' },
         { name: 'Ignite Aether', description: 'Spend 10 HP for 2d10 necrotic damage.' },
         { name: 'Chill of the Abyss', description: 'Enemies within 5ft suffer -2 to attacks.' }
@@ -106,43 +105,24 @@ const MONTHLY_CONTENT = {
     }
   ],
   monsters: [
-    // Goblinoids
     { id: 'mon-gob-1', name: 'Goblin Prowler', description: 'A sneaky goblin with a jagged blade.', stats: { strength: 8, dexterity: 14, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 }, hp: 12, ac: 13, abilities: [{ name: 'Backstab', effect: '+1d6 damage on advantage.' }], size: 'Small', authorId: 'system' },
-    { id: 'mon-gob-2', name: 'Goblin Pyromaniac', description: 'Equipped with unstable fire flasks.', stats: { strength: 6, dexterity: 12, constitution: 10, intelligence: 12, wisdom: 10, charisma: 8 }, hp: 15, ac: 11, abilities: [{ name: 'Fire Flask', effect: '3d6 fire radius 5ft (One Use).' }], size: 'Small', authorId: 'system' },
-    { id: 'mon-gob-3', name: 'Hobgoblin Warlord', description: 'A disciplined commander of the horde.', stats: { strength: 16, dexterity: 12, constitution: 14, intelligence: 12, wisdom: 12, charisma: 14 }, hp: 45, ac: 17, abilities: [{ name: 'Martial Advantage', effect: '+2d6 damage if ally is nearby.' }], size: 'Medium', authorId: 'system' },
-    // Beasts
-    { id: 'mon-bst-1', name: 'Dire Wolf', description: 'A giant wolf with eyes like embers.', stats: { strength: 17, dexterity: 15, constitution: 15, intelligence: 3, wisdom: 12, charisma: 7 }, hp: 37, ac: 14, abilities: [{ name: 'Pack Tactics', effect: 'Advantage if ally is adjacent to target.' }], size: 'Large', authorId: 'system' },
-    { id: 'mon-bst-2', name: 'Venomspine Scorpion', description: 'A translucent desert horror.', stats: { strength: 12, dexterity: 16, constitution: 14, intelligence: 1, wisdom: 10, charisma: 2 }, hp: 25, ac: 16, abilities: [{ name: 'Deadly Sting', effect: 'Ongoing 1d10 poison damage.' }], size: 'Medium', authorId: 'system' },
-    { id: 'mon-bst-3', name: 'Shadow Panther', description: 'A cat made of living smoke.', stats: { strength: 14, dexterity: 18, constitution: 12, intelligence: 4, wisdom: 14, charisma: 8 }, hp: 55, ac: 15, abilities: [{ name: 'Pounce', effect: 'Knock prone on jump hits.' }], size: 'Large', authorId: 'system' },
-    // Undead
-    { id: 'mon-und-1', name: 'Crypt Ghoul', description: 'A hunched eater of the dead.', stats: { strength: 13, dexterity: 15, constitution: 10, intelligence: 7, wisdom: 10, charisma: 6 }, hp: 22, ac: 12, abilities: [{ name: 'Ghoul Fever', effect: 'Paralyze on hit (DC 12 Con).' }], size: 'Medium', authorId: 'system' },
-    { id: 'mon-und-2', name: 'Ancient Lich-Vestige', description: 'A decaying sorcerer holding a sliver of power.', stats: { strength: 10, dexterity: 12, constitution: 14, intelligence: 18, wisdom: 16, charisma: 14 }, hp: 60, ac: 13, abilities: [{ name: 'Cold Grasp', effect: '3d8 cold damage + slow.' }], size: 'Medium', authorId: 'system' },
     { id: 'mon-und-3', name: 'Spectral Knight', description: 'Armor filled with spiteful fog.', stats: { strength: 16, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 12, charisma: 10 }, hp: 75, ac: 18, abilities: [{ name: 'Ghostly Blade', effect: 'Ignore 5 AC of target.' }], size: 'Medium', authorId: 'system' },
-    // Humanoid
-    { id: 'mon-hum-1', name: 'Bandit Cutthroat', description: 'Mercenary out for coin.', stats: { strength: 12, dexterity: 14, constitution: 12, intelligence: 10, wisdom: 10, charisma: 10 }, hp: 20, ac: 13, abilities: [{ name: 'Cheap Shot', effect: 'Stun on surprise hits.' }], size: 'Medium', authorId: 'system' },
-    { id: 'mon-hum-2', name: 'Void Cultist', description: 'Eyes glowing with purple flame.', stats: { strength: 10, dexterity: 12, constitution: 10, intelligence: 14, wisdom: 8, charisma: 16 }, hp: 25, ac: 11, abilities: [{ name: 'Self-Immolation', effect: 'Explode for 4d6 void on death.' }], size: 'Medium', authorId: 'system' },
-    // Draconian
-    { id: 'mon-drk-1', name: 'Kobold Wyrm-Acolyte', description: 'Small lizard worshipping dragons.', stats: { strength: 7, dexterity: 15, constitution: 9, intelligence: 8, wisdom: 7, charisma: 8 }, hp: 9, ac: 12, abilities: [{ name: 'Dragon Breath (Weak)', effect: '2d4 fire cone.' }], size: 'Small', authorId: 'system' },
-    { id: 'mon-drk-2', name: 'Drake Sentinel', description: 'Wingless dragon with stone-like scales.', stats: { strength: 19, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 12, charisma: 10 }, hp: 95, ac: 19, abilities: [{ name: 'Tail Sweep', effect: 'Knock 3 targets prone.' }], size: 'Large', authorId: 'system' },
-    { id: 'mon-drk-3', name: 'Storm Wyvern', description: 'A blue-scaled beast that crackles with electricity.', stats: { strength: 18, dexterity: 16, constitution: 16, intelligence: 6, wisdom: 14, charisma: 10 }, hp: 120, ac: 17, abilities: [{ name: 'Chain Lightning', effect: '4d6 lightning to 3 targets.' }], size: 'Huge', authorId: 'system' },
-    // Boss
     { 
       id: 'mon-gorechimera', 
       name: 'Gorechimera', 
       isBoss: true,
-      description: 'A terrifying hybrid with the head and shoulders of a lion, the body and head of a goat, and a venomous serpent tail. It has more pallid, deathly skin compared to its weaker variant.', 
+      description: 'A terrifying hybrid with the head and shoulders of a lion, the body and head of a goat, and a venomous serpent tail. It has more pallid skin compared to its weaker variant.', 
       stats: { strength: 24, dexterity: 14, constitution: 22, intelligence: 12, wisdom: 18, charisma: 14 }, 
       hp: 400, 
       ac: 20, 
       size: 'Huge',
       abilities: [
         { name: 'Lion: Kingly Roar', effect: '4d8 thunder damage + Frightened in 30ft.' },
-        { name: 'Serpent: Venomous Spray', effect: '30ft cone, 4d6 poison + ongoing blindness.' },
-        { name: 'Goat: Necrotic Mending', effect: 'Heals all heads for 50 HP and resurrects any non-boss ally within 30ft at 1 HP.' }
+        { name: 'Serpent: Venomous Spray', effect: '30ft cone, 4d6 poison + blindness.' },
+        { name: 'Goat: Necrotic Mending', effect: 'Heals 50 HP and resurrects an ally at 1 HP.' }
       ],
       legendaryActions: [
-        { name: 'Triple Fury', effect: 'One attack from each head in sequence.' },
-        { name: 'Pallid Shroud', effect: 'Becomes misty; attacks against it have disadvantage.' }
+        { name: 'Triple Fury', effect: 'One attack from each head in sequence.' }
       ],
       authorId: 'system'
     }
@@ -191,7 +171,10 @@ const App: React.FC = () => {
     connections.forEach(conn => conn.open && conn.send(fullMsg));
   }, [connections, peerId, currentUser]);
 
-  const handleSignOut = () => { localStorage.removeItem('mythos_active_session'); setCurrentUser(null); };
+  const handleSignOut = () => { 
+    localStorage.removeItem('mythos_active_session'); 
+    setCurrentUser(null); 
+  };
 
   const handleDeleteAccount = useCallback(() => {
     if (!currentUser) return;
@@ -301,6 +284,16 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
+      <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-black/80 border-b border-[#b28a48]/20 backdrop-blur-md z-[100] h-16 shrink-0">
+        <button onClick={() => setMobileSidebarOpen(true)} className="text-[#b28a48] text-2xl p-2 active:scale-90 transition-transform">
+          ☰
+        </button>
+        <h1 className="text-lg font-black tracking-widest text-[#b28a48] fantasy-font truncate max-w-[60%]">
+          {campaign.locationName || 'Mythos Engine'}
+        </h1>
+        <div className="w-8"></div>
+      </header>
+
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -311,6 +304,7 @@ const App: React.FC = () => {
         mobileOpen={mobileSidebarOpen} 
         setMobileOpen={setMobileSidebarOpen} 
       />
+
       <main className={`flex-1 relative overflow-y-auto lg:h-full transition-all duration-300`}>
         <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} setCharacters={setCharacters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} />}
@@ -326,6 +320,7 @@ const App: React.FC = () => {
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign }} onImport={()=>{}} manifestBasics={manifestBasics} />}
         </div>
       </main>
+
       <div className="fixed top-20 lg:top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
           <div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black/95 border ${n.type === 'error' ? 'border-red-900 text-red-400' : 'border-[#b28a48] text-[#b28a48]'} max-w-[280px] md:max-w-md`}>

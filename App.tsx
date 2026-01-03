@@ -105,21 +105,15 @@ const MONTHLY_CONTENT = {
     }
   ],
   monsters: [
-    // Goblins
     { id: 'mon-gob-scout', name: 'Goblin Skirmisher', description: 'A fast goblin with a shortbow.', stats: { strength: 8, dexterity: 16, constitution: 10, intelligence: 10, wisdom: 8, charisma: 8 }, hp: 15, ac: 14, abilities: [{ name: 'Nimble Escape', effect: 'Disengage as bonus action.' }], authorId: 'system', size: 'Small' as const },
     { id: 'mon-gob-shaman', name: 'Goblin Witch-doctor', description: 'Casts primitive fire magic.', stats: { strength: 6, dexterity: 12, constitution: 12, intelligence: 14, wisdom: 14, charisma: 10 }, hp: 20, ac: 12, abilities: [{ name: 'Fire Spit', effect: 'Ranged attack 2d6 fire.' }], authorId: 'system', size: 'Small' as const },
-    // Beasts
     { id: 'mon-wolf-shadow', name: 'Shadow Panther', description: 'A sleek beast that hunts in the dark.', stats: { strength: 14, dexterity: 18, constitution: 12, intelligence: 4, wisdom: 14, charisma: 6 }, hp: 35, ac: 15, abilities: [{ name: 'Pounce', effect: 'Jump 20ft and knock target prone.' }], authorId: 'system', size: 'Medium' as const },
     { id: 'mon-boar-iron', name: 'Iron-hide Boar', description: 'A massive tusker with metallic fur.', stats: { strength: 18, dexterity: 8, constitution: 18, intelligence: 2, wisdom: 10, charisma: 4 }, hp: 50, ac: 16, abilities: [{ name: 'Tusk Charge', effect: 'Double damage on straight line moves.' }], authorId: 'system', size: 'Large' as const },
-    // Undead
     { id: 'mon-skeleton', name: 'Crypt Skeleton', description: 'Rattling bones in ancient armor.', stats: { strength: 10, dexterity: 14, constitution: 15, intelligence: 6, wisdom: 8, charisma: 5 }, hp: 13, ac: 13, abilities: [{ name: 'Undead Resolve', effect: 'Resistant to piercing.' }], authorId: 'system', size: 'Medium' as const },
     { id: 'mon-revenant', name: 'Vengeful Revenant', description: 'A tireless knight brought back by hate.', stats: { strength: 18, dexterity: 12, constitution: 20, intelligence: 10, wisdom: 12, charisma: 8 }, hp: 80, ac: 18, abilities: [{ name: 'Grip of Hate', effect: 'Target cannot move if hit.' }], authorId: 'system', size: 'Medium' as const },
-    // Humanoid
     { id: 'mon-mercenary', name: 'Iron Hand Mercenary', description: 'Professional soldier with a halberd.', stats: { strength: 16, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 10, charisma: 10 }, hp: 45, ac: 15, abilities: [{ name: 'Cleave', effect: 'Hit 2 adjacent targets.' }], authorId: 'system', size: 'Medium' as const },
     { id: 'mon-cultist', name: 'Void Cultist', description: 'Fanatic obsessed with the Eye.', stats: { strength: 10, dexterity: 12, constitution: 10, intelligence: 14, wisdom: 8, charisma: 16 }, hp: 25, ac: 11, abilities: [{ name: 'Self Sacrifice', effect: 'Explode on death dealing 3d6 void.' }], authorId: 'system', size: 'Medium' as const },
-    // Draconian
     { id: 'mon-drake-vanguard', name: 'Drake-Vanguard', description: 'A half-dragon warrior with a molten blade.', stats: { strength: 20, dexterity: 10, constitution: 18, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 110, ac: 19, abilities: [{ name: 'Flame Breath', effect: '4d6 fire cone.' }], authorId: 'system', size: 'Large' as const },
-    // Boss
     { 
       id: 'mon-gorechimera', 
       name: 'Gorechimera', 
@@ -230,7 +224,6 @@ const App: React.FC = () => {
   const [peerId, setPeerId] = useState<string>('');
   const [isHost, setIsHost] = useState<boolean>(true);
   const [connections, setConnections] = useState<DataConnection[]>([]);
-  const peerRef = useRef<Peer | null>(null);
 
   const notify = useCallback((message: string, type: 'error' | 'success' | 'info' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -335,6 +328,17 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
+      {/* Mobile Top Navigation Bar */}
+      <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-black/80 border-b border-[#b28a48]/20 backdrop-blur-md z-[100] h-16 shrink-0">
+        <button onClick={() => setMobileSidebarOpen(true)} className="text-[#b28a48] text-2xl p-2 active:scale-90 transition-transform">
+          ☰
+        </button>
+        <h1 className="text-lg font-black tracking-widest text-[#b28a48] fantasy-font truncate max-w-[60%]">
+          {campaign.locationName || 'Mythos Engine'}
+        </h1>
+        <div className="w-8"></div> {/* Spacer for symmetry */}
+      </header>
+
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -345,8 +349,9 @@ const App: React.FC = () => {
         mobileOpen={mobileSidebarOpen} 
         setMobileOpen={setMobileSidebarOpen} 
       />
-      <main className={`flex-1 relative overflow-y-auto pt-16 lg:pt-0 transition-all duration-300`}>
-        <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
+
+      <main className={`flex-1 relative overflow-y-auto lg:h-full transition-all duration-300`}>
+        <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} setCharacters={setCharacters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={true} currentUser={currentUser} onBanish={(char) => banishToCairn('characters', char)} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={true} currentUser={currentUser} items={items} setItems={setItems} />}
@@ -360,7 +365,15 @@ const App: React.FC = () => {
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign }} onImport={()=>{}} manifestBasics={manifestBasics} />}
         </div>
       </main>
-      <div className="fixed top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">{notifications.map(n => (<div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black border ${n.type === 'error' ? 'border-red-900 text-red-400' : 'border-[#b28a48] text-[#b28a48]'}`}><p className="text-[10px] font-black uppercase tracking-widest">{n.message}</p></div>))}</div>
+
+      {/* Global Notifications Overlay */}
+      <div className="fixed top-20 lg:top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
+        {notifications.map(n => (
+          <div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black/95 border ${n.type === 'error' ? 'border-red-900 text-red-400' : 'border-[#b28a48] text-[#b28a48]'} max-w-[280px] md:max-w-md`}>
+            <p className="text-[10px] font-black uppercase tracking-widest">{n.message}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

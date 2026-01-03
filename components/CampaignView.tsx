@@ -32,6 +32,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [viewMap, setViewMap] = useState<'chat' | 'world' | 'tactical'>('chat');
+  const [fullscreenTactical, setFullscreenTactical] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Sync scroll on logs
@@ -47,17 +48,14 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       const newStats = { ...c.stats };
       let unspentAsi = c.unspentAsiPoints || 0;
 
-      // Logic for ASI at 4, 8, 12, 16, 19
       const isAsiLevel = [4, 8, 12, 16, 19].includes(newLevel);
 
       if (!c.isPlayer) {
-        // AI Party Members apply ASI to primary stats automatically
         if (isAsiLevel) {
           const primary = cls?.preferredStats?.[0]?.toLowerCase() as keyof Stats || 'strength';
           newStats[primary] = (newStats[primary] || 10) + 2;
         }
       } else if (isAsiLevel) {
-        // Players get unspent points to allocate in character sheet
         unspentAsi += 2;
       }
 
@@ -76,10 +74,8 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     setLoading(true);
 
     try {
-      // Pass full context for dynamic balancing
       const dmText = await getDMResponse(newLogs, campaign.plot, input, campaign.party, campaign.summary, dmModel);
       
-      // Smart Loot Check
       if (dmText.includes('[') && dmText.includes(']')) {
         const itemName = dmText.match(/\[(.*?)\]/)?.[1];
         if (itemName) {
@@ -87,10 +83,9 @@ const CampaignView: React.FC<CampaignViewProps> = ({
           if (!exists && isHost) {
             notify(`Forging unique artifact: ${itemName}...`, "info");
             const forged = await generateSmartLoot(campaign.party, classes);
-            forged.name = itemName; // Keep DM's name
+            forged.name = itemName;
             forged.id = Math.random().toString(36).substr(2,9);
             broadcast({ type: 'GIVE_LOOT', payload: forged });
-            // Add to host's first player character
             const pc = campaign.party.find(p => p.isPlayer);
             if (pc) {
               setCharacters(prev => prev.map(c => c.id === pc.id ? { ...c, inventory: [...c.inventory, forged.id] } : c));
@@ -116,33 +111,36 @@ const CampaignView: React.FC<CampaignViewProps> = ({
 
   return (
     <div className="flex flex-col h-full space-y-2 relative overflow-hidden">
-      <div className="bg-black/90 p-3 rounded-sm border border-neutral-900 flex justify-between items-center shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="bg-black/90 p-3 rounded-sm border border-neutral-900 flex flex-wrap justify-between items-center shrink-0 gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
           {campaign.party.map(c => (
-            <div key={c.id} className="w-8 h-8 rounded-full border border-blue-500/50 bg-blue-900/20 overflow-hidden relative group">
+            <div key={c.id} className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-blue-500/50 bg-blue-900/20 overflow-hidden relative group shrink-0">
                {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" />}
                <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleLevelUp(c.id)} className="text-[10px]">⬆️</button>
+                  <button onClick={() => handleLevelUp(c.id)} className="text-[10px] p-2">⬆️</button>
                </div>
             </div>
           ))}
-          <div className="ml-4 text-left">
-            <p className="text-[10px] font-black text-[#b28a48] uppercase">{campaign.locationName || 'The Marches'}</p>
-          </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {['chat', 'world', 'tactical'].map(v => (
-            <button key={v} onClick={() => setViewMap(v as any)} className={`px-4 py-2 text-[8px] font-black uppercase tracking-widest border rounded-sm transition-all ${viewMap === v ? 'bg-[#b28a48] text-black border-[#b28a48]' : 'bg-black text-neutral-600 border-neutral-800'}`}>{v}</button>
+            <button 
+              key={v} 
+              onClick={() => { setViewMap(v as any); if(v !== 'tactical') setFullscreenTactical(false); }} 
+              className={`px-3 py-2 text-[8px] font-black uppercase tracking-widest border rounded-sm transition-all whitespace-nowrap active:scale-95 ${viewMap === v ? 'bg-[#b28a48] text-black border-[#b28a48]' : 'bg-black text-neutral-600 border-neutral-800'}`}
+            >
+              {v}
+            </button>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 bg-black/40 rounded-sm border border-neutral-900 overflow-hidden relative shadow-inner">
+      <div className={`flex-1 bg-black/40 rounded-sm border border-neutral-900 overflow-hidden relative shadow-inner flex flex-col ${fullscreenTactical ? 'fixed inset-0 z-[1000] bg-slate-950 p-0 rounded-none' : ''}`}>
         {viewMap === 'chat' && (
           <div ref={scrollRef} className="h-full overflow-y-auto p-4 space-y-4 scrollbar-hide">
             {campaign.logs.map((log, i) => (
               <div key={i} className={`flex ${log.role === 'player' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`p-4 rounded-sm border max-w-[85%] ${log.role === 'player' ? 'bg-neutral-900/50 border-blue-900/30' : 'border-transparent text-amber-200/80 font-serif italic'}`}>
+                <div className={`p-4 rounded-sm border max-w-[90%] md:max-w-[85%] ${log.role === 'player' ? 'bg-neutral-900/50 border-blue-900/30 shadow-[0_4px_10px_rgba(0,0,0,0.5)]' : 'border-transparent text-amber-200/80 font-serif italic'}`}>
                   <p className="text-[7px] font-black uppercase tracking-tighter opacity-40 mb-1">{log.senderName || (log.role === 'dm' ? 'Dungeon Master' : 'System')}</p>
                   <p className="text-sm leading-relaxed">{log.content}</p>
                 </div>
@@ -152,8 +150,15 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         )}
 
         {viewMap === 'tactical' && (
-          <div className="h-full w-full bg-slate-950 p-4 flex items-center justify-center">
-            <div className="relative border-2 border-neutral-800 shadow-[0_0_50px_rgba(0,0,0,0.8)]" style={{ width: 'min(90vw, 600px)', aspectRatio: '1/1', background: 'radial-gradient(circle, #111 0%, #000 100%)' }}>
+          <div className="h-full w-full bg-slate-950 p-2 md:p-4 flex flex-col items-center justify-center overflow-hidden">
+            {fullscreenTactical && (
+              <button onClick={() => setFullscreenTactical(false)} className="absolute top-4 right-4 z-10 bg-black/60 border border-white/20 p-2 rounded-full text-white w-10 h-10 flex items-center justify-center">✕</button>
+            )}
+            {!fullscreenTactical && (
+              <button onClick={() => setFullscreenTactical(true)} className="absolute top-2 right-2 z-10 bg-black/40 p-2 rounded text-[8px] font-black uppercase tracking-widest text-[#b28a48] lg:hidden">Full Screen ⛶</button>
+            )}
+            
+            <div className="relative border-2 border-neutral-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] touch-none" style={{ width: 'min(95vw, 600px)', aspectRatio: '1/1', background: 'radial-gradient(circle, #111 0%, #000 100%)' }}>
                <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 opacity-10 pointer-events-none">
                   {Array.from({length: 100}).map((_, i) => <div key={i} className="border-[0.5px] border-[#b28a48]/30"></div>)}
                </div>
@@ -163,12 +168,13 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                  const size = SIZE_MAP[c.size || 'Medium'] * 10;
                  return (
                    <div key={c.id} 
-                    className="absolute bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center cursor-move transition-all duration-300 group"
-                    style={{ left: `${pos.x * 10}%`, top: `${pos.y * 10}%`, width: `${size}%`, height: `${size}%` }}
+                    className="absolute bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center cursor-move transition-all duration-300 group touch-manipulation active:scale-125"
+                    style={{ left: `${pos.x * 10}%`, top: `${pos.y * 10}%`, width: `${size}%`, height: `${size}%`, zIndex: 10 + i }}
                     onMouseDown={() => isHost && moveEntity(c.id, (pos.x + 1) % 10, pos.y)}
+                    onTouchStart={() => isHost && moveEntity(c.id, (pos.x + 1) % 10, pos.y)}
                    >
                      <span className="text-[8px] font-black text-white pointer-events-none uppercase">{c.name[0]}</span>
-                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black border border-white/20 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">{c.name} (LVL {c.level})</div>
+                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black border border-white/20 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{c.name}</div>
                    </div>
                  );
                })}
@@ -178,12 +184,13 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                  const size = SIZE_MAP[m.size || 'Medium'] * 10;
                  return (
                    <div key={m.id} 
-                    className="absolute bg-red-600 rounded-sm border-2 border-red-400 shadow-[0_0_15px_rgba(255,0,0,0.5)] flex items-center justify-center cursor-move transition-all duration-300 group"
-                    style={{ left: `${pos.x * 10}%`, top: `${pos.y * 10}%`, width: `${size}%`, height: `${size}%` }}
+                    className="absolute bg-red-600 rounded-sm border-2 border-red-400 shadow-[0_0_15px_rgba(255,0,0,0.5)] flex items-center justify-center cursor-move transition-all duration-300 group touch-manipulation active:scale-125"
+                    style={{ left: `${pos.x * 10}%`, top: `${pos.y * 10}%`, width: `${size}%`, height: `${size}%`, zIndex: 50 + i }}
                     onMouseDown={() => isHost && moveEntity(m.id, pos.x, (pos.y + 1) % 10, true)}
+                    onTouchStart={() => isHost && moveEntity(m.id, pos.x, (pos.y + 1) % 10, true)}
                    >
                      <span className="text-[10px] pointer-events-none">💀</span>
-                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-red-950 border border-red-500 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">{m.name}</div>
+                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-red-950 border border-red-500 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">{m.name}</div>
                    </div>
                  );
                })}
@@ -192,14 +199,16 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         )}
       </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-2 pt-2 pb-safe">
         <input 
           value={input} onChange={(e) => setInput(e.target.value)} 
           placeholder="Narrate your fate..." 
           onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-          className="flex-1 bg-black border border-neutral-800 p-3 rounded-sm outline-none text-[#b28a48] font-serif italic text-sm" 
+          className="flex-1 bg-black border border-neutral-800 p-3 md:p-4 rounded-sm outline-none text-[#b28a48] font-serif italic text-sm md:text-base active:border-[#b28a48]/60" 
         />
-        <button onClick={handleSendMessage} disabled={loading} className="bg-[#b28a48] text-black px-6 font-black text-xs uppercase tracking-widest active:scale-95 disabled:opacity-30">{loading ? '...' : '⚔️'}</button>
+        <button onClick={handleSendMessage} disabled={loading} className="bg-[#b28a48] text-black px-6 md:px-8 font-black text-xs uppercase tracking-widest active:scale-95 disabled:opacity-30 h-auto min-h-[44px]">
+          {loading ? '...' : '⚔️'}
+        </button>
       </div>
     </div>
   );

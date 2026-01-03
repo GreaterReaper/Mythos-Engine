@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Stats, ClassDef, Monster, Item, Trait, Character, GameLog, Spell, Rule, MonsterAbility, ItemMechanic } from "../types";
 
@@ -19,12 +20,12 @@ const cleanJson = (text: string) => {
 const isAdmin = () => (window as any).isMythosAdmin === true;
 
 const trackUsage = (type: 'dm' | 'utility', cost: number = 0) => {
-  if (isAdmin()) return; // Architect Bypass: Don't track usage for admins
+  if (isAdmin()) return; 
   window.dispatchEvent(new CustomEvent('mythos:arcane_use', { detail: { type, cost } }));
 };
 
 const reportError = (isRateLimit: boolean, isQuotaExceeded: boolean = false) => {
-  if (isAdmin()) return; // Architect Bypass: Don't trigger global UI lockouts for admin errors
+  if (isAdmin()) return; 
   window.dispatchEvent(new CustomEvent('mythos:arcane_error', { detail: { isRateLimit, isQuotaExceeded } }));
 };
 
@@ -38,9 +39,6 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey });
 };
 
-/**
- * withRetry handles API retries and model fallbacks.
- */
 async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3, initialDelay = 5000): Promise<T> {
   const admin = isAdmin();
   if (!admin && isHardLockoutActive()) throw new Error("RECALIBRATION_IN_PROGRESS");
@@ -80,6 +78,25 @@ async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3
     throw error;
   }
 }
+
+export const generateWorldMap = async (plot: string): Promise<string> => {
+  trackUsage('utility', 30);
+  return withRetry(async () => {
+    const prompt = `Professional TTRPG fantasy world map. Region: ${plot}. Style: hand-drawn parchment, ink and watercolor, cartographic details, mountain ranges, cities, ancient forests. Cinematic top-down view.`;
+    return generateImage(prompt);
+  });
+};
+
+export const generateLocalTiles = async (location: string, count: number = 3): Promise<string[]> => {
+  trackUsage('utility', 20 * count);
+  const tiles: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const prompt = `TTRPG environment tile. Location: ${location}. Section ${i+1}. Style: Dark fantasy isometric tactical view, detailed textures, obsidian and gold accents, moody lighting.`;
+    tiles.push(await generateImage(prompt));
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return tiles;
+};
 
 export const getArchitectAdvice = async (type: 'class' | 'monster' | 'item', name: string, description: string): Promise<string[]> => {
   trackUsage('utility', 2);

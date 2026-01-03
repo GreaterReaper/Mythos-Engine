@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -11,7 +12,7 @@ import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import SpellCodex from './components/SpellCodex';
 import ProfilePanel from './components/ProfilePanel';
-import { generateImage } from './services/gemini';
+import { generateImage, generateWorldMap, generateLocalTiles } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
 interface Notification {
@@ -30,8 +31,8 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 112; 
-const REGISTRY_VERSION = 3; // Persistence Big Bang Version
+const SYSTEM_VERSION = 114; 
+const REGISTRY_VERSION = 5; 
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -140,69 +141,6 @@ const SYSTEM_ITEMS: Item[] = [
     mechanics: [{ name: 'Gaze Reflection', description: 'Reflect gaze-based attacks on a successful DC 15 Dex save.' }],
     lore: 'Forged to hunt Gorgon queens in the first age.',
     authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-menders-staff',
-    name: 'Crest of Mercy',
-    type: 'Weapon',
-    description: 'A white-ash staff that pulses with soft golden light.',
-    mechanics: [{ name: 'Mercy Aura', description: 'Increases all healing spells cast by 2 per die rolled.' }],
-    lore: 'A gift from Orestara to the first Mages.',
-    authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-sky-piercer-bow',
-    name: 'Sky-Piercer Bow',
-    type: 'Weapon',
-    description: 'A bow that can ground flying beasts with incredible accuracy.',
-    mechanics: [{ name: 'Aerial Mastery', description: 'Deals 1d8 piercing. Advantage against flying enemies.' }],
-    lore: 'Heavens are no sanctuary from an Archer\'s arrow.',
-    authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-assassin-daggers',
-    name: 'Twin Shadow Daggers',
-    type: 'Weapon',
-    description: 'Serrated obsidian blades that hum with a silent, lethal vibration.',
-    mechanics: [{ name: 'Silent Strike', description: 'Attacks made while hidden deal an additional 2d6 piercing damage.' }],
-    lore: 'Favored by the Thieves of the Unseen Hand.',
-    authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-archsorcerer-staff',
-    name: 'Staff of the Burning Void',
-    type: 'Weapon',
-    description: 'A staff of charred wood capped with a flickering violet flame.',
-    mechanics: [{ name: 'Void Channel', description: 'Add +2 to damage rolls for spells that deal Force or Fire damage.' }],
-    lore: 'Wielded by those who trade their sanity for raw arcane might.',
-    authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-warrior-plate',
-    name: 'Vanguard Plate Armor',
-    type: 'Armor',
-    description: 'Thick, overlapping plates of heavy steel etched with runes of protection.',
-    mechanics: [{ name: 'Immovable', description: 'Grants advantage on saves against being pushed or knocked prone. Base AC 18.' }],
-    lore: 'The literal wall between civilization and the darkness.',
-    authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-thief-leathers',
-    name: 'Midnight Studded Leather',
-    type: 'Armor',
-    description: 'Reinforced leather armor dyed deep black, designed for maximum mobility.',
-    mechanics: [{ name: 'Fluid Motion', description: 'Grants +2 to Dexterity (Stealth) checks. Base AC 12 + Dex.' }],
-    lore: 'Light enough to be forgotten, tough enough to save a life.',
-    authorId: 'system', authorName: 'Orestara'
-  },
-  {
-    id: 'sys-sorcerer-robes',
-    name: 'Robes of the Aether Weaver',
-    type: 'Armor',
-    description: 'Silk robes woven with threads of pure mana, shimmering with an inner light.',
-    mechanics: [{ name: 'Mana Shield', description: 'Once per rest, reduce incoming damage from a spell by half. Base AC 10 + Dex.' }],
-    lore: 'Traditional garb for the high mages of the Silver Citadel.',
-    authorId: 'system', authorName: 'Orestara'
   }
 ];
 
@@ -217,11 +155,8 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const currentRegVersion = parseInt(localStorage.getItem('mythos_registry_version') || '0');
     
-    // Persistence Check: If version is too old, purge. 
-    // Otherwise, we allow it to persist but mark for evolution.
     if (currentRegVersion < REGISTRY_VERSION) {
       const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
-      // Only keep accounts that are already marked as "Eternal" or version >= 112
       const persistentAccounts = accounts.filter(a => a.registryEra === 'Eternal' || a.version >= 112);
       
       if (persistentAccounts.length === 0 && accounts.length > 0) {
@@ -255,12 +190,13 @@ const App: React.FC = () => {
   const [classes, setClasses] = useState<ClassDef[]>([]);
   const [monsters, setMonsters] = useState<Monster[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [] });
+  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [], locationName: 'The Nameless Keep' });
 
   const [peerId, setPeerId] = useState<string>('');
   const [isHost, setIsHost] = useState<boolean>(true);
   const [connections, setConnections] = useState<DataConnection[]>([]);
   const [serverLogs, setServerLogs] = useState<ServerLog[]>([]);
+  const [onlineFriends, setOnlineFriends] = useState<string[]>([]);
   const peerRef = useRef<Peer | null>(null);
   const hasNotifiedAdminRef = useRef<string | null>(null);
 
@@ -271,6 +207,84 @@ const App: React.FC = () => {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 7000);
   }, []);
+
+  // Presence Heartbeat
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      const presence = JSON.parse(localStorage.getItem('mythos_presence') || '{}');
+      presence[currentUser.username] = Date.now();
+      localStorage.setItem('mythos_presence', JSON.stringify(presence));
+
+      // Check online friends
+      const friends = currentUser.friends || [];
+      const now = Date.now();
+      const online = friends.filter(f => presence[f] && (now - presence[f] < 30000)); // Online if active within 30s
+      setOnlineFriends(online);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  // Cross-device session check
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      const etherArchive = JSON.parse(localStorage.getItem('mythos_ether_archive') || '{}');
+      const entry = etherArchive[currentUser.username.toLowerCase()];
+      if (entry && entry.sessionId && currentUser.sessionId && entry.sessionId !== currentUser.sessionId) {
+        notify("Thy soul has resonated in another realm. Severing local bond.", "error");
+        handleSignOut();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [currentUser, notify]);
+
+  const handleSignOut = () => {
+    localStorage.removeItem('mythos_active_session');
+    setCurrentUser(null);
+  };
+
+  const handleCloudSync = useCallback(async (action: 'push' | 'pull') => {
+    if (!currentUser) return;
+    const uPrefix = currentUser.username.toLowerCase();
+    const etherArchive = JSON.parse(localStorage.getItem('mythos_ether_archive') || '{}');
+
+    if (action === 'push') {
+      notify("Binding saga to the Ether...", "info");
+      etherArchive[uPrefix] = {
+        ...etherArchive[uPrefix],
+        data: {
+          characters,
+          classes,
+          monsters,
+          items,
+          campaign
+        },
+        friends: currentUser.friends // Push friends list to cloud
+      };
+      localStorage.setItem('mythos_ether_archive', JSON.stringify(etherArchive));
+      notify("Saga preserved in the Ether.", "success");
+    } else {
+      notify("Reclaiming saga from the Ether...", "info");
+      const entry = etherArchive[uPrefix];
+      if (entry && entry.data) {
+        const d = entry.data;
+        if (d.characters) setCharacters(d.characters);
+        if (d.classes) setClasses(d.classes);
+        if (d.monsters) setMonsters(d.monsters);
+        if (d.items) setItems(d.items);
+        if (d.campaign) setCampaign(d.campaign);
+        if (entry.friends) {
+          const updatedUser = { ...currentUser, friends: entry.friends };
+          setCurrentUser(updatedUser);
+          localStorage.setItem('mythos_active_session', JSON.stringify(updatedUser));
+        }
+        notify("Saga restored from the Ether.", "success");
+      } else {
+        notify("No chronicle found in the Ether for this soul.", "error");
+      }
+    }
+  }, [currentUser, characters, classes, monsters, items, campaign, notify]);
 
   const deduplicateAndMergeItems = useCallback((itemList: Item[]): Item[] => {
     const merged: Record<string, Item> = {};
@@ -299,23 +313,17 @@ const App: React.FC = () => {
     return Object.values(merged);
   }, []);
 
-  /**
-   * Automatic Data Evolution Logic:
-   * Ensures that system entities (Monsters, Items, Classes) are always up to date
-   * with the latest definitions in the code, while preserving user-made content.
-   */
   const evolveSoulData = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[], currentAcctVersion: number) => {
     const globalKey = 'mythos_ether_system_master';
     const rawGlobal = localStorage.getItem(globalKey);
     let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
 
-    // Architect Mode: Auto-update the master archive if current code is newer
-    if (currentUser?.isAdmin && masterArchive.version < SYSTEM_VERSION) {
+    if (masterArchive.version < SYSTEM_VERSION) {
       masterArchive = {
         version: SYSTEM_VERSION,
         monsters: SYSTEM_MONSTERS,
         items: SYSTEM_ITEMS,
-        classes: [], // Classes are mostly dynamically generated or hardcoded in manifestBasics
+        classes: [], 
         heroes: []
       };
       localStorage.setItem(globalKey, JSON.stringify(masterArchive));
@@ -324,7 +332,6 @@ const App: React.FC = () => {
     const upgradeEntity = <T extends { authorId?: string; id: string }>(localList: T[], systemList: T[]): T[] => {
       const systemMap = new Map(systemList.map(m => [m.id, m]));
       return localList.map(item => {
-        // If it's a system entity and we have a newer version in code, HOT SWAP it.
         if (item.authorId === 'system' && systemMap.has(item.id)) {
            return { ...item, ...systemMap.get(item.id) };
         }
@@ -338,33 +345,10 @@ const App: React.FC = () => {
       newMonsters: upgradeEntity(localMonsters, SYSTEM_MONSTERS),
       newItems: upgradeEntity(localItems, SYSTEM_ITEMS)
     };
-  }, [currentUser?.isAdmin]);
+  }, []);
 
   const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[], silent: boolean = true) => {
     const { newChars, newClasses, newMonsters, newItems } = evolveSoulData(localChars, localClasses, localMonsters, localItems, currentUser?.version || 0);
-
-    // Update master repository if version mismatch OR if an admin has intentionally modified system content
-    if (currentUser?.isAdmin) {
-      const globalKey = 'mythos_ether_system_master';
-      const rawGlobal = localStorage.getItem(globalKey);
-      let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
-
-      const currentSystemData = {
-        monsters: newMonsters.filter(m => m.authorId === 'system'),
-        items: newItems.filter(i => i.authorId === 'system'),
-        classes: newClasses.filter(c => c.authorId === 'system'),
-        heroes: newChars.filter(c => c.authorId === 'system')
-      };
-
-      if (masterArchive.version < SYSTEM_VERSION) {
-        masterArchive = {
-          version: SYSTEM_VERSION,
-          ...currentSystemData
-        };
-        localStorage.setItem(globalKey, JSON.stringify(masterArchive));
-        if (!silent) notify("Master Archive evolved to latest version.", "success");
-      }
-    }
 
     return {
       newChars,
@@ -372,57 +356,33 @@ const App: React.FC = () => {
       newMonsters,
       newItems: deduplicateAndMergeItems(newItems)
     };
-  }, [currentUser?.isAdmin, currentUser?.version, notify, evolveSoulData, deduplicateAndMergeItems]);
+  }, [currentUser?.version, evolveSoulData, deduplicateAndMergeItems]);
 
-  useEffect(() => {
-    if (currentUser?.isAdmin && hasNotifiedAdminRef.current !== currentUser.username) {
-      notify("Omniscience Enabled.", "success");
-      hasNotifiedAdminRef.current = currentUser.username;
-    } else if (!currentUser?.isAdmin) {
-      hasNotifiedAdminRef.current = null;
-    }
-  }, [currentUser?.username, currentUser?.isAdmin, notify]);
+  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
+    const fullMsg = { ...msg, senderId: peerId, senderName: currentUser?.displayName || 'Unknown' } as SyncMessage;
+    connections.forEach(conn => { if (conn.open) conn.send(fullMsg); });
+  }, [connections, peerId, currentUser]);
 
-  const handleCloudSync = useCallback(async (action: 'push' | 'pull') => {
-    if (!currentUser) return;
-    const etherKey = 'mythos_ether_archive';
-    const cloudArchive: Record<string, any> = JSON.parse(localStorage.getItem(etherKey) || '{}');
-
-    if (action === 'push') {
-      const payload = {
-        pin: currentUser.pin,
-        isAdmin: currentUser.isAdmin,
-        displayName: currentUser.displayName,
-        version: SYSTEM_VERSION,
-        registryEra: 'Eternal',
-        data: { characters, classes, monsters, items, campaign }
-      };
-      cloudArchive[currentUser.username.toLowerCase()] = payload;
-      localStorage.setItem(etherKey, JSON.stringify(cloudArchive));
-      notify("Saga Synchronized with the Ether.", "success");
-    } else {
-      const entry = cloudArchive[currentUser.username.toLowerCase()];
-      if (!entry) {
-        notify("No chronicle found for this sigil in the Ether.", "error");
-        return;
-      }
-      if (currentUser.isAdmin || entry.pin === currentUser.pin) {
-        const d = entry.data;
-        const synced = syncGlobalSystemArchive(d.characters, d.classes, d.monsters, d.items, true);
-        setCharacters(synced.newChars);
-        setClasses(synced.newClasses);
-        setMonsters(synced.newMonsters);
-        setItems(synced.newItems);
-        setCampaign(d.campaign);
-        notify("Chronicle Evolved & Restored.", "success");
-      } else {
-        notify("Arcane PIN mismatch.", "error");
-      }
-    }
-  }, [currentUser, characters, classes, monsters, items, campaign, notify, syncGlobalSystemArchive]);
+  const addFriend = useCallback((sigil: string) => {
+    if (!currentUser || sigil === currentUser.username) return;
+    const currentFriends = currentUser.friends || [];
+    if (currentFriends.includes(sigil)) return;
+    
+    const updatedFriends = [...currentFriends, sigil];
+    const updatedUser = { ...currentUser, friends: updatedFriends };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('mythos_active_session', JSON.stringify(updatedUser));
+    
+    // Also update in accounts registry
+    const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
+    const newAccounts = accounts.map(a => a.username === currentUser.username ? updatedUser : a);
+    localStorage.setItem('mythos_accounts', JSON.stringify(newAccounts));
+    
+    notify(`Soul ${sigil} Bound as Known.`, 'success');
+  }, [currentUser, notify]);
 
   const manifestBasics = async (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
-    notify("Channeling fated archetypes...", "info");
+    notify("Channeling the Eternal Archive...", "info");
     
     let updatedMonsters = [...monsters];
     let updatedItems = [...items];
@@ -434,10 +394,13 @@ const App: React.FC = () => {
       const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
       for (let m of monstersToAdd) {
         if (!m.imageUrl) {
-          try { m.imageUrl = await generateImage(`TTRPG creature: ${m.name}. Description: ${m.description}. Dark fantasy oil painting.`); } catch(e) {}
+          try { 
+            m.imageUrl = await generateImage(`Official TTRPG bestiary art: ${m.name}. Nature: ${m.description}. High-fidelity dark fantasy oil painting style.`); 
+            setMonsters(prev => [...prev.filter(pm => pm.id !== m.id), m]);
+          } catch(e) {}
         }
       }
-      updatedMonsters = [...updatedMonsters, ...monstersToAdd];
+      updatedMonsters = [...updatedMonsters.filter(m => !existingIds.has(m.id)), ...monstersToAdd];
     }
 
     if (scope === 'all' || scope === 'items') {
@@ -445,10 +408,13 @@ const App: React.FC = () => {
       const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
-          try { i.imageUrl = await generateImage(`TTRPG artifact: ${i.name}. Material: obsidian, iron. Macro photography style.`); } catch(e) {}
+          try { 
+            i.imageUrl = await generateImage(`High-quality TTRPG artifact sigil: ${i.name}. Material: iron, gold. Dark cinematic macro art.`); 
+            setItems(prev => deduplicateAndMergeItems([...prev.filter(pi => pi.id !== i.id), i]));
+          } catch(e) {}
         }
       }
-      updatedItems = deduplicateAndMergeItems([...updatedItems, ...itemsToAdd]);
+      updatedItems = deduplicateAndMergeItems([...updatedItems.filter(i => !existingIds.has(i.id)), ...itemsToAdd]);
     }
 
     if (scope === 'all') {
@@ -456,128 +422,61 @@ const App: React.FC = () => {
         {
           id: 'basic-warrior',
           name: 'Warrior',
-          description: 'Mighty physical vanguards who focus on heavy weapons and unbreakable defense.',
-          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery'], 
+          description: 'Mighty physical vanguards.',
+          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency'], 
           startingItemIds: ['sys-gargantuan-greatsword', 'sys-warrior-plate'],
-          features: [
-            { name: 'Mighty Roar', description: 'Unleash a roar granting 1d8+Level temporary hit points.' }, 
-            { name: 'Crushing Blow', description: 'Critical hits knock enemies prone.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-fighter',
-          name: 'Fighter',
-          description: 'Balanced masters of combat techniques and defensive shielding.',
-          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency'], 
-          startingItemIds: ['sys-iron-longsword', 'sys-evening-shield', 'sys-warrior-plate'],
-          features: [
-            { name: 'Shield Bash', description: 'Strike with a shield for blunt damage and flinching.' }, 
-            { name: 'Firm Bastion', description: 'Protect adjacent allies as a reaction.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-sorcerer',
-          name: 'Sorcerer',
-          description: 'Masters of raw elemental magic who turn the tide of battle with destruction.',
-          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction'], 
-          startingItemIds: ['sys-archsorcerer-staff', 'sys-sorcerer-robes'],
-          features: [
-            { name: 'Spell Memory', description: 'Cast a memorized spell without a slot once per rest.' }, 
-            { name: 'Destructive Tide', description: 'Offensive spells deal extra damage based on Charisma.' }
-          ], 
-          initialSpells: THEMATIC_SPELLS.sorcerer, 
-          authorId: 'system', authorName: 'Orestara'
+          features: [{ name: 'Mighty Roar', description: 'Bonus action: 1d8 temporary HP.' }], 
+          initialSpells: [], authorId: 'system', authorName: 'Orestara'
         },
         {
           id: 'basic-mage',
           name: 'Mage',
-          description: 'Supportive aether-users who heal wounds and shield the fellowship.',
-          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Healing Mastery'], 
+          description: 'Supportive aether-users.',
+          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery'], 
           startingItemIds: ['sys-menders-staff', 'sys-sorcerer-robes'],
-          features: [
-            { name: 'Resonant Benediction', description: 'Healing spells affect one additional nearby ally.' }, 
-            { name: 'Vital Flow', description: 'Bonus action to restore 1d10 + WIS hit points.' }
-          ], 
-          initialSpells: THEMATIC_SPELLS.mage, 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-thief',
-          name: 'Thief',
-          description: 'Masters of stealth and dual-daggers who strike from the shadows.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Stealth Proficiency'], 
-          startingItemIds: ['sys-assassin-daggers', 'sys-thief-leathers'],
-          features: [
-            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized enemy that is currently grappled or surprised.' }, 
-            { name: 'Smoke Escape', description: 'Vanish and disengage instantly as a reaction or bonus action.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-archer',
-          name: 'Archer',
-          description: 'Masters of the bow who can ground flying enemies with incredible accuracy.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Aerial Sniper'], 
-          startingItemIds: ['sys-sky-piercer-bow', 'sys-thief-leathers'],
-          features: [
-            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that is isolated.' }, 
-            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-dark-knight',
-          name: 'Dark Knight',
-          description: 'Warriors who channel forbidden aether to siphon life and shield with shadows.',
-          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [2, 0, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Two-Handed Mastery', 'Soul-Resonance'],
-          startingItemIds: ['sys-dark-executioner', 'sys-warrior-plate'],
-          features: [
-            { name: 'Living Shadow', description: 'Conjure a shadowy simulacrum to fight alongside you.' },
-            { name: 'Living Dead', description: 'Stay active at 0 HP for one combat round with tripled lifesteal.' }
-          ],
-          initialSpells: THEMATIC_SPELLS.dark_knight,
-          authorId: 'system', authorName: 'Orestara'
+          features: [{ name: 'Vital Flow', description: 'Restore 1d10 hit points.' }], 
+          initialSpells: THEMATIC_SPELLS.mage, authorId: 'system', authorName: 'Orestara'
         }
       ];
       updatedClasses = [...updatedClasses.filter(c => !c.id.startsWith('basic')), ...basicClasses];
+      setClasses(updatedClasses);
     }
 
     if (scope === 'all' || scope === 'heroes') {
         const heroes: Character[] = [
             {
-                id: 'hero-miri',
-                name: 'Miri',
-                classId: 'basic-fighter',
-                race: 'Human',
-                gender: 'Female',
-                description: "Energetic swordswoman.",
-                level: 1,
-                stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 },
-                hp: 12, maxHp: 12,
-                feats: [
-                    { name: 'Restless Spirit', description: 'Gains +2 to Initiative.' },
-                    { name: 'Sword Waltz', description: 'Enemy disadvantage on attack.' }
-                ],
-                inventory: ['sys-iron-longsword', 'sys-evening-shield', 'sys-warrior-plate'],
-                isPlayer: true,
-                authorId: 'system',
-                authorName: 'Orestara'
+                id: 'hero-miri', name: 'Miri', classId: 'basic-warrior', race: 'Human', gender: 'Female', gold: 50,
+                description: "Energetic swordswoman with copper hair.", level: 1, stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 },
+                hp: 12, maxHp: 12, feats: [{ name: 'Restless Spirit', description: 'Gains +2 to Initiative.' }],
+                inventory: ['sys-iron-longsword'], isPlayer: true, authorId: 'system', authorName: 'Orestara'
+            },
+            {
+                id: 'hero-zola', name: 'Zola', classId: 'basic-mage', race: 'Bat Person', gender: 'Female', gold: 75,
+                description: "Vesperian mage with leathery wings.", level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 },
+                hp: 10, maxHp: 10, feats: [{ name: 'Leathery Wings', description: 'Gains flying speed.' }],
+                inventory: ['sys-menders-staff'], isPlayer: false, authorId: 'system', authorName: 'Orestara'
             }
         ];
-        const existingHeroIds = new Set(updatedChars.map(c => c.id));
-        const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
-        for (let h of heroesToAdd) {
+        for (let h of heroes) {
           if (!h.imageUrl) {
-            try { h.imageUrl = await generateImage(`TTRPG hero portrait: ${h.name}. Dark fantasy concept art.`); } catch(e) {}
+            try { 
+              h.imageUrl = await generateImage(`Fated hero: ${h.name}, ${h.race}. Dark fantasy concept art.`); 
+              setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]);
+            } catch(e) {}
           }
         }
-        updatedChars = [...updatedChars, ...heroesToAdd];
+        updatedChars = [...updatedChars.filter(c => !heroes.some(h => h.id === c.id)), ...heroes];
+    }
+
+    if (scope === 'adventure') {
+      const plot = "The Obsidian Spire has returned to the Grey Marches, its presence poisoning the ley lines of the realm.";
+      const mapUrl = await generateWorldMap(plot);
+      const tiles = await generateLocalTiles("The Shattered Perimeter of the Spire", 3);
+      setCampaign(prev => {
+        const updated = { ...prev, plot, worldMapUrl: mapUrl, localMapTiles: tiles, locationName: "The Grey Marches" };
+        broadcast({ type: 'STATE_UPDATE', payload: { campaign: updated } });
+        return updated;
+      });
     }
 
     const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems, false);
@@ -585,47 +484,14 @@ const App: React.FC = () => {
     setClasses(synced.newClasses);
     setMonsters(synced.newMonsters);
     setItems(synced.newItems);
-
-    notify("Archive Manifested.", "success");
+    notify("Eternal Archive Manifested.", "success");
   };
-
-  const handleRollDice = (sides: number) => {
-    const result = Math.floor(Math.random() * sides) + 1;
-    const roll: DiceRoll = { id: Math.random().toString(36).substr(2, 9), sides, result, timestamp: Date.now() };
-    setLastRoll(roll);
-    setRollHistory(prev => [roll, ...prev].slice(0, 10));
-    if (result === sides && sides >= 10) notify(`CRITICAL! Natural ${result}`, 'success');
-  };
-
-  const aggregateAllResources = useCallback((suffix: string) => {
-    const aggregated: any[] = [];
-    const seenIds = new Set();
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.endsWith(suffix)) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key) || '[]');
-          if (Array.isArray(data)) {
-            data.forEach(item => {
-              if (item.id && !seenIds.has(item.id)) {
-                aggregated.push(item);
-                seenIds.add(item.id);
-              }
-            });
-          }
-        } catch (e) {}
-      }
-    }
-    return aggregated;
-  }, []);
 
   useEffect(() => {
     if (currentUser) {
       const uPrefix = currentUser.username;
       (window as any).isMythosAdmin = !!currentUser.isAdmin;
-      
       let loadedChars = [], loadedClasses = [], loadedMonsters = [], loadedItems = [];
-
       if (currentUser.isAdmin) {
         loadedChars = aggregateAllResources('_mythos_chars');
         loadedClasses = aggregateAllResources('_mythos_classes');
@@ -641,26 +507,15 @@ const App: React.FC = () => {
         const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
         loadedItems = savedItems ? JSON.parse(savedItems) : [];
       }
-
       const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems, true);
       setCharacters(synced.newChars);
       setClasses(synced.newClasses);
       setMonsters(synced.newMonsters);
       setItems(synced.newItems);
-
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
-      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] });
-
-      const today = new Date().toDateString();
-      if (localStorage.getItem(`${uPrefix}_mythos_last_reset_day`) === today) {
-        setDailyProUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_pro_used`) || '0'));
-        setDailyFlashUsed(parseInt(localStorage.getItem(`${uPrefix}_mythos_daily_flash_used`) || '0'));
-      } else {
-        localStorage.setItem(`${uPrefix}_mythos_last_reset_day`, today);
-        setDailyProUsed(0); setDailyFlashUsed(0);
-      }
+      setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [], locationName: 'The Nameless Keep' });
     }
-  }, [currentUser?.username, aggregateAllResources, syncGlobalSystemArchive]);
+  }, [currentUser?.username, syncGlobalSystemArchive]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -670,68 +525,48 @@ const App: React.FC = () => {
     localStorage.setItem(`${uPrefix}_mythos_monsters`, JSON.stringify(monsters));
     localStorage.setItem(`${uPrefix}_mythos_items`, JSON.stringify(items));
     localStorage.setItem(`${uPrefix}_mythos_campaign`, JSON.stringify(campaign));
-    localStorage.setItem(`${uPrefix}_mythos_daily_pro_used`, dailyProUsed.toString());
-    localStorage.setItem(`${uPrefix}_mythos_daily_flash_used`, dailyFlashUsed.toString());
-  }, [currentUser, characters, classes, monsters, items, campaign, dailyProUsed, dailyFlashUsed]);
+  }, [currentUser, characters, classes, monsters, items, campaign]);
 
-  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
-    const fullMsg = { ...msg, senderId: peerId, senderName: currentUser?.displayName || 'Unknown' } as SyncMessage;
-    connections.forEach(conn => { if (conn.open) conn.send(fullMsg); });
-  }, [connections, peerId, currentUser]);
-
-  useEffect(() => {
-    const regenInterval = setInterval(() => {
-      setArcaneTokens(prev => Math.min(prev + 0.016, 3)); 
-      setReservoir(prev => Math.min(prev + 1.1, 100)); 
-      setLockoutTime(prev => Math.max(prev - 1, 0));
-    }, 1000);
-
-    const handleUsage = (e: any) => {
-      if (currentUser?.isAdmin) return;
-      const { type } = e.detail;
-      if (type === 'dm') {
-        setArcaneTokens(prev => Math.max(prev - 1, 0));
-        setDailyFlashUsed(p => p + 1);
+  const aggregateAllResources = (suffix: string) => {
+    const aggregated: any[] = [];
+    const seenIds = new Set();
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.endsWith(suffix)) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '[]');
+          if (Array.isArray(data)) {
+            data.forEach(item => {
+              if (item.id && !seenIds.has(item.id)) { aggregated.push(item); seenIds.add(item.id); }
+            });
+          }
+        } catch (e) {}
       }
-      if (type === 'utility') {
-        setReservoir(prev => Math.max(prev - e.detail.cost, 0));
-        setDailyFlashUsed(p => p + 1);
-      }
-    };
-
-    const handleError = (e: any) => {
-      if (currentUser?.isAdmin) return;
-      if (e.detail.isRateLimit) setLockoutTime(LOCKOUT_DURATION);
-      if (e.detail.isQuotaExceeded) setIsQuotaExhausted(true);
-    };
-
-    window.addEventListener('mythos:arcane_use' as any, handleUsage);
-    window.addEventListener('mythos:arcane_error' as any, handleError);
-    return () => {
-      clearInterval(regenInterval);
-      window.removeEventListener('mythos:arcane_use' as any, handleUsage);
-      window.removeEventListener('mythos:arcane_error' as any, handleError);
-    };
-  }, [currentUser]);
+    }
+    return aggregated;
+  };
 
   const setupConnection = useCallback((conn: DataConnection) => {
-    conn.on('open', () => setConnections(prev => [...prev, conn]));
+    conn.on('open', () => {
+      setConnections(prev => [...prev, conn]);
+      // New connection: Add to known souls
+      // We rely on PeerJS metadata or a handshake message
+    });
     conn.on('data', (data: any) => {
       const msg = data as SyncMessage;
+      // Add friend on any data message if they are new
+      if (msg.senderId) addFriend(msg.senderId);
+
       switch (msg.type) {
         case 'NEW_LOG': setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] })); break;
-        case 'GIVE_LOOT': setItems(prev => deduplicateAndMergeItems([...prev, msg.payload])); break;
         case 'STATE_UPDATE':
           if (msg.payload.campaign) setCampaign(msg.payload.campaign);
-          if (msg.payload.classes) setClasses(msg.payload.classes);
-          if (msg.payload.monsters) setMonsters(msg.payload.monsters);
-          if (msg.payload.items) setItems(deduplicateAndMergeItems(msg.payload.items));
           if (msg.payload.characters) setCharacters(msg.payload.characters);
           break;
       }
     });
     conn.on('close', () => setConnections(prev => prev.filter(c => c.peer !== conn.peer)));
-  }, [deduplicateAndMergeItems]);
+  }, [addFriend]);
 
   const initPeer = useCallback((customId?: string) => {
     if (peerRef.current) peerRef.current.destroy();
@@ -753,8 +588,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={() => setCurrentUser(null)} user={currentUser} />
-      
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={handleSignOut} user={currentUser} onlineFriends={onlineFriends} />
       <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-[calc(60px+var(--safe-bottom))] lg:pb-0 pt-[calc(48px+var(--safe-top))] lg:pt-0">
         <div className="p-3 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcadeReady} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} user={currentUser} manifestBasics={manifestBasics} />}
@@ -763,13 +597,10 @@ const App: React.FC = () => {
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
-          {activeTab === 'profile' && <ProfilePanel user={currentUser} />}
+          {activeTab === 'profile' && <ProfilePanel user={currentUser} onlineFriends={onlineFriends} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); const conn = peerRef.current!.connect(id); setupConnection(conn); }} setIsHost={setIsHost} forceSync={(sel) => {
               const state: any = {};
               if (sel.characters) state.characters = characters;
-              if (sel.classes) state.classes = classes;
-              if (sel.monsters) state.monsters = monsters;
-              if (sel.items) state.items = items;
               if (sel.campaign) state.campaign = campaign;
               broadcast({ type: 'STATE_UPDATE', payload: state });
           }} kickSoul={() => {}} rehostWithSigil={(id) => { setIsHost(true); initPeer(id); }} />}
@@ -795,34 +626,10 @@ const App: React.FC = () => {
               <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : (lockoutTime > 0 ? 'bg-red-600' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : (lockoutTime > 0 ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir)}%` }}></div>
            </div>
         </div>
-        <div className="lg:hidden fantasy-font text-[10px] text-[#b28a48] font-black tracking-widest">
-          MYTHOS
+        <div className="lg:hidden flex items-center gap-3">
+          <div className="fantasy-font text-[10px] text-[#b28a48] font-black tracking-widest">MYTHOS</div>
+          <button onClick={handleSignOut} className="flex items-center justify-center w-8 h-8 rounded-full bg-red-950/20 border border-red-900/30 text-red-500 active:scale-90 transition-all" title="Sever Bond">🚪</button>
         </div>
-      </div>
-
-      <div className="fixed bottom-[calc(70px+var(--safe-bottom))] lg:bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
-        {diceTrayOpen && (
-          <div className="grim-card w-56 md:w-64 p-3 md:p-4 border border-[#b28a48]/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
-            <div className="flex justify-between items-center mb-3 border-b border-[#b28a48]/10 pb-1.5">
-              <h4 className="text-[9px] font-black fantasy-font text-[#b28a48] tracking-widest">CHRONICLE FATES</h4>
-              <button onClick={() => setDiceTrayOpen(false)} className="text-neutral-600 hover:text-red-500 transition-colors text-sm">✕</button>
-            </div>
-            <div className="grid grid-cols-4 gap-1.5 mb-4">
-              {[4, 6, 8, 10, 12, 20, 100].map(d => (
-                <button key={d} onClick={() => handleRollDice(d)} className="bg-neutral-950 border border-neutral-900 hover:border-[#b28a48] hover:text-[#b28a48] p-1.5 md:p-2 rounded-sm transition-all flex flex-col items-center justify-center gap-1 group active:scale-95">
-                  <span className="text-xs font-black">d{d}</span>
-                </button>
-              ))}
-            </div>
-            {lastRoll && (
-              <div className="text-center mb-4">
-                <div className="text-[7px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Result d{lastRoll.sides}</div>
-                <div className={`text-4xl md:text-5xl font-black fantasy-font ${lastRoll.result === lastRoll.sides && lastRoll.sides >= 10 ? 'text-amber-500 animate-pulse' : 'text-neutral-200'}`}>{lastRoll.result}</div>
-              </div>
-            )}
-          </div>
-        )}
-        <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'}`}>🎲</button>
       </div>
     </div>
   );

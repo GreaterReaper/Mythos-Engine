@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { UserAccount } from '../types';
 
@@ -6,9 +7,10 @@ interface SidebarProps {
   setActiveTab: (tab: any) => void;
   onSignOut: () => void;
   user: UserAccount;
+  onlineFriends?: string[];
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, user }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, user, onlineFriends = [] }) => {
   const tabs = [
     { id: 'campaign', label: 'Play', icon: '⚔️' },
     { id: 'characters', label: 'Party', icon: '👤' },
@@ -40,7 +42,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
                 )}
               </div>
               <h4 className="text-xs font-black text-[#b28a48] uppercase truncate">{user.displayName}</h4>
-              <p className="text-[7px] text-neutral-700 font-mono mt-1">SIGIL ID: {user.username}</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-[7px] text-neutral-700 font-mono">SIGIL: {user.username}</p>
+                {onlineFriends.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    <span className="text-[7px] text-green-700 font-black">{onlineFriends.length}</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -78,8 +88,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
         </div>
       </nav>
 
-      {/* Mobile Bottom Nav - Tightened for small screens */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#080808]/98 backdrop-blur-xl border-t border-[#1a1a1a] flex items-center justify-around px-1 pb-[var(--safe-bottom)] pt-1.5 overflow-x-auto scrollbar-hide h-[calc(56px+var(--safe-bottom))]">
+      {/* Mobile Bottom Nav */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#080808]/98 backdrop-blur-xl border-t border-[#1a1a1a] flex items-center justify-around px-1 pb-[var(--safe-bottom)] pt-1.5 h-[calc(56px+var(--safe-bottom))]">
         {tabs.map((tab) => (
           <button
             key={tab.id}

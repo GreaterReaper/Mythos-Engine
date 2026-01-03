@@ -58,6 +58,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
 
     if (isElevating) user.isAdmin = true;
 
+    // Session Management: Generate new session ID to invalidate other devices
+    const newSessionId = Math.random().toString(36).substr(2, 9);
+    user.sessionId = newSessionId;
+
+    // Update global Ether registry with new session
+    if (etherArchive[cleanUser]) {
+      etherArchive[cleanUser].sessionId = newSessionId;
+      localStorage.setItem('mythos_ether_archive', JSON.stringify(etherArchive));
+    }
+
     localStorage.setItem('mythos_active_session', JSON.stringify(user));
     setCurrentUser(user);
   };
@@ -80,13 +90,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     }
 
     const isAdmin = adminCode.trim().toUpperCase() === ADMIN_SECRET.toUpperCase();
+    const newSessionId = Math.random().toString(36).substr(2, 9);
+    
     const newUser: UserAccount = {
       username: cleanUser,
       displayName: cleanDisplay,
       isAdmin,
       pin: pin,
       version: CURRENT_SYSTEM_VERSION,
-      registryEra: 'Eternal'
+      registryEra: 'Eternal',
+      sessionId: newSessionId
     };
 
     localAccounts.push(newUser);

@@ -6,6 +6,8 @@ export interface UserAccount {
   pin?: string; // 4-digit pin for cloud sync
   version: number; // For tracking persistence and migrations
   registryEra: string; // "Eternal" for accounts created today+
+  sessionId?: string; // Unique token to track the current active device/session
+  friends?: string[]; // Array of usernames (sigils) previously played with
 }
 
 export interface Stats {
@@ -37,7 +39,8 @@ export type RaceType =
   | 'Tabaxi' 
   | 'Lizardfolk' 
   | 'Minotaur' 
-  | 'Satyr';
+  | 'Satyr'
+  | 'Bat Person';
 
 export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
 
@@ -59,6 +62,7 @@ export interface Character {
   stats: Stats;
   hp: number;
   maxHp: number;
+  gold: number;
   feats: Trait[];
   imageUrl?: string;
   isPlayer: boolean;
@@ -144,6 +148,9 @@ export interface CampaignState {
   logs: GameLog[];
   party: Character[];
   rules: Rule[];
+  locationName?: string;
+  worldMapUrl?: string;
+  localMapTiles?: string[];
 }
 
 export type SyncMessageType = 
@@ -155,7 +162,8 @@ export type SyncMessageType =
   | 'KICK'
   | 'PULSE'
   | 'HANDSHAKE'
-  | 'QUOTA_SYNC';
+  | 'QUOTA_SYNC'
+  | 'MAP_UPDATE';
 
 export interface ServerLog {
   id: string;

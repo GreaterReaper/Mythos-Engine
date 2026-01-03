@@ -30,6 +30,7 @@ const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   Lizardfolk: { constitution: 2, wisdom: 1 },
   Minotaur: { strength: 2, constitution: 1 },
   Satyr: { charisma: 2, dexterity: 1 },
+  'Bat Person': { dexterity: 2, wisdom: 1 },
 };
 
 const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Trait[] }> = {
@@ -142,6 +143,14 @@ const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Tr
       { name: 'Magic Resistance', description: 'Advantage on saving throws against spells and other magical effects.', locked: true }
     ]
   },
+  'Bat Person': {
+    icon: '🦇',
+    flavor: 'Agile, nocturnal wanderers known as Vesperians, possessing leathery wings and preternatural senses.',
+    traits: [
+      { name: 'Leathery Wings', description: 'Gains a flying speed of 30 feet if not wearing heavy armor.', locked: true },
+      { name: 'Echolocation', description: 'Gains blindsight out to 30 feet as long as you are not deafened.', locked: true }
+    ]
+  },
 };
 
 interface CharacterCreatorProps {
@@ -243,6 +252,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true, isInnate: true } as any));
       const allFeats = [...racialFeats, ...classFeats];
       
+      // Added missing gold property to fix the interface error
       const newChar: Character = {
         id: Math.random().toString(36).substr(2, 9),
         name, classId, race, gender, description: charDescription, level: 1, stats: finalStats,
@@ -251,7 +261,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         feats: allFeats, imageUrl, isPlayer: characters.length === 0,
         inventory: selectedClass?.startingItemIds || [],
         knownSpells: [],
-        lockedStats: []
+        lockedStats: [],
+        gold: 50
       };
       setCharacters(prev => [...prev, newChar]);
       setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS); setRefImage(null);

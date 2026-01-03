@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+
+import React, { useState, useRef, useEffect } from 'react';
 import { CampaignState, GameLog, Character, ClassDef, SyncMessage, Item, UserAccount } from '../types';
-import { getDMResponse, generateSmartLoot, generateSummary } from '../services/gemini';
+import { getDMResponse, generateSmartLoot, generateSummary, generateWorldMap, generateLocalTiles } from '../services/gemini';
 
 interface CampaignViewProps {
   campaign: CampaignState;
@@ -32,20 +33,15 @@ const CampaignView: React.FC<CampaignViewProps> = ({
   const [summarizing, setSummarizing] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [recruitmentOpen, setRecruitmentOpen] = useState(false);
+  const [focusedCharId, setFocusedCharId] = useState<string | null>(null);
+  const [viewMap, setViewMap] = useState<'chat' | 'world' | 'tactical'>('chat');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [campaign.logs]);
-
-  useEffect(() => {
-    const playerLogsCount = campaign.logs.filter(l => l.role === 'player').length;
-    if (isHost && playerLogsCount > 0 && playerLogsCount % 5 === 0 && !summarizing) {
-      handleNarrativeSynthesis();
-    }
-  }, [campaign.logs.length, isHost, summarizing]);
+  }, [campaign.logs, viewMap]);
 
   const handleNarrativeSynthesis = async () => {
     setSummarizing(true);
@@ -55,10 +51,27 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       setCampaign(prev => ({ ...prev, summary: newSummary }));
       broadcast({ type: 'SUMMARY_UPDATE', payload: newSummary });
     } catch (error: any) {
-      console.error("Failed to synthesize narrative:", error);
       notify(error.message || "Failed to synthesize narrative memory.", "error");
     } finally {
       setSummarizing(false);
+    }
+  };
+
+  const handleGenerateMaps = async () => {
+    if (!isHost || loading) return;
+    setLoading(true);
+    notify("Manifesting location visuals...", "info");
+    try {
+      const worldMap = await generateWorldMap(campaign.plot);
+      const tiles = await generateLocalTiles(campaign.locationName || "The Current Area", 3);
+      const newState = { ...campaign, worldMapUrl: worldMap, localMapTiles: tiles };
+      setCampaign(newState);
+      broadcast({ type: 'STATE_UPDATE', payload: { campaign: newState } });
+      notify("Cartography updated.", "success");
+    } catch (e: any) {
+      notify("The ether is too clouded for maps.", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -66,45 +79,28 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     if (!campaign.plot) return;
     const initialLog: GameLog = {
       role: 'dm',
-      content: `The adventure begins. Your story of "${campaign.plot}" unfolds as the world takes shape. What is your first move?`,
+      content: `The adventure begins in "${campaign.locationName}". Your story of "${campaign.plot}" unfolds. What is your first move?`,
       timestamp: Date.now()
     };
-    setCampaign(prev => ({ ...prev, logs: [initialLog], summary: 'The saga begins with a new party of heroes.', party: [] }));
+    setCampaign(prev => ({ ...prev, logs: [initialLog], summary: 'The saga begins.', party: [] }));
     broadcast({ type: 'NEW_LOG', payload: initialLog });
   };
 
   const handleSendMessage = async () => {
     if (!input.trim() || loading || !arcadeReady) return;
-    const playerMsg: GameLog = { 
-      role: 'player', 
-      content: input, 
-      timestamp: Date.now(),
-      senderName: playerName
-    };
+    const playerMsg: GameLog = { role: 'player', content: input, timestamp: Date.now(), senderName: playerName };
     const newLogs = [...campaign.logs, playerMsg];
     setCampaign(prev => ({ ...prev, logs: newLogs }));
     broadcast({ type: 'NEW_LOG', payload: playerMsg });
-    
     setInput('');
     setLoading(true);
     try {
-      const dmText = await getDMResponse(
-        newLogs.slice(-10).map(l => ({ role: l.role, content: l.content })), 
-        campaign.plot,
-        input,
-        campaign.party,
-        campaign.summary,
-        dmModel
-      );
+      const dmText = await getDMResponse(newLogs.slice(-10).map(l => ({ role: l.role, content: l.content })), campaign.plot, input, campaign.party, campaign.summary, dmModel);
       const dmMsg: GameLog = { role: 'dm', content: dmText, timestamp: Date.now() };
-      setCampaign(prev => ({
-        ...prev,
-        logs: [...prev.logs, dmMsg]
-      }));
+      setCampaign(prev => ({ ...prev, logs: [...prev.logs, dmMsg] }));
       broadcast({ type: 'NEW_LOG', payload: dmMsg });
     } catch (error: any) {
-      console.error(error);
-      notify(error.message || "The Dungeon Master's connection is unstable.", "error");
+      notify(error.message || "Connection unstable.", "error");
     } finally {
       setLoading(false);
     }
@@ -115,261 +111,247 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     const newParty = [...campaign.party, char];
     setCampaign(prev => ({ ...prev, party: newParty }));
     broadcast({ type: 'STATE_UPDATE', payload: { campaign: { ...campaign, party: newParty } } });
-    notify(`${char.name} recruited.`, "success");
-  };
-
-  const handleDismiss = (charId: string) => {
-    const newParty = campaign.party.filter(c => c.id !== charId);
-    setCampaign(prev => ({ ...prev, party: newParty }));
-    broadcast({ type: 'STATE_UPDATE', payload: { campaign: { ...campaign, party: newParty } } });
-    notify("Member dismissed.", "info");
+    notify(`${char.name} joined.`, "success");
   };
 
   const handleGenerateLoot = async () => {
     if (loading || !isHost) return;
     setLoading(true);
     try {
-      const lootTargets = campaign.party.length > 0 ? campaign.party : characters;
-      const item = await generateSmartLoot(lootTargets, classes);
-      const lootMsg: GameLog = { 
-        role: 'dm', 
-        content: `Amidst the journey, you discover an artifact forged for those like you: [${item.name}].`, 
-        timestamp: Date.now() 
-      };
-      setCampaign(prev => ({ ...prev, logs: [...prev.logs, lootMsg], items: [...(prev.items || []), item] }));
-      broadcast({ type: 'NEW_LOG', payload: lootMsg });
+      const item = await generateSmartLoot(campaign.party, classes);
+      const lootMsg: GameLog = { role: 'dm', content: `Found: [${item.name}].`, timestamp: Date.now() };
+      setCampaign(prev => ({ ...prev, logs: [...prev.logs, lootMsg] }));
       broadcast({ type: 'GIVE_LOOT', payload: item });
-    } catch (error: any) {
-      console.error(error);
-      notify(error.message || "Failed to forge smart loot artifact.", "error");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) {} finally { setLoading(false); }
   };
+
+  const focusedChar = campaign.party.find(c => c.id === focusedCharId);
+  const focusedClass = focusedChar ? classes.find(cl => cl.id === focusedChar.classId) : null;
+  const focusedInventory = focusedChar ? items.filter(i => focusedChar.inventory.includes(i.id)) : [];
 
   if (campaign.logs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center max-w-2xl mx-auto px-4 py-8">
-        <div className="text-6xl md:text-7xl mb-6 drop-shadow-[0_0_20px_rgba(178,138,72,0.3)]">📜</div>
-        <h2 className="text-3xl md:text-4xl font-black mb-4 fantasy-font text-[#b28a48]">Forge Your Saga</h2>
-        <p className="text-neutral-500 mb-8 text-[10px] italic tracking-widest uppercase">
-          Describe the world and the conflict that awaits, or load a fated destiny.
-        </p>
+        <h2 className="text-4xl font-black mb-4 fantasy-font text-[#b28a48]">Forge Your Saga</h2>
         <textarea
           value={campaign.plot}
           onChange={(e) => setCampaign(prev => ({ ...prev, plot: e.target.value }))}
-          className="w-full bg-black border-2 border-[#1a1a1a] rounded-sm p-4 mb-6 flex-1 max-h-[300px] focus:border-[#b28a48]/50 outline-none text-neutral-300 font-serif text-base shadow-inner"
-          placeholder="e.g. A kingdom where dragons returned..."
+          className="w-full bg-black border-2 border-[#1a1a1a] rounded-sm p-4 mb-6 h-40 focus:border-[#b28a48]/50 outline-none text-neutral-300 font-serif"
+          placeholder="Describe the world..."
         />
-        <div className="flex flex-col md:flex-row gap-4 w-full justify-center">
-          <button
-            onClick={handleStartCampaign}
-            disabled={!campaign.plot}
-            className="bg-[#b28a48] hover:bg-[#cbb07a] disabled:bg-neutral-900 text-black px-12 py-5 font-black uppercase tracking-[0.3em] transition-all w-full md:w-auto shadow-xl"
-          >
-            Begin Custom Adventure
-          </button>
-          <button
-            onClick={() => manifestBasics && manifestBasics('adventure')}
-            className="bg-blue-950/20 border-2 border-blue-500/30 hover:bg-blue-900/40 text-blue-400 px-12 py-5 font-black uppercase tracking-[0.3em] transition-all w-full md:w-auto shadow-xl"
-          >
-            Quickstart Adventure ✨
-          </button>
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+          <button onClick={handleStartCampaign} disabled={!campaign.plot} className="bg-[#b28a48] text-black px-12 py-5 font-black uppercase tracking-[0.3em] flex-1">Begin Saga</button>
+          <button onClick={() => manifestBasics?.('adventure')} className="bg-blue-900/20 border-2 border-blue-500/30 text-blue-400 px-12 py-5 font-black uppercase tracking-[0.3em] flex-1">Quickstart ✨</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full space-y-2 md:space-y-4 relative overflow-hidden">
-      {/* Campaign Bar - Slimmer for Mobile */}
-      <div className="bg-black/90 backdrop-blur-lg p-2 md:p-3 rounded-sm border border-[#1a1a1a] flex justify-between items-center shadow-2xl gap-2 shrink-0">
-        <div className="min-w-0 flex items-center gap-2 md:gap-4">
-          <button 
-            onClick={() => setSheetOpen(true)}
-            className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-[#b28a48]/40 flex items-center justify-center text-lg md:text-xl hover:bg-[#b28a48] hover:text-black transition-all shadow-lg active:scale-95"
-            title="Player Sheets"
-          >
-            📋
-          </button>
-          <div className="min-w-0">
-            <h3 className="text-[9px] md:text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest uppercase truncate max-w-[80px] sm:max-w-none">
-              {campaign.plot.slice(0, 40)}...
-            </h3>
-            {summarizing && <span className="text-[6px] md:text-[7px] text-amber-500 animate-pulse font-black uppercase">Reflecting...</span>}
+    <div className="flex flex-col h-full space-y-2 relative overflow-hidden">
+      {/* Campaign Bar */}
+      <div className="bg-black/90 backdrop-blur-lg p-3 rounded-sm border border-[#1a1a1a] flex justify-between items-center shadow-2xl gap-3 shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            {campaign.party.map(c => (
+              <button key={c.id} onClick={() => setFocusedCharId(c.id)} className="w-9 h-9 rounded-full border border-[#b28a48]/50 overflow-hidden bg-black active:scale-90 transition-all">
+                {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover" /> : <span className="text-[10px]">👤</span>}
+              </button>
+            ))}
+            <button onClick={() => setRecruitmentOpen(true)} className="w-9 h-9 rounded-full border border-dashed border-[#b28a48]/30 flex items-center justify-center text-neutral-600 hover:text-[#b28a48] transition-all">+</button>
+          </div>
+          <div className="hidden sm:block">
+            <h3 className="text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest uppercase">{campaign.locationName}</h3>
+            <p className="text-[8px] text-neutral-600 font-black uppercase">{campaign.summary.slice(0, 40)}...</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-1 md:gap-1.5 overflow-x-auto scrollbar-hide max-w-[100px] sm:max-w-none">
-          {campaign.party.map(c => (
-            <div key={c.id} className="group relative shrink-0">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#b28a48]/50 overflow-hidden bg-black flex items-center justify-center shadow-inner">
-                {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} /> : <span className="text-[9px]">👤</span>}
-              </div>
-            </div>
+        <div className="flex gap-2">
+          {['chat', 'world', 'tactical'].map(v => (
+            <button key={v} onClick={() => setViewMap(v as any)} className={`px-3 py-2 text-[8px] font-black uppercase tracking-widest border rounded-sm transition-all ${viewMap === v ? 'bg-[#b28a48] text-black border-[#b28a48]' : 'bg-black text-neutral-500 border-neutral-800'}`}>
+              {v}
+            </button>
           ))}
-          <button 
-            onClick={() => setRecruitmentOpen(true)}
-            className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-dashed border-[#b28a48]/30 flex items-center justify-center text-neutral-600 hover:text-[#b28a48] hover:border-[#b28a48] transition-all shrink-0 active:scale-95"
-            title="Recruit Members"
-          >
-            +
-          </button>
-        </div>
-
-        <div className="flex gap-1 items-center">
-          <button 
-            onClick={handleGenerateLoot}
-            disabled={loading || !isHost}
-            className="text-[7px] md:text-[8px] text-[#b28a48] font-black uppercase tracking-widest border border-[#b28a48]/30 px-2 md:px-3 h-7 md:h-8 flex items-center justify-center rounded-sm hover:bg-amber-950/20 active:scale-95"
-          >
-            LOOT
-          </button>
+          {isHost && (
+            <button onClick={handleGenerateMaps} disabled={loading} className="px-3 py-2 text-[8px] font-black uppercase tracking-widest bg-blue-900/20 text-blue-400 border border-blue-500/30 rounded-sm active:scale-95">🗺️ Gen</button>
+          )}
         </div>
       </div>
 
-      {/* Chat Logs Area */}
-      <div 
-        ref={scrollRef}
-        className="flex-1 bg-neutral-950/10 rounded-sm border border-[#1a1a1a] overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 scrollbar-hide"
-      >
-        {campaign.logs.map((log, i) => (
-          <div key={i} className={`flex ${log.role === 'player' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[95%] md:max-w-[80%] p-3 md:p-4 rounded-sm relative ${
-              log.role === 'player' 
-              ? 'bg-[#0f0f0f] text-neutral-200 border border-[#b28a48]/10' 
-              : 'bg-transparent text-[#cbb07a] border-l-2 border-[#b28a48]/40'
-            }`}>
-              <div className={`text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] mb-1 flex justify-between gap-4 ${log.role === 'dm' ? 'text-[#b28a48]' : 'text-neutral-500'}`}>
-                <span>{log.role === 'dm' ? 'DUNGEON MASTER' : (log.senderName || 'PLAYER')}</span>
+      {/* Main Content Area */}
+      <div className="flex-1 bg-neutral-950/20 rounded-sm border border-[#1a1a1a] overflow-hidden relative">
+        {viewMap === 'chat' && (
+          <div ref={scrollRef} className="h-full overflow-y-auto p-4 space-y-4 scrollbar-hide">
+            {campaign.logs.map((log, i) => (
+              <div key={i} className={`flex ${log.role === 'player' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[90%] p-4 rounded-sm border ${log.role === 'player' ? 'bg-[#0f0f0f] border-[#b28a48]/10' : 'border-l-2 border-l-[#b28a48]/40 border-transparent text-[#cbb07a]'}`}>
+                  <p className="text-[8px] font-black uppercase tracking-widest mb-1 opacity-50">{log.role === 'dm' ? 'Dungeon Master' : (log.senderName || 'Soul')}</p>
+                  <p className="text-sm md:text-base leading-relaxed font-serif italic">{log.content}</p>
+                </div>
               </div>
-              <p className="text-sm md:text-base leading-relaxed font-serif italic">{log.content}</p>
-            </div>
+            ))}
           </div>
-        ))}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="text-[#b28a48] animate-pulse text-[8px] md:text-[10px] font-black tracking-widest uppercase py-2">
-              The Chronicle Unfolds...
+        )}
+
+        {viewMap === 'world' && (
+          <div className="h-full w-full bg-black relative flex items-center justify-center p-4">
+            {campaign.worldMapUrl ? (
+              <img src={campaign.worldMapUrl} className="max-h-full max-w-full object-contain shadow-2xl rounded-sm border border-[#b28a48]/20" />
+            ) : (
+              <div className="text-center opacity-30">
+                <p className="text-5xl mb-4">🌍</p>
+                <p className="text-xs uppercase font-black tracking-widest">No world map manifest</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {viewMap === 'tactical' && (
+          <div className="h-full w-full bg-black/80 p-4 overflow-y-auto scrollbar-hide">
+            <h4 className="text-[10px] font-black text-neutral-500 uppercase tracking-[0.4em] mb-4 text-center">Tactical Surroundings</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {campaign.localMapTiles?.map((tile, idx) => (
+                <div key={idx} className="aspect-square bg-neutral-900 border border-[#b28a48]/10 rounded-sm overflow-hidden group shadow-xl">
+                  <img src={tile} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" />
+                </div>
+              ))}
+              {(!campaign.localMapTiles || campaign.localMapTiles.length === 0) && (
+                <div className="col-span-full py-20 text-center opacity-20 border-2 border-dashed border-neutral-800">
+                  <p className="text-xs uppercase font-black tracking-widest">Local area obscured by shadows</p>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* Input Area - Tighter on Mobile */}
-      <div className="bg-black/30 border-t border-[#1a1a1a] pt-2 pb-0.5 shrink-0">
-        <div className="flex gap-2 items-end">
-          <textarea
-            rows={1}
-            value={input}
-            disabled={!arcadeReady || loading}
-            onChange={(e) => {
-              setInput(e.target.value);
-              e.target.style.height = 'auto';
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder={arcadeReady ? "Describe your move..." : "Ether Cooling..."}
-            className="flex-1 bg-black/50 border border-[#1a1a1a] rounded-sm p-2.5 text-[15px] focus:border-[#b28a48] outline-none text-neutral-300 font-serif italic resize-none min-h-[44px]"
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!arcadeReady || loading || !input.trim()}
-            className="bg-[#111] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-12 md:w-14 h-[44px] flex items-center justify-center transition-all border border-[#222] disabled:opacity-20 rounded-sm active:scale-95 shadow-lg shrink-0"
-          >
-            <span className="text-xl md:text-2xl">⚔️</span>
-          </button>
-        </div>
+      {/* Input */}
+      <div className="pt-2 flex gap-2">
+        <textarea
+          value={input}
+          disabled={loading || !arcadeReady}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Describe your fate..."
+          className="flex-1 bg-black/50 border border-[#1a1a1a] rounded-sm p-3 text-[15px] outline-none text-neutral-300 font-serif italic min-h-[48px] resize-none"
+        />
+        <button onClick={handleSendMessage} disabled={loading || !input.trim()} className="bg-[#111] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-14 h-[48px] flex items-center justify-center border border-[#222] rounded-sm active:scale-95 shadow-lg">⚔️</button>
       </div>
 
-      {/* Sheets Panel - Fullscreen on Mobile */}
-      {sheetOpen && (
-        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[calc(var(--safe-top)+10px)]">
-           <div className="p-4 md:p-8 h-full flex flex-col max-w-4xl mx-auto">
-              <div className="flex justify-between items-center mb-6 border-b border-[#b28a48]/20 pb-4 shrink-0">
-                 <h2 className="text-base md:text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Active Fellowship</h2>
-                 <button onClick={() => setSheetOpen(false)} className="text-neutral-600 hover:text-white text-2xl md:text-3xl p-1 md:p-2 active:scale-90">✕</button>
+      {/* Full Screen Character Sheet */}
+      {focusedChar && (
+        <div className="fixed inset-0 z-[120] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] flex flex-col pt-[var(--safe-top)]">
+          <div className="p-4 md:p-10 flex flex-col h-full max-w-6xl mx-auto w-full">
+            <div className="flex justify-between items-start border-b border-[#b28a48]/20 pb-6 mb-8">
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 md:w-32 md:h-32 border-2 border-[#b28a48]/40 rounded-sm overflow-hidden shadow-2xl">
+                  {focusedChar.imageUrl && <img src={focusedChar.imageUrl} className="w-full h-full object-cover" />}
+                </div>
+                <div className="text-left">
+                  <h2 className="text-4xl md:text-6xl font-black fantasy-font text-[#b28a48] tracking-widest">{focusedChar.name}</h2>
+                  <p className="text-sm md:text-lg text-neutral-500 font-black uppercase tracking-[0.4em] mt-1">{focusedChar.race} • Level {focusedChar.level} {focusedClass?.name}</p>
+                </div>
               </div>
-              <div className="flex-1 space-y-4 md:space-y-6 pb-24 text-left">
-                 {campaign.party.length === 0 ? (
-                   <p className="text-center text-neutral-600 uppercase text-[9px] md:text-[10px] font-black py-12">No members recruited.</p>
-                 ) : (
-                   campaign.party.map(c => {
-                     const cls = classes.find(cl => cl.id === c.classId);
-                     return (
-                       <div key={c.id} className="grim-card p-4 md:p-5 border-neutral-900 border-2 rounded-sm shadow-2xl">
-                          <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-5">
-                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-sm border border-[#b28a48]/20 overflow-hidden shrink-0 shadow-inner">
-                                {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} />}
-                             </div>
-                             <div className="flex-1 min-w-0">
-                                <h3 className="text-lg md:text-xl font-black fantasy-font text-[#b28a48] truncate">{c.name}</h3>
-                                <p className="text-[8px] md:text-[9px] text-neutral-500 uppercase font-black">{c.race} • {cls?.name || 'Classless'}</p>
-                                <div className="mt-2 flex gap-3 md:gap-4">
-                                   <div className="bg-neutral-950/80 px-1.5 md:px-2 py-0.5 md:py-1 border border-neutral-900 rounded-sm">
-                                      <p className="text-[6px] md:text-[7px] text-neutral-600 font-black uppercase">Vitality</p>
-                                      <p className="text-xs md:text-sm font-black text-neutral-200">{c.hp} / {c.maxHp}</p>
-                                   </div>
-                                </div>
-                             </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-3 gap-1.5 md:gap-2 mb-4">
-                             {Object.entries(c.stats).map(([s, v]) => (
-                               <div key={s} className="bg-black/60 p-1.5 md:p-2 border border-neutral-800 rounded-sm text-center">
-                                  <p className="text-[7px] md:text-[8px] text-neutral-600 font-black uppercase">{s.slice(0,3)}</p>
-                                  <p className="text-sm md:text-base font-black text-amber-600">{v as number}</p>
-                               </div>
-                             ))}
-                          </div>
-                          <button onClick={() => handleDismiss(c.id)} className="w-full text-red-900/60 hover:text-red-500 transition-all font-black uppercase text-[8px] md:text-[9px] border border-red-900/20 py-2.5 md:py-3 rounded-sm bg-red-950/5 mt-1 active:bg-red-950/20">Dismiss Soul</button>
-                       </div>
-                     );
-                   })
-                 )}
+              <button onClick={() => setFocusedCharId(null)} className="text-neutral-600 hover:text-white text-5xl active:scale-90">✕</button>
+            </div>
+
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-10 overflow-y-auto scrollbar-hide pb-20">
+              {/* Stats & Vitals */}
+              <div className="space-y-8">
+                <div className="bg-neutral-900/40 p-6 border border-[#b28a48]/10 rounded-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Vitality</span>
+                    <span className="text-[10px] font-black text-red-500 uppercase">HP</span>
+                  </div>
+                  <div className="relative h-4 bg-black rounded-full overflow-hidden border border-neutral-800">
+                    <div className="h-full bg-red-800 transition-all duration-1000" style={{ width: `${(focusedChar.hp / focusedChar.maxHp) * 100}%` }}></div>
+                  </div>
+                  <p className="text-center mt-2 font-black text-xl text-neutral-200">{focusedChar.hp} / {focusedChar.maxHp}</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3 text-left">
+                  {Object.entries(focusedChar.stats).map(([s, v]) => (
+                    <div key={s} className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center">
+                      <p className="text-[8px] text-neutral-600 font-black uppercase mb-1">{s.slice(0,3)}</p>
+                      <p className="text-2xl font-black text-amber-600">{v as number}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-amber-950/10 p-6 border border-amber-900/20 rounded-sm text-left">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-black fantasy-font text-[#b28a48]">Treasury</h4>
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-amber-500 font-mono">{focusedChar.gold}</span>
+                    <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Imperial Gold Pieces</span>
+                  </div>
+                </div>
               </div>
-           </div>
+
+              {/* Feats & Inventory */}
+              <div className="lg:col-span-2 space-y-10 text-left">
+                <section>
+                  <h4 className="text-sm font-black fantasy-font text-neutral-500 border-b border-neutral-900 pb-2 mb-4">Satchel & Armaments</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {focusedInventory.length > 0 ? focusedInventory.map(item => (
+                      <div key={item.id} className="p-4 bg-black/40 border border-neutral-900 rounded-sm flex items-center gap-4 hover:border-amber-900/30 transition-all">
+                        <div className="w-16 h-16 bg-neutral-950 rounded-sm border border-neutral-800 overflow-hidden shrink-0">
+                          {item.imageUrl && <img src={item.imageUrl} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-[#b28a48] uppercase truncate">{item.name}</p>
+                          <p className="text-[9px] text-neutral-500 font-serif italic mt-1 line-clamp-2">{item.description}</p>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-neutral-700 text-xs italic">Only shadows fill this satchel.</p>
+                    )}
+                  </div>
+                </section>
+
+                <section>
+                  <h4 className="text-sm font-black fantasy-font text-neutral-500 border-b border-neutral-900 pb-2 mb-4">Innate Destinies</h4>
+                  <div className="grid grid-cols-1 gap-4">
+                    {focusedChar.feats.map((f, i) => (
+                      <div key={i} className="p-5 bg-black/20 border border-neutral-900 rounded-sm border-l-2 border-l-amber-900/50">
+                        <h6 className="text-xs font-black text-[#b28a48] uppercase mb-1">{f.name}</h6>
+                        <p className="text-sm text-neutral-400 font-serif italic leading-relaxed">{f.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Recruitment Panel - Fullscreen on Mobile */}
+      {/* Recruitment Modal */}
       {recruitmentOpen && (
-        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[calc(var(--safe-top)+10px)]">
-           <div className="p-4 h-full flex flex-col max-w-2xl mx-auto">
-              <div className="flex justify-between items-center mb-6 border-b border-[#b28a48]/20 pb-4 shrink-0">
-                 <h2 className="text-base md:text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Recruit Adventurers</h2>
-                 <button onClick={() => setRecruitmentOpen(false)} className="text-neutral-600 hover:text-white text-2xl md:text-3xl p-1 md:p-2 active:scale-90">✕</button>
-              </div>
-              <div className="flex-1 space-y-3 md:space-y-4 pb-24">
-                 {characters.filter(c => !campaign.party.some(pc => pc.id === c.id)).map(c => (
-                   <div key={c.id} className="bg-neutral-900/80 border border-neutral-800 p-2.5 md:p-3 rounded-sm flex items-center gap-3 hover:border-[#b28a48]/30 transition-all group active:bg-neutral-800">
-                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-neutral-700 overflow-hidden bg-black shrink-0 shadow-lg">
-                         {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} />}
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                         <h4 className="text-xs md:text-sm font-black text-[#b28a48] uppercase tracking-widest truncate">{c.name}</h4>
-                         <p className="text-[8px] md:text-[9px] text-neutral-500 uppercase font-black">Level {c.level} {c.race}</p>
-                      </div>
-                      <button 
-                        onClick={() => handleRecruit(c)}
-                        className="bg-[#b28a48] text-black border border-[#b28a48] px-3 md:px-4 py-1.5 md:py-2 text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                      >
-                        Recruit
-                      </button>
-                   </div>
-                 ))}
-                 {characters.filter(c => !campaign.party.some(pc => pc.id === c.id)).length === 0 && (
-                   <div className="text-center py-20 opacity-40">
-                      <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">No unrecruited souls available</p>
-                   </div>
-                 )}
-              </div>
-           </div>
+        <div className="fixed inset-0 z-[130] bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full bg-neutral-950 border border-[#b28a48]/20 p-8 rounded-sm shadow-2xl">
+            <div className="flex justify-between items-center mb-8 border-b border-neutral-900 pb-4">
+              <h3 className="text-xl font-black fantasy-font text-[#b28a48]">Recruit Fellowship</h3>
+              <button onClick={() => setRecruitmentOpen(false)} className="text-4xl text-neutral-600 hover:text-white">✕</button>
+            </div>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto scrollbar-hide">
+              {characters.filter(c => !campaign.party.some(pc => pc.id === c.id)).map(c => (
+                <div key={c.id} className="p-4 bg-black border border-neutral-800 rounded-sm flex items-center justify-between hover:border-[#b28a48]/30 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border border-neutral-700">
+                      {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="text-left">
+                      <p className="font-black text-[#b28a48] uppercase tracking-widest">{c.name}</p>
+                      <p className="text-[8px] text-neutral-600 font-black uppercase">LVL {c.level} {c.race}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => handleRecruit(c)} className="bg-amber-950/20 text-[#b28a48] border border-[#b28a48]/40 px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-sm active:scale-95">Accept Soul</button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

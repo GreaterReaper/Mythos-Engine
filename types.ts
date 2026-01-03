@@ -42,7 +42,7 @@ export type RaceType =
   | 'Lizardfolk' 
   | 'Minotaur' 
   | 'Satyr'
-  | 'Bat Person';
+  | 'Vesperian';
 
 export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
 

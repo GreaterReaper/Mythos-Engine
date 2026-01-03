@@ -30,7 +30,7 @@ const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   Lizardfolk: { constitution: 2, wisdom: 1 },
   Minotaur: { strength: 2, constitution: 1 },
   Satyr: { charisma: 2, dexterity: 1 },
-  'Bat Person': { dexterity: 2, wisdom: 1 },
+  'Vesperian': { dexterity: 2, wisdom: 1 },
 };
 
 const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Trait[] }> = {
@@ -143,7 +143,7 @@ const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Tr
       { name: 'Magic Resistance', description: 'Advantage on saving throws against spells and other magical effects.', locked: true }
     ]
   },
-  'Bat Person': {
+  'Vesperian': {
     icon: '🦇',
     flavor: 'Agile, nocturnal wanderers known as Vesperians, possessing leathery wings and preternatural senses.',
     traits: [
@@ -260,7 +260,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         imageUrl = await generateImage(prompt, refImage || undefined);
       } catch (imgErr: any) {
         isSpectral = true;
-        // SVG Placeholder for Spectral Soul
         imageUrl = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="100%" height="100%" fill="#0a0a0a"/><text x="50%" y="50%" fill="#333" font-size="20" font-family="Cinzel" text-anchor="middle" dominant-baseline="middle">SPECTRAL</text></svg>`)}`;
       }
 
@@ -310,25 +309,15 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     if (healingSoulId) return;
     setHealingSoulId(char.id);
     notify(`Channelling full manifestation for ${char.name}...`, "info");
-
     const selectedClass = classes.find(cls => cls.id === char.classId);
-    
     try {
       let imageUrl = char.imageUrl;
       let classFeats = char.feats.filter(f => (f as any).isInnate);
-      
       const prompt = `Fantasy TTRPG character portrait. A ${char.gender} ${char.race} ${selectedClass?.name}. Appearance: ${char.description}.`;
       imageUrl = await generateImage(prompt);
-      
       const generatedFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
       classFeats = [...classFeats, ...generatedFeats];
-
-      setCharacters(prev => prev.map(c => 
-        c.id === char.id 
-          ? { ...c, imageUrl, feats: classFeats, isSpectral: false } 
-          : c
-      ));
-      
+      setCharacters(prev => prev.map(c => c.id === char.id ? { ...c, imageUrl, feats: classFeats, isSpectral: false } : c));
       notify(`${char.name}'s soul manifest!`, "success");
     } catch (e: any) {
       notify("The Ley Lines are still exhausted. Restoration failed.", "error");
@@ -431,12 +420,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const isPremade = selectedChar?.id.startsWith('hero-');
   const currentRacialData = RACIAL_TRAITS[race];
 
-  // Starting gear preview for creation
-  const startingGear = useMemo(() => {
-    if (!selectedClassForCreation) return [];
-    return items.filter(i => selectedClassForCreation.startingItemIds?.includes(i.id));
-  }, [selectedClassForCreation, items]);
-
   return (
     <div className="space-y-12 pb-12">
       <div className="text-center pt-8">
@@ -505,7 +488,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   </select>
                 </div>
 
-                {/* Heritage Insight Panel */}
                 <div className="bg-amber-950/10 border border-amber-900/20 p-4 rounded-sm animate-in fade-in duration-500">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xl">{currentRacialData.icon}</span>
@@ -517,13 +499,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       <div 
                         key={idx} 
                         className="border-l border-amber-900/30 pl-3 relative group cursor-help outline-none"
-                        tabIndex={0}
-                        role="button"
-                        aria-haspopup="true"
                         onClick={() => setActiveTraitTooltipIdx(activeTraitTooltipIdx === idx ? null : idx)}
                         onBlur={() => setActiveTraitTooltipIdx(null)}
                       >
-                        {/* Racial Trait Tooltip */}
                         <div className={`absolute left-0 bottom-full mb-3 z-50 transition-all duration-300 w-64 pointer-events-none
                           ${activeTraitTooltipIdx === idx ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0'}
                         `}>
@@ -533,7 +511,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                            </div>
                            <div className="w-2 h-2 bg-[#0c0c0c] border-r border-b border-amber-900/40 rotate-45 -mt-1 ml-4"></div>
                         </div>
-
                         <p className="text-[8px] font-black text-[#b28a48] uppercase tracking-tighter">Innate: {t.name} <span className="opacity-40 ml-1">ⓘ</span></p>
                         <p className="text-[8px] text-neutral-400 font-serif leading-tight line-clamp-1">{t.description}</p>
                       </div>
@@ -550,8 +527,26 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
               </div>
 
-              {/* Attributes and Description (omitted for brevity, assume same as base) */}
-              {/* ... (Existing Stat Selection Logic) ... */}
+              <div className="space-y-4">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest mb-2 block text-left">Divine Attributes (Point Buy)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  {(Object.keys(stats) as Array<keyof Stats>).map(stat => (
+                    <div key={stat} className="bg-black/60 p-3 border border-neutral-900 rounded-sm flex items-center justify-between">
+                      <div className="text-left">
+                        <p className="text-[8px] text-neutral-500 font-black uppercase">{stat.slice(0,3)}</p>
+                        <p className="text-lg font-black text-[#b28a48]">{stats[stat] + (RACIAL_BONUSES[race][stat] || 0)}</p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <button onClick={() => handleStatChange(stat, 1)} className="w-6 h-6 bg-neutral-900 text-neutral-400 flex items-center justify-center rounded-sm hover:text-[#b28a48] transition-colors">+</button>
+                        <button onClick={() => handleStatChange(stat, -1)} className="w-6 h-6 bg-neutral-900 text-neutral-400 flex items-center justify-center rounded-sm hover:text-[#b28a48] transition-colors">-</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center px-1">
+                   <p className="text-[8px] font-black text-neutral-600 uppercase">Fate Points: <span className={pointsRemaining < 0 ? 'text-red-500' : 'text-amber-500'}>{pointsRemaining} / 27</span></p>
+                </div>
+              </div>
 
               <button 
                 onClick={handleCreate} 
@@ -570,17 +565,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               <div 
                 key={char.id} 
                 onClick={() => setSelectedCharacterId(char.id)} 
-                className={`grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden bg-black rounded-sm active:scale-98 relative ${char.isSpectral ? 'animate-pulse opacity-80 shadow-[0_0_20px_rgba(100,100,100,0.3)]' : ''}`}
+                className={`grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden bg-black rounded-sm active:scale-98 relative ${char.isSpectral ? 'animate-pulse opacity-80' : ''}`}
               >
-                {char.isSpectral && (
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neutral-600 to-transparent z-10"></div>
-                )}
-                
                 <div className="h-40 md:h-48 bg-black relative">
                   {char.imageUrl ? <img src={char.imageUrl} className={`w-full h-full object-cover ${char.isSpectral ? 'grayscale contrast-125' : ''}`} alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-3xl">👤</div>}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                  
-                  {/* Banish Button Overlay */}
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDeleteCharacter(e, char.id, char.name); }}
@@ -590,11 +579,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       🗑️
                     </button>
                   </div>
-
                   <div className="absolute bottom-3 left-4 right-4 text-left">
                      <h4 className="text-lg md:text-xl font-black fantasy-font text-[#b28a48]">{char.name}</h4>
                      <p className="text-[8px] text-neutral-400 uppercase font-bold tracking-widest">
-                       {char.isSpectral ? <span className="text-amber-500 animate-pulse">Spectral Soul — Manifesting...</span> : `${char.race} • LVL ${char.level}`}
+                       {char.isSpectral ? <span className="text-amber-500 animate-pulse">Spectral Soul</span> : `${char.race} • LVL ${char.level}`}
                      </p>
                   </div>
                 </div>
@@ -608,135 +596,57 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 md:p-8 bg-black/98 backdrop-blur-xl pt-[var(--safe-top)]">
           <div className="relative w-full max-w-6xl bg-[#080808] border border-[#b28a48]/30 shadow-2xl overflow-hidden rounded-sm flex flex-col lg:flex-row h-full md:h-[90vh]">
             <button onClick={() => setSelectedCharacterId(null)} className="absolute top-4 right-4 z-[130] text-neutral-600 hover:text-[#b28a48] text-4xl p-2 active:scale-90 bg-black/40 rounded-full w-12 h-12 flex items-center justify-center">✕</button>
-
             <div className="lg:w-2/5 relative border-b lg:border-r border-[#b28a48]/10 shrink-0">
               <div className="h-[250px] sm:h-[400px] lg:h-full relative overflow-hidden">
                 {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className={`w-full h-full object-cover ${selectedChar.isSpectral ? 'grayscale' : ''}`} alt={selectedChar.name} />}
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                 <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-left">
-                  {selectedChar.isSpectral && (
-                    <button 
-                      onClick={() => handleManualManifest(selectedChar)}
-                      disabled={!!healingSoulId}
-                      className="mb-4 bg-amber-600 text-black px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-sm hover:bg-amber-400 transition-all flex items-center gap-2"
-                    >
-                      {healingSoulId === selectedChar.id ? 'Solidifying...' : 'Force Full Manifestation ✨'}
-                    </button>
-                  )}
                   <h3 className="text-3xl md:text-5xl font-black fantasy-font text-[#b28a48] mb-1">{selectedChar.name}</h3>
                   <p className="text-[9px] md:text-xs uppercase tracking-[0.6em] text-neutral-500 font-black">{selectedChar.race} {selectedClass?.name}</p>
                 </div>
               </div>
             </div>
-
             <div className="flex-1 p-6 md:p-12 overflow-y-auto scrollbar-hide pb-20 text-left">
-              {selectedChar.isSpectral && (
-                <div className="mb-8 p-6 border border-amber-900/40 bg-amber-950/10 rounded-sm">
-                  <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-2">Restoration Pending</h4>
-                  <p className="text-[10px] text-neutral-400 font-serif italic leading-relaxed">
-                    This hero was bound during a resonance outage. Their unique feats and true portrait are currently echoing in the void. The engine will automatically manifest them once the Ley Lines reset.
-                  </p>
-                </div>
-              )}
-
               <div className="space-y-12">
-                {/* Attributes Section */}
                 <section>
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-3 mb-6">
                     <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase">Sacred Attributes</h4>
                     {!isPremade && (
-                      <button 
-                        onClick={() => handleRerollStatsOnChar(selectedChar)} 
-                        disabled={rerollingStats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
-                        className="text-[9px] font-black text-[#b28a48] uppercase active:scale-95 disabled:opacity-20"
-                      >
-                        {rerollingStats === selectedChar.id ? '...' : 'Reweave 🎲'}
-                      </button>
+                      <button onClick={() => handleRerollStatsOnChar(selectedChar)} disabled={rerollingStats === selectedChar.id} className="text-[9px] font-black text-[#b28a48] uppercase">Reweave 🎲</button>
                     )}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-6">
                     {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(stat => (
-                      <div 
-                        key={stat} 
-                        onClick={() => toggleStatLockOnChar(selectedChar.id, stat)}
-                        className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center transition-all relative group ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'} ${!isPremade ? 'cursor-pointer' : 'cursor-default'}`}
-                      >
+                      <div key={stat} onClick={() => toggleStatLockOnChar(selectedChar.id, stat)} className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center transition-all ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'}`}>
                         <div className="flex justify-between w-full mb-2">
-                          {!isPremade && (
-                            <span className={`text-base ${selectedChar.lockedStats?.includes(stat) ? 'text-amber-600' : 'text-neutral-800'}`}>
-                              {selectedChar.lockedStats?.includes(stat) ? '†' : '○'}
-                            </span>
-                          )}
-                          <span className="text-[8px] text-neutral-600 font-black uppercase tracking-tighter">{stat.slice(0,3)}</span>
+                           <span className="text-[8px] text-neutral-600 font-black uppercase">{stat.slice(0,3)}</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                          <span className={`text-2xl md:text-4xl font-black ${selectedChar.lockedStats?.includes(stat) ? 'text-amber-500' : 'text-neutral-500'}`}>{selectedChar.stats[stat]}</span>
+                          <span className="text-2xl md:text-4xl font-black text-neutral-500">{selectedChar.stats[stat]}</span>
                           <span className="text-[10px] font-bold text-neutral-700">{getModifier(selectedChar.stats[stat])}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </section>
-
-                {/* Feats Section */}
                 <section>
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-3 mb-6">
                     <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase">Grimoire of Feats</h4>
                     {!isPremade && (
-                      <button 
-                        onClick={() => handleRerollFeats(selectedChar)} 
-                        disabled={rerollingFeats === selectedChar.id || selectedChar.isSpectral || (!reservoirReady && !currentUser.isAdmin)}
-                        className="text-[9px] font-black text-[#b28a48] uppercase active:scale-95 disabled:opacity-20"
-                      >
-                        {rerollingFeats === selectedChar.id ? '...' : 'Reweave 🎲'}
-                      </button>
+                      <button onClick={() => handleRerollFeats(selectedChar)} className="text-[9px] font-black text-[#b28a48] uppercase">Reweave 🎲</button>
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     {selectedChar.feats.map((f, i) => (
-                      <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'} ${!isPremade && !(f as any).isInnate ? 'cursor-pointer hover:border-neutral-700' : 'cursor-default'}`}>
-                         {!isPremade && <span className={`mt-0.5 ${(f as any).isInnate ? 'text-amber-700 opacity-50' : 'text-amber-600'}`}>{f.locked ? '†' : '○'}</span>}
+                      <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'}`}>
                          <div className="flex-1">
-                           <div className="flex justify-between items-start mb-1">
-                             <h6 className={`text-[11px] font-black uppercase tracking-wider ${(f as any).isInnate ? 'text-amber-700' : 'text-[#b28a48]'}`}>{f.name} {(f as any).isInnate && '(Innate)'}</h6>
-                           </div>
+                           <h6 className="text-[11px] font-black uppercase tracking-wider text-[#b28a48]">{f.name}</h6>
                            <p className="text-[10px] text-neutral-500 font-serif italic leading-relaxed">{f.description}</p>
                          </div>
                       </div>
                     ))}
                   </div>
                 </section>
-
-                <section>
-                  <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase border-b border-[#b28a48]/20 pb-3 mb-6">Equipment & Relics</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {charInventory.length > 0 ? charInventory.map(item => (
-                      <div key={item.id} className="p-4 bg-black/60 border border-neutral-900 rounded-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-sm border border-neutral-800 overflow-hidden shrink-0">
-                          {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <span className="w-full h-full flex items-center justify-center text-xs opacity-20">🛡️</span>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-black text-[#b28a48] uppercase truncate">{item.name}</p>
-                          <p className="text-[9px] text-neutral-500 font-serif italic truncate">{item.type}</p>
-                        </div>
-                        {!isPremade && <button onClick={() => removeItemFromChar(selectedChar.id, item.id)} className="text-neutral-700 hover:text-red-500 text-xs px-2">✕</button>}
-                      </div>
-                    )) : (
-                      <p className="text-neutral-700 text-[10px] italic py-4">No relics in possession.</p>
-                    )}
-                  </div>
-                </section>
-              </div>
-              <div className="mt-12 flex flex-col items-center gap-6">
-                {!isPremade && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDeleteCharacter(e, selectedChar.id, selectedChar.name); }}
-                    className="text-[9px] font-black text-red-900/60 hover:text-red-500 uppercase tracking-[0.4em] transition-all border border-red-900/20 px-6 py-3 rounded-sm hover:bg-red-950/10"
-                  >
-                    Banish Soul From Fellowship
-                  </button>
-                )}
-                <button onClick={() => setSelectedCharacterId(null)} className="text-[10px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.5em] transition-all">Close Entry</button>
               </div>
             </div>
           </div>

@@ -30,7 +30,7 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 107; // Incremented for archive auto-update logic
+const SYSTEM_VERSION = 108; // Incremented for visual archive update
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -277,38 +277,43 @@ const App: React.FC = () => {
     return Object.values(merged);
   }, []);
 
-  // Global System Sync: Ensures 'system' content remains constant for all users
   const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[]) => {
     const globalKey = 'mythos_ether_system_master';
     const rawGlobal = localStorage.getItem(globalKey);
     let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
 
-    // Architect check: If hardcoded constants have newer version or admin forces manifest, update master
+    // Architect master repository update: Admin role only
     if (currentUser?.isAdmin && masterArchive.version < SYSTEM_VERSION) {
       masterArchive = {
         version: SYSTEM_VERSION,
-        monsters: [...SYSTEM_MONSTERS],
-        items: [...SYSTEM_ITEMS],
-        classes: classes.filter(c => c.authorId === 'system'), // Should be handled in manifestBasics
-        heroes: characters.filter(c => c.authorId === 'system')
+        monsters: localMonsters.filter(m => m.authorId === 'system'),
+        items: localItems.filter(i => i.authorId === 'system'),
+        classes: localClasses.filter(c => c.authorId === 'system'),
+        heroes: localChars.filter(c => c.authorId === 'system')
       };
       localStorage.setItem(globalKey, JSON.stringify(masterArchive));
-      notify("Master Grimoire resonating with the latest Arcane Truths.", "success");
+      notify("Master Chronicle resonating with new Arcane Truths.", "success");
     }
 
-    // Integrity enforcement: replace any 'system' items with Master Archive copies
     const ensureIntegrity = <T extends { authorId?: string; id: string }>(localList: T[], masterList: T[]): T[] => {
       const masterMap = new Map(masterList.map(m => [m.id, m]));
       return localList.map(item => (item.authorId === 'system' && masterMap.has(item.id)) ? masterMap.get(item.id)! : item);
     };
 
-    const newChars = ensureIntegrity(localChars, masterArchive.heroes);
-    const newClasses = ensureIntegrity(localClasses, masterArchive.classes);
-    const newMonsters = ensureIntegrity(localMonsters, masterArchive.monsters);
-    const newItems = ensureIntegrity(localItems, masterArchive.items);
+    return {
+      newChars: ensureIntegrity(localChars, masterArchive.heroes),
+      newClasses: ensureIntegrity(localClasses, masterArchive.classes),
+      newMonsters: ensureIntegrity(localMonsters, masterArchive.monsters),
+      newItems: ensureIntegrity(localItems, masterArchive.items)
+    };
+  }, [currentUser?.isAdmin, notify]);
 
-    return { newChars, newClasses, newMonsters, newItems };
-  }, [currentUser, notify, characters, classes]);
+  // Dedicated effect for Admin Greeting to prevent notification spam on every sync
+  useEffect(() => {
+    if (currentUser?.isAdmin) {
+      notify("Omniscience Enabled.", "success");
+    }
+  }, [currentUser?.username, currentUser?.isAdmin, notify]);
 
   const handleCloudSync = useCallback(async (action: 'push' | 'pull') => {
     if (!currentUser) return;
@@ -346,7 +351,7 @@ const App: React.FC = () => {
   }, [currentUser, characters, classes, monsters, items, campaign, notify, deduplicateAndMergeItems, syncGlobalSystemArchive]);
 
   const manifestBasics = async (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
-    notify("Manifesting archetypes and fated gear...", "info");
+    notify("Channeling fated archetypes and artifacts...", "info");
     
     let updatedMonsters = [...monsters];
     let updatedItems = [...items];
@@ -358,7 +363,7 @@ const App: React.FC = () => {
       const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
       for (let m of monstersToAdd) {
         if (!m.imageUrl) {
-          try { m.imageUrl = await generateImage(`Bestiary portrait: ${m.name}. Description: ${m.description}. Dark fantasy oil painting style.`); } catch(e) {}
+          try { m.imageUrl = await generateImage(`High-fidelity TTRPG creature avatar: ${m.name}. Description: ${m.description}. Dark fantasy oil painting, sharp focus, atmospheric background.`); } catch(e) {}
         }
       }
       updatedMonsters = [...updatedMonsters, ...monstersToAdd];
@@ -369,7 +374,7 @@ const App: React.FC = () => {
       const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
-          try { i.imageUrl = await generateImage(`Relic artifact: ${i.name}. Description: ${i.description}. Obsidian, iron, and gold filigree.`); } catch(e) {}
+          try { i.imageUrl = await generateImage(`TTRPG relic artifact avatar: ${i.name}. Type: ${i.type}. Material: obsidian, iron, gold filigree. Highly detailed macro lens photography style, cinematic lighting.`); } catch(e) {}
         }
       }
       updatedItems = deduplicateAndMergeItems([...updatedItems, ...itemsToAdd]);
@@ -537,7 +542,7 @@ const App: React.FC = () => {
         const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
         for (let h of heroesToAdd) {
           if (!h.imageUrl) {
-            try { h.imageUrl = await generateImage(`Hero portrait: ${h.name}, ${h.race} ${h.classId}. ${h.description}. Masterpiece dark fantasy portrait.`); } catch(e) {}
+            try { h.imageUrl = await generateImage(`High-quality TTRPG hero portrait avatar: ${h.name}, ${h.race} ${h.classId}. Description: ${h.description}. Professional character concept art, dark fantasy aesthetic.`); } catch(e) {}
           }
         }
         updatedChars = [...updatedChars, ...heroesToAdd];
@@ -559,14 +564,13 @@ const App: React.FC = () => {
       });
     }
 
-    // Auto-Sync with Master Repository to ensure integrity
     const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems);
     setCharacters(synced.newChars);
     setClasses(synced.newClasses);
     setMonsters(synced.newMonsters);
     setItems(deduplicateAndMergeItems(synced.newItems));
 
-    notify("Arcanum Synchronized. Sigils manifest with Global Integrity.", "success");
+    notify("Chronicle Manifested. Master Avatars resonated globally.", "success");
   };
 
   const diceNeeded = useMemo(() => {
@@ -621,7 +625,6 @@ const App: React.FC = () => {
         loadedClasses = aggregateAllResources('_mythos_classes');
         loadedMonsters = aggregateAllResources('_mythos_monsters');
         loadedItems = aggregateAllResources('_mythos_items');
-        notify("Omniscience Enabled.", "success");
       } else {
         const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
         loadedChars = savedChars ? JSON.parse(savedChars) : [];
@@ -633,7 +636,6 @@ const App: React.FC = () => {
         loadedItems = savedItems ? JSON.parse(savedItems) : [];
       }
 
-      // Automatically sync system content with Master Archive for all users on load
       const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems);
       setCharacters(synced.newChars);
       setClasses(synced.newClasses);
@@ -652,7 +654,7 @@ const App: React.FC = () => {
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
     }
-  }, [currentUser, aggregateAllResources, notify, deduplicateAndMergeItems, syncGlobalSystemArchive]);
+  }, [currentUser?.username, aggregateAllResources, deduplicateAndMergeItems, syncGlobalSystemArchive]);
 
   useEffect(() => {
     if (!currentUser) return;

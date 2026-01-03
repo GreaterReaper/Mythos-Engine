@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
-import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
+import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats, generateCharacterAppearance } from '../services/gemini';
 
 const INITIAL_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
 const POINT_COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
@@ -176,6 +176,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const [charDescription, setCharDescription] = useState('');
   const [stats, setStats] = useState<Stats>(INITIAL_STATS);
   const [generating, setGenerating] = useState(false);
+  const [channellingLore, setChannellingLore] = useState(false);
   const [rerollingStats, setRerollingStats] = useState<string | null>(null);
   const [rerollingFeats, setRerollingFeats] = useState<string | null>(null);
   const [learningSpells, setLearningSpells] = useState<string | null>(null);
@@ -214,6 +215,24 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     const costDiff = (POINT_COSTS[newVal] || 0) - (POINT_COSTS[stats[stat]] || 0);
     if (pointsRemaining - costDiff < 0) return;
     setStats(prev => ({ ...prev, [stat]: newVal }));
+  };
+
+  const handleChannelLore = async () => {
+    if (!name || !classId || channellingLore) {
+      notify("Identify your legend and path first.", "info");
+      return;
+    }
+    setChannellingLore(true);
+    try {
+      const cls = classes.find(c => c.id === classId);
+      const desc = await generateCharacterAppearance(name, race, gender, cls?.name || 'Hero', charDescription);
+      setCharDescription(desc);
+      notify("Arcane description manifest.", "success");
+    } catch (e: any) {
+      notify("The spirits are silent.", "error");
+    } finally {
+      setChannellingLore(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -354,6 +373,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const isPremade = selectedChar?.id.startsWith('hero-');
   const currentRacialData = RACIAL_TRAITS[race];
 
+  // Starting gear preview for creation
+  const startingGear = useMemo(() => {
+    if (!selectedClassForCreation) return [];
+    return items.filter(i => selectedClassForCreation.startingItemIds?.includes(i.id));
+  }, [selectedClassForCreation, items]);
+
   return (
     <div className="space-y-12 pb-12">
       <div className="text-center pt-8">
@@ -448,6 +473,23 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
               </div>
 
+              {/* Balanced Gear Preview */}
+              {selectedClassForCreation && (
+                <div className="bg-neutral-900/40 border border-neutral-800 p-4 rounded-sm text-left">
+                  <p className="text-[8px] font-black text-neutral-500 uppercase tracking-widest mb-3">Starting Provisioning</p>
+                  <div className="space-y-2">
+                    {startingGear.length > 0 ? startingGear.map(item => (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <span className="text-xs">⚔️</span>
+                        <span className="text-[10px] font-black text-neutral-400 uppercase tracking-tighter">{item.name}</span>
+                      </div>
+                    )) : (
+                      <p className="text-[9px] text-neutral-700 italic">No provisioning recorded for this path.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2 text-left">
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Attributes</label>
@@ -488,11 +530,20 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               </div>
 
               <div className="space-y-1 text-left">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Visual Details & Appearance</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Visual Details & Appearance</label>
+                  <button 
+                    onClick={handleChannelLore}
+                    disabled={channellingLore || !name || !classId}
+                    className="text-[8px] font-black text-amber-500 hover:text-white uppercase tracking-widest flex items-center gap-1 transition-all disabled:opacity-30"
+                  >
+                    <span>{channellingLore ? 'Channeling...' : 'Channel Lore ✨'}</span>
+                  </button>
+                </div>
                 <textarea 
                   value={charDescription} 
                   onChange={(e) => setCharDescription(e.target.value)} 
-                  placeholder="Inscribe details of their appearance and history..." 
+                  placeholder="Inscribe details or use 'Channel Lore'..." 
                   className="w-full bg-black border border-neutral-800 p-4 h-24 text-xs text-neutral-500 font-serif italic focus:border-[#b28a48] outline-none shadow-inner resize-none rounded-sm"
                 />
               </div>

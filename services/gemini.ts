@@ -79,6 +79,29 @@ async function withRetry<T>(fn: (forceModel?: string) => Promise<T>, retries = 3
   }
 }
 
+export const generateCharacterAppearance = async (name: string, race: string, gender: string, className: string, concept: string): Promise<string> => {
+  trackUsage('utility', 5);
+  return withRetry(async (forcedModel) => {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: forcedModel || 'gemini-3-flash-preview',
+      contents: `Generate a rich, visual dark fantasy character description for a TTRPG character sheet.
+      Name: ${name}
+      Identity: ${gender} ${race} ${className}
+      Concept: ${concept}
+      
+      RULES: 
+      - Be evocative and descriptive about their clothing, gear, physical features, and the 'vibe' they give off.
+      - Focus on details that would translate well to high-quality concept art.
+      - Keep it under 60 words.`,
+      config: {
+        systemInstruction: "You are an expert fantasy writer specializing in visual concept descriptions for artists.",
+      }
+    });
+    return response.text || concept;
+  });
+};
+
 export const generateWorldMap = async (plot: string): Promise<string> => {
   trackUsage('utility', 30);
   return withRetry(async () => {
@@ -129,7 +152,7 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
     const parts: any[] = [{ text: enhancedPrompt }];
     if (referenceBase64) {
       const base64Data = referenceBase64.includes(',') ? referenceBase64.split(',')[1] : referenceBase64;
-      parts.unshift({ inlineData: { data: base64Data, mimeType: 'image/png' } });
+      parts.push({ inlineData: { data: base64Data, mimeType: 'image/png' } });
     }
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',

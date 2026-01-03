@@ -81,6 +81,24 @@ const SYSTEM_ITEMS: Item[] = [
     mechanics: [{ name: 'Parry', description: 'As a reaction, add +2 to AC against one melee attack.' }],
     lore: 'Standard issue for the King\'s Guard.',
     authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-oak-staff',
+    name: 'Gnarled Oak Staff',
+    type: 'Weapon',
+    description: 'A sturdy wooden staff etched with minor protective runes.',
+    mechanics: [{ name: 'Arcane Focus', description: 'Can be used as a focus for casting spells.' }],
+    lore: 'Passed down through generations of village elders.',
+    authorId: 'system', authorName: 'Orestara'
+  },
+  {
+    id: 'sys-leather-armor',
+    name: 'Reinforced Leather',
+    type: 'Armor',
+    description: 'Boiled leather armor reinforced with iron studs.',
+    mechanics: [{ name: 'Light Mobility', description: 'Does not impose disadvantage on Stealth checks.' }],
+    lore: 'Lightweight protection for the agile wanderer.',
+    authorId: 'system', authorName: 'Orestara'
   }
 ];
 
@@ -257,7 +275,7 @@ const App: React.FC = () => {
       const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
       for (let m of monstersToAdd) {
         if (!m.imageUrl) {
-          try { m.imageUrl = await generateImage(`Official TTRPG creature art: ${m.name}.`); setMonsters(prev => [...prev.filter(pm => pm.id !== m.id), m]); } catch(e) {}
+          try { m.imageUrl = await generateImage(`Official TTRPG creature art: ${m.name}. Appearance: ${m.description}. Highly detailed, dark fantasy.`); setMonsters(prev => [...prev.filter(pm => pm.id !== m.id), m]); } catch(e) {}
         }
       }
       updatedMonsters = [...updatedMonsters.filter(m => !existingIds.has(m.id)), ...monstersToAdd];
@@ -268,7 +286,7 @@ const App: React.FC = () => {
       const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
-          try { i.imageUrl = await generateImage(`High-quality TTRPG artifact: ${i.name}.`); setItems(prev => [...prev.filter(pi => pi.id !== i.id), i]); } catch(e) {}
+          try { i.imageUrl = await generateImage(`High-quality TTRPG artifact: ${i.name}. Lore: ${i.description}. Cinematic lighting.`); setItems(prev => [...prev.filter(pi => pi.id !== i.id), i]); } catch(e) {}
         }
       }
       updatedItems = [...updatedItems.filter(i => !existingIds.has(i.id)), ...itemsToAdd];
@@ -277,10 +295,10 @@ const App: React.FC = () => {
     if (scope === 'all') {
       const basicClasses: ClassDef[] = [
         {
-          id: 'basic-warrior', name: 'Warrior', description: 'Mighty physical vanguards.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency'], startingItemIds: ['sys-iron-longsword'], features: [{ name: 'Mighty Roar', description: 'Bonus action: 1d8 temporary HP.' }], initialSpells: [], authorId: 'system', authorName: 'Orestara'
+          id: 'basic-warrior', name: 'Warrior', description: 'Mighty physical vanguards.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency'], startingItemIds: ['sys-iron-longsword', 'sys-leather-armor'], features: [{ name: 'Mighty Roar', description: 'Bonus action: 1d8 temporary HP.' }], initialSpells: [], authorId: 'system', authorName: 'Orestara'
         },
         {
-          id: 'basic-mage', name: 'Mage', description: 'Supportive aether-users.', hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery'], startingItemIds: [], features: [{ name: 'Vital Flow', description: 'Restore 1d10 hit points.' }], initialSpells: THEMATIC_SPELLS.mage, authorId: 'system', authorName: 'Orestara'
+          id: 'basic-mage', name: 'Mage', description: 'Supportive aether-users.', hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery'], startingItemIds: ['sys-oak-staff', 'sys-leather-armor'], features: [{ name: 'Vital Flow', description: 'Restore 1d10 hit points.' }], initialSpells: THEMATIC_SPELLS.mage, authorId: 'system', authorName: 'Orestara'
         }
       ];
       updatedClasses = [...updatedClasses.filter(c => !c.id.startsWith('basic')), ...basicClasses];
@@ -289,13 +307,28 @@ const App: React.FC = () => {
 
     if (scope === 'all' || scope === 'heroes') {
         const heroes: Character[] = [
-            { id: 'hero-miri', name: 'Miri', classId: 'basic-warrior', race: 'Human', gender: 'Female', gold: 100, description: "Energetic human swordswoman with copper hair.", level: 1, stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 12, maxHp: 12, feats: [{ name: 'Restless Spirit', description: 'Gains +2 to Initiative.' }], inventory: ['sys-iron-longsword'], isPlayer: true, authorId: 'system', authorName: 'Orestara' },
-            { id: 'hero-lina', name: 'Lina', classId: 'basic-warrior', race: 'Elf', gender: 'Female', gold: 120, description: "Graceful elven scout with silver-braided hair.", level: 1, stats: { strength: 12, dexterity: 18, constitution: 12, intelligence: 14, wisdom: 15, charisma: 12 }, hp: 10, maxHp: 10, feats: [{ name: 'Wild Senses', description: 'Advantage on Perception.' }], inventory: ['sys-iron-longsword'], isPlayer: false, authorId: 'system', authorName: 'Orestara' },
-            { id: 'hero-seris', name: 'Seris', classId: 'basic-mage', race: 'Tiefling', gender: 'Female', gold: 150, description: "Obsidian-skinned Tiefling sorceress.", level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 }, hp: 10, maxHp: 10, feats: [{ name: 'Abyssal Spark', description: 'Fire damage ignores minor resistance.' }], inventory: [], isPlayer: false, authorId: 'system', authorName: 'Orestara' }
+            { 
+              id: 'hero-miri', name: 'Miri', classId: 'basic-warrior', race: 'Human', gender: 'Female', gold: 100, 
+              description: "A vibrant warrior clad in etched leather and weathered iron. Her copper-red hair is tied back with a simple leather cord, and her eyes spark with the restless energy of a seasoned traveler.", 
+              level: 1, stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 12, maxHp: 12, 
+              feats: [{ name: 'Restless Spirit', description: 'Gains +2 to Initiative.' }], inventory: ['sys-iron-longsword', 'sys-leather-armor'], isPlayer: true, authorId: 'system', authorName: 'Orestara' 
+            },
+            { 
+              id: 'hero-lina', name: 'Lina', classId: 'basic-warrior', race: 'Elf', gender: 'Female', gold: 120, 
+              description: "Dressed in muted greens and silvers that blend into the twilight of the woods. Her silver-braided hair frames a face of calm intelligence. She moves with the effortless silence of a forest ghost.", 
+              level: 1, stats: { strength: 12, dexterity: 18, constitution: 12, intelligence: 14, wisdom: 15, charisma: 12 }, hp: 10, maxHp: 10, 
+              feats: [{ name: 'Wild Senses', description: 'Advantage on Perception.' }], inventory: ['sys-iron-longsword', 'sys-leather-armor'], isPlayer: false, authorId: 'system', authorName: 'Orestara' 
+            },
+            { 
+              id: 'hero-seris', name: 'Seris', classId: 'basic-mage', race: 'Tiefling', gender: 'Female', gold: 150, 
+              description: "An imposing figure with skin the color of polished obsidian and sweeping, curved horns. She wears flowing robes of deep violet, with faint embers dancing in the depths of her dark eyes.", 
+              level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 }, hp: 10, maxHp: 10, 
+              feats: [{ name: 'Abyssal Spark', description: 'Fire damage ignores minor resistance.' }], inventory: ['sys-oak-staff', 'sys-leather-armor'], isPlayer: false, authorId: 'system', authorName: 'Orestara' 
+            }
         ];
         for (let h of heroes) {
           if (!h.imageUrl) {
-            try { h.imageUrl = await generateImage(`TTRPG portrait: ${h.name}. Appearance: ${h.description}.`); setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]); } catch(e) {}
+            try { h.imageUrl = await generateImage(`TTRPG portrait: ${h.name}, a ${h.gender} ${h.race}. Appearance: ${h.description}. Cinematic dark fantasy masterpiece lighting.`); setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]); } catch(e) {}
           }
         }
         updatedChars = [...updatedChars.filter(c => !heroes.some(h => h.id === c.id)), ...heroes];

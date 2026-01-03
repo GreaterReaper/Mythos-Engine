@@ -32,9 +32,9 @@ export type RaceType =
   | 'Kobold' 
   | 'Tiefling' 
   | 'Dragonborn'
-  | 'Tabaxi'
-  | 'Lizardfolk'
-  | 'Minotaur'
+  | 'Tabaxi' 
+  | 'Lizardfolk' 
+  | 'Minotaur' 
   | 'Satyr';
 
 export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
@@ -63,6 +63,9 @@ export interface Character {
   inventory: string[]; // Array of item IDs
   knownSpells?: Spell[];
   lockedStats?: (keyof Stats)[];
+  // Fix: Added authorId and authorName to Character to support system-wide attribution and integrity checks
+  authorId?: string;
+  authorName?: string;
 }
 
 export interface ClassFeature extends Trait {}
@@ -79,6 +82,7 @@ export interface ClassDef {
   initialSpells?: Spell[];
   preferredStats?: string[];
   bonuses?: string[];
+  startingItemIds?: string[];
   authorId?: string;
   authorName?: string;
 }

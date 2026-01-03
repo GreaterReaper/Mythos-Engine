@@ -78,22 +78,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
         </div>
       </nav>
 
-      {/* Mobile Bottom Nav - Optimized for Safe Areas and Touch */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#080808]/95 backdrop-blur-lg border-t border-[#1a1a1a] flex items-center justify-around px-2 pb-[calc(10px+var(--safe-bottom))] pt-3 overflow-x-auto scrollbar-hide">
+      {/* Mobile Bottom Nav - Tightened for small screens */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[100] bg-[#080808]/98 backdrop-blur-xl border-t border-[#1a1a1a] flex items-center justify-around px-1 pb-[var(--safe-bottom)] pt-1.5 overflow-x-auto scrollbar-hide h-[calc(56px+var(--safe-bottom))]">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 min-w-[54px] flex-1 transition-all py-1 ${
+            className={`flex flex-col items-center justify-center gap-0.5 min-w-[50px] flex-1 transition-all h-full ${
               activeTab === tab.id
-                ? 'text-[#b28a48] scale-110'
+                ? 'text-[#b28a48]'
                 : 'text-neutral-600'
             }`}
           >
-            <span className="text-xl">{tab.icon}</span>
-            <span className="text-[8px] font-black uppercase tracking-tight">{tab.label}</span>
+            <span className={`text-lg transition-transform ${activeTab === tab.id ? 'scale-110' : ''}`}>{tab.icon}</span>
+            <span className="text-[7px] font-black uppercase tracking-tighter text-center leading-none">{tab.label}</span>
             {activeTab === tab.id && (
-              <div className="w-1 h-1 bg-[#b28a48] rounded-full mt-0.5"></div>
+              <div className="w-1 h-1 bg-[#b28a48] rounded-full mt-0.5 shadow-[0_0_5px_#b28a48]"></div>
             )}
           </button>
         ))}

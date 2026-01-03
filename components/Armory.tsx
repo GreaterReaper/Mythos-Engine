@@ -159,6 +159,11 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   };
 
   const toggleLock = (itemId: string, mechIdx: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (item?.authorId === 'system') {
+      notify("Official relics have bound properties.", "info");
+      return;
+    }
     setItems(prev => prev.map(item => {
       if (item.id !== itemId) return item;
       const newMechanics = [...item.mechanics];
@@ -168,6 +173,10 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
   };
 
   const handleReroll = async (item: Item) => {
+    if (item.authorId === 'system') {
+      notify("Official relics defined by the Orestara archive are static.", "error");
+      return;
+    }
     if (!reservoirReady && !currentUser.isAdmin) return;
     setRerolling(item.id);
     try {
@@ -209,6 +218,10 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
 
   const handleDelete = (e: React.MouseEvent, item: Item) => {
     e.stopPropagation();
+    if (item.authorId === 'system') {
+      notify("Official relics cannot be banished.", "error");
+      return;
+    }
     if (window.confirm(`Are you certain you want to banish "${item.name}"?`)) {
       setItems(prev => prev.filter(x => x.id !== item.id));
     }
@@ -229,14 +242,14 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
             className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95"
            >
             <span className="text-sm">🖼️</span>
-            Manifest Visuals
+            Manifest Custom Visuals
            </button>
            <button 
             onClick={() => manifestBasics && manifestBasics('items')}
             className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
            >
             <span className="animate-pulse">✨</span>
-            Manifest Relics
+            Restore Relic Archive
            </button>
         </div>
       </div>
@@ -422,7 +435,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-3">
                           <h4 className="text-2xl md:text-3xl font-black fantasy-font text-[#b28a48] tracking-widest">{item.name}</h4>
-                          {item.id.startsWith('sys') && <span className="text-[7px] font-black text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-[0.2em] uppercase opacity-60">By {item.authorName || 'Orestara'}</span>}
+                          {item.authorId === 'system' && <span className="text-[7px] font-black text-neutral-400 bg-neutral-950 border border-neutral-800 px-2 py-0.5 rounded-sm tracking-[0.2em] uppercase opacity-60">By {item.authorName || 'Orestara'}</span>}
                         </div>
                         <div className="flex gap-2">
                           <button 
@@ -432,8 +445,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           >
                             🌀
                           </button>
-                          {/* Corrected handleDelete call to pass both event and item object */}
-                          <button onClick={(e) => handleDelete(e, item)} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>
+                          {item.authorId !== 'system' && <button onClick={(e) => handleDelete(e, item)} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>}
                         </div>
                       </div>
                       <p className="text-[9px] text-amber-900 uppercase tracking-[0.4em] font-black mb-3">{item.type}</p>
@@ -447,10 +459,10 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                     <div className="flex justify-end">
                         <button 
                            onClick={(e) => handleRegenerateSingleImage(e, item)}
-                           disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
-                           className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all"
+                           disabled={loading || (!reservoirReady && !currentUser.isAdmin) || item.authorId === 'system'}
+                           className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all disabled:opacity-20"
                         >
-                           <span>Regenerate Sigil 🖼️</span>
+                           <span>{item.authorId === 'system' ? 'Bound Sigil' : 'Regenerate Sigil 🖼️'}</span>
                         </button>
                     </div>
 
@@ -463,23 +475,27 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                       <div className="space-y-6">
                         <div className="flex justify-between items-center border-b border-neutral-900 pb-2">
                           <h5 className="text-[10px] font-black text-neutral-600 uppercase tracking-[0.4em]">Arcane Properties</h5>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); handleReroll(item); }}
-                            disabled={rerolling === item.id || (!reservoirReady && !currentUser.isAdmin)}
-                            className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 disabled:opacity-20"
-                          >
-                            {rerolling === item.id ? 'REWEAVING...' : <span>Reroll Properties 🎲</span>}
-                          </button>
+                          {item.authorId !== 'system' ? (
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleReroll(item); }}
+                              disabled={rerolling === item.id || (!reservoirReady && !currentUser.isAdmin)}
+                              className="text-[9px] font-black text-[#b28a48] hover:text-[#cbb07a] uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 disabled:opacity-20"
+                            >
+                              {rerolling === item.id ? 'REWEAVING...' : <span>Reroll Properties 🎲</span>}
+                            </button>
+                          ) : (
+                            <span className="text-[9px] font-black text-neutral-700 uppercase tracking-widest">Static Properties</span>
+                          )}
                         </div>
                         <div className="space-y-3">
                           {item.mechanics.map((mech, i) => (
                             <div 
                               key={i}
                               onClick={(e) => { e.stopPropagation(); toggleLock(item.id, i); }}
-                              className={`p-6 border rounded-sm transition-all cursor-pointer relative group/mech ${mech.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black/60 border-neutral-900 hover:border-neutral-700'}`}
+                              className={`p-6 border rounded-sm transition-all relative group/mech ${mech.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black/60 border-neutral-900 hover:border-neutral-700'} ${item.authorId !== 'system' ? 'cursor-pointer' : 'cursor-default'}`}
                             >
                               <div className="flex items-start gap-4">
-                                <span className={`text-xl mt-0.5 transition-colors ${mech.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{mech.locked ? '†' : '○'}</span>
+                                {item.authorId !== 'system' && <span className={`text-xl mt-0.5 transition-colors ${mech.locked ? 'text-amber-600' : 'text-neutral-800'}`}>{mech.locked ? '†' : '○'}</span>}
                                 <div>
                                   <h6 className={`text-sm font-black uppercase tracking-wider mb-1 ${mech.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>{mech.name}</h6>
                                   <p className="text-xs md:text-sm text-neutral-400 italic font-serif leading-relaxed">{mech.description}</p>

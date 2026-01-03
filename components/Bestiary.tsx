@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Monster, Stats, SyncMessage, UserAccount, MonsterAbility } from '../types';
 import { generateMonsterStats, generateImage, rerollTraits, generateMonsterAbilities, getArchitectAdvice } from '../services/gemini';
@@ -175,6 +176,11 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   };
 
   const toggleLock = (monsterId: string, abilityIdx: number, type: 'standard' | 'legendary' = 'standard') => {
+    const monster = monsters.find(m => m.id === monsterId);
+    if (monster?.authorId === 'system') {
+      notify("Official horror traits are bound and static.", "info");
+      return;
+    }
     setMonsters(prev => prev.map(m => {
       if (m.id !== monsterId) return m;
       if (type === 'standard') {
@@ -191,6 +197,10 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
   const handleReroll = (e: React.MouseEvent, monster: Monster, type: 'standard' | 'legendary' = 'standard') => {
     e.stopPropagation();
+    if (monster.authorId === 'system') {
+      notify("Official horrors have static traits defined by the Orestara archive.", "error");
+      return;
+    }
     if (!reservoirReady && !currentUser.isAdmin) return;
     
     if (type === 'standard') setRerolling(monster.id);
@@ -236,6 +246,10 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
 
   const handleDelete = (e: React.MouseEvent, monster: Monster) => {
     e.stopPropagation();
+    if (monster.authorId === 'system') {
+      notify("Official horrors cannot be banished.", "error");
+      return;
+    }
     if (window.confirm(`Banish "${monster.name}"?`)) {
       setMonsters(prev => prev.filter(x => x.id !== monster.id));
     }
@@ -354,7 +368,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <button onClick={(e) => handleShareIndividual(e, m)} className="p-1.5 text-xl opacity-40 hover:opacity-100">🌀</button>
-                          <button onClick={(e) => handleDelete(e, m)} className="p-1.5 text-xl opacity-40 hover:text-red-600">🗑️</button>
+                          {m.authorId !== 'system' && <button onClick={(e) => handleDelete(e, m)} className="p-1.5 text-xl opacity-40 hover:text-red-600">🗑️</button>}
                         </div>
                     </div>
                   </div>
@@ -385,18 +399,22 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
                     <div className="space-y-4">
                         <div className="border-b border-neutral-800 pb-2 flex justify-between items-center">
                             <h5 className="text-[9px] font-black text-neutral-500 uppercase tracking-widest text-left">Abilities</h5>
-                            <button 
-                                onClick={(e) => handleReroll(e, m)}
-                                disabled={rerolling === m.id || (!reservoirReady && !currentUser.isAdmin)}
-                                className="text-[8px] font-black text-amber-600 uppercase tracking-widest disabled:opacity-20"
-                            >
-                                🎲 Reroll
-                            </button>
+                            {m.authorId !== 'system' ? (
+                                <button 
+                                    onClick={(e) => handleReroll(e, m)}
+                                    disabled={rerolling === m.id || (!reservoirReady && !currentUser.isAdmin)}
+                                    className="text-[8px] font-black text-amber-600 uppercase tracking-widest disabled:opacity-20"
+                                >
+                                    🎲 Reroll
+                                </button>
+                            ) : (
+                                <span className="text-[8px] font-black text-neutral-700 uppercase tracking-widest">Static</span>
+                            )}
                         </div>
                         <div className="space-y-2">
                             {m.abilities.map((a, i) => (
-                                <div key={i} className="p-3 bg-black/40 border border-neutral-900 rounded-sm text-left">
-                                    <h6 className="text-[10px] font-black uppercase text-[#b28a48]">{a.name}</h6>
+                                <div key={i} onClick={() => toggleLock(m.id, i)} className={`p-3 bg-black/40 border transition-all rounded-sm text-left ${m.authorId !== 'system' ? 'cursor-pointer hover:border-neutral-700' : ''} ${a.locked ? 'border-amber-900/40 bg-amber-950/5' : 'border-neutral-900'}`}>
+                                    <h6 className={`text-[10px] font-black uppercase ${a.locked ? 'text-amber-500' : 'text-[#b28a48]'}`}>{a.name}</h6>
                                     <p className="text-[9px] text-neutral-400 font-serif italic">{a.effect}</p>
                                 </div>
                             ))}

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -248,7 +249,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         hp: (selectedClass?.startingHp || 10) + (Math.floor((finalStats.constitution - 10) / 2)),
         maxHp: (selectedClass?.startingHp || 10) + (Math.floor((finalStats.constitution - 10) / 2)),
         feats: allFeats, imageUrl, isPlayer: characters.length === 0,
-        inventory: [],
+        inventory: selectedClass?.startingItemIds || [],
         knownSpells: [],
         lockedStats: []
       };
@@ -264,7 +265,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleRerollStatsOnChar = async (char: Character) => {
-    if (!reservoirReady && !currentUser.isAdmin) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || char.id.startsWith('hero-')) return;
     setRerollingStats(char.id);
     try {
       const cls = classes.find(c => c.id === char.classId);
@@ -279,6 +280,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const toggleStatLockOnChar = (charId: string, stat: keyof Stats) => {
+    if (charId.startsWith('hero-')) return;
     setCharacters(prev => prev.map(c => {
       if (c.id !== charId) return c;
       const currentLocks = c.lockedStats || [];
@@ -288,6 +290,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const toggleFeatLock = (charId: string, featIdx: number) => {
+    if (charId.startsWith('hero-')) return;
     setCharacters(prev => prev.map(c => {
       if (c.id !== charId) return c;
       const newFeats = [...c.feats];
@@ -302,7 +305,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleRerollFeats = async (char: Character) => {
-    if (!reservoirReady && !currentUser.isAdmin) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || char.id.startsWith('hero-')) return;
     setRerollingFeats(char.id);
     try {
       const cls = classes.find(c => c.id === char.classId);
@@ -326,7 +329,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const handleGenerateSpells = async (char: Character) => {
-    if (!reservoirReady && !currentUser.isAdmin) return;
+    if ((!reservoirReady && !currentUser.isAdmin) || char.id.startsWith('hero-')) return;
     setLearningSpells(char.id);
     try {
       const cls = classes.find(c => c.id === char.classId);
@@ -337,6 +340,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   };
 
   const removeItemFromChar = (charId: string, itemId: string) => {
+    if (charId.startsWith('hero-')) {
+      notify("Official hero gear is bound and cannot be removed.", "info");
+      return;
+    }
     setCharacters(prev => prev.map(c => {
       if (c.id !== charId) return c;
       return { ...c, inventory: c.inventory.filter(id => id !== itemId) };
@@ -345,6 +352,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
   const handleDeleteCharacter = (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
+    if (id.startsWith('hero-')) {
+      notify("Official fated souls cannot be banished.", "info");
+      return;
+    }
     if (window.confirm(`Banish ${name} from the Fellowship forever?`)) {
       setCharacters(prev => prev.filter(c => c.id !== id));
       notify(`${name} has returned to the ether.`, "info");
@@ -355,6 +366,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const selectedChar = characters.find(c => c.id === selectedCharacterId);
   const selectedClass = classes.find(c => c?.id === selectedChar?.classId);
   const charInventory = items.filter(i => selectedChar?.inventory.includes(i.id));
+  const isPremade = selectedChar?.id.startsWith('hero-');
 
   return (
     <div className="space-y-12 pb-12">
@@ -495,8 +507,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <button 
                       onClick={(e) => handleDeleteCharacter(e, char.id, char.name)}
-                      className="bg-black/60 hover:bg-red-950/80 p-2 rounded-full border border-red-900/30 text-red-500 transition-all active:scale-90"
-                      title="Banish Soul"
+                      className="bg-black/60 hover:bg-red-950/80 p-2 rounded-full border border-red-900/30 text-red-500 transition-all active:scale-90 disabled:opacity-20"
+                      disabled={char.id.startsWith('hero-')}
+                      title={char.id.startsWith('hero-') ? "Fated souls cannot be banished" : "Banish Soul"}
                     >
                       🗑️
                     </button>
@@ -540,25 +553,30 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <section>
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-3 mb-6">
                     <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase">Sacred Attributes</h4>
-                    <button 
-                      onClick={() => handleRerollStatsOnChar(selectedChar)} 
-                      disabled={rerollingStats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
-                      className="text-[9px] font-black text-[#b28a48] uppercase active:scale-95 disabled:opacity-20"
-                    >
-                      {rerollingStats === selectedChar.id ? '...' : 'Reweave 🎲'}
-                    </button>
+                    {!isPremade && (
+                      <button 
+                        onClick={() => handleRerollStatsOnChar(selectedChar)} 
+                        disabled={rerollingStats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
+                        className="text-[9px] font-black text-[#b28a48] uppercase active:scale-95 disabled:opacity-20"
+                      >
+                        {rerollingStats === selectedChar.id ? '...' : 'Reweave 🎲'}
+                      </button>
+                    )}
+                    {isPremade && <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Static Essence</span>}
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-6">
                     {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(stat => (
                       <div 
                         key={stat} 
                         onClick={() => toggleStatLockOnChar(selectedChar.id, stat)}
-                        className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center cursor-pointer transition-all relative ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'}`}
+                        className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center transition-all relative ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'} ${!isPremade ? 'cursor-pointer' : 'cursor-default'}`}
                       >
                         <div className="flex justify-between w-full mb-2">
-                          <span className={`text-base ${selectedChar.lockedStats?.includes(stat) ? 'text-amber-600' : 'text-neutral-800'}`}>
-                            {selectedChar.lockedStats?.includes(stat) ? '†' : '○'}
-                          </span>
+                          {!isPremade && (
+                            <span className={`text-base ${selectedChar.lockedStats?.includes(stat) ? 'text-amber-600' : 'text-neutral-800'}`}>
+                              {selectedChar.lockedStats?.includes(stat) ? '†' : '○'}
+                            </span>
+                          )}
                           <span className="text-[8px] text-neutral-600 font-black uppercase tracking-tighter">{stat.slice(0,3)}</span>
                         </div>
                         <div className="flex items-baseline gap-2">
@@ -573,18 +591,21 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 <section>
                   <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-3 mb-6">
                     <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase">Grimoire of Feats</h4>
-                    <button 
-                      onClick={() => handleRerollFeats(selectedChar)} 
-                      disabled={rerollingFeats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
-                      className="text-[9px] font-black text-[#b28a48] uppercase active:scale-95 disabled:opacity-20"
-                    >
-                      {rerollingFeats === selectedChar.id ? '...' : 'Reweave 🎲'}
-                    </button>
+                    {!isPremade && (
+                      <button 
+                        onClick={() => handleRerollFeats(selectedChar)} 
+                        disabled={rerollingFeats === selectedChar.id || (!reservoirReady && !currentUser.isAdmin)}
+                        className="text-[9px] font-black text-[#b28a48] uppercase active:scale-95 disabled:opacity-20"
+                      >
+                        {rerollingFeats === selectedChar.id ? '...' : 'Reweave 🎲'}
+                      </button>
+                    )}
+                    {isPremade && <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Fixed Destiny</span>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     {selectedChar.feats.map((f, i) => (
-                      <div key={i} className={`p-4 border rounded-sm flex items-start gap-3 ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'}`}>
-                         <span className="text-amber-600 mt-0.5">{f.locked ? '†' : '○'}</span>
+                      <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'} ${!isPremade ? 'cursor-pointer hover:border-neutral-700' : 'cursor-default'}`}>
+                         {!isPremade && <span className="text-amber-600 mt-0.5">{f.locked ? '†' : '○'}</span>}
                          <div>
                            <h6 className="text-[11px] font-black uppercase mb-1 tracking-wider text-[#b28a48]">{f.name}</h6>
                            <p className="text-[10px] text-neutral-500 font-serif italic leading-relaxed italic">{f.description}</p>
@@ -593,14 +614,36 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     ))}
                   </div>
                 </section>
+
+                <section>
+                  <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase border-b border-[#b28a48]/20 pb-3 mb-6">Equipment & Relics</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {charInventory.length > 0 ? charInventory.map(item => (
+                      <div key={item.id} className="p-4 bg-black/60 border border-neutral-900 rounded-sm flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-sm border border-neutral-800 overflow-hidden shrink-0">
+                          {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <span className="w-full h-full flex items-center justify-center text-xs opacity-20">🛡️</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black text-[#b28a48] uppercase truncate">{item.name}</p>
+                          <p className="text-[9px] text-neutral-500 font-serif italic truncate">{item.type}</p>
+                        </div>
+                        {!isPremade && <button onClick={() => removeItemFromChar(selectedChar.id, item.id)} className="text-neutral-700 hover:text-red-500 text-xs px-2">✕</button>}
+                      </div>
+                    )) : (
+                      <p className="text-neutral-700 text-[10px] italic py-4">No relics in possession.</p>
+                    )}
+                  </div>
+                </section>
               </div>
               <div className="mt-12 flex flex-col items-center gap-6">
-                <button 
-                  onClick={(e) => handleDeleteCharacter(e, selectedChar.id, selectedChar.name)}
-                  className="text-[9px] font-black text-red-900/60 hover:text-red-500 uppercase tracking-[0.4em] transition-all border border-red-900/20 px-6 py-3 rounded-sm hover:bg-red-950/10"
-                >
-                  Banish Soul From Fellowship
-                </button>
+                {!isPremade && (
+                  <button 
+                    onClick={(e) => handleDeleteCharacter(e, selectedChar.id, selectedChar.name)}
+                    className="text-[9px] font-black text-red-900/60 hover:text-red-500 uppercase tracking-[0.4em] transition-all border border-red-900/20 px-6 py-3 rounded-sm hover:bg-red-950/10"
+                  >
+                    Banish Soul From Fellowship
+                  </button>
+                )}
                 <button onClick={() => setSelectedCharacterId(null)} className="text-[10px] font-black text-neutral-700 hover:text-[#b28a48] uppercase tracking-[0.5em] transition-all">Close Entry</button>
               </div>
             </div>

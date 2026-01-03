@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { ClassDef, SyncMessage, Spell, UserAccount, Item, Trait } from '../types';
 import { generateClassMechanics, generateSpellbook, rerollTraits, generateClassEquipment, generateImage, generateSingleSpell, generateCharacterFeats, getArchitectAdvice } from '../services/gemini';
@@ -60,7 +61,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const canEditOrManage = (cls: ClassDef) => {
-    return currentUser.isAdmin || isAuthor(cls) || cls.authorId === 'system';
+    return (currentUser.isAdmin || isAuthor(cls)) && cls.authorId !== 'system';
   };
 
   const updateAndSync = (newList: ClassDef[]) => {
@@ -198,7 +199,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleIdentifyDepths = async (cls: ClassDef) => {
     if (!canEditOrManage(cls)) {
-      notify("Only authors or architects can recalibrate this archetype.", "error");
+      notify("Archetype depths are static for official chronicles.", "error");
       return;
     }
     if ((!reservoirReady && !currentUser.isAdmin) || identifyingId) return;
@@ -229,7 +230,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleManifestSpells = async (cls: ClassDef) => {
     if (!canEditOrManage(cls)) {
-      notify("Only authors or architects can inscribe these spells.", "error");
+      notify("Arcanum is fixed for official archetypes.", "error");
       return;
     }
     if ((!reservoirReady && !currentUser.isAdmin) || learningSpellsId) return;
@@ -252,11 +253,11 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const handleBulkManifest = async () => {
-    const listToProcess = currentUser.isAdmin ? classes : legacyRecords.filter(canEditOrManage);
+    const listToProcess = currentUser.isAdmin ? classes.filter(c => c.authorId !== 'system') : legacyRecords.filter(canEditOrManage);
     if ((!reservoirReady && !currentUser.isAdmin) || loading || listToProcess.length === 0) return;
     
     setLoading(true);
-    notify(`Purging & Recalibrating ${listToProcess.length} Archetypes...`, "info");
+    notify(`Purging & Recalibrating Custom Archetypes...`, "info");
 
     let currentClasses = [...classes];
     for (const cls of listToProcess) {
@@ -280,17 +281,18 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
     const synced = syncSpells ? syncSpells(currentClasses) : currentClasses;
     updateAndSync(synced);
     setLoading(false);
-    notify("Archetype Synchronization Complete", "success");
+    notify("Custom Archetype Synchronization Complete", "success");
   };
 
   const handleBulkGearManifest = async () => {
     if ((!reservoirReady && !currentUser.isAdmin) || loading) return;
     setLoading(true);
-    notify("Manifesting Signature Relics for Archetypes...", "info");
+    notify("Manifesting Custom Signature Relics...", "info");
     
     try {
       let count = 0;
       for (const cls of classes) {
+        if (cls.authorId === 'system') continue;
         const classTerms = cls.name.toLowerCase().split(' ');
         const exists = items.some(i => classTerms.some(term => i.name.toLowerCase().includes(term) || i.description.toLowerCase().includes(term)));
         
@@ -311,7 +313,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
           }
         }
       }
-      notify(`Signature Relics for ${count} Archetypes added to Armory.`, "success");
+      notify(`Custom Signature Relics added to Armory.`, "success");
     } catch (e: any) {
       notify("Ether instability during mass forging.", "error");
     } finally {
@@ -321,7 +323,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const toggleFeatureLock = (cls: ClassDef, featIdx: number) => {
     if (!canEditOrManage(cls)) {
-      notify("The grimoire prevents you from locking features of foreign archetypes.", "error");
+      notify("Official archetype features are bound and static.", "error");
       return;
     }
     const updated = classes.map(c => {
@@ -348,7 +350,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleReroll = async (cls: ClassDef) => {
     if (!canEditOrManage(cls)) {
-      notify("Only authors or architects may reweave this archetype's destiny.", "error");
+      notify("Only custom archetypes can have their destinies rewoven.", "error");
       return;
     }
     if (!reservoirReady && !currentUser.isAdmin) return;
@@ -395,6 +397,10 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   const handleDelete = (e: React.MouseEvent, cls: ClassDef) => {
     e.stopPropagation();
+    if (cls.authorId === 'system') {
+      notify("Official archetypes cannot be banished.", "error");
+      return;
+    }
     if (window.confirm("Banish this archetype from the grimoire forever?")) {
       const updated = classes.filter(x => x.id !== cls.id);
       updateAndSync(updated);
@@ -403,7 +409,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   // Architect-Only AI Generation
   const handleAIGenerateSpell = async (cls: ClassDef) => {
-    if (!currentUser.isAdmin || aiGeneratingSpell) return;
+    if (!currentUser.isAdmin || aiGeneratingSpell || cls.authorId === 'system') return;
     setAiGeneratingSpell(cls.id);
     try {
       const targetLevel = (cls.initialSpells?.length || 0) > 4 ? 2 : 1;
@@ -423,8 +429,8 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
 
   // Spell Management Functions
   const startEditingSpell = (cls: ClassDef, idx: number) => {
-    if (!currentUser.isAdmin) {
-        notify("Only an Architect may manually rewrite existing incantations.", "error");
+    if (!currentUser.isAdmin || cls.authorId === 'system') {
+        notify("Official incantations are immutable.", "error");
         return;
     }
     setEditingSpellIdx(idx);
@@ -432,8 +438,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const startAddingSpell = (clsId: string) => {
-    if (!currentUser.isAdmin) {
-        notify("Only an Architect may manually inscribe new spells.", "error");
+    const cls = classes.find(c => c.id === clsId);
+    if (!currentUser.isAdmin || cls?.authorId === 'system') {
+        notify("Official archetypes cannot receive new incantations.", "error");
         return;
     }
     setEditingSpellIdx(-1);
@@ -463,8 +470,9 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
   };
 
   const removeSpell = (clsId: string, idx: number) => {
-    if (!currentUser.isAdmin) {
-        notify("Only an Architect may purge inscribed spells.", "error");
+    const cls = classes.find(c => c.id === clsId);
+    if (!currentUser.isAdmin || cls?.authorId === 'system') {
+        notify("Official incantations are protected.", "error");
         return;
     }
     if (!window.confirm("Architect: Banish this incantation forever?")) return;
@@ -493,7 +501,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             className="bg-blue-950/20 border border-blue-500/30 hover:border-blue-500 text-blue-400 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
           >
             <span className="text-sm">🛡️</span>
-            Manifest All Archetype Gear
+            Manifest Custom Archetype Gear
           </button>
 
           {(currentUser.isAdmin || legacyRecords.some(canEditOrManage)) && (
@@ -503,7 +511,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
               className="bg-amber-950/20 border border-amber-500/30 hover:border-amber-500 text-amber-500 px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] rounded-sm transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-20 shadow-[0_0_15px_rgba(245,158,11,0.1)]"
             >
               <span className="animate-pulse">✨</span>
-              {currentUser.isAdmin ? 'Force Re-sync All Archetypes' : 'Purge & Sync Legacies'}
+              {currentUser.isAdmin ? 'Force Re-sync Custom Archetypes' : 'Purge & Sync Custom Legacies'}
             </button>
           )}
         </div>
@@ -646,6 +654,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
             {filteredClasses.map((c, idx) => {
               const originalIndex = classes.findIndex(oc => oc.id === c.id);
               const isLegacy = !c.preferredStats || c.preferredStats.length === 0;
+              const isPremade = c.authorId === 'system';
               const manageable = canEditOrManage(c);
 
               return (
@@ -685,7 +694,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           <div>
                             <div className="flex items-center gap-3">
                               <h4 className="text-3xl font-black text-[#b28a48] fantasy-font tracking-widest uppercase">{c.name}</h4>
-                              {isLegacy && (
+                              {isLegacy && !isPremade && (
                                 <span className="text-[7px] font-black text-amber-700 uppercase tracking-widest bg-amber-950/20 px-2 py-0.5 rounded-sm border border-amber-900/30">
                                   Legacy
                                 </span>
@@ -710,13 +719,15 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           >
                             🌀
                           </button>
-                          <button 
-                            onClick={(e) => handleDelete(e, c)} 
-                            className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
-                            title="Banish Archetype"
-                          >
-                            🗑️
-                          </button>
+                          {!isPremade && (
+                            <button 
+                              onClick={(e) => handleDelete(e, c)} 
+                              className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl"
+                              title="Banish Archetype"
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </div>
                       </div>
                       <p className={`text-base text-neutral-400 mt-4 italic font-serif italic leading-relaxed ${expandedId === c.id ? '' : 'line-clamp-2'}`}>
@@ -747,7 +758,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 >
                                   {forgingHeirloomId === c.id ? 'FORGING...' : 'Manifest Relics ⚔️'}
                                 </button>
-                                {manageable && (
+                                {manageable && !isPremade && (
                                   <>
                                     <button 
                                       onClick={(e) => { e.stopPropagation(); handleManifestSpells(c); }}
@@ -827,7 +838,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                           <div>
                             <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-4">
                               <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em] text-left">Archetype Spells</h5>
-                              {currentUser.isAdmin && (
+                              {currentUser.isAdmin && !isPremade && (
                                 <div className="flex gap-2">
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); handleAIGenerateSpell(c); }}
@@ -844,6 +855,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                   </button>
                                 </div>
                               )}
+                              {isPremade && <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Static Arcanum</span>}
                             </div>
                             
                             {(editingSpellIdx !== null && expandedId === c.id) && (
@@ -917,7 +929,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                         <p className="text-[10px] font-black text-amber-600 uppercase group-hover/spell:text-amber-500 transition-colors">{s.name}</p>
                                         <p className="text-[8px] text-neutral-600 font-black uppercase tracking-widest">{s.school} • LVL {s.level}</p>
                                       </div>
-                                      {currentUser.isAdmin && (
+                                      {currentUser.isAdmin && !isPremade && (
                                         <div className="flex gap-2 opacity-0 group-hover/spell:opacity-100 transition-opacity translate-y-2 group-hover/spell:translate-y-0 duration-300">
                                           <button 
                                             onClick={(e) => { e.stopPropagation(); startEditingSpell(c, idx); }}
@@ -947,7 +959,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                         <div className="space-y-8">
                           <div className="flex justify-between items-end border-b border-neutral-800 pb-2 mb-4">
                             <h5 className="text-[11px] font-black text-neutral-500 uppercase tracking-[0.4em]">Archetype Features</h5>
-                            {manageable ? (
+                            {manageable && !isPremade ? (
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleReroll(c); }}
                                 disabled={rerolling === c.id || (!reservoirReady && !currentUser.isAdmin)}
@@ -957,7 +969,7 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                               </button>
                             ) : (
                               <span className="text-[9px] font-black text-neutral-700 uppercase tracking-widest">
-                                Read Only
+                                {isPremade ? 'Static Features' : 'Read Only'}
                               </span>
                             )}
                           </div>
@@ -969,12 +981,14 @@ const ClassLibrary: React.FC<ClassLibraryProps> = ({ classes, setClasses, broadc
                                 onClick={(e) => { e.stopPropagation(); toggleFeatureLock(c, i); }}
                                 className={`p-6 border transition-all rounded-sm relative group/feat flex flex-col justify-center min-h-[100px] text-left ${
                                   f.locked ? 'bg-amber-950/5 border-amber-900/40 shadow-inner' : 'bg-black border-neutral-900 hover:border-neutral-700'
-                                } ${!manageable ? 'cursor-default' : 'cursor-pointer'}`}
+                                } ${(!manageable || isPremade) ? 'cursor-default' : 'cursor-pointer'}`}
                               >
                                 <div className="flex items-start gap-4">
-                                  <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-600' : 'text-neutral-800'}`}>
-                                    {f.locked ? '†' : '○'}
-                                  </span>
+                                  {(!isPremade) && (
+                                    <span className={`text-xl mt-0.5 ${f.locked ? 'text-amber-600' : 'text-neutral-800'}`}>
+                                      {f.locked ? '†' : '○'}
+                                    </span>
+                                  )}
                                   <div>
                                     <h6 className={`text-base font-black uppercase tracking-wider mb-2 ${f.locked ? 'text-amber-600' : 'text-[#b28a48]'}`}>
                                       {f.name}

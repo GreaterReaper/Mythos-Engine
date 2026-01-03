@@ -30,6 +30,7 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
+const SYSTEM_VERSION = 107; // Incremented for archive auto-update logic
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -276,6 +277,39 @@ const App: React.FC = () => {
     return Object.values(merged);
   }, []);
 
+  // Global System Sync: Ensures 'system' content remains constant for all users
+  const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[]) => {
+    const globalKey = 'mythos_ether_system_master';
+    const rawGlobal = localStorage.getItem(globalKey);
+    let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
+
+    // Architect check: If hardcoded constants have newer version or admin forces manifest, update master
+    if (currentUser?.isAdmin && masterArchive.version < SYSTEM_VERSION) {
+      masterArchive = {
+        version: SYSTEM_VERSION,
+        monsters: [...SYSTEM_MONSTERS],
+        items: [...SYSTEM_ITEMS],
+        classes: classes.filter(c => c.authorId === 'system'), // Should be handled in manifestBasics
+        heroes: characters.filter(c => c.authorId === 'system')
+      };
+      localStorage.setItem(globalKey, JSON.stringify(masterArchive));
+      notify("Master Grimoire resonating with the latest Arcane Truths.", "success");
+    }
+
+    // Integrity enforcement: replace any 'system' items with Master Archive copies
+    const ensureIntegrity = <T extends { authorId?: string; id: string }>(localList: T[], masterList: T[]): T[] => {
+      const masterMap = new Map(masterList.map(m => [m.id, m]));
+      return localList.map(item => (item.authorId === 'system' && masterMap.has(item.id)) ? masterMap.get(item.id)! : item);
+    };
+
+    const newChars = ensureIntegrity(localChars, masterArchive.heroes);
+    const newClasses = ensureIntegrity(localClasses, masterArchive.classes);
+    const newMonsters = ensureIntegrity(localMonsters, masterArchive.monsters);
+    const newItems = ensureIntegrity(localItems, masterArchive.items);
+
+    return { newChars, newClasses, newMonsters, newItems };
+  }, [currentUser, notify, characters, classes]);
+
   const handleCloudSync = useCallback(async (action: 'push' | 'pull') => {
     if (!currentUser) return;
     const etherKey = 'mythos_ether_archive';
@@ -298,21 +332,27 @@ const App: React.FC = () => {
       }
       if (currentUser.isAdmin || entry.pin === currentUser.pin) {
         const d = entry.data;
-        setCharacters(d.characters);
-        setClasses(d.classes);
-        setMonsters(d.monsters);
-        setItems(deduplicateAndMergeItems(d.items));
+        const synced = syncGlobalSystemArchive(d.characters, d.classes, d.monsters, d.items);
+        setCharacters(synced.newChars);
+        setClasses(synced.newClasses);
+        setMonsters(synced.newMonsters);
+        setItems(deduplicateAndMergeItems(synced.newItems));
         setCampaign(d.campaign);
-        notify("Chronicle Restored from the Ether.", "success");
+        notify("Chronicle Restored & Resonated from the Ether.", "success");
       } else {
         notify("Arcane PIN mismatch. Access Denied.", "error");
       }
     }
-  }, [currentUser, characters, classes, monsters, items, campaign, notify, deduplicateAndMergeItems]);
+  }, [currentUser, characters, classes, monsters, items, campaign, notify, deduplicateAndMergeItems, syncGlobalSystemArchive]);
 
   const manifestBasics = async (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
     notify("Manifesting archetypes and fated gear...", "info");
     
+    let updatedMonsters = [...monsters];
+    let updatedItems = [...items];
+    let updatedChars = [...characters];
+    let updatedClasses = [...classes];
+
     if (scope === 'all' || scope === 'monsters') {
       const existingIds = new Set(monsters.map(m => m.id));
       const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
@@ -321,17 +361,115 @@ const App: React.FC = () => {
           try { m.imageUrl = await generateImage(`Bestiary portrait: ${m.name}. Description: ${m.description}. Dark fantasy oil painting style.`); } catch(e) {}
         }
       }
-      setMonsters(prev => [...prev, ...monstersToAdd]);
+      updatedMonsters = [...updatedMonsters, ...monstersToAdd];
     }
 
     if (scope === 'all' || scope === 'items') {
-      const itemsToAdd = [...SYSTEM_ITEMS];
+      const existingIds = new Set(items.map(i => i.id));
+      const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
           try { i.imageUrl = await generateImage(`Relic artifact: ${i.name}. Description: ${i.description}. Obsidian, iron, and gold filigree.`); } catch(e) {}
         }
       }
-      setItems(prev => deduplicateAndMergeItems([...prev, ...itemsToAdd]));
+      updatedItems = deduplicateAndMergeItems([...updatedItems, ...itemsToAdd]);
+    }
+
+    if (scope === 'all') {
+      const basicClasses: ClassDef[] = [
+        {
+          id: 'basic-warrior',
+          name: 'Warrior',
+          description: 'Mighty physical vanguards who focus on heavy weapons and unbreakable defense.',
+          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery'], 
+          startingItemIds: ['sys-gargantuan-greatsword', 'sys-warrior-plate'],
+          features: [
+            { name: 'Mighty Roar', description: 'Unleash a roar granting 1d8+Level temporary hit points.' }, 
+            { name: 'Crushing Blow', description: 'Critical hits knock enemies prone.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-fighter',
+          name: 'Fighter',
+          description: 'Balanced masters of combat techniques and defensive shielding.',
+          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency'], 
+          startingItemIds: ['sys-iron-longsword', 'sys-evening-shield', 'sys-warrior-plate'],
+          features: [
+            { name: 'Shield Bash', description: 'Strike with a shield for blunt damage and flinching.' }, 
+            { name: 'Firm Bastion', description: 'Protect adjacent allies as a reaction.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-sorcerer',
+          name: 'Sorcerer',
+          description: 'Masters of raw elemental magic who turn the tide of battle with destruction.',
+          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction'], 
+          startingItemIds: ['sys-archsorcerer-staff', 'sys-sorcerer-robes'],
+          features: [
+            { name: 'Spell Memory', description: 'Cast a memorized spell without a slot once per rest.' }, 
+            { name: 'Destructive Tide', description: 'Offensive spells deal extra damage based on Charisma.' }
+          ], 
+          initialSpells: THEMATIC_SPELLS.sorcerer, 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-mage',
+          name: 'Mage',
+          description: 'Supportive aether-users who heal wounds and shield the fellowship.',
+          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Healing Mastery'], 
+          startingItemIds: ['sys-menders-staff', 'sys-sorcerer-robes'],
+          features: [
+            { name: 'Resonant Benediction', description: 'Healing spells affect one additional nearby ally.' }, 
+            { name: 'Vital Flow', description: 'Bonus action to restore 1d10 + WIS hit points.' }
+          ], 
+          initialSpells: THEMATIC_SPELLS.mage, 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-thief',
+          name: 'Thief',
+          description: 'Masters of stealth and dual-daggers who strike from the shadows.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Stealth Proficiency'], 
+          startingItemIds: ['sys-assassin-daggers', 'sys-thief-leathers'],
+          features: [
+            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized enemy that is currently grappled or surprised.' }, 
+            { name: 'Smoke Escape', description: 'Vanish and disengage instantly as a reaction or bonus action.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-archer',
+          name: 'Archer',
+          description: 'Masters of the bow who can ground flying enemies with incredible accuracy.',
+          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Aerial Sniper'], 
+          startingItemIds: ['sys-sky-piercer-bow', 'sys-thief-leathers'],
+          features: [
+            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that is isolated.' }, 
+            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
+          ], 
+          initialSpells: [], 
+          authorId: 'system', authorName: 'Orestara'
+        },
+        {
+          id: 'basic-dark-knight',
+          name: 'Dark Knight',
+          description: 'Warriors who channel forbidden aether to siphon life and shield with shadows.',
+          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [2, 0, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Two-Handed Mastery', 'Soul-Resonance'],
+          startingItemIds: ['sys-dark-executioner', 'sys-warrior-plate'],
+          features: [
+            { name: 'Living Shadow', description: 'Conjure a shadowy simulacrum to fight alongside you.' },
+            { name: 'Living Dead', description: 'Stay active at 0 HP for one combat round with tripled lifesteal.' }
+          ],
+          initialSpells: THEMATIC_SPELLS.dark_knight,
+          authorId: 'system', authorName: 'Orestara'
+        }
+      ];
+      updatedClasses = [...updatedClasses.filter(c => !c.id.startsWith('basic')), ...basicClasses];
     }
 
     if (scope === 'all' || scope === 'heroes') {
@@ -351,7 +489,9 @@ const App: React.FC = () => {
                     { name: 'Sword Waltz', description: 'Bonus action to give an enemy disadvantage on their next attack.' }
                 ],
                 inventory: ['sys-iron-longsword', 'sys-evening-shield', 'sys-warrior-plate'],
-                isPlayer: true
+                isPlayer: true,
+                authorId: 'system',
+                authorName: 'Orestara'
             },
             {
                 id: 'hero-seris',
@@ -368,7 +508,9 @@ const App: React.FC = () => {
                     { name: 'Defensive Sarcasm', description: 'Force a DC 12 WIS save or Charm an enemy that misses you.' }
                 ],
                 inventory: ['sys-sky-piercer-bow', 'sys-thief-leathers'],
-                isPlayer: false
+                isPlayer: false,
+                authorId: 'system',
+                authorName: 'Orestara'
             },
             {
                 id: 'hero-lina',
@@ -386,107 +528,19 @@ const App: React.FC = () => {
                 ],
                 inventory: ['sys-menders-staff', 'sys-sorcerer-robes'],
                 knownSpells: THEMATIC_SPELLS.mage.slice(0, 3),
-                isPlayer: false
+                isPlayer: false,
+                authorId: 'system',
+                authorName: 'Orestara'
             }
         ];
-        const existingHeroIds = new Set(characters.map(c => c.id));
+        const existingHeroIds = new Set(updatedChars.map(c => c.id));
         const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
         for (let h of heroesToAdd) {
           if (!h.imageUrl) {
             try { h.imageUrl = await generateImage(`Hero portrait: ${h.name}, ${h.race} ${h.classId}. ${h.description}. Masterpiece dark fantasy portrait.`); } catch(e) {}
           }
         }
-        setCharacters(prev => [...prev, ...heroesToAdd]);
-    }
-
-    if (scope === 'all') {
-      const basicClasses: ClassDef[] = [
-        {
-          id: 'basic-warrior',
-          name: 'Warrior',
-          description: 'Mighty physical vanguards who focus on heavy weapons and unbreakable defense.',
-          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Armor Proficiency', 'Heavy Weapon Mastery'], 
-          features: [
-            { name: 'Mighty Roar', description: 'Unleash a roar granting 1d8+Level temporary hit points.' }, 
-            { name: 'Crushing Blow', description: 'Critical hits knock enemies prone.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-fighter',
-          name: 'Fighter',
-          description: 'Balanced masters of combat techniques and defensive shielding.',
-          hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Shield Mastery', 'Heavy Armor Proficiency'], 
-          features: [
-            { name: 'Shield Bash', description: 'Strike with a shield for blunt damage and flinching.' }, 
-            { name: 'Firm Bastion', description: 'Protect adjacent allies as a reaction.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-sorcerer',
-          name: 'Sorcerer',
-          description: 'Masters of raw elemental magic who turn the tide of battle with destruction.',
-          hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 2, 0], preferredStats: ['Intelligence', 'Charisma'], bonuses: ['Staff Mastery', 'Arcane Destruction'], 
-          features: [
-            { name: 'Spell Memory', description: 'Cast a memorized spell without a slot once per rest.' }, 
-            { name: 'Destructive Tide', description: 'Offensive spells deal extra damage based on Charisma.' }
-          ], 
-          initialSpells: THEMATIC_SPELLS.sorcerer, 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-mage',
-          name: 'Mage',
-          description: 'Supportive aether-users who heal wounds and shield the fellowship.',
-          hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Supportive Aura', 'Healing Mastery'], 
-          features: [
-            { name: 'Resonant Benediction', description: 'Healing spells affect one additional nearby ally.' }, 
-            { name: 'Vital Flow', description: 'Bonus action to restore 1d10 + WIS hit points.' }
-          ], 
-          initialSpells: THEMATIC_SPELLS.mage, 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-thief',
-          name: 'Thief',
-          description: 'Masters of stealth and dual-daggers who strike from the shadows.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Dagger Mastery', 'Stealth Proficiency'], 
-          features: [
-            { name: 'Executioner\'s Strike', description: 'Instantly execute a human-sized enemy that is currently grappled or surprised.' }, 
-            { name: 'Smoke Escape', description: 'Vanish and disengage instantly as a reaction or bonus action.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-archer',
-          name: 'Archer',
-          description: 'Masters of the bow who can ground flying enemies with incredible accuracy.',
-          hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Longbow Accuracy', 'Aerial Sniper'], 
-          features: [
-            { name: 'Exposed Weakness', description: 'Deal extra 2d6 damage against a single enemy that is isolated.' }, 
-            { name: 'Sky Guard', description: 'You have advantage on attack rolls against flying enemies.' }
-          ], 
-          initialSpells: [], 
-          authorId: 'system', authorName: 'Orestara'
-        },
-        {
-          id: 'basic-dark-knight',
-          name: 'Dark Knight',
-          description: 'Warriors who channel forbidden aether to siphon life and shield with shadows.',
-          hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [2, 0, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Two-Handed Mastery', 'Soul-Resonance'],
-          features: [
-            { name: 'Living Shadow', description: 'Conjure a shadowy simulacrum to fight alongside you.' },
-            { name: 'Living Dead', description: 'Stay active at 0 HP for one combat round with tripled lifesteal.' }
-          ],
-          initialSpells: THEMATIC_SPELLS.dark_knight,
-          authorId: 'system', authorName: 'Orestara'
-        }
-      ];
-      setClasses(prev => [...prev.filter(c => !c.id.startsWith('basic')), ...basicClasses]);
+        updatedChars = [...updatedChars, ...heroesToAdd];
     }
 
     if (scope === 'all' || scope === 'adventure') {
@@ -500,11 +554,19 @@ const App: React.FC = () => {
         plot: adventurePlot,
         summary: "The fellowship has arrived at the Silvermarsh to investigate a spreading blight linked to a Gorechimera.",
         logs: [starterLog],
-        party: characters.slice(0, 3), 
+        party: updatedChars.slice(0, 3), 
         rules: []
       });
     }
-    notify("Arcanum Synchronized. Sigils manifest.", "success");
+
+    // Auto-Sync with Master Repository to ensure integrity
+    const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems);
+    setCharacters(synced.newChars);
+    setClasses(synced.newClasses);
+    setMonsters(synced.newMonsters);
+    setItems(deduplicateAndMergeItems(synced.newItems));
+
+    notify("Arcanum Synchronized. Sigils manifest with Global Integrity.", "success");
   };
 
   const diceNeeded = useMemo(() => {
@@ -552,22 +614,31 @@ const App: React.FC = () => {
       const uPrefix = currentUser.username;
       (window as any).isMythosAdmin = !!currentUser.isAdmin;
       
+      let loadedChars = [], loadedClasses = [], loadedMonsters = [], loadedItems = [];
+
       if (currentUser.isAdmin) {
-        setCharacters(aggregateAllResources('_mythos_chars'));
-        setClasses(aggregateAllResources('_mythos_classes'));
-        setMonsters(aggregateAllResources('_mythos_monsters'));
-        setItems(deduplicateAndMergeItems(aggregateAllResources('_mythos_items')));
+        loadedChars = aggregateAllResources('_mythos_chars');
+        loadedClasses = aggregateAllResources('_mythos_classes');
+        loadedMonsters = aggregateAllResources('_mythos_monsters');
+        loadedItems = aggregateAllResources('_mythos_items');
         notify("Omniscience Enabled.", "success");
       } else {
         const savedChars = localStorage.getItem(`${uPrefix}_mythos_chars`);
-        setCharacters(savedChars ? JSON.parse(savedChars) : []);
+        loadedChars = savedChars ? JSON.parse(savedChars) : [];
         const savedClasses = localStorage.getItem(`${uPrefix}_mythos_classes`);
-        setClasses(savedClasses ? JSON.parse(savedClasses) : []);
+        loadedClasses = savedClasses ? JSON.parse(savedClasses) : [];
         const savedMonsters = localStorage.getItem(`${uPrefix}_mythos_monsters`);
-        setMonsters(savedMonsters ? JSON.parse(savedMonsters) : []);
+        loadedMonsters = savedMonsters ? JSON.parse(savedMonsters) : [];
         const savedItems = localStorage.getItem(`${uPrefix}_mythos_items`);
-        setItems(deduplicateAndMergeItems(savedItems ? JSON.parse(savedItems) : []));
+        loadedItems = savedItems ? JSON.parse(savedItems) : [];
       }
+
+      // Automatically sync system content with Master Archive for all users on load
+      const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems);
+      setCharacters(synced.newChars);
+      setClasses(synced.newClasses);
+      setMonsters(synced.newMonsters);
+      setItems(deduplicateAndMergeItems(synced.newItems));
 
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
       setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] });
@@ -581,7 +652,7 @@ const App: React.FC = () => {
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
     }
-  }, [currentUser, aggregateAllResources, notify, deduplicateAndMergeItems]);
+  }, [currentUser, aggregateAllResources, notify, deduplicateAndMergeItems, syncGlobalSystemArchive]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -680,8 +751,8 @@ const App: React.FC = () => {
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={() => setCurrentUser(null)} user={currentUser} />
       
-      <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-[calc(80px+var(--safe-bottom))] lg:pb-0 pt-[calc(64px+var(--safe-top))] lg:pt-0">
-        <div className="p-4 md:p-8 max-w-6xl mx-auto min-h-full">
+      <main className="flex-1 relative overflow-y-auto scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] pb-[calc(60px+var(--safe-bottom))] lg:pb-0 pt-[calc(48px+var(--safe-top))] lg:pt-0">
+        <div className="p-3 md:p-8 max-w-6xl mx-auto min-h-full">
           {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={arcadeReady} dmModel={dmModel} setDmModel={setDmModel} isQuotaExhausted={isQuotaExhausted} localResetTime={localResetTime} items={items} user={currentUser} manifestBasics={manifestBasics} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} items={items} setItems={setItems} />}
@@ -702,50 +773,54 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <div className="fixed top-[calc(70px+var(--safe-top))] right-4 z-[100] flex flex-col gap-2 pointer-events-none w-[calc(100%-32px)] md:w-auto items-end">
+      <div className="fixed top-[calc(56px+var(--safe-top))] right-3 z-[100] flex flex-col gap-2 pointer-events-none w-[calc(100%-24px)] md:w-auto items-end">
         {notifications.map(n => (
-          <div key={n.id} className={`p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[240px] max-w-full md:min-w-[280px] ${n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'}`}>
-            <p className="text-[10px] leading-relaxed font-bold opacity-90">{n.message}</p>
+          <div key={n.id} className={`p-3 md:p-4 rounded-sm border shadow-2xl animate-notification pointer-events-auto min-w-[200px] max-w-full md:min-w-[280px] ${n.type === 'error' ? 'bg-red-950/90 border-red-500 text-red-100' : n.type === 'success' ? 'bg-green-950/90 border-green-500 text-green-100' : 'bg-black/90 border-[#b28a48]/50 text-[#b28a48]'}`}>
+            <p className="text-[9px] leading-relaxed font-bold opacity-90">{n.message}</p>
           </div>
         ))}
       </div>
 
-      <div className="fixed top-0 right-0 left-0 lg:left-64 h-[calc(64px+var(--safe-top))] z-[60] bg-black/80 backdrop-blur-md border-b border-neutral-900 px-6 flex items-center justify-between pt-[var(--safe-top)]">
-        <div className="flex items-center gap-4 md:gap-8">
+      {/* Slimmed Top Bar for Mobile */}
+      <div className="fixed top-0 right-0 left-0 lg:left-64 h-[calc(48px+var(--safe-top))] z-[60] bg-black/85 backdrop-blur-lg border-b border-neutral-900 px-4 md:px-6 flex items-center justify-between pt-[var(--safe-top)]">
+        <div className="flex items-center gap-3 md:gap-8">
            <div className="flex flex-col items-end">
-              <span className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Resonance</span>
-              <span className={`text-sm font-black ${currentUser.isAdmin ? 'text-blue-400' : (arcaneTokens < 1 ? 'text-red-500' : 'text-[#b28a48]')}`}>{currentUser.isAdmin ? '∞' : Math.floor(arcaneTokens)} / 3</span>
+              <span className="text-[7px] font-black text-neutral-600 uppercase tracking-widest leading-none mb-0.5">Resonance</span>
+              <span className={`text-[11px] font-black leading-none ${currentUser.isAdmin ? 'text-blue-400' : (arcaneTokens < 1 ? 'text-red-500' : 'text-[#b28a48]')}`}>{currentUser.isAdmin ? '∞' : Math.floor(arcaneTokens)} / 3</span>
            </div>
-           <div className="w-20 md:w-32 h-2 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
+           <div className="w-16 md:w-32 h-1.5 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
               <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : (lockoutTime > 0 ? 'bg-red-600' : 'bg-[#b28a48]')}`} style={{ width: `${currentUser.isAdmin ? 100 : (lockoutTime > 0 ? (lockoutTime / LOCKOUT_DURATION) * 100 : reservoir)}%` }}></div>
            </div>
         </div>
+        <div className="lg:hidden fantasy-font text-[10px] text-[#b28a48] font-black tracking-widest">
+          MYTHOS
+        </div>
       </div>
 
-      <div className="fixed bottom-[calc(90px+var(--safe-bottom))] lg:bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
+      <div className="fixed bottom-[calc(70px+var(--safe-bottom))] lg:bottom-4 right-4 z-[90] flex flex-col items-end gap-3 pointer-events-none">
         {diceTrayOpen && (
-          <div className="grim-card w-64 p-4 border border-[#b28a48]/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
-            <div className="flex justify-between items-center mb-4 border-b border-[#b28a48]/10 pb-2">
-              <h4 className="text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest">CHRONICLE FATES</h4>
-              <button onClick={() => setDiceTrayOpen(false)} className="text-neutral-600 hover:text-red-500 transition-colors">✕</button>
+          <div className="grim-card w-56 md:w-64 p-3 md:p-4 border border-[#b28a48]/40 shadow-2xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex justify-between items-center mb-3 border-b border-[#b28a48]/10 pb-1.5">
+              <h4 className="text-[9px] font-black fantasy-font text-[#b28a48] tracking-widest">CHRONICLE FATES</h4>
+              <button onClick={() => setDiceTrayOpen(false)} className="text-neutral-600 hover:text-red-500 transition-colors text-sm">✕</button>
             </div>
-            <div className="grid grid-cols-4 gap-2 mb-6">
+            <div className="grid grid-cols-4 gap-1.5 mb-4">
               {[4, 6, 8, 10, 12, 20, 100].map(d => (
-                <button key={d} onClick={() => handleRollDice(d)} className="bg-neutral-950 border border-neutral-900 hover:border-[#b28a48] hover:text-[#b28a48] p-2 rounded-sm transition-all flex flex-col items-center justify-center gap-1 group active:scale-95">
-                  <span className="text-sm font-black">d{d}</span>
+                <button key={d} onClick={() => handleRollDice(d)} className="bg-neutral-950 border border-neutral-900 hover:border-[#b28a48] hover:text-[#b28a48] p-1.5 md:p-2 rounded-sm transition-all flex flex-col items-center justify-center gap-1 group active:scale-95">
+                  <span className="text-xs font-black">d{d}</span>
                 </button>
               ))}
             </div>
             {lastRoll && (
-              <div className="text-center mb-6">
-                <div className="text-[8px] font-black text-neutral-600 uppercase tracking-widest mb-1">Result d{lastRoll.sides}</div>
-                <div className={`text-5xl font-black fantasy-font ${lastRoll.result === lastRoll.sides && lastRoll.sides >= 10 ? 'text-amber-500 animate-pulse' : 'text-neutral-200'}`}>{lastRoll.result}</div>
+              <div className="text-center mb-4">
+                <div className="text-[7px] font-black text-neutral-600 uppercase tracking-widest mb-0.5">Result d{lastRoll.sides}</div>
+                <div className={`text-4xl md:text-5xl font-black fantasy-font ${lastRoll.result === lastRoll.sides && lastRoll.sides >= 10 ? 'text-amber-500 animate-pulse' : 'text-neutral-200'}`}>{lastRoll.result}</div>
               </div>
             )}
           </div>
         )}
         {(diceTrayOpen || diceNeeded) && (
-          <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'} ${diceNeeded && !diceTrayOpen ? 'animate-bounce border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''}`}>🎲</button>
+          <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'} ${diceNeeded && !diceTrayOpen ? 'animate-bounce border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''}`}>🎲</button>
         )}
       </div>
     </div>

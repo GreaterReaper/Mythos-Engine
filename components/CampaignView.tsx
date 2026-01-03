@@ -181,36 +181,36 @@ const CampaignView: React.FC<CampaignViewProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full space-y-4 relative overflow-hidden">
-      {/* Campaign Bar */}
-      <div className="bg-black/90 backdrop-blur-lg p-3 rounded-sm border border-[#1a1a1a] flex justify-between items-center shadow-2xl gap-2 shrink-0">
+    <div className="flex flex-col h-full space-y-2 md:space-y-4 relative overflow-hidden">
+      {/* Campaign Bar - Slimmer for Mobile */}
+      <div className="bg-black/90 backdrop-blur-lg p-2 md:p-3 rounded-sm border border-[#1a1a1a] flex justify-between items-center shadow-2xl gap-2 shrink-0">
         <div className="min-w-0 flex items-center gap-2 md:gap-4">
           <button 
             onClick={() => setSheetOpen(true)}
-            className="w-10 h-10 rounded-full border border-[#b28a48]/40 flex items-center justify-center text-xl hover:bg-[#b28a48] hover:text-black transition-all shadow-lg active:scale-95"
+            className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-[#b28a48]/40 flex items-center justify-center text-lg md:text-xl hover:bg-[#b28a48] hover:text-black transition-all shadow-lg active:scale-95"
             title="Player Sheets"
           >
             📋
           </button>
           <div className="min-w-0">
-            <h3 className="text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest uppercase truncate max-w-[100px] sm:max-w-none">
+            <h3 className="text-[9px] md:text-[10px] font-black fantasy-font text-[#b28a48] tracking-widest uppercase truncate max-w-[80px] sm:max-w-none">
               {campaign.plot.slice(0, 40)}...
             </h3>
-            {summarizing && <span className="text-[7px] text-amber-500 animate-pulse font-black uppercase">Reflecting...</span>}
+            {summarizing && <span className="text-[6px] md:text-[7px] text-amber-500 animate-pulse font-black uppercase">Reflecting...</span>}
           </div>
         </div>
         
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide max-w-[100px] sm:max-w-none">
+        <div className="flex items-center gap-1 md:gap-1.5 overflow-x-auto scrollbar-hide max-w-[100px] sm:max-w-none">
           {campaign.party.map(c => (
             <div key={c.id} className="group relative shrink-0">
-              <div className="w-8 h-8 rounded-full border border-[#b28a48]/50 overflow-hidden bg-black flex items-center justify-center shadow-inner">
-                {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} /> : <span className="text-[10px]">👤</span>}
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-[#b28a48]/50 overflow-hidden bg-black flex items-center justify-center shadow-inner">
+                {c.imageUrl ? <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} /> : <span className="text-[9px]">👤</span>}
               </div>
             </div>
           ))}
           <button 
             onClick={() => setRecruitmentOpen(true)}
-            className="w-8 h-8 rounded-full border border-dashed border-[#b28a48]/30 flex items-center justify-center text-neutral-600 hover:text-[#b28a48] hover:border-[#b28a48] transition-all shrink-0 active:scale-95"
+            className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-dashed border-[#b28a48]/30 flex items-center justify-center text-neutral-600 hover:text-[#b28a48] hover:border-[#b28a48] transition-all shrink-0 active:scale-95"
             title="Recruit Members"
           >
             +
@@ -221,7 +221,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
           <button 
             onClick={handleGenerateLoot}
             disabled={loading || !isHost}
-            className="text-[8px] text-[#b28a48] font-black uppercase tracking-widest border border-[#b28a48]/30 px-3 h-8 flex items-center justify-center rounded-sm hover:bg-amber-950/20 active:scale-95"
+            className="text-[7px] md:text-[8px] text-[#b28a48] font-black uppercase tracking-widest border border-[#b28a48]/30 px-2 md:px-3 h-7 md:h-8 flex items-center justify-center rounded-sm hover:bg-amber-950/20 active:scale-95"
           >
             LOOT
           </button>
@@ -231,16 +231,16 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       {/* Chat Logs Area */}
       <div 
         ref={scrollRef}
-        className="flex-1 bg-neutral-950/20 rounded-sm border border-[#1a1a1a] overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-hide"
+        className="flex-1 bg-neutral-950/10 rounded-sm border border-[#1a1a1a] overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 scrollbar-hide"
       >
         {campaign.logs.map((log, i) => (
           <div key={i} className={`flex ${log.role === 'player' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[90%] md:max-w-[80%] p-3 md:p-4 rounded-sm relative ${
+            <div className={`max-w-[95%] md:max-w-[80%] p-3 md:p-4 rounded-sm relative ${
               log.role === 'player' 
-              ? 'bg-[#121212] text-neutral-200 border border-[#b28a48]/10' 
+              ? 'bg-[#0f0f0f] text-neutral-200 border border-[#b28a48]/10' 
               : 'bg-transparent text-[#cbb07a] border-l-2 border-[#b28a48]/40'
             }`}>
-              <div className={`text-[8px] font-black uppercase tracking-[0.2em] mb-1.5 flex justify-between gap-4 ${log.role === 'dm' ? 'text-[#b28a48]' : 'text-neutral-500'}`}>
+              <div className={`text-[7px] md:text-[8px] font-black uppercase tracking-[0.2em] mb-1 flex justify-between gap-4 ${log.role === 'dm' ? 'text-[#b28a48]' : 'text-neutral-500'}`}>
                 <span>{log.role === 'dm' ? 'DUNGEON MASTER' : (log.senderName || 'PLAYER')}</span>
               </div>
               <p className="text-sm md:text-base leading-relaxed font-serif italic">{log.content}</p>
@@ -249,15 +249,15 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         ))}
         {loading && (
           <div className="flex justify-start">
-            <div className="text-[#b28a48] animate-pulse text-[10px] font-black tracking-widest uppercase py-2">
+            <div className="text-[#b28a48] animate-pulse text-[8px] md:text-[10px] font-black tracking-widest uppercase py-2">
               The Chronicle Unfolds...
             </div>
           </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="bg-black/40 border-t border-[#1a1a1a] pt-3 pb-1 shrink-0">
+      {/* Input Area - Tighter on Mobile */}
+      <div className="bg-black/30 border-t border-[#1a1a1a] pt-2 pb-0.5 shrink-0">
         <div className="flex gap-2 items-end">
           <textarea
             rows={1}
@@ -266,7 +266,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
             onChange={(e) => {
               setInput(e.target.value);
               e.target.style.height = 'auto';
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -275,59 +275,59 @@ const CampaignView: React.FC<CampaignViewProps> = ({
               }
             }}
             placeholder={arcadeReady ? "Describe your move..." : "Ether Cooling..."}
-            className="flex-1 bg-black/60 border border-[#1a1a1a] rounded-sm p-3 text-[16px] focus:border-[#b28a48] outline-none text-neutral-300 font-serif italic resize-none min-h-[48px]"
+            className="flex-1 bg-black/50 border border-[#1a1a1a] rounded-sm p-2.5 text-[15px] focus:border-[#b28a48] outline-none text-neutral-300 font-serif italic resize-none min-h-[44px]"
           />
           <button
             onClick={handleSendMessage}
             disabled={!arcadeReady || loading || !input.trim()}
-            className="bg-[#1a1a1a] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-14 h-[48px] flex items-center justify-center transition-all border border-[#333] disabled:opacity-20 rounded-sm active:scale-95 shadow-lg"
+            className="bg-[#111] hover:bg-[#b28a48] text-[#b28a48] hover:text-black w-12 md:w-14 h-[44px] flex items-center justify-center transition-all border border-[#222] disabled:opacity-20 rounded-sm active:scale-95 shadow-lg shrink-0"
           >
-            <span className="text-2xl">⚔️</span>
+            <span className="text-xl md:text-2xl">⚔️</span>
           </button>
         </div>
       </div>
 
-      {/* Sheets Panel */}
+      {/* Sheets Panel - Fullscreen on Mobile */}
       {sheetOpen && (
-        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[var(--safe-top)]">
+        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[calc(var(--safe-top)+10px)]">
            <div className="p-4 md:p-8 h-full flex flex-col max-w-4xl mx-auto">
               <div className="flex justify-between items-center mb-6 border-b border-[#b28a48]/20 pb-4 shrink-0">
-                 <h2 className="text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Active Fellowship</h2>
-                 <button onClick={() => setSheetOpen(false)} className="text-neutral-600 hover:text-white text-3xl p-2 active:scale-90">✕</button>
+                 <h2 className="text-base md:text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Active Fellowship</h2>
+                 <button onClick={() => setSheetOpen(false)} className="text-neutral-600 hover:text-white text-2xl md:text-3xl p-1 md:p-2 active:scale-90">✕</button>
               </div>
-              <div className="flex-1 space-y-6 pb-24 text-left">
+              <div className="flex-1 space-y-4 md:space-y-6 pb-24 text-left">
                  {campaign.party.length === 0 ? (
-                   <p className="text-center text-neutral-600 uppercase text-[10px] font-black py-12">No members recruited.</p>
+                   <p className="text-center text-neutral-600 uppercase text-[9px] md:text-[10px] font-black py-12">No members recruited.</p>
                  ) : (
                    campaign.party.map(c => {
                      const cls = classes.find(cl => cl.id === c.classId);
                      return (
-                       <div key={c.id} className="grim-card p-5 border-neutral-900 border-2 rounded-sm shadow-2xl">
-                          <div className="flex items-center gap-4 mb-5">
-                             <div className="w-20 h-20 rounded-sm border border-[#b28a48]/20 overflow-hidden shrink-0 shadow-inner">
+                       <div key={c.id} className="grim-card p-4 md:p-5 border-neutral-900 border-2 rounded-sm shadow-2xl">
+                          <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-5">
+                             <div className="w-16 h-16 md:w-20 md:h-20 rounded-sm border border-[#b28a48]/20 overflow-hidden shrink-0 shadow-inner">
                                 {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} />}
                              </div>
                              <div className="flex-1 min-w-0">
-                                <h3 className="text-xl font-black fantasy-font text-[#b28a48] truncate">{c.name}</h3>
-                                <p className="text-[9px] text-neutral-500 uppercase font-black">{c.race} • {cls?.name || 'Classless'}</p>
-                                <div className="mt-2 flex gap-4">
-                                   <div className="bg-neutral-950/80 px-2 py-1 border border-neutral-900 rounded-sm">
-                                      <p className="text-[7px] text-neutral-600 font-black uppercase">Vitality</p>
-                                      <p className="text-sm font-black text-neutral-200">{c.hp} / {c.maxHp}</p>
+                                <h3 className="text-lg md:text-xl font-black fantasy-font text-[#b28a48] truncate">{c.name}</h3>
+                                <p className="text-[8px] md:text-[9px] text-neutral-500 uppercase font-black">{c.race} • {cls?.name || 'Classless'}</p>
+                                <div className="mt-2 flex gap-3 md:gap-4">
+                                   <div className="bg-neutral-950/80 px-1.5 md:px-2 py-0.5 md:py-1 border border-neutral-900 rounded-sm">
+                                      <p className="text-[6px] md:text-[7px] text-neutral-600 font-black uppercase">Vitality</p>
+                                      <p className="text-xs md:text-sm font-black text-neutral-200">{c.hp} / {c.maxHp}</p>
                                    </div>
                                 </div>
                              </div>
                           </div>
                           
-                          <div className="grid grid-cols-3 gap-2 mb-4">
+                          <div className="grid grid-cols-3 gap-1.5 md:gap-2 mb-4">
                              {Object.entries(c.stats).map(([s, v]) => (
-                               <div key={s} className="bg-black/60 p-2 border border-neutral-800 rounded-sm text-center">
-                                  <p className="text-[8px] text-neutral-600 font-black uppercase">{s.slice(0,3)}</p>
-                                  <p className="text-base font-black text-amber-600">{v as number}</p>
+                               <div key={s} className="bg-black/60 p-1.5 md:p-2 border border-neutral-800 rounded-sm text-center">
+                                  <p className="text-[7px] md:text-[8px] text-neutral-600 font-black uppercase">{s.slice(0,3)}</p>
+                                  <p className="text-sm md:text-base font-black text-amber-600">{v as number}</p>
                                </div>
                              ))}
                           </div>
-                          <button onClick={() => handleDismiss(c.id)} className="w-full text-red-900/60 hover:text-red-500 transition-all font-black uppercase text-[9px] border border-red-900/20 py-3 rounded-sm bg-red-950/5 mt-2 active:bg-red-950/20">Dismiss Soul</button>
+                          <button onClick={() => handleDismiss(c.id)} className="w-full text-red-900/60 hover:text-red-500 transition-all font-black uppercase text-[8px] md:text-[9px] border border-red-900/20 py-2.5 md:py-3 rounded-sm bg-red-950/5 mt-1 active:bg-red-950/20">Dismiss Soul</button>
                        </div>
                      );
                    })
@@ -337,27 +337,27 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         </div>
       )}
 
-      {/* Recruitment Panel */}
+      {/* Recruitment Panel - Fullscreen on Mobile */}
       {recruitmentOpen && (
-        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[var(--safe-top)]">
+        <div className="fixed inset-0 z-[110] bg-black bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] overflow-y-auto pt-[calc(var(--safe-top)+10px)]">
            <div className="p-4 h-full flex flex-col max-w-2xl mx-auto">
               <div className="flex justify-between items-center mb-6 border-b border-[#b28a48]/20 pb-4 shrink-0">
-                 <h2 className="text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Recruit Adventurers</h2>
-                 <button onClick={() => setRecruitmentOpen(false)} className="text-neutral-600 hover:text-white text-3xl p-2 active:scale-90">✕</button>
+                 <h2 className="text-base md:text-lg font-black fantasy-font text-[#b28a48] tracking-widest">Recruit Adventurers</h2>
+                 <button onClick={() => setRecruitmentOpen(false)} className="text-neutral-600 hover:text-white text-2xl md:text-3xl p-1 md:p-2 active:scale-90">✕</button>
               </div>
-              <div className="flex-1 space-y-4 pb-24">
+              <div className="flex-1 space-y-3 md:space-y-4 pb-24">
                  {characters.filter(c => !campaign.party.some(pc => pc.id === c.id)).map(c => (
-                   <div key={c.id} className="bg-neutral-900/80 border border-neutral-800 p-3 rounded-sm flex items-center gap-3 hover:border-[#b28a48]/30 transition-all group active:bg-neutral-800">
-                      <div className="w-14 h-14 rounded-full border border-neutral-700 overflow-hidden bg-black shrink-0 shadow-lg">
+                   <div key={c.id} className="bg-neutral-900/80 border border-neutral-800 p-2.5 md:p-3 rounded-sm flex items-center gap-3 hover:border-[#b28a48]/30 transition-all group active:bg-neutral-800">
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-neutral-700 overflow-hidden bg-black shrink-0 shadow-lg">
                          {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" alt={c.name} />}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                         <h4 className="text-sm font-black text-[#b28a48] uppercase tracking-widest truncate">{c.name}</h4>
-                         <p className="text-[9px] text-neutral-500 uppercase font-black">Level {c.level} {c.race}</p>
+                         <h4 className="text-xs md:text-sm font-black text-[#b28a48] uppercase tracking-widest truncate">{c.name}</h4>
+                         <p className="text-[8px] md:text-[9px] text-neutral-500 uppercase font-black">Level {c.level} {c.race}</p>
                       </div>
                       <button 
                         onClick={() => handleRecruit(c)}
-                        className="bg-[#b28a48] text-black border border-[#b28a48] px-4 py-2 text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
+                        className="bg-[#b28a48] text-black border border-[#b28a48] px-3 md:px-4 py-1.5 md:py-2 text-[8px] md:text-[9px] font-black uppercase tracking-widest transition-all shadow-lg active:scale-95"
                       >
                         Recruit
                       </button>
@@ -365,7 +365,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                  ))}
                  {characters.filter(c => !campaign.party.some(pc => pc.id === c.id)).length === 0 && (
                    <div className="text-center py-20 opacity-40">
-                      <p className="text-[10px] font-black uppercase tracking-widest">No unrecruited souls available</p>
+                      <p className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">No unrecruited souls available</p>
                    </div>
                  )}
               </div>

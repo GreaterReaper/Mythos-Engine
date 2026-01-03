@@ -22,104 +22,107 @@ interface Notification {
   type: 'error' | 'success' | 'info';
 }
 
-const REGISTRY_VERSION = 10; 
+const REGISTRY_VERSION = 11; 
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v4-Legacy-Of-Love",
+  version: "March-2025-v5-Emotions-Of-Darkness",
   classes: [
     {
-      id: 'cls-dark-knight', name: 'Dark Knight', description: 'These knights cast away shields for heavy two-handed swords. They ignite aether with raw emotions—primarily Love—to drain life or create barriers. They maintain a cold tone to control their inner darkness.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 2, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Heavy Armor Proficiency', '2H Weapon Mastery'], features: [
-        { name: 'Living Dead', description: 'Survive fatal damage for 1 round. Boosts health sap. If total healing received < max HP by end, succeed a DC 15 Death Save or perish.' },
-        { name: 'Shadow Simulacrum', description: 'Create a shadowy copy of yourself to fight alongside you for 1 minute.' },
-        { name: 'Aetheric Love', description: 'Ignite the strongest emotion to grant an ally a barrier equal to your Charisma modifier + Level.' },
-        { name: 'Momentum of Steel', description: 'After a killing blow, move up to 10ft and make an extra attack as a bonus action.' },
-        { name: 'Cold Bite', description: 'Your presence chills the air; enemies within 10ft take a -2 penalty to attack rolls.' }
+      id: 'cls-dark-knight', name: 'Dark Knight', description: 'These knights cast away shields for heavy two-handed swords. They ignite aether in their bodies with raw emotions—lore tells of Love as the strongest—to use dark aspected magics to drain life or create barriers. They maintain a cold, chilling bite in their tone to keep their inner darkness controlled.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 2, 0], preferredStats: ['Strength', 'Charisma'], bonuses: ['Heavy Armor Proficiency', 'Two-Handed Weapon Mastery', 'Dark Magic Focus'], features: [
+        { name: 'Living Dead', description: 'Temporarily survive fatal damage for 1 round while greatly boosting health sap. If total healing received is less than max HP by the end of the effect, you must succeed a DC 15 Death Save.' },
+        { name: 'Shadow Simulacrum', description: 'Create a shadowy simulacrum of yourself to fight at your side for 1 minute.' },
+        { name: 'Dark Arts', description: 'Spend a bonus action to augment your next spell or attack with dark energy, adding your Charisma modifier to the damage or shield amount.' },
+        { name: 'Dark Barrier', description: 'As a reaction, create a barrier of dark aspected magic to protect yourself or an ally from incoming magical damage.' },
+        { name: 'Cold Bite', description: 'Your controlled emotional state chills the air around you; enemies within 10ft take a -2 penalty to attack rolls and have their movement speed reduced by 5ft.' }
       ], initialSpells: [
-        { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Deal 1d8 necrotic damage to all enemies within 5ft; heal for half.' },
-        { name: 'The Blackest Night', level: 2, school: 'Abjuration', description: 'Create a dark barrier on a target absorbing 15 damage.' }
+        { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Deal 1d8 necrotic damage to all enemies within 5ft; heal yourself for half the total damage dealt.' },
+        { name: 'The Blackest Night', level: 2, school: 'Abjuration', description: 'Wrap yourself or an ally in a shield of darkness that absorbs 15 points of damage.' }
       ], authorId: 'system', authorName: 'Orestara'
     },
     {
-      id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, capable of shooting flying enemies out of the air. They deal extra damage to exposed foes and use special arrows.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [2, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor Proficiency', 'Ranged Precision'], features: [
-        { name: 'Sky Shot', description: 'Advantage on attacks against flying or elevated enemies.' },
-        { name: 'Expose Weakness', description: 'Pick an exposed enemy; deal an extra 1d8 damage per hit against them.' },
-        { name: 'Alchemical Quiver', description: 'Craft 3 special arrows (Fire, Entangling, or Piercing) per short rest.' },
-        { name: 'Skirmish Step', description: 'When an enemy moves within 5ft, you can move 10ft as a reaction without provoking.' },
-        { name: 'Eagle Eye', description: 'Ignore half and three-quarters cover at long range.' }
+      id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, capable of shooting flying enemies out of the air with great accuracy. They deal extra damage to exposed foes and use special arrows while staying light on their feet in leather armor.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [2, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor Proficiency', 'Ranged Precision'], features: [
+        { name: 'Sky Shot', description: 'Gain advantage and bonus damage when attacking flying or elevated enemies.' },
+        { name: 'Expose Weakness', description: 'Mark an exposed enemy; your next attack against them deals an extra 1d8 damage.' },
+        { name: 'Special Arrows', description: 'Access to fire, entangling, or piercing arrows that can bypass specific resistances or cause status effects.' },
+        { name: 'Skirmish Step', description: 'When an enemy moves within 5ft of you, you can move 10ft as a reaction without provoking attacks of opportunity.' },
+        { name: 'Eagle Eye', description: 'Ignore penalties for half and three-quarters cover at long range.' }
       ], authorId: 'system', authorName: 'Orestara'
     },
     {
-      id: 'cls-thief', name: 'Thief', description: 'Stealth masters using dual daggers and leather armor. Capable of instant executions on grappled foes.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Wielding', 'Stealth Expertise'], features: [
-        { name: 'Instant Execution', description: 'Instantly kill a human-sized or smaller enemy grappled by an ally.' },
-        { name: 'Smoke Bomb', description: 'Drop a bomb as a bonus action to Disengage and become invisible until start of next turn.' },
-        { name: 'Dual Fang', description: 'When you hit with a dagger, make a second attack with your off-hand dagger for free.' },
-        { name: 'Cunning Infiltrator', description: 'Advantage on lockpicking and trap-disarming checks.' },
-        { name: 'Weak Point Strike', description: 'Sneak attacks ignore damage resistance.' }
+      id: 'cls-thief', name: 'Thief', description: 'Masters of stealth who use leather armor and dual daggers. They can execute grappled enemies and use smoke bombs to pick off weaker targets quietly.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Dual Wielding Proficiency', 'Stealth Expertise'], features: [
+        { name: 'Instant Execution', description: 'Instantly kill a human-sized or smaller enemy that is currently being grappled by an ally.' },
+        { name: 'Smoke Bomb', description: 'Throw a bomb to immediately Disengage and become invisible until the start of your next turn.' },
+        { name: 'Dual Fang Strike', description: 'When you hit with a dagger, you may make an immediate second strike with your off-hand dagger as a free action.' },
+        { name: 'Shadow Step', description: 'Teleport up to 30ft from one area of shadow to another as a bonus action.' },
+        { name: 'Cunning Infiltrator', description: 'Advantage on all checks involving lockpicking, trap-disarming, and sleight of hand.' }
       ], authorId: 'system', authorName: 'Orestara'
     },
     {
-      id: 'cls-sorcerer', name: 'Sorcerer', description: 'Destructive spellcasters wielding long staves and robes. They can commit spells to memory for instant casting.', hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 3, 2], preferredStats: ['Intelligence', 'Constitution'], bonuses: ['Staff Focus', 'Arcane Destruction'], features: [
-        { name: 'Spell Memory', description: 'Commit one known spell to memory; it becomes a free, instant cast once per long rest.' },
-        { name: 'Grand Cataclysm', description: 'destructive spells deal maximum damage once per short rest.' },
-        { name: 'Staff Channeling', description: 'While holding a long staff, add +2 to spell attack rolls.' },
-        { name: 'Robed Alacrity', description: 'While wearing robes, gain +2 to Initiative.' },
-        { name: 'Mana Flow', description: 'Spend a bonus action to convert health into a 1st level spell slot.' }
+      id: 'cls-sorcerer', name: 'Sorcerer', description: 'Destructive spellcasters wielding long staves and robes. They excel at grand, tide-turning magic and can commit spells to memory for instant, free casting.', hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 3, 2], preferredStats: ['Intelligence', 'Constitution'], bonuses: ['Staff Specialization', 'Arcane Destruction'], features: [
+        { name: 'Spell Memory', description: 'Designate one known spell to memory; it becomes free and instant to cast once per long rest.' },
+        { name: 'Grand Cataclysm', description: 'Increase the damage dice and area of your next destructive spell by 50% for one cast.' },
+        { name: 'Staff Channeling', description: 'While holding a long staff, your spell save DC and spell attack bonus increase by +1.' },
+        { name: 'Robed Alacrity', description: 'While wearing robes and no armor, your base AC is 13 + your Intelligence modifier.' },
+        { name: 'Mana Flow', description: 'As a bonus action, spend health points to regain a 1st or 2nd level spell slot.' }
       ], initialSpells: [
-        { name: 'Flare', level: 3, school: 'Evocation', description: 'Huge explosion dealing 8d6 fire damage in a 20ft radius.' }
+        { name: 'Flare', level: 3, school: 'Evocation', description: 'Unleash a massive explosion dealing 8d6 fire damage in a 20ft radius.' }
       ], authorId: 'system', authorName: 'Orestara'
     },
     {
-      id: 'cls-mage', name: 'Mage', description: 'Supportive casters in robes using small staves. Merged Priestess arts allow them to target all allies with buffs.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery', 'Small Staff Focus'], features: [
-        { name: 'Group Resonance', description: 'Single-target buffs now target all allies within 30ft.' },
-        { name: 'Celestial Mending', description: 'Heal all allies within range for 2d8 + Wisdom modifier.' },
-        { name: 'Aetheric Shield', description: 'Grant the party a shield that absorbs 5 damage from every incoming attack for 1 minute.' },
-        { name: 'Vitality Surge', description: 'Target ally gains 10 temporary HP and clears one debuff.' },
-        { name: 'Prayer of Haste', description: 'Grant the party +10ft movement speed for 3 rounds.' }
+      id: 'cls-mage', name: 'Mage', description: 'Supportive casters focused on healing and party buffs. They target all allies with their supportive arts, ensuring a balanced and protected party.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery', 'Small Staff Focus'], features: [
+        { name: 'Group Resonance', description: 'Buff spells that normally target one ally now target all allies within a 30ft radius.' },
+        { name: 'Celestial Mending', description: 'A healing burst that restores 2d8 + Wisdom modifier HP to all party members in range.' },
+        { name: 'Aetheric Shielding', description: 'Grant the entire party a temporary shield that reduces the next instance of incoming damage by 10.' },
+        { name: 'Vitality Surge', description: 'Target ally gains 10 temporary HP and their next attack has advantage.' },
+        { name: 'Prayer of Haste', description: 'Increase the movement speed of all allies by 10ft and grant them +2 to AC for 3 rounds.' }
       ], initialSpells: [
         { name: 'Benediction', level: 1, school: 'Abjuration', description: 'Instantly restore an ally to half their maximum HP.' }
       ], authorId: 'system', authorName: 'Orestara'
     },
     {
-      id: 'cls-warrior', name: 'Warrior', description: 'Imposing front-liners in full plate wielding 2H swords and hammers. They use roars to invigorate and charge up devastating swings.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Mastery', 'Resistance to Prone'], features: [
-        { name: 'Vanguard Roar', description: 'Invigorate self and allies, clearing Fear and granting 5 Temp HP.' },
+      id: 'cls-warrior', name: 'Warrior', description: 'Imposing front-liners in full plate wielding 2H swords and hammers. They invigorate allies with roars and unleash devastating charged-up downward swings.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Full Plate Mastery', 'Prone Resistance'], features: [
+        { name: 'Vanguard Roar', description: 'Unleash a roar that grants 1d10 temporary HP and clears the Fear status from yourself and all allies within 30ft.' },
+        { name: 'Charged Swing', description: 'Ready an attack; you are more likely to be targeted this turn. Next turn, unleash quadruple damage in a mighty downward swing.' },
+        { name: 'Iron Roots', description: 'While wearing heavy armor, you have advantage on checks to resist being pushed or knocked prone.' },
         { name: 'Crushing Momentum', description: 'Attacks force a DC 14 STR save or the target is knocked prone.' },
-        { name: 'Charged Swing', description: 'Ready an attack; you are targeted more often this turn. Next turn, deal 4x damage.' },
-        { name: 'Iron Roots', description: 'Advantage on saves against being pushed or knocked prone.' },
-        { name: 'Brutal Blow', description: 'Critical hits with 2H weapons deal triple damage instead of double.' }
+        { name: 'Brutal Blow', description: 'Critical hits with two-handed weapons deal triple damage instead of double.' }
       ], authorId: 'system', authorName: 'Orestara'
     },
     {
-      id: 'cls-fighter', name: 'Fighter', description: 'Shield-bearing champions who take the brunt of damage. They wield swords/maces and shields for bonus armor.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Dexterity'], bonuses: ['Shield Mastery', 'Shield Bash Prowess'], features: [
-        { name: 'Shield Bash', description: '1d6 blunt damage; beasts and humanoids must pass a DC 14 CON save or flinch (stunned).' },
-        { name: 'Bulwark', description: 'While your shield is held firm, gain +2 to all Saving Throws.' },
-        { name: 'Guardian Reflex', description: 'Take the damage for an adjacent ally as a reaction once per turn.' },
-        { name: 'Interception', description: 'Reduce incoming damage to an ally by 1d10 + Level.' },
-        { name: 'Mace Mastery', description: 'Blunt weapons deal an extra 2 damage to armored targets.' }
+      id: 'cls-fighter', name: 'Fighter', description: 'Champions of the frontline who hold shields firm to take the brunt of damage. They use swords or maces paired with shields for superior protection.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Dexterity'], bonuses: ['Shield Mastery', 'Heavy Plate Mastery'], features: [
+        { name: 'Shield Bash', description: 'Deal 1d6 blunt damage with your shield; the target must pass a CON save or be stunned until the end of their next turn.' },
+        { name: 'Bulwark', description: 'While your shield is raised, add your shield bonus to any Dexterity saving throws.' },
+        { name: 'Defender\'s Reflex', description: 'Take the damage for an adjacent ally as a reaction once per turn.' },
+        { name: 'Interception', description: 'As a reaction when an ally is hit, reduce incoming damage by 1d10 + your character level.' },
+        { name: 'Mace Mastery', description: 'Blunt weapons deal an extra 2 damage to armored targets and constructs.' }
       ], authorId: 'system', authorName: 'Orestara'
     }
   ],
   monsters: [
     {
-      id: 'mon-shadow-stalker', name: 'Shadow Stalker', description: 'A lean, pitch-black humanoid that flickers in and out of the fog.', stats: { strength: 12, dexterity: 18, constitution: 12, intelligence: 10, wisdom: 14, charisma: 8 }, hp: 45, ac: 16, abilities: [{ name: 'Fog Ambush', effect: 'Deals 2d6 extra damage if starting turn hidden.' }], authorId: 'system'
+      id: 'mon-shadow-stalker', name: 'Shadow Stalker', description: 'A lean, pitch-black humanoid that flickers in and out of the fog of the Grey Marches.', stats: { strength: 12, dexterity: 18, constitution: 12, intelligence: 10, wisdom: 14, charisma: 8 }, hp: 45, ac: 16, abilities: [{ name: 'Fog Ambush', effect: 'Deals 2d6 extra damage if it starts its turn hidden from the target.' }], authorId: 'system'
     },
     {
-      id: 'mon-grey-harpy', name: 'Grey Harpy', description: 'Avian horrors with wings of tattered silk and razor claws.', stats: { strength: 10, dexterity: 16, constitution: 14, intelligence: 8, wisdom: 12, charisma: 10 }, hp: 55, ac: 15, abilities: [{ name: 'Dive Strike', effect: 'Moves 30ft and attacks with advantage; forces prone.' }], authorId: 'system'
+      id: 'mon-grey-harpy', name: 'Grey Harpy', description: 'Avian horrors with wings of tattered silk and razor-sharp claws that dive from the cliffs.', stats: { strength: 10, dexterity: 16, constitution: 14, intelligence: 8, wisdom: 12, charisma: 10 }, hp: 55, ac: 15, abilities: [{ name: 'Dive Strike', effect: 'Moves 30ft and attacks with advantage; the target must succeed a DC 13 DEX save or be knocked prone.' }], authorId: 'system'
     },
     {
-      id: 'sys-gorechimera', name: 'The Gorechimera', description: 'A terrifying fusion of Lion, Goat, and Serpent guarding the Grey Marches.', stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 14, wisdom: 14, charisma: 12 }, hp: 180, ac: 18, isBoss: true, abilities: [{ name: 'Lion\'s Roar', effect: 'AOE Fear save DC 16.' }, { name: 'Serpent Lash', effect: 'Poisonous tail strike (4d6 poison).' }], legendaryActions: [{ name: 'Multiattack', effect: 'Three attacks: Bite, Claws, Horns.' }], authorId: 'system'
+      id: 'sys-gorechimera', name: 'The Gorechimera', description: 'A terrifying fusion of Lion, Goat, and Serpent guarding the ruins of the Grey Marches.', stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 14, wisdom: 14, charisma: 12 }, hp: 180, ac: 18, isBoss: true, abilities: [{ name: 'Lion\'s Roar', effect: 'AOE Fear effect; DC 16 WIS save or be Frightened for 1 minute.' }, { name: 'Serpent Lash', effect: 'Poisonous tail strike dealing 4d6 poison damage on hit.' }], legendaryActions: [{ name: 'Multiattack', effect: 'Makes three attacks: one Bite, one Claw, and one Horn strike.' }], authorId: 'system'
     }
   ],
   items: [
-    { id: 'itm-dk-claymore', name: 'Order Claymore', type: 'Weapon' as const, description: 'A massive 2H blade stained with old tears.', mechanics: [{ name: 'Aetheric Link', description: 'Lifesteal 2 HP on every hit.' }], lore: 'The blade of a Dark Knight.', authorId: 'system' },
-    { id: 'itm-war-plate', name: 'Vanguard Plate', type: 'Armor' as const, description: 'Full plate inscribed with roars.', mechanics: [{ name: 'Heavy Frame', description: 'Reduces all physical damage by 2.' }], lore: 'Heavy protection.', authorId: 'system' },
-    { id: 'itm-mage-staff', name: 'Resonant Staff', type: 'Weapon' as const, description: 'A small staff of light-wood.', mechanics: [{ name: 'Healer\'s Pulse', description: 'Healing spells restore an extra 1d4 HP.' }], lore: 'Standard for Mages.', authorId: 'system' }
+    { id: 'itm-dk-claymore', name: 'Order Claymore', type: 'Weapon' as const, description: 'A massive two-handed blade used by the Dark Knight Order.', mechanics: [{ name: 'Aetheric Link', description: 'Restore 2 HP on every successful hit.' }], lore: 'The blade of a Dark Knight, cold to the touch.', authorId: 'system' },
+    { id: 'itm-war-plate', name: 'Vanguard Plate', type: 'Armor' as const, description: 'Full plate armor inscribed with symbols of the roar.', mechanics: [{ name: 'Heavy Frame', description: 'Reduces all physical damage taken by 2.' }], lore: 'Imposing protection for front-line warriors.', authorId: 'system' },
+    { id: 'itm-mage-staff', name: 'Resonant Staff', type: 'Weapon' as const, description: 'A small staff of light-wood capped with a resonant crystal.', mechanics: [{ name: 'Healer\'s Pulse', description: 'Healing spells restore an extra 1d4 HP.' }], lore: 'Standard issue for Mages of the Guild.', authorId: 'system' },
+    { id: 'itm-silver-bow', name: 'Silver-Strung Bow', type: 'Weapon' as const, description: 'A fine elven bow with a string made of enchanted silver.', mechanics: [{ name: 'Precision', description: 'Ignores partial cover when attacking.' }], lore: 'Seris\'s favorite weapon for long-range hunting.', authorId: 'system' },
+    { id: 'itm-guild-blade', name: 'Guild-Issue Sword', type: 'Weapon' as const, description: 'A reliable one-handed arming sword.', mechanics: [{ name: 'Balanced', description: '+1 bonus to attack rolls.' }], lore: 'Standard gear for Miri and other guild fighters.', authorId: 'system' },
+    { id: 'itm-oak-shield', name: 'Heraldic Shield', type: 'Armor' as const, description: 'A heavy iron-bound oak shield.', mechanics: [{ name: 'Bulwark', description: 'Grants an extra +2 bonus to AC when held firm.' }], lore: 'Miri\'s primary defense against the horrors of the marches.', authorId: 'system' }
   ],
   heroes: [
     { 
       id: 'hero-miri', name: 'Miri', classId: 'cls-fighter', race: 'Human' as const, gender: 'Female' as const, gold: 150, 
       description: "An energetic human swordswoman in polished iron plate. She wears a wide, confident grin and carries a classic blade and shield.", 
       level: 5, stats: { strength: 18, dexterity: 14, constitution: 16, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 55, maxHp: 55, 
-      feats: [{ name: 'Brave Heart', description: 'Advantage on saves against fear.' }], inventory: ['itm-dk-claymore'], isPlayer: false, authorId: 'system', isSpectral: true 
+      feats: [{ name: 'Brave Heart', description: 'Advantage on saves against fear.' }], inventory: ['itm-guild-blade', 'itm-oak-shield'], isPlayer: false, authorId: 'system', isSpectral: true 
     },
     { 
       id: 'hero-lina', name: 'Lina', classId: 'cls-mage', race: 'Human' as const, gender: 'Female' as const, gold: 180, 
@@ -129,7 +132,7 @@ const MONTHLY_CONTENT = {
     },
     { 
       id: 'hero-seris', name: 'Seris', classId: 'cls-archer', race: 'Elf' as const, gender: 'Female' as const, gold: 120, 
-      description: "An aloof elf archer with piercing silver eyes and silver hair. She speaks rarely, letting her arrows do the talking.", 
+      description: "An aloof elf archer with piercing silver eyes and long silver hair. She speaks rarely, letting her arrows do the talking.", 
       level: 5, stats: { strength: 10, dexterity: 20, constitution: 14, intelligence: 12, wisdom: 16, charisma: 10 }, hp: 48, maxHp: 48, 
       feats: [{ name: 'Elven Accuracy', description: 'Reroll one ranged attack die per turn if you have advantage.' }], inventory: ['itm-silver-bow'], isPlayer: false, authorId: 'system', isSpectral: true 
     }
@@ -137,7 +140,6 @@ const MONTHLY_CONTENT = {
 };
 
 const App: React.FC = () => {
-  // Default to 'characters' (Party) tab as requested
   const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'profile' | 'rules'>('characters');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -146,11 +148,35 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     const currentRegVersion = parseInt(localStorage.getItem('mythos_registry_version') || '0');
     if (currentRegVersion < REGISTRY_VERSION) {
-      localStorage.removeItem('mythos_accounts');
-      localStorage.removeItem('mythos_active_session');
+      // Migrate accounts instead of removing them
+      const accountsRaw = localStorage.getItem('mythos_accounts');
+      if (accountsRaw) {
+        try {
+          const accounts: UserAccount[] = JSON.parse(accountsRaw);
+          const migratedAccounts = accounts.map(acc => ({
+            ...acc,
+            version: REGISTRY_VERSION, // Update version
+            registryEra: acc.registryEra || 'Eternal' // Ensure new fields exist
+          }));
+          localStorage.setItem('mythos_accounts', JSON.stringify(migratedAccounts));
+        } catch (e) {
+          console.error("Account migration failed", e);
+        }
+      }
+      
+      // Migrate the active session if it exists
+      const sessionRaw = localStorage.getItem('mythos_active_session');
+      if (sessionRaw) {
+        try {
+          const session = JSON.parse(sessionRaw);
+          session.version = REGISTRY_VERSION;
+          localStorage.setItem('mythos_active_session', JSON.stringify(session));
+        } catch (e) {}
+      }
+
       localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
-      return null;
     }
+    
     const saved = localStorage.getItem('mythos_active_session');
     const user = saved ? JSON.parse(saved) : null;
     if (user) (window as any).isMythosAdmin = !!user.isAdmin;

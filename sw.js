@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'mythos-v1.0.5';
+const CACHE_NAME = 'mythos-v1.0.7';
 const ASSETS = [
   '/',
   '/index.html',

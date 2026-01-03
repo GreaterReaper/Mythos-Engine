@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { UserAccount } from '../types';
 
 interface ProfilePanelProps {
@@ -10,8 +10,8 @@ interface ProfilePanelProps {
 const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [] }) => {
   const [showPin, setShowPin] = useState(false);
   
-  // To show all friends and their names, we might need a little registry lookup
   const friends = user.friends || [];
+  const buildDate = new Date().toLocaleDateString();
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 md:space-y-12 pb-24 pt-8 md:pt-16 px-4 md:px-0">
@@ -60,6 +60,19 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [] })
                 </div>
               </section>
             </div>
+
+            <section className="pt-8 border-t border-[#b28a48]/10">
+              <div className="flex items-center justify-between text-neutral-700">
+                <div className="text-left">
+                  <p className="text-[7px] font-black uppercase tracking-widest">Deployment Resonance</p>
+                  <p className="text-[10px] font-black text-neutral-600">v1.0.7-stable</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[7px] font-black uppercase tracking-widest">Last Inscription</p>
+                  <p className="text-[10px] font-black text-neutral-600">{buildDate}</p>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -106,7 +119,7 @@ const ProfilePanel: React.FC<ProfilePanelProps> = ({ user, onlineFriends = [] })
       </div>
       
       <div className="text-center">
-        <p className="text-[7px] md:text-[8px] text-neutral-800 uppercase tracking-[0.4em] font-black">Sigil Inscription Ver 1.0.6</p>
+        <p className="text-[7px] md:text-[8px] text-neutral-800 uppercase tracking-[0.4em] font-black">Mythos Core Engine v1.0.7</p>
       </div>
     </div>
   );

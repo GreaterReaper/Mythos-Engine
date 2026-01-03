@@ -12,6 +12,7 @@ import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import SpellCodex from './components/SpellCodex';
 import ProfilePanel from './components/ProfilePanel';
+import RulesManifest from './components/RulesManifest';
 import { generateImage, generateWorldMap, generateLocalTiles } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
@@ -21,17 +22,6 @@ interface Notification {
   type: 'error' | 'success' | 'info';
 }
 
-interface DiceRoll {
-  id: string;
-  sides: number;
-  result: number;
-  timestamp: number;
-}
-
-const LOCKOUT_DURATION = 65; 
-const DAILY_PRO_LIMIT = 50;
-const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 115; 
 const REGISTRY_VERSION = 6; 
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
@@ -103,7 +93,7 @@ const SYSTEM_ITEMS: Item[] = [
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'profile'>('campaign');
+  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'profile' | 'rules'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
@@ -120,7 +110,6 @@ const App: React.FC = () => {
     return user;
   });
 
-  const [arcaneTokens, setArcaneTokens] = useState<number>(3); 
   const [reservoir, setReservoir] = useState<number>(100); 
   const [characters, setCharacters] = useState<Character[]>([]);
   const [classes, setClasses] = useState<ClassDef[]>([]);
@@ -153,14 +142,11 @@ const App: React.FC = () => {
       if (!data.user || !data.user.username) throw new Error("Invalid Migration Sigil");
       
       const uPrefix = data.user.username;
-      
-      // Update registry first
       const localAccounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
       const filteredAccounts = localAccounts.filter(a => a.username !== data.user.username);
       filteredAccounts.push(data.user);
       localStorage.setItem('mythos_accounts', JSON.stringify(filteredAccounts));
 
-      // Persist data locally immediately
       localStorage.setItem(`${uPrefix}_mythos_chars`, JSON.stringify(data.characters || []));
       localStorage.setItem(`${uPrefix}_mythos_classes`, JSON.stringify(data.classes || []));
       localStorage.setItem(`${uPrefix}_mythos_monsters`, JSON.stringify(data.monsters || []));
@@ -168,7 +154,6 @@ const App: React.FC = () => {
       localStorage.setItem(`${uPrefix}_mythos_campaign`, JSON.stringify(data.campaign || { plot: '', summary: '', logs: [], party: [], rules: [] }));
       localStorage.setItem('mythos_active_session', JSON.stringify(data.user));
 
-      // Force state sync
       setCurrentUser(data.user);
       setCharacters(data.characters || []);
       setClasses(data.classes || []);
@@ -179,7 +164,7 @@ const App: React.FC = () => {
       notify("Soul Migration Complete. Legend Restored.", "success");
       return true;
     } catch (e) {
-      notify("Migration Failed: Sigil Corrupted or Incomplete.", "error");
+      notify("Migration Failed: Sigil Corrupted.", "error");
       return false;
     }
   }, [notify]);
@@ -236,8 +221,7 @@ const App: React.FC = () => {
     const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
     const newAccounts = accounts.map(a => a.username === currentUser.username ? updatedUser : a);
     localStorage.setItem('mythos_accounts', JSON.stringify(newAccounts));
-    notify(`Soul ${sigil} Bound.`, 'success');
-  }, [currentUser, notify]);
+  }, [currentUser]);
 
   const handleCloudSync = useCallback(async (action: 'push' | 'pull') => {
     if (!currentUser) return;
@@ -275,7 +259,7 @@ const App: React.FC = () => {
       const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
       for (let m of monstersToAdd) {
         if (!m.imageUrl) {
-          try { m.imageUrl = await generateImage(`Official TTRPG creature art: ${m.name}. Appearance: ${m.description}. Highly detailed, dark fantasy.`); setMonsters(prev => [...prev.filter(pm => pm.id !== m.id), m]); } catch(e) {}
+          try { m.imageUrl = await generateImage(`Official TTRPG creature art: ${m.name}. Appearance: ${m.description}.`); setMonsters(prev => [...prev.filter(pm => pm.id !== m.id), m]); } catch(e) {}
         }
       }
       updatedMonsters = [...updatedMonsters.filter(m => !existingIds.has(m.id)), ...monstersToAdd];
@@ -286,7 +270,7 @@ const App: React.FC = () => {
       const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
-          try { i.imageUrl = await generateImage(`High-quality TTRPG artifact: ${i.name}. Lore: ${i.description}. Cinematic lighting.`); setItems(prev => [...prev.filter(pi => pi.id !== i.id), i]); } catch(e) {}
+          try { i.imageUrl = await generateImage(`High-quality TTRPG artifact: ${i.name}.`); setItems(prev => [...prev.filter(pi => pi.id !== i.id), i]); } catch(e) {}
         }
       }
       updatedItems = [...updatedItems.filter(i => !existingIds.has(i.id)), ...itemsToAdd];
@@ -309,26 +293,26 @@ const App: React.FC = () => {
         const heroes: Character[] = [
             { 
               id: 'hero-miri', name: 'Miri', classId: 'basic-warrior', race: 'Human', gender: 'Female', gold: 100, 
-              description: "A vibrant warrior clad in etched leather and weathered iron. Her copper-red hair is tied back with a simple leather cord, and her eyes spark with the restless energy of a seasoned traveler.", 
+              description: "A vibrant warrior clad in etched leather and weathered iron.", 
               level: 1, stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 12, maxHp: 12, 
               feats: [{ name: 'Restless Spirit', description: 'Gains +2 to Initiative.' }], inventory: ['sys-iron-longsword', 'sys-leather-armor'], isPlayer: true, authorId: 'system', authorName: 'Orestara' 
             },
             { 
               id: 'hero-lina', name: 'Lina', classId: 'basic-warrior', race: 'Elf', gender: 'Female', gold: 120, 
-              description: "Dressed in muted greens and silvers that blend into the twilight of the woods. Her silver-braided hair frames a face of calm intelligence. She moves with the effortless silence of a forest ghost.", 
+              description: "Dressed in muted greens and silvers. Forest ghost.", 
               level: 1, stats: { strength: 12, dexterity: 18, constitution: 12, intelligence: 14, wisdom: 15, charisma: 12 }, hp: 10, maxHp: 10, 
               feats: [{ name: 'Wild Senses', description: 'Advantage on Perception.' }], inventory: ['sys-iron-longsword', 'sys-leather-armor'], isPlayer: false, authorId: 'system', authorName: 'Orestara' 
             },
             { 
               id: 'hero-seris', name: 'Seris', classId: 'basic-mage', race: 'Tiefling', gender: 'Female', gold: 150, 
-              description: "An imposing figure with skin the color of polished obsidian and sweeping, curved horns. She wears flowing robes of deep violet, with faint embers dancing in the depths of her dark eyes.", 
+              description: "Skin the color of polished obsidian. Flows in deep violet robes.", 
               level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 }, hp: 10, maxHp: 10, 
               feats: [{ name: 'Abyssal Spark', description: 'Fire damage ignores minor resistance.' }], inventory: ['sys-oak-staff', 'sys-leather-armor'], isPlayer: false, authorId: 'system', authorName: 'Orestara' 
             }
         ];
         for (let h of heroes) {
           if (!h.imageUrl) {
-            try { h.imageUrl = await generateImage(`TTRPG portrait: ${h.name}, a ${h.gender} ${h.race}. Appearance: ${h.description}. Cinematic dark fantasy masterpiece lighting.`); setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]); } catch(e) {}
+            try { h.imageUrl = await generateImage(`TTRPG portrait: ${h.name}, a ${h.gender} ${h.race}. Appearance: ${h.description}.`); setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]); } catch(e) {}
           }
         }
         updatedChars = [...updatedChars.filter(c => !heroes.some(h => h.id === c.id)), ...heroes];
@@ -424,6 +408,7 @@ const App: React.FC = () => {
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
+          {activeTab === 'rules' && <RulesManifest campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={reservoirReady} broadcast={broadcast} setActiveTab={setActiveTab} />}
           {activeTab === 'profile' && <ProfilePanel user={currentUser} onlineFriends={onlineFriends} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={[]} joinSession={(id) => { setIsHost(false); const conn = peerRef.current!.connect(id); setupConnection(conn); }} setIsHost={setIsHost} forceSync={(sel) => {
               const state: any = {};
@@ -434,19 +419,30 @@ const App: React.FC = () => {
           {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign, playerName: currentUser.displayName }} onImport={() => {}} manifestBasics={() => manifestBasics('all')} onCloudSync={handleCloudSync} onMigrationExport={handleMigrationExport} onMigrationImport={handleMigrationImport} onFileExport={handleFileExport} />}
         </div>
       </main>
+      
+      {/* resonance header */}
       <div className="fixed top-0 right-0 left-0 lg:left-64 h-[calc(48px+var(--safe-top))] z-[60] bg-black/85 backdrop-blur-lg border-b border-neutral-900 px-4 md:px-6 flex items-center justify-between pt-[var(--safe-top)]">
         <div className="flex items-center gap-3 md:gap-8">
            <div className="flex flex-col items-end">
               <span className="text-[7px] font-black text-neutral-600 uppercase tracking-widest leading-none mb-0.5">Resonance</span>
-              <span className={`text-[11px] font-black leading-none ${currentUser.isAdmin ? 'text-blue-400' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : 3} / 3</span>
+              <span className={`text-[11px] font-black leading-none ${currentUser.isAdmin ? 'text-blue-400' : 'text-[#b28a48]'}`}>{currentUser.isAdmin ? '∞' : reservoir} / 100</span>
            </div>
            <div className="w-16 md:w-32 h-1.5 bg-neutral-900 rounded-full overflow-hidden border border-neutral-800 relative shadow-inner">
-              <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : 'bg-[#b28a48]'}`} style={{ width: `100%` }}></div>
+              <div className={`h-full transition-all duration-700 ${currentUser.isAdmin ? 'bg-blue-500' : 'bg-[#b28a48]'}`} style={{ width: `${currentUser.isAdmin ? 100 : reservoir}%` }}></div>
            </div>
         </div>
         <div className="lg:hidden flex items-center gap-3">
           <div className="fantasy-font text-[10px] text-[#b28a48] font-black tracking-widest uppercase">Mythos</div>
         </div>
+      </div>
+
+      {/* Notifications */}
+      <div className="fixed top-20 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
+        {notifications.map(n => (
+          <div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black border ${n.type === 'error' ? 'border-red-900 text-red-400' : n.type === 'success' ? 'border-green-900 text-green-400' : 'border-[#b28a48] text-[#b28a48]'}`}>
+            <p className="text-[10px] font-black uppercase tracking-widest">{n.message}</p>
+          </div>
+        ))}
       </div>
     </div>
   );

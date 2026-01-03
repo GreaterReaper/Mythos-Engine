@@ -30,7 +30,7 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 109; // Incremented for sync logic update
+const SYSTEM_VERSION = 110; // Incremented for change-detection logic
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -241,6 +241,7 @@ const App: React.FC = () => {
   const [connections, setConnections] = useState<DataConnection[]>([]);
   const [serverLogs, setServerLogs] = useState<ServerLog[]>([]);
   const peerRef = useRef<Peer | null>(null);
+  const hasNotifiedAdminRef = useRef<string | null>(null);
 
   const notify = useCallback((message: string, type: Notification['type'] = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -282,17 +283,30 @@ const App: React.FC = () => {
     const rawGlobal = localStorage.getItem(globalKey);
     let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
 
-    // Update master repository only if admin role is active and version mismatch or explicit trigger
-    if (currentUser?.isAdmin && masterArchive.version < SYSTEM_VERSION) {
-      masterArchive = {
-        version: SYSTEM_VERSION,
+    // Update master repository if version mismatch OR if an admin has intentionally modified system content
+    if (currentUser?.isAdmin) {
+      const currentSystemData = {
         monsters: localMonsters.filter(m => m.authorId === 'system'),
         items: localItems.filter(i => i.authorId === 'system'),
         classes: localClasses.filter(c => c.authorId === 'system'),
         heroes: localChars.filter(c => c.authorId === 'system')
       };
-      localStorage.setItem(globalKey, JSON.stringify(masterArchive));
-      if (!silent) notify("Master Archive resonated with latest Arcane Truths.", "success");
+
+      const dataChanged = JSON.stringify(currentSystemData) !== JSON.stringify({
+        monsters: masterArchive.monsters,
+        items: masterArchive.items,
+        classes: masterArchive.classes,
+        heroes: masterArchive.heroes
+      });
+
+      if (masterArchive.version < SYSTEM_VERSION || dataChanged) {
+        masterArchive = {
+          version: Math.max(SYSTEM_VERSION, masterArchive.version),
+          ...currentSystemData
+        };
+        localStorage.setItem(globalKey, JSON.stringify(masterArchive));
+        if (!silent) notify("Master Archive resonated with latest Arcane Truths.", "success");
+      }
     }
 
     const ensureIntegrity = <T extends { authorId?: string; id: string }>(localList: T[], masterList: T[]): T[] => {
@@ -308,10 +322,13 @@ const App: React.FC = () => {
     };
   }, [currentUser?.isAdmin, notify]);
 
-  // Admin greeting triggered only once per session change
+  // Fix: Admin greeting with strict session-based guard to prevent repeats
   useEffect(() => {
-    if (currentUser?.isAdmin) {
+    if (currentUser?.isAdmin && hasNotifiedAdminRef.current !== currentUser.username) {
       notify("Omniscience Enabled.", "success");
+      hasNotifiedAdminRef.current = currentUser.username;
+    } else if (!currentUser?.isAdmin) {
+      hasNotifiedAdminRef.current = null;
     }
   }, [currentUser?.username, currentUser?.isAdmin, notify]);
 
@@ -638,7 +655,7 @@ const App: React.FC = () => {
         loadedItems = savedItems ? JSON.parse(savedItems) : [];
       }
 
-      // Silent resonance check on load
+      // Silent resonance check on load - explicitly true for silent param
       const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems, true);
       setCharacters(synced.newChars);
       setClasses(synced.newClasses);
@@ -657,7 +674,9 @@ const App: React.FC = () => {
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
     }
-  }, [currentUser?.username, aggregateAllResources, deduplicateAndMergeItems, syncGlobalSystemArchive]);
+    // Fix: syncGlobalSystemArchive removed from deps to break loop, 
+    // it's only called on load and manually during manifests/syncs.
+  }, [currentUser?.username, aggregateAllResources, deduplicateAndMergeItems]);
 
   // Periodic persistence and background integrity sentinel
   useEffect(() => {

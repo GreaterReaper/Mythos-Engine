@@ -17,69 +17,84 @@ import SoulCairn from './components/SoulCairn';
 import { generateImage, generateRules } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
-const REGISTRY_VERSION = 16; 
+const REGISTRY_VERSION = 17; 
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v16-Class-Expansion",
+  version: "March-2025-v17-Dark-Knight-Order",
   classes: [
     {
-      id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, they can shoot flying enemies out of the air with great accuracy. They pick a single enemy that is exposed to deal extra damage against. They wear leather armor to stay well protected, and light on their feet.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor', 'Bows', 'Fletching'], features: [
-        { name: 'Sky Shot', description: 'Can shoot flying enemies out of the air with great accuracy.' },
-        { name: 'Exposed Weakness', description: 'Pick a single exposed enemy to deal extra damage against.' },
-        { name: 'Lightfoot', description: 'Movement speed increased while wearing light armor.' },
-        { name: 'Special Arrows', description: 'Capable of crafting arrows with varied elemental and utility effects.' },
-        { name: 'Rapid Fire', description: 'Once per turn, you can fire two arrows as a single action.' }
+      id: 'cls-dark-knight', name: 'Dark Knight', description: 'Knights who cast away shields for heavy two-handed swords, igniting their inner aether with raw emotions to fuel dark magic and barriers.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 2, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Plate', '2H Swords', 'Dark Arcanum'], features: [
+        { name: 'Living Dead', description: 'Survive fatal damage at 1 HP for 1 round. Gain massive health sap. If total healing received < Max HP by turn end, succeed a DC 15 Death Save or fall.' },
+        { name: 'Living Shadow', description: 'Create a shadowy simulacrum that fights at your side for 2 rounds, mimicking your attacks.' },
+        { name: 'Unstoppable Momentum', description: 'The weight of your greatsword allows you to move up to 10ft as part of an attack action.' },
+        { name: 'Dark Arts Mastery', description: 'Enhance your next spell or ability with a burst of dark energy, dealing 1d10 extra necrotic damage.' },
+        { name: 'Blackest Barrier', description: 'Grant yourself or an ally a temporary shield of darkness equal to 20% of your maximum health.' }
+      ], initialSpells: [
+        { name: 'Abyssal Drain', level: 1, school: 'Necromancy', description: 'Drain 1d8 necrotic damage from all adjacent foes and heal for half the total damage.' },
+        { name: 'Edge of Shadow', level: 2, school: 'Evocation', description: 'A ranged wave of dark energy dealing 3d6 necrotic damage in a 15ft line.' },
+        { name: 'The Blackest Night', level: 3, school: 'Abjuration', description: 'A powerful barrier that absorbs magical damage and bursts for force damage when broken.' }
+      ], authorId: 'system', startingItemIds: ['itm-dk-greatsword', 'itm-dk-plate']
+    },
+    {
+      id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, they can shoot flying enemies out of the air with great accuracy. They pick a single enemy that is exposed to deal extra damage against.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor', 'Bows', 'Fletching'], features: [
+        { name: 'Sky Shot', description: 'Can shoot flying enemies out of the air with great accuracy, ignoring penalties for range or altitude.' },
+        { name: 'Exposed Weakness', description: 'Designate one enemy as exposed. Deal an extra 1d8 damage on all hits against them this turn.' },
+        { name: 'Lightfoot', description: 'Movement speed increased while wearing light armor. Can disengage as a bonus action.' },
+        { name: 'Special Arrows', description: 'Can craft and use utility arrows (Fire, Ice, or Snaring) twice per encounter.' },
+        { name: 'Rapid Fire', description: 'Once per turn, you can fire two arrows as a single action at the cost of -2 to accuracy.' }
       ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-arch-bow', 'itm-leather-armor']
     },
     {
-      id: 'cls-thief', name: 'Thief', description: 'Masters of stealth who wear leather armors and use dual daggers. They can instantly execute human-sized enemies grappled by allies or slip away in a cloud of smoke.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Leather Armor', 'Daggers', 'Stealth'], features: [
-        { name: 'Dual Wielding', description: 'Can attack with two daggers as a single action.' },
-        { name: 'Instant Execution', description: 'Can instantly execute a human-sized enemy or smaller that has been grappled by an ally.' },
-        { name: 'Smoke Bomb', description: 'In a pinch, throw down a smoke bomb to slip away quietly.' },
-        { name: 'Silent Footsteps', description: 'Advantage on stealth checks in shadows or dim light.' },
-        { name: 'Poison Mastery', description: 'Can apply lethal toxins to daggers as a bonus action.' }
+      id: 'cls-thief', name: 'Thief', description: 'Masters of stealth who wear leather armors and use dual daggers. They can instantly execute human-sized enemies grappled by allies.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Intelligence'], bonuses: ['Leather Armor', 'Daggers', 'Stealth'], features: [
+        { name: 'Dual Wielding', description: 'When attacking with a dagger, you can make an off-hand attack as a bonus action.' },
+        { name: 'Instant Execution', description: 'Instantly slay a human-sized or smaller enemy that is currently grappled or restrained by an ally.' },
+        { name: 'Smoke Bomb', description: 'Throw a bomb to create a 10ft cloud of heavily obscured terrain and move 15ft without provoking opportunity.' },
+        { name: 'Silent Footsteps', description: 'Advantage on Stealth checks. While hidden, your first attack deals 2d6 extra damage.' },
+        { name: 'Weak Point Insight', description: 'Attacks against enemies with less than half health have advantage.' }
       ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-thief-daggers', 'itm-leather-armor']
     },
     {
-      id: 'cls-sorcerer', name: 'Sorcerer', description: 'Masters of magic wielding long staves and robed attire. They excel at destructive magic and can commit a single spell to memory for instant, free casting.', hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 3, 2], preferredStats: ['Intelligence', 'Constitution'], bonuses: ['Robes', 'Staves', 'Arcana'], features: [
-        { name: 'Destructive Magic', description: 'Spells that deal damage deal an additional 1d6 force damage.' },
-        { name: 'Spell Memory', description: 'Commit a single spell to memory, making it free to cast instantly once per day.' },
-        { name: 'Arcane Surge', description: 'Gain a temporary spell slot by sacrificing 5 HP.' },
-        { name: 'Flowing Robes', description: 'AC equals 10 + Dex + Int while wearing robes and no shield.' },
-        { name: 'Elemental Focus', description: 'Choose an element (Fire, Ice, Lightning); ignore resistance to that type.' }
+      id: 'cls-sorcerer', name: 'Sorcerer', description: 'Masters of magic wielding long staves and robed attire. They excel at destructive magic and can commit a single spell to memory.', hitDie: 'd6', startingHp: 6, hpPerLevel: 4, spellSlots: [4, 3, 2], preferredStats: ['Intelligence', 'Constitution'], bonuses: ['Robes', 'Staves', 'Arcana'], features: [
+        { name: 'Destructive Magic', description: 'When you roll fire or force damage, you can reroll any 1s or 2s.' },
+        { name: 'Spell Memory', description: 'Commit one spell to memory. Once per day, you may cast that spell without expending a slot.' },
+        { name: 'Arcane Surge', description: 'Add your Intelligence modifier to the damage of any evocation spell.' },
+        { name: 'Flowing Robes', description: 'While wearing robes, your AC is 12 + your Dexterity modifier.' },
+        { name: 'Staff Resonance', description: 'While holding a staff, you gain +2 to your Spell Save DC.' }
       ], initialSpells: [
-        { name: 'Fireball', level: 3, school: 'Evocation', description: 'A massive explosion of fire dealing 8d6 damage in a 20ft radius.' },
-        { name: 'Magic Missile', level: 1, school: 'Evocation', description: 'Create three darts of force that strike targets automatically.' }
+        { name: 'Flare', level: 3, school: 'Evocation', description: 'A blinding explosion dealing 10d6 fire damage. Targets are blinded for 1 round.' },
+        { name: 'Mana Burst', level: 1, school: 'Evocation', description: 'A cone of raw mana dealing 2d8 force damage.' },
+        { name: 'Mirror Image', level: 2, school: 'Illusion', description: 'Create 3 duplicates of yourself to confuse attackers.' }
       ], authorId: 'system', startingItemIds: ['itm-sorc-staff', 'itm-robed-attire']
     },
     {
-      id: 'cls-mage', name: 'Mage', description: 'Supportive spellcasters focused on healing and resonant buffs that target all nearby allies. They wear robes and use smaller staves as a casting focus.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Robes', 'Small Staves', 'Healing'], features: [
-        { name: 'Resonant Buffs', description: 'Supportive spells target all allies within 30 feet instead of just one.' },
-        { name: 'Divine Healing', description: 'Healing spells restore an additional 1d4 + Wisdom bonus.' },
-        { name: 'Protective Aura', description: 'Grant allies within 10 feet +1 to all saving throws.' },
-        { name: 'Staff Focus', description: 'Gain +1 to spell save DC while wielding a staff.' },
-        { name: 'Beacon of Hope', description: 'Grant advantage on Wisdom saves and Death saves to one ally for 1 minute.' }
+      id: 'cls-mage', name: 'Mage', description: 'Supportive spellcasters focused on healing and resonant buffs that target all nearby allies. They wear robes and use smaller staves.', hitDie: 'd8', startingHp: 8, hpPerLevel: 5, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Robes', 'Small Staves', 'Healing'], features: [
+        { name: 'Resonant Buffs', description: 'When you cast a buff spell on one ally, it also affects all allies within 15 feet.' },
+        { name: 'Divine Healing', description: 'Healing spells restore an additional 1d6 + Wisdom bonus.' },
+        { name: 'Purification', description: 'As a bonus action, remove one negative status effect from an ally within 30 feet.' },
+        { name: 'Soothing Aura', description: 'Allies within 20 feet gain 1d4 temporary HP at the start of their turn.' },
+        { name: 'Saintly Resolve', description: 'Gain advantage on Concentration checks to maintain spells.' }
       ], initialSpells: [
-        { name: 'Mass Healing Word', level: 3, school: 'Abjuration', description: 'Heals all allies within 60 feet for 1d4 + Wis.' },
-        { name: 'Bless', level: 1, school: 'Enchantment', description: 'Grant three allies +1d4 to attack rolls and saves.' }
+        { name: 'Holy Veil', level: 1, school: 'Abjuration', description: 'Grant an ally resistance to the next attack they receive.' },
+        { name: 'Benediction', level: 3, school: 'Conjuration', description: 'Restore all HP to a single target. Usable once per day.' },
+        { name: 'Regen', level: 2, school: 'Conjuration', description: 'Target heals 1d8 at the start of their next 3 turns.' }
       ], authorId: 'system', startingItemIds: ['itm-mage-staff', 'itm-robed-attire']
     },
     {
-      id: 'cls-warrior', name: 'Warrior', description: 'Front-line powerhouses wielding two-handed weapons and heavy plate. They invigorate allies with roars and can charge up massive, devastating attacks.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor', '2H Weapons', 'Athletics'], features: [
-        { name: 'Invigorating Roar', description: 'Roar to grant yourself and nearby allies 10 temporary HP.' },
-        { name: 'Unstoppable Force', description: 'Naturally high resistance to being knocked prone.' },
-        { name: 'Heavy Blows', description: 'Mighty blows easily knock even the toughest foes prone.' },
-        { name: 'Charged Attack', description: 'Spend a turn charging; next attack grows stronger based on damage taken while readying.' },
-        { name: 'Titan Guard', description: 'Can block physical damage with a 2H weapon as if it were a shield.' }
+      id: 'cls-warrior', name: 'Warrior', description: 'Front-line powerhouses wielding two-handed weapons and heavy plate. They invigorate allies with roars and can charge up massive attacks.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor', '2H Weapons', 'Athletics'], features: [
+        { name: 'Invigorating Roar', description: 'Roar to grant yourself and allies within 30ft +2 to attack and damage rolls for 2 rounds.' },
+        { name: 'Unstoppable Force', description: 'Naturally high resistance to being knocked prone or moved against your will.' },
+        { name: 'Heavy Blows', description: 'Attacks with 2H weapons knock the target prone if they fail a Strength save.' },
+        { name: 'Charged Attack', description: 'Spend one turn charging; your next attack deals double damage plus damage taken while charging.' },
+        { name: 'Warrior Spirit', description: 'While below half health, gain resistance to bludgeoning, piercing, and slashing damage.' }
       ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-war-greatsword', 'itm-full-plate']
     },
     {
-      id: 'cls-fighter', name: 'Fighter', description: 'Champions of the frontline who pair sword and shield with imposing plate armor. They can bash enemies to make them flinch, even the largest beasts.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Dexterity'], bonuses: ['Plate Armor', 'Shields', 'Swords'], features: [
-        { name: 'Shield Wall', description: 'Gain an additional +2 AC while wielding a shield.' },
-        { name: 'Shield Bash', description: 'Bash with the shield for blunt damage, causing large beasts or smaller to flinch.' },
-        { name: 'Frontline Guardian', description: 'As a reaction, take half damage meant for an adjacent ally.' },
-        { name: 'Steel Resolve', description: 'Once per day, reroll a failed saving throw.' },
-        { name: 'Master Duelist', description: 'Gain +2 to attack rolls while engaged with only one enemy.' }
+      id: 'cls-fighter', name: 'Fighter', description: 'Champions of the frontline who pair sword and shield with imposing plate armor. They can bash enemies to make them flinch.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Dexterity'], bonuses: ['Plate Armor', 'Shields', 'Swords'], features: [
+        { name: 'Shield Wall', description: 'As a reaction, grant yourself or an adjacent ally +5 AC against a single attack.' },
+        { name: 'Shield Bash', description: 'Bash with the shield for 1d6 damage. Targets (except Gargantuan) must flinch (lose their next reaction).' },
+        { name: 'Frontline Guardian', description: 'Enemies within 5ft have disadvantage on attacks against your allies.' },
+        { name: 'Steel Resolve', description: 'Reroll a failed save against being Charmed or Frightened.' },
+        { name: 'Master Duelist', description: 'Gain +2 to AC and Attack rolls when wielding a sword and shield.' }
       ], initialSpells: [], authorId: 'system', startingItemIds: ['itm-fig-sword', 'itm-fig-shield', 'itm-half-plate']
     }
   ],
@@ -90,6 +105,8 @@ const MONTHLY_CONTENT = {
     { id: 'mon-gorechimera', name: 'The Gorechimera', description: 'Legendary beast of the Marches.', stats: { strength: 22, dexterity: 12, constitution: 20, intelligence: 14, wisdom: 14, charisma: 12 }, hp: 220, ac: 19, isBoss: true, abilities: [{ name: 'Lions Roar', effect: 'AOE Fear.' }], authorId: 'system', size: 'Huge' as const }
   ],
   items: [
+    { id: 'itm-dk-greatsword', name: 'Claymore of the Order', type: 'Weapon' as const, description: 'A massive black sword that hums with aetheric resonance.', mechanics: [{ name: 'Vicious Strike', description: 'Crit on 19-20.' }], lore: 'Standard issue for the Dark Knight Order.', authorId: 'system' },
+    { id: 'itm-dk-plate', name: 'Obsidian Guard', type: 'Armor' as const, description: 'Heavy plate armor that reflects no light.', mechanics: [{ name: 'Spirit Warding', description: 'Resistance to necrotic damage.' }], lore: 'Forged from the volcanic shards of the Grey Marches.', authorId: 'system' },
     { id: 'itm-arch-bow', name: 'Eagle-Sight Bow', type: 'Weapon' as const, description: 'A precision-crafted yew bow.', mechanics: [{ name: 'Sky-Shot Accuracy', description: '+2 to attack rolls against flying targets.' }], lore: 'Standard issue for elven marksmen.', authorId: 'system' },
     { id: 'itm-leather-armor', name: 'Treated Leather Scraps', type: 'Armor' as const, description: 'Lightweight armor providing flexibility.', mechanics: [{ name: 'Lightfoot', description: '+5ft to movement speed.' }], lore: 'Quiet and efficient.', authorId: 'system' },
     { id: 'itm-thief-daggers', name: 'Shadow Daggers', type: 'Weapon' as const, description: 'Paired obsidian daggers.', mechanics: [{ name: 'Executioner', description: '+2d6 sneak damage.' }], lore: 'For the quietest souls.', authorId: 'system' },
@@ -136,8 +153,6 @@ const App: React.FC = () => {
         localStorage.setItem('mythos_accounts', JSON.stringify(accounts.map(a => ({...a, version: REGISTRY_VERSION}))));
       }
       localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
-      // On major version bump, we might want to clear old classes to force overwrite
-      // But we merge instead in manifestBasics
     }
     return JSON.parse(localStorage.getItem('mythos_active_session') || 'null');
   });
@@ -196,7 +211,6 @@ const App: React.FC = () => {
 
   const manifestBasics = useCallback(() => {
     setClasses(prev => {
-      // Overwrite system classes, keep custom ones
       const systemIds = MONTHLY_CONTENT.classes.map(c => c.id);
       const filtered = prev.filter(c => !systemIds.includes(c.id));
       return [...filtered, ...MONTHLY_CONTENT.classes as any[]];
@@ -212,12 +226,11 @@ const App: React.FC = () => {
       return merged;
     });
     setCharacters(prev => {
-      // Overwrite system heroes, keep custom ones
       const heroIds = MONTHLY_CONTENT.heroes.map(h => h.id);
       const filtered = prev.filter(c => !heroIds.includes(c.id));
       return [...filtered, ...MONTHLY_CONTENT.heroes as any[]];
     });
-    notify("Chronicle Manifested. Core Classes Overwritten.", "success");
+    notify("Chronicle Manifested. The Order has been Restored.", "success");
   }, [notify]);
 
   useEffect(() => {

@@ -1,4 +1,3 @@
-
 export interface UserAccount {
   username: string;
   displayName: string;
@@ -14,6 +13,7 @@ export interface Stats {
   strength: number;
   dexterity: number;
   constitution: number;
+  // Fix: Removed duplicate intelligence property
   intelligence: number;
   wisdom: number;
   charisma: number;
@@ -163,7 +163,8 @@ export type SyncMessageType =
   | 'PULSE'
   | 'HANDSHAKE'
   | 'QUOTA_SYNC'
-  | 'MAP_UPDATE';
+  | 'MAP_UPDATE'
+  | 'FRIEND_BEAT';
 
 export interface ServerLog {
   id: string;

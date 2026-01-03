@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -181,9 +180,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const [learningSpells, setLearningSpells] = useState<string | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [refImage, setRefImage] = useState<string | null>(null);
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'hp' | 'level'>('name');
@@ -219,17 +215,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     setStats(prev => ({ ...prev, [stat]: newVal }));
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setRefImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleCreate = async () => {
     if (!name || !classId) {
         notify("Every legend requires a name and archetype.", "error");
@@ -244,7 +229,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     setGenerating(true);
     try {
       const selectedClass = classes.find(c => c.id === classId);
-      const prompt = `Fantasy TTRPG character portrait. A ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Atmosphere: dark fantasy, painted masterpiece. ${refImage ? "Strictly maintain the facial features and style from the reference image provided." : ""}`;
+      const prompt = `Fantasy TTRPG character portrait. A ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Atmosphere: dark fantasy, painted masterpiece.`;
       
       const imageUrl = await generateImage(prompt, refImage || undefined);
       const classFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
@@ -252,7 +237,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true, isInnate: true } as any));
       const allFeats = [...racialFeats, ...classFeats];
       
-      // Added missing gold property to fix the interface error
       const newChar: Character = {
         id: Math.random().toString(36).substr(2, 9),
         name, classId, race, gender, description: charDescription, level: 1, stats: finalStats,
@@ -337,17 +321,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       }));
       notify("Feats Rewoven.", "success");
     } catch (e: any) { notify("Interference.", "error"); } finally { setRerollingFeats(null); }
-  };
-
-  const handleGenerateSpells = async (char: Character) => {
-    if ((!reservoirReady && !currentUser.isAdmin) || char.id.startsWith('hero-')) return;
-    setLearningSpells(char.id);
-    try {
-      const cls = classes.find(c => c.id === char.classId);
-      const spells = await generateSpellbook(cls?.name || 'Mage', cls?.description || '', char.level);
-      setCharacters(prev => prev.map(c => c.id === char.id ? { ...c, knownSpells: spells } : c));
-      notify("Arcane Grimoire Updated.", "success");
-    } catch (e: any) { notify("Spells Failed to Coalesce.", "error"); } finally { setLearningSpells(null); }
   };
 
   const removeItemFromChar = (charId: string, itemId: string) => {

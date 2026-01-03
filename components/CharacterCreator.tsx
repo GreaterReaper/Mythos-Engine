@@ -1,19 +1,10 @@
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
-import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats, generateCharacterAppearance } from '../services/gemini';
+import React, { useState, useMemo } from 'react';
+import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, UserAccount } from '../types';
+import { generateImage, generateCharacterFeats, rerollStats, generateCharacterAppearance } from '../services/gemini';
 
 const INITIAL_STATS: Stats = { strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 };
 const POINT_COSTS: Record<number, number> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
-
-const STAT_DESCRIPTIONS: Record<keyof Stats, string> = {
-  strength: "Governs physical power, lifting capacity, and the force of melee attacks.",
-  dexterity: "Governs agility, reflexes, balance, and accuracy with ranged weapons.",
-  constitution: "Governs health, stamina, and vital force; directly determines your maximum HP.",
-  intelligence: "Governs mental acuity, logic, memory, and the potency of arcane spells.",
-  wisdom: "Governs intuition, perception, and willpower; key for divine magic and sensing the world.",
-  charisma: "Governs confidence, social influence, and the force of personality or innate magic.",
-};
 
 const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   Human: { strength: 1, dexterity: 1, constitution: 1, intelligence: 1, wisdom: 1, charisma: 1 },
@@ -33,126 +24,6 @@ const RACIAL_BONUSES: Record<RaceType, Partial<Stats>> = {
   'Vesperian': { dexterity: 2, wisdom: 1 },
 };
 
-const RACIAL_TRAITS: Record<RaceType, { icon: string, flavor: string, traits: Trait[] }> = {
-  Human: {
-    icon: '🌍',
-    flavor: 'Adaptable and ambitious generalists who thrive in every corner of the realm.',
-    traits: [{ name: 'Versatile Heritage', description: 'Exceptional adaptability provides a minor boost to all core attributes.', locked: true }]
-  },
-  'Variant Human': {
-    icon: '✨',
-    flavor: 'Specialized individuals who have traded broad mastery for singular, potent talents.',
-    traits: [
-      { name: 'Bonus Feat', description: 'Begins the journey with a specialized mastery or talent.', locked: true },
-      { name: 'Skillful', description: 'Proficiency in an extra skill of choice.', locked: true }
-    ]
-  },
-  Dwarf: {
-    icon: '⚒️',
-    flavor: 'Hardy survivors of the deep earth, forged in stone and unyielding tradition.',
-    traits: [
-      { name: 'Dwarven Resilience', description: 'Innate resistance to poisons and a constitution hardened by mountain air.', locked: true },
-      { name: 'Stonecunning', description: 'Natural intuition for stonework and underground architecture.', locked: true }
-    ]
-  },
-  Elf: {
-    icon: '🍃',
-    flavor: 'Graceful immortals with a deep connection to the ancient magics of the wild.',
-    traits: [
-      { name: 'Fey Ancestry', description: 'Immune to magical sleep and highly resistant to mental charms.', locked: true },
-      { name: 'Keen Senses', description: 'Heightened awareness granting superior perception in darkness.', locked: true }
-    ]
-  },
-  'Half-Elf': {
-    icon: '🎭',
-    flavor: 'Charismatic wanderers who walk between worlds, possessing the best of both lineages.',
-    traits: [
-      { name: 'Fey Ancestry', description: 'Shared heritage provides resistance to charms and sleep.', locked: true },
-      { name: 'Skill Versatility', description: 'Extraordinarily adaptable, gaining mastery in two extra skills.', locked: true }
-    ]
-  },
-  Orc: {
-    icon: '👹',
-    flavor: 'Brutish and powerful, orcs are warriors of primal strength and ferocity.',
-    traits: [
-      { name: 'Aggressive', description: 'As a bonus action, move up to your speed toward an enemy you can see.', locked: true },
-      { name: 'Primal Intuition', description: 'Proficiency in two skills from: Animal Handling, Insight, Intimidation, Nature, Perception, and Survival.', locked: true }
-    ]
-  },
-  Goblin: {
-    icon: '👺',
-    flavor: 'Small, cunning, and surprisingly hardy, goblins survive through wit and agility.',
-    traits: [
-      { name: 'Nimble Escape', description: 'Can take the Disengage or Hide action as a bonus action on each of your turns.', locked: true },
-      { name: 'Fury of the Small', description: 'Deal extra damage to a creature of a size category larger than you.', locked: true }
-    ]
-  },
-  Kobold: {
-    icon: '🦎',
-    flavor: 'Clever tunnel-dwellers who use numbers and ingenuity to overcome larger foes.',
-    traits: [
-      { name: 'Pack Tactics', description: 'Advantage on attack rolls against a creature if at least one ally is within 5 feet of the creature.', locked: true },
-      { name: 'Sunlight Sensitivity', description: 'Disadvantage on attack rolls and Perception checks that rely on sight when in direct sunlight.', locked: true }
-    ]
-  },
-  Tiefling: {
-    icon: '🔥',
-    flavor: 'Touched by infernal bloodlines, tieflings carry the mark of the abyss in their eyes and spells.',
-    traits: [
-      { name: 'Hellish Resistance', description: 'Resistance to fire damage.', locked: true },
-      { name: 'Infernal Legacy', description: 'Innate knowledge of the Thaumaturgy cantrip and later more powerful hellish magic.', locked: true }
-    ]
-  },
-  Dragonborn: {
-    icon: '🐲',
-    flavor: 'Heirs to the ancient dragons, possessing their elemental breath and unyielding pride.',
-    traits: [
-      { name: 'Draconic Ancestry', description: 'Elemental damage resistance based on your dragon ancestor.', locked: true },
-      { name: 'Breath Weapon', description: 'Use your action to exhale destructive elemental energy in a cone or line.', locked: true }
-    ]
-  },
-  Tabaxi: {
-    icon: '🐱',
-    flavor: 'Agile cat-folk from distant lands with an insatiable curiosity and natural grace.',
-    traits: [
-      { name: 'Feline Agility', description: 'Double your speed for one turn during combat.', locked: true },
-      { name: 'Cat\'s Claws', description: 'Natural claws that deal 1d4 slashing damage and provide a climbing speed.', locked: true }
-    ]
-  },
-  Lizardfolk: {
-    icon: '🐊',
-    flavor: 'Pragmatic reptilians who view the world through the lens of survival and ancient instinct.',
-    traits: [
-      { name: 'Natural Armor', description: 'Tough scales provide a base AC of 13 + Dexterity modifier.', locked: true },
-      { name: 'Hungry Jaws', description: 'As a bonus action, make a special bite attack to gain temporary hit points.', locked: true }
-    ]
-  },
-  Minotaur: {
-    icon: '🐂',
-    flavor: 'Powerfully built kin of the labyrinth, possessing unyielding strength and innate navigation.',
-    traits: [
-      { name: 'Goring Rush', description: 'After using the Dash action, make a melee attack with your horns as a bonus action.', locked: true },
-      { name: 'Hammering Horns', description: 'Use your horns to shove a creature as a bonus action after a melee hit.', locked: true }
-    ]
-  },
-  Satyr: {
-    icon: '🐐',
-    flavor: 'Whimsical fey-touched wanderers who find magic in song, dance, and the wild.',
-    traits: [
-      { name: 'Mirthful Leaps', description: 'Add a d8 to the distance of any jump you make.', locked: true },
-      { name: 'Magic Resistance', description: 'Advantage on saving throws against spells and other magical effects.', locked: true }
-    ]
-  },
-  'Vesperian': {
-    icon: '🦇',
-    flavor: 'Agile, nocturnal wanderers known as Vesperians, possessing leathery wings and preternatural senses.',
-    traits: [
-      { name: 'Leathery Wings', description: 'Gains a flying speed of 30 feet if not wearing heavy armor.', locked: true },
-      { name: 'Echolocation', description: 'Gains blindsight out to 30 feet as long as you are not deafened.', locked: true }
-    ]
-  },
-};
-
 interface CharacterCreatorProps {
   characters: Character[];
   setCharacters: React.Dispatch<React.SetStateAction<Character[]>>;
@@ -161,6 +32,7 @@ interface CharacterCreatorProps {
   notify: (message: string, type?: any) => void;
   reservoirReady: boolean;
   currentUser: UserAccount;
+  onBanish: (char: Character) => void;
 }
 
 const getModifier = (val: number) => {
@@ -168,7 +40,7 @@ const getModifier = (val: number) => {
   return mod >= 0 ? `+${mod}` : mod;
 };
 
-const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, items = [], notify, reservoirReady, currentUser }) => {
+const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setCharacters, classes, notify, reservoirReady, currentUser, onBanish }) => {
   const [name, setName] = useState('');
   const [classId, setClassId] = useState('');
   const [race, setRace] = useState<RaceType>('Human');
@@ -176,39 +48,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const [charDescription, setCharDescription] = useState('');
   const [stats, setStats] = useState<Stats>(INITIAL_STATS);
   const [generating, setGenerating] = useState(false);
-  const [channellingLore, setChannellingLore] = useState(false);
-  const [rerollingStats, setRerollingStats] = useState<string | null>(null);
-  const [rerollingFeats, setRerollingFeats] = useState<string | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
-  const [refImage, setRefImage] = useState<string | null>(null);
-  const [activeTraitTooltipIdx, setActiveTraitTooltipIdx] = useState<number | null>(null);
-  const [healingSoulId, setHealingSoulId] = useState<string | null>(null);
-
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'hp' | 'level'>('name');
-
-  const filteredCharacters = useMemo(() => {
-    return characters
-      .filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => {
-        if (sortBy === 'name') return a.name.localeCompare(b.name);
-        if (sortBy === 'hp') return b.maxHp - a.maxHp;
-        if (sortBy === 'level') return b.level - a.level;
-        return 0;
-      });
-  }, [characters, search, sortBy]);
 
   const totalPointsUsed = useMemo(() => (Object.values(stats) as number[]).reduce((acc: number, val: number) => acc + (POINT_COSTS[val] || 0), 0), [stats]);
   const pointsRemaining = 27 - totalPointsUsed;
-  
-  const selectedClassForCreation = useMemo(() => classes.find(c => c.id === classId), [classes, classId]);
-
-  const finalStats = useMemo(() => {
-    const bonuses = RACIAL_BONUSES[race];
-    const result = { ...stats };
-    (Object.keys(bonuses) as Array<keyof Stats>).forEach(key => { result[key] += bonuses[key] || 0; });
-    return result;
-  }, [stats, race]);
 
   const handleStatChange = (stat: keyof Stats, delta: number) => {
     const newVal = stats[stat] + delta;
@@ -218,438 +61,158 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
     setStats(prev => ({ ...prev, [stat]: newVal }));
   };
 
-  const handleChannelLore = async () => {
-    if (!name || !classId || channellingLore) {
-      notify("Identify your legend and path first.", "info");
-      return;
-    }
-    setChannellingLore(true);
-    try {
-      const cls = classes.find(c => c.id === classId);
-      const desc = await generateCharacterAppearance(name, race, gender, cls?.name || 'Hero', charDescription);
-      setCharDescription(desc);
-      notify("Arcane description manifest.", "success");
-    } catch (e: any) {
-      notify("The spirits are silent.", "error");
-    } finally {
-      setChannellingLore(false);
-    }
-  };
-
   const handleCreate = async () => {
-    if (!name || !classId) {
-        notify("Every legend requires a name and archetype.", "error");
-        return;
-    }
-    if (pointsRemaining < 0) {
-      notify("Your attributes exceed your fated limit. Use Point Buy.", "error");
-      return;
-    }
-    if (!reservoirReady && !currentUser.isAdmin) return;
-    
+    if (!name || !classId || generating) return;
     setGenerating(true);
-    let imageUrl: string | undefined = undefined;
-    let classFeats: Trait[] = [];
-    let isSpectral = false;
-
     try {
       const selectedClass = classes.find(c => c.id === classId);
-      const prompt = `Fantasy TTRPG character portrait. A ${gender} ${race} ${selectedClass?.name}. Appearance: ${charDescription}. Atmosphere: dark fantasy.`;
-      
-      try {
-        imageUrl = await generateImage(prompt, refImage || undefined);
-      } catch (imgErr: any) {
-        isSpectral = true;
-        imageUrl = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="100%" height="100%" fill="#0a0a0a"/><text x="50%" y="50%" fill="#333" font-size="20" font-family="Cinzel" text-anchor="middle" dominant-baseline="middle">SPECTRAL</text></svg>`)}`;
-      }
-
-      try {
-        classFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
-      } catch (featErr: any) {
-        isSpectral = true;
-        classFeats = [
-          { name: 'Unyielding Spirit', description: 'Years of hardship have granted you advantage on saving throws against being frightened.' },
-          { name: 'Trained Reflexes', description: 'Your training allows you to add half your proficiency bonus to initiative rolls.' }
-        ];
-      }
-      
-      const racialFeats = RACIAL_TRAITS[race].traits.map(t => ({ ...t, locked: true, isInnate: true } as any));
-      const allFeats = [...racialFeats, ...classFeats];
+      const imageUrl = await generateImage(`Portrait of a ${gender} ${race} ${selectedClass?.name}. ${charDescription}`);
+      // Ensure classes always have at least 5 feats if we generate them
+      const feats = await generateCharacterFeats(selectedClass?.name || 'Hero', '');
       
       const newChar: Character = {
         id: Math.random().toString(36).substr(2, 9),
-        name, classId, race, gender, description: charDescription, level: 1, stats: finalStats,
-        hp: (selectedClass?.startingHp || 10) + (Math.floor((finalStats.constitution - 10) / 2)),
-        maxHp: (selectedClass?.startingHp || 10) + (Math.floor((finalStats.constitution - 10) / 2)),
-        feats: allFeats, imageUrl, isPlayer: characters.length === 0,
-        inventory: selectedClass?.startingItemIds || [],
-        knownSpells: [],
-        lockedStats: [],
-        gold: 50,
-        isSpectral,
-        /* Added default size to fix required property error */
-        size: 'Medium'
+        name, classId, race, gender, description: charDescription, level: 1, 
+        stats: { ...stats }, hp: 10, maxHp: 10, gold: 50, feats: feats.slice(0, 5), isPlayer: true, 
+        inventory: selectedClass?.startingItemIds || [], size: 'Medium', imageUrl,
+        unspentAsiPoints: 0
       };
       
       setCharacters(prev => [...prev, newChar]);
-      setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS); setRefImage(null);
-      setSelectedCharacterId(newChar.id);
-      
-      if (isSpectral) {
-        notify(`${name} Bound as a Spectral Soul. Auto-restoration active.`, "info");
-      } else {
-        notify(`${name} Bound to the Chronicle.`, "success");
+      setName(''); setClassId(''); setCharDescription(''); setStats(INITIAL_STATS);
+      notify(`${name} created.`, "success");
+    } catch (e: any) { notify(e.message, "error"); } finally { setGenerating(false); }
+  };
+
+  const applyASI = (charId: string, stat: keyof Stats) => {
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId || !c.unspentAsiPoints || c.unspentAsiPoints <= 0) return c;
+      const newStats = { ...c.stats, [stat]: c.stats[stat] + 1 };
+      // Recalculate HP if CON changed
+      let hp = c.hp;
+      let maxHp = c.maxHp;
+      if (stat === 'constitution') {
+        const hpGain = 1; // Simplification for ASI
+        hp += hpGain;
+        maxHp += hpGain;
       }
-    } catch (e: any) { 
-      notify(e.message || "Summoning Failed.", "error"); 
-    } finally { 
-      setGenerating(false); 
-    }
-  };
-
-  const handleManualManifest = async (char: Character) => {
-    if (healingSoulId) return;
-    setHealingSoulId(char.id);
-    notify(`Channelling full manifestation for ${char.name}...`, "info");
-    const selectedClass = classes.find(cls => cls.id === char.classId);
-    try {
-      let imageUrl = char.imageUrl;
-      let classFeats = char.feats.filter(f => (f as any).isInnate);
-      const prompt = `Fantasy TTRPG character portrait. A ${char.gender} ${char.race} ${selectedClass?.name}. Appearance: ${char.description}.`;
-      imageUrl = await generateImage(prompt);
-      const generatedFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
-      classFeats = [...classFeats, ...generatedFeats];
-      setCharacters(prev => prev.map(c => c.id === char.id ? { ...c, imageUrl, feats: classFeats, isSpectral: false } : c));
-      notify(`${char.name}'s soul manifest!`, "success");
-    } catch (e: any) {
-      notify("The Ley Lines are still exhausted. Restoration failed.", "error");
-    } finally {
-      setHealingSoulId(null);
-    }
-  };
-
-  const handleRerollStatsOnChar = async (char: Character) => {
-    if ((!reservoirReady && !currentUser.isAdmin) || char.id.startsWith('hero-')) return;
-    setRerollingStats(char.id);
-    try {
-      const cls = classes.find(c => c.id === char.classId);
-      const newStats = await rerollStats(char.name, cls?.name || 'Hero', char.stats, char.lockedStats || []);
-      setCharacters(prev => prev.map(c => {
-        if (c.id !== char.id) return c;
-        const newHp = (classes.find(cl => cl.id === c.classId)?.startingHp || 10) + (Math.floor((newStats.constitution - 10) / 2));
-        return { ...c, stats: newStats, hp: newHp, maxHp: newHp };
-      }));
-      notify("Stats Rewoven.", "success");
-    } catch (e: any) { notify("Arcane Interference.", "error"); } finally { setRerollingStats(null); }
-  };
-
-  const toggleStatLockOnChar = (charId: string, stat: keyof Stats) => {
-    if (charId.startsWith('hero-')) return;
-    setCharacters(prev => prev.map(c => {
-      if (c.id !== charId) return c;
-      const currentLocks = c.lockedStats || [];
-      const newLocks = currentLocks.includes(stat) ? currentLocks.filter(s => s !== stat) : [...currentLocks, stat];
-      return { ...c, lockedStats: newLocks };
+      return { ...c, stats: newStats, hp, maxHp, unspentAsiPoints: c.unspentAsiPoints - 1 };
     }));
-  };
-
-  const toggleFeatLock = (charId: string, featIdx: number) => {
-    if (charId.startsWith('hero-')) return;
-    setCharacters(prev => prev.map(c => {
-      if (c.id !== charId) return c;
-      const newFeats = [...c.feats];
-      const feat = newFeats[featIdx] as any;
-      if (feat.isInnate) {
-        notify("Innate heritage cannot be rewoven.", "info");
-        return c;
-      }
-      newFeats[featIdx] = { ...feat, locked: !feat.locked };
-      return { ...c, feats: newFeats };
-    }));
-  };
-
-  const handleRerollFeats = async (char: Character) => {
-    if ((!reservoirReady && !currentUser.isAdmin) || char.id.startsWith('hero-')) return;
-    setRerollingFeats(char.id);
-    try {
-      const cls = classes.find(c => c.id === char.classId);
-      const updated = await rerollTraits('character', char.name, cls?.description || '', char.feats);
-      setCharacters(prev => prev.map(c => {
-        if (c.id !== char.id) return c;
-        let uIdx = 0;
-        const merged = c.feats.map(f => {
-          if (f.locked) return f;
-          const replacement = updated[uIdx];
-          if (replacement) {
-            uIdx++;
-            return { ...replacement, locked: false };
-          }
-          return f;
-        });
-        return { ...c, feats: merged };
-      }));
-      notify("Feats Rewoven.", "success");
-    } catch (e: any) { notify("Interference.", "error"); } finally { setRerollingFeats(null); }
-  };
-
-  const removeItemFromChar = (charId: string, itemId: string) => {
-    if (charId.startsWith('hero-')) {
-      notify("Official hero gear is bound and cannot be removed.", "info");
-      return;
-    }
-    setCharacters(prev => prev.map(c => {
-      if (c.id !== charId) return c;
-      return { ...c, inventory: c.inventory.filter(id => id !== itemId) };
-    }));
-  };
-
-  const handleDeleteCharacter = (e: React.MouseEvent, id: string, name: string) => {
-    e.stopPropagation();
-    if (id.startsWith('hero-')) {
-      notify("Official fated souls cannot be banished.", "info");
-      return;
-    }
-    if (window.confirm(`Banish ${name} from the Fellowship forever?`)) {
-      setCharacters(prev => prev.filter(c => c.id !== id));
-      notify(`${name} has returned to the ether.`, "info");
-      if (selectedCharacterId === id) setSelectedCharacterId(null);
-    }
+    notify("Ability Improved.", "success");
   };
 
   const selectedChar = characters.find(c => c.id === selectedCharacterId);
-  const selectedClass = classes.find(c => c?.id === selectedChar?.classId);
-  const charInventory = items.filter(i => selectedChar?.inventory.includes(i.id));
-  const isPremade = selectedChar?.id.startsWith('hero-');
-  const currentRacialData = RACIAL_TRAITS[race];
+  const selectedClass = classes.find(c => c.id === selectedChar?.classId);
 
   return (
-    <div className="space-y-12 pb-12">
+    <div className="space-y-12 pb-24 text-left">
       <div className="text-center pt-8">
-        <h2 className="text-3xl md:text-4xl font-black fantasy-font text-[#b28a48]">The Fellowship</h2>
-        <p className="text-neutral-600 text-[10px] uppercase tracking-[0.4em] mt-2 font-black">Party Assembly & Chronicle Binding</p>
+        <h2 className="text-4xl font-black fantasy-font text-[#b28a48]">The Fellowship</h2>
+        <p className="text-neutral-600 text-[10px] uppercase tracking-[0.4em] mt-2 font-black">Summon your legend</p>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="lg:w-[450px]">
-          <div className={`grim-card p-6 md:p-8 border-2 rounded-sm bg-black shadow-2xl transition-all ${currentUser.isAdmin ? 'border-amber-500/40' : 'border-dashed border-[#b28a48]/20'}`}>
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black fantasy-font text-neutral-300 uppercase tracking-widest">Summon Hero</h3>
-              {currentUser.isAdmin && (
-                <span className="text-[7px] font-black bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-1 rounded-sm tracking-widest animate-pulse">ARCHITECT</span>
-              )}
-            </div>
-            <div className="space-y-5">
-              <div className="space-y-1 text-left">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Identify Legend</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-sm tracking-widest text-[#b28a48] focus:border-[#b28a48] outline-none font-bold uppercase rounded-sm" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1 text-left">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Identity</label>
-                  <div className="relative">
-                    <select 
-                      value={gender} 
-                      onChange={(e) => setGender(e.target.value as GenderType)} 
-                      className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48] rounded-sm"
-                    >
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Non-binary">Non-binary</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1 text-left">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Path</label>
-                  <div className="relative">
-                    <select 
-                      value={classId} 
-                      onChange={(e) => setClassId(e.target.value)} 
-                      className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none focus:border-[#b28a48] appearance-none cursor-pointer rounded-sm"
-                    >
-                      <option value="">Select Path...</option>
-                      {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 text-left">
-                <div className="space-y-2">
-                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Heritage (Race)</label>
-                  <select 
-                      value={race} 
-                      onChange={(e) => setRace(e.target.value as RaceType)} 
-                      className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48] rounded-sm"
-                    >
-                      {(Object.keys(RACIAL_TRAITS) as RaceType[]).map(r => (
-                        <option key={r} value={r}>{RACIAL_TRAITS[r].icon} {r}</option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="bg-amber-950/10 border border-amber-900/20 p-4 rounded-sm animate-in fade-in duration-500">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">{currentRacialData.icon}</span>
-                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Heritage Insight: {race}</p>
-                  </div>
-                  <p className="text-[9px] text-neutral-500 italic mb-3 font-serif">{currentRacialData.flavor}</p>
-                  <div className="space-y-2">
-                    {currentRacialData.traits.map((t, idx) => (
-                      <div 
-                        key={idx} 
-                        className="border-l border-amber-900/30 pl-3 relative group cursor-help outline-none"
-                        onClick={() => setActiveTraitTooltipIdx(activeTraitTooltipIdx === idx ? null : idx)}
-                        onBlur={() => setActiveTraitTooltipIdx(null)}
-                      >
-                        <div className={`absolute left-0 bottom-full mb-3 z-50 transition-all duration-300 w-64 pointer-events-none
-                          ${activeTraitTooltipIdx === idx ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0'}
-                        `}>
-                           <div className="bg-[#0c0c0c] border border-amber-900/40 p-3 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.8)] text-left">
-                              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1.5 border-b border-amber-900/20 pb-1">{t.name}</p>
-                              <p className="text-[9px] text-neutral-300 font-serif italic leading-relaxed">{t.description}</p>
-                           </div>
-                           <div className="w-2 h-2 bg-[#0c0c0c] border-r border-b border-amber-900/40 rotate-45 -mt-1 ml-4"></div>
-                        </div>
-                        <p className="text-[8px] font-black text-[#b28a48] uppercase tracking-tighter">Innate: {t.name} <span className="opacity-40 ml-1">ⓘ</span></p>
-                        <p className="text-[8px] text-neutral-400 font-serif leading-tight line-clamp-1">{t.description}</p>
-                      </div>
-                    ))}
-                    <div className="pt-2 border-t border-amber-900/10">
-                      <p className="text-[7px] font-black text-amber-700 uppercase tracking-widest">Racial Ability Modifiers:</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {Object.entries(RACIAL_BONUSES[race]).map(([stat, val]) => (
-                          <span key={stat} className="text-[7px] text-green-600 font-black">+{val} {stat.slice(0,3).toUpperCase()}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest mb-2 block text-left">Divine Attributes (Point Buy)</label>
-                <div className="grid grid-cols-2 gap-4">
-                  {(Object.keys(stats) as Array<keyof Stats>).map(stat => (
-                    <div key={stat} className="bg-black/60 p-3 border border-neutral-900 rounded-sm flex items-center justify-between">
-                      <div className="text-left">
-                        <p className="text-[8px] text-neutral-500 font-black uppercase">{stat.slice(0,3)}</p>
-                        <p className="text-lg font-black text-[#b28a48]">{stats[stat] + (RACIAL_BONUSES[race][stat] || 0)}</p>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <button onClick={() => handleStatChange(stat, 1)} className="w-6 h-6 bg-neutral-900 text-neutral-400 flex items-center justify-center rounded-sm hover:text-[#b28a48] transition-colors">+</button>
-                        <button onClick={() => handleStatChange(stat, -1)} className="w-6 h-6 bg-neutral-900 text-neutral-400 flex items-center justify-center rounded-sm hover:text-[#b28a48] transition-colors">-</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-between items-center px-1">
-                   <p className="text-[8px] font-black text-neutral-600 uppercase">Fate Points: <span className={pointsRemaining < 0 ? 'text-red-500' : 'text-amber-500'}>{pointsRemaining} / 27</span></p>
-                </div>
-              </div>
-
-              <button 
-                onClick={handleCreate} 
-                disabled={generating || !name || !classId || pointsRemaining < 0 || (!reservoirReady && !currentUser.isAdmin)} 
-                className="w-full bg-gradient-to-b from-[#1a1a1a] to-black border border-[#b28a48]/40 py-5 text-[11px] font-black uppercase tracking-[0.4em] text-[#b28a48] shadow-xl hover:border-[#b28a48] transition-all disabled:opacity-20 active:scale-95 flex flex-col items-center gap-1 rounded-sm"
-              >
-                {generating ? "SUMMONING..." : "INSCRIBE LEGEND"}
-              </button>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grim-card p-8 border-2 border-[#b28a48]/20 rounded-sm space-y-6">
+          <h3 className="text-xl font-black fantasy-font text-neutral-300">Summon New Soul</h3>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] uppercase outline-none" />
+          <div className="grid grid-cols-2 gap-4">
+            <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase">
+              <option value="Human">Human</option>
+              <option value="Elf">Elf</option>
+              <option value="Dwarf">Dwarf</option>
+              <option value="Half-Elf">Half-Elf</option>
+              <option value="Orc">Orc</option>
+            </select>
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase">
+              <option value="">PATH...</option>
+              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
-        </div>
-
-        <div className="flex-1 space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
-            {filteredCharacters.map(char => (
-              <div 
-                key={char.id} 
-                onClick={() => setSelectedCharacterId(char.id)} 
-                className={`grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden bg-black rounded-sm active:scale-98 relative ${char.isSpectral ? 'animate-pulse opacity-80' : ''}`}
-              >
-                <div className="h-40 md:h-48 bg-black relative">
-                  {char.imageUrl ? <img src={char.imageUrl} className={`w-full h-full object-cover ${char.isSpectral ? 'grayscale contrast-125' : ''}`} alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-3xl">👤</div>}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteCharacter(e, char.id, char.name); }}
-                      className="bg-black/60 hover:bg-red-950/80 p-2 rounded-full border border-red-900/30 text-red-500 transition-all active:scale-90 disabled:opacity-20"
-                      disabled={char.id.startsWith('hero-')}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                  <div className="absolute bottom-3 left-4 right-4 text-left">
-                     <h4 className="text-lg md:text-xl font-black fantasy-font text-[#b28a48]">{char.name}</h4>
-                     <p className="text-[8px] text-neutral-400 uppercase font-bold tracking-widest">
-                       {char.isSpectral ? <span className="text-amber-500 animate-pulse">Spectral Soul</span> : `${char.race} • LVL ${char.level}`}
-                     </p>
-                  </div>
+          <div className="grid grid-cols-2 gap-4">
+            {(Object.keys(stats) as Array<keyof Stats>).map(s => (
+              <div key={s} className="bg-neutral-900/50 p-3 border border-neutral-800 flex justify-between items-center rounded-sm">
+                <span className="text-[10px] uppercase font-black text-neutral-600">{s.slice(0,3)}</span>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => handleStatChange(s, -1)} className="text-[#b28a48] hover:text-white transition-colors">-</button>
+                  <span className="font-black text-white">{stats[s]}</span>
+                  <button onClick={() => handleStatChange(s, 1)} className="text-[#b28a48] hover:text-white transition-colors">+</button>
                 </div>
               </div>
             ))}
           </div>
+          <button onClick={handleCreate} disabled={generating || pointsRemaining < 0 || !name || !classId} className="w-full bg-[#b28a48] text-black py-4 font-black uppercase tracking-widest disabled:opacity-20 active:scale-95">Inscribe Legend ({pointsRemaining} pts)</button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {characters.map(char => (
+            <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className={`grim-card group relative border-2 rounded-sm overflow-hidden hover:border-[#b28a48]/40 transition-all cursor-pointer ${selectedCharacterId === char.id ? 'border-[#b28a48]' : 'border-neutral-800'}`}>
+              <div className="h-40 bg-neutral-900">
+                {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">👤</div>}
+              </div>
+              <div className="p-4 bg-black/60 backdrop-blur-sm">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-lg font-black fantasy-font text-[#b28a48]">{char.name}</h4>
+                    <p className="text-[8px] text-neutral-500 uppercase tracking-widest">{char.race} • LVL {char.level}</p>
+                  </div>
+                  {char.unspentAsiPoints ? (
+                    <span className="bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded-sm animate-pulse">ASI+</span>
+                  ) : null}
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onBanish(char); }}
+                  className="absolute top-2 right-2 p-2 bg-black/80 rounded-full text-neutral-800 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {selectedChar && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-0 md:p-8 bg-black/98 backdrop-blur-xl pt-[var(--safe-top)]">
-          <div className="relative w-full max-w-6xl bg-[#080808] border border-[#b28a48]/30 shadow-2xl overflow-hidden rounded-sm flex flex-col lg:flex-row h-full md:h-[90vh]">
-            <button onClick={() => setSelectedCharacterId(null)} className="absolute top-4 right-4 z-[130] text-neutral-600 hover:text-[#b28a48] text-4xl p-2 active:scale-90 bg-black/40 rounded-full w-12 h-12 flex items-center justify-center">✕</button>
-            <div className="lg:w-2/5 relative border-b lg:border-r border-[#b28a48]/10 shrink-0">
-              <div className="h-[250px] sm:h-[400px] lg:h-full relative overflow-hidden">
-                {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className={`w-full h-full object-cover ${selectedChar.isSpectral ? 'grayscale' : ''}`} alt={selectedChar.name} />}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-left">
-                  <h3 className="text-3xl md:text-5xl font-black fantasy-font text-[#b28a48] mb-1">{selectedChar.name}</h3>
-                  <p className="text-[9px] md:text-xs uppercase tracking-[0.6em] text-neutral-500 font-black">{selectedChar.race} {selectedClass?.name}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 p-6 md:p-12 overflow-y-auto scrollbar-hide pb-20 text-left">
-              <div className="space-y-12">
-                <section>
-                  <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-3 mb-6">
-                    <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase">Sacred Attributes</h4>
-                    {!isPremade && (
-                      <button onClick={() => handleRerollStatsOnChar(selectedChar)} disabled={rerollingStats === selectedChar.id} className="text-[9px] font-black text-[#b28a48] uppercase">Reweave 🎲</button>
-                    )}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-neutral-950 border border-[#b28a48]/30 rounded-sm shadow-2xl overflow-y-auto">
+            <button onClick={() => setSelectedCharacterId(null)} className="absolute top-4 right-4 text-neutral-600 hover:text-white text-2xl">✕</button>
+            <div className="p-8 md:p-12">
+               <div className="flex flex-col md:flex-row gap-8">
+                  <div className="w-full md:w-1/3 aspect-square bg-black rounded-sm border border-neutral-800 overflow-hidden shrink-0">
+                    {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className="w-full h-full object-cover" />}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-6">
-                    {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(stat => (
-                      <div key={stat} onClick={() => toggleStatLockOnChar(selectedChar.id, stat)} className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center transition-all ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'}`}>
-                        <div className="flex justify-between w-full mb-2">
-                           <span className="text-[8px] text-neutral-600 font-black uppercase">{stat.slice(0,3)}</span>
+                  <div className="flex-1 space-y-6">
+                    <div>
+                      <h3 className="text-4xl font-black fantasy-font text-[#b28a48]">{selectedChar.name}</h3>
+                      <p className="text-sm text-neutral-500 uppercase tracking-widest">{selectedChar.race} {selectedClass?.name} • Level {selectedChar.level}</p>
+                      <p className="text-xs italic text-neutral-400 font-serif mt-2">"{selectedChar.description}"</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                      {(Object.keys(selectedChar.stats) as Array<keyof Stats>).map(s => (
+                        <div key={s} className="bg-black border border-neutral-900 p-2 rounded-sm text-center relative group">
+                          <p className="text-[7px] uppercase font-black text-neutral-600 mb-1">{s.slice(0,3)}</p>
+                          <p className="text-xl font-black text-white">{selectedChar.stats[s]}</p>
+                          <p className="text-[10px] text-[#b28a48]">{getModifier(selectedChar.stats[s])}</p>
+                          {selectedChar.unspentAsiPoints ? (
+                            <button onClick={() => applyASI(selectedChar.id, s)} className="absolute -top-1 -right-1 bg-amber-500 text-black w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center hover:scale-110 transition-transform shadow-lg">+</button>
+                          ) : null}
                         </div>
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl md:text-4xl font-black text-neutral-500">{selectedChar.stats[stat]}</span>
-                          <span className="text-[10px] font-bold text-neutral-700">{getModifier(selectedChar.stats[stat])}</span>
-                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-[10px] font-black uppercase text-neutral-600 tracking-widest border-b border-neutral-900 pb-2">Traits & Feats</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {selectedChar.feats.map((f, i) => (
+                          <div key={i} className="p-3 bg-neutral-900/30 border border-neutral-800 rounded-sm">
+                            <p className="text-[10px] font-black text-[#b28a48] uppercase">{f.name}</p>
+                            <p className="text-[9px] text-neutral-500 italic leading-relaxed">{f.description}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </section>
-                <section>
-                  <div className="flex justify-between items-end border-b border-[#b28a48]/20 pb-3 mb-6">
-                    <h4 className="text-sm font-black fantasy-font text-neutral-400 uppercase">Grimoire of Feats</h4>
-                    {!isPremade && (
-                      <button onClick={() => handleRerollFeats(selectedChar)} className="text-[9px] font-black text-[#b28a48] uppercase">Reweave 🎲</button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                    {selectedChar.feats.map((f, i) => (
-                      <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'}`}>
-                         <div className="flex-1">
-                           <h6 className="text-[11px] font-black uppercase tracking-wider text-[#b28a48]">{f.name}</h6>
-                           <p className="text-[10px] text-neutral-500 font-serif italic leading-relaxed">{f.description}</p>
-                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </div>
+               </div>
             </div>
           </div>
         </div>

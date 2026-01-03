@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'rules', label: 'Laws', icon: '⚖️' },
     { id: 'bestiary', label: 'Beasts', icon: '🐉' },
     { id: 'armory', label: 'Gear', icon: '🛡️' },
+    { id: 'soul-cairn', label: 'Cairn', icon: '👻' },
     { id: 'profile', label: 'Soul', icon: '🆔' },
     { id: 'multiplayer', label: 'Portal', icon: '🌀' },
     { id: 'archive', label: 'Archive', icon: '📦' },
@@ -152,11 +153,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </nav>
-
-      {/* Mobile Sticky Mini-Header (Optional if resonance header handles it) */}
-      <div className="lg:hidden fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
-         {/* Floating buttons could go here */}
-      </div>
     </>
   );
 };

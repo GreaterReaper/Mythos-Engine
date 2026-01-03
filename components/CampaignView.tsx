@@ -43,13 +43,25 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       const cls = classes.find(cl => cl.id === c.classId);
       const newLevel = c.level + 1;
       const hpGain = (cls?.hpPerLevel || 5) + Math.floor((c.stats.constitution - 10) / 2);
-      // AI Party Members apply ASI to primary stats automatically
+      
       const newStats = { ...c.stats };
-      if (!c.isPlayer && [4, 8, 12, 16, 19].includes(newLevel)) {
-        const primary = cls?.preferredStats?.[0]?.toLowerCase() as keyof Stats || 'strength';
-        newStats[primary] = (newStats[primary] || 10) + 2;
+      let unspentAsi = c.unspentAsiPoints || 0;
+
+      // Logic for ASI at 4, 8, 12, 16, 19
+      const isAsiLevel = [4, 8, 12, 16, 19].includes(newLevel);
+
+      if (!c.isPlayer) {
+        // AI Party Members apply ASI to primary stats automatically
+        if (isAsiLevel) {
+          const primary = cls?.preferredStats?.[0]?.toLowerCase() as keyof Stats || 'strength';
+          newStats[primary] = (newStats[primary] || 10) + 2;
+        }
+      } else if (isAsiLevel) {
+        // Players get unspent points to allocate in character sheet
+        unspentAsi += 2;
       }
-      return { ...c, level: newLevel, maxHp: c.maxHp + hpGain, hp: c.hp + hpGain, stats: newStats };
+
+      return { ...c, level: newLevel, maxHp: c.maxHp + hpGain, hp: c.hp + hpGain, stats: newStats, unspentAsiPoints: unspentAsi };
     }));
     notify("Essence Ascended.", "success");
   };
@@ -78,7 +90,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
             forged.name = itemName; // Keep DM's name
             forged.id = Math.random().toString(36).substr(2,9);
             broadcast({ type: 'GIVE_LOOT', payload: forged });
-            // Add to armory & host's first player character for now
+            // Add to host's first player character
             const pc = campaign.party.find(p => p.isPlayer);
             if (pc) {
               setCharacters(prev => prev.map(c => c.id === pc.id ? { ...c, inventory: [...c.inventory, forged.id] } : c));
@@ -107,8 +119,11 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       <div className="bg-black/90 p-3 rounded-sm border border-neutral-900 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-2">
           {campaign.party.map(c => (
-            <div key={c.id} className="w-8 h-8 rounded-full border border-blue-500/50 bg-blue-900/20 overflow-hidden">
+            <div key={c.id} className="w-8 h-8 rounded-full border border-blue-500/50 bg-blue-900/20 overflow-hidden relative group">
                {c.imageUrl && <img src={c.imageUrl} className="w-full h-full object-cover" />}
+               <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => handleLevelUp(c.id)} className="text-[10px]">⬆️</button>
+               </div>
             </div>
           ))}
           <div className="ml-4 text-left">
@@ -128,7 +143,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
             {campaign.logs.map((log, i) => (
               <div key={i} className={`flex ${log.role === 'player' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`p-4 rounded-sm border max-w-[85%] ${log.role === 'player' ? 'bg-neutral-900/50 border-blue-900/30' : 'border-transparent text-amber-200/80 font-serif italic'}`}>
-                  <p className="text-[7px] font-black uppercase tracking-tighter opacity-40 mb-1">{log.senderName || 'DM'}</p>
+                  <p className="text-[7px] font-black uppercase tracking-tighter opacity-40 mb-1">{log.senderName || (log.role === 'dm' ? 'Dungeon Master' : 'System')}</p>
                   <p className="text-sm leading-relaxed">{log.content}</p>
                 </div>
               </div>
@@ -139,12 +154,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         {viewMap === 'tactical' && (
           <div className="h-full w-full bg-slate-950 p-4 flex items-center justify-center">
             <div className="relative border-2 border-neutral-800 shadow-[0_0_50px_rgba(0,0,0,0.8)]" style={{ width: 'min(90vw, 600px)', aspectRatio: '1/1', background: 'radial-gradient(circle, #111 0%, #000 100%)' }}>
-               {/* Grid */}
                <div className="absolute inset-0 grid grid-cols-10 grid-rows-10 opacity-10 pointer-events-none">
                   {Array.from({length: 100}).map((_, i) => <div key={i} className="border-[0.5px] border-[#b28a48]/30"></div>)}
                </div>
                
-               {/* Party Tokens */}
                {campaign.party.map((c, i) => {
                  const pos = c.position || { x: 2 + i, y: 8 };
                  const size = SIZE_MAP[c.size || 'Medium'] * 10;
@@ -155,12 +168,11 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                     onMouseDown={() => isHost && moveEntity(c.id, (pos.x + 1) % 10, pos.y)}
                    >
                      <span className="text-[8px] font-black text-white pointer-events-none uppercase">{c.name[0]}</span>
-                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black border border-white/20 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">{c.name}</div>
+                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black border border-white/20 px-2 py-0.5 rounded text-[7px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">{c.name} (LVL {c.level})</div>
                    </div>
                  );
                })}
 
-               {/* Monster Tokens */}
                {campaign.activeEnemies?.map((m, i) => {
                  const pos = m.position || { x: 4 + i, y: 2 };
                  const size = SIZE_MAP[m.size || 'Medium'] * 10;

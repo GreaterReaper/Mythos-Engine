@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Monster, Stats, SyncMessage, UserAccount, MonsterAbility } from '../types';
+import { Monster, Stats, SyncMessage, UserAccount, MonsterAbility, EntitySize } from '../types';
 import { generateMonsterStats, generateImage, rerollTraits, generateMonsterAbilities, getArchitectAdvice } from '../services/gemini';
 
 const getModifier = (val: number) => {
@@ -35,6 +35,8 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
   const [manualMode, setManualMode] = useState(false);
   const [manualHp, setManualHp] = useState(50);
   const [manualAc, setManualAc] = useState(15);
+  // Fix: Added manualSize state to support required monster size property
+  const [manualSize, setManualSize] = useState<EntitySize>('Medium');
   const [manualStats, setManualStats] = useState<Stats>({ strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 });
   const [pendingAbilities, setPendingAbilities] = useState<MonsterAbility[]>([]);
   const [suggestingAbilities, setSuggestingAbilities] = useState(false);
@@ -82,6 +84,8 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         stats = {
           hp: manualHp,
           ac: manualAc,
+          // Fix: Included manualSize in stats object
+          size: manualSize,
           stats: manualStats,
           abilities: pendingAbilities,
           legendaryActions: []
@@ -91,6 +95,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         imageUrl = await generateImage(`Full body illustration of a ${isBoss ? 'LEGENDARY BOSS' : 'fantasy'} monster: ${description}. cinematic lighting.`);
       }
       
+      // Fix: Added required 'size' property to Monster object
       const newMonster: Monster = {
         id: Math.random().toString(36).substr(2, 9),
         name,
@@ -99,6 +104,7 @@ const Bestiary: React.FC<BestiaryProps> = ({ monsters, setMonsters, broadcast, n
         stats: stats.stats || { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 },
         hp: stats.hp || 50,
         ac: stats.ac || 15,
+        size: stats.size || 'Medium',
         abilities: (stats.abilities || []).map((a: any) => ({ ...a, locked: false })),
         legendaryActions: isBoss ? (stats.legendaryActions || []).map((a: any) => ({ ...a, locked: false })) : [],
         imageUrl,

@@ -85,22 +85,25 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
 export const getDMResponse = async (history: any[], plot: string, input: string, party: Character[], summary: string, model: string) => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
-    const partyStr = party.map(c => `${c.name} (${c.race} ${c.classId === 'basic-warrior' ? 'Warrior' : c.classId === 'basic-priestess' ? 'Priestess' : 'Archer'} Level ${c.level})`).join(", ");
+    const partyStr = party.map(c => `${c.name} (${c.race} ${c.classId} Level ${c.level})`).join(", ");
     
     const response = await ai.models.generateContent({
       model: forcedModel || model,
       contents: `Plot: ${plot}. Summary: ${summary}. Current Party: ${partyStr}. Action: ${input}. History: ${JSON.stringify(history.slice(-8))}`,
       config: {
         systemInstruction: `You are a dark fantasy Dungeon Master. 
-        ROLEPLAY GUIDELINES:
-        - Miri: Energetic human swordswoman. Confident, eager for battle, speaks with excitement. She often takes point.
-        - Lina: Timid human priestess. Shy, worries about the party, clutches her holy symbol. Speaks softly and seeks safety.
-        - Seris: Aloof elf archer. Stoic, observant, rarely speaks but is deadly efficient. Her words are brief and logical.
-        - If players interact with these characters, YOU roleplay them.
+        ROLEPLAY GUIDELINES FOR AI PARTY MEMBERS:
+        - Lina: A female human Mage. She is incredibly timid, shy, and clutters her holy symbol when worried. She seeks to heal and protect her friends but stays at the back. Her speech is soft and hesitant.
+        - Seris: A female elf Archer. She is stoic, aloof, and extremely logical. She speaks rarely, focusing only on tactical efficiency and observations.
+        - Miri: A female human Fighter. She is bold, energetic, and brave. She loves the thrill of battle and often leads the charge, encouraging others with her fiery spirit.
+        
+        CAMPAIGN RULES:
+        - If players interact with Lina, Seris, or Miri, YOU roleplay them accurately to their personalities.
         - The party often consists of one or more PLAYERS and these three AI heroes. 
-        - Adapt the narrative uniquely to player choices. If multiple players are present (multiplayer), ensure the story centers around their collective actions.
+        - Adapt the narrative uniquely to player choices. Ensure the story centers around the collective actions of the party.
         - Be evocative and reactive. Focus on immediate consequences. 
         - Combat: If a roll is needed, explicitly tell the player(s) which die to roll (e.g., 'Roll a d20 for Strength (Athletics)').
+        - Balance: Adjust the difficulty of encounters based on the party size and current levels.
         - Keep responses concise but immersive.`,
       }
     });
@@ -113,7 +116,7 @@ export const generateRules = async (plot: string): Promise<Rule[]> => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
-      contents: `Design 5 core TTRPG rules for a world with this plot: ${plot}. Focus on combat, exploration, and the specific threat of the Gorechimera. Output ONLY JSON.`,
+      contents: `Design 5 core TTRPG rules for a world with this plot: ${plot}. Focus on combat, exploration, and unique class mechanics. Output ONLY JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -140,7 +143,7 @@ export const generateCharacterFeats = async (className: string, description: str
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
-      contents: `Generate 3 unique TTRPG feats for a ${className}. Lore: ${description}. Output ONLY JSON.`,
+      contents: `Generate 5 unique and balanced TTRPG feats for a ${className}. Lore: ${description}. Output ONLY JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -162,7 +165,6 @@ export const generateCharacterFeats = async (className: string, description: str
   });
 };
 
-// Fix for missing members in gemini services
 export const generateSummary = async (history: any[], currentSummary: string): Promise<string> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -174,12 +176,10 @@ export const generateSummary = async (history: any[], currentSummary: string): P
   });
 };
 
-// Fix for missing members in gemini services
 export const generateWorldMap = async (plot: string): Promise<string> => {
   return generateImage(`A highly detailed fantasy world map based on this plot: ${plot}. Old parchment style, intricate icons for cities and landmarks.`);
 };
 
-// Fix for missing members in gemini services
 export const generateLocalTiles = async (location: string, count: number): Promise<string[]> => {
   const tiles: string[] = [];
   for (let i = 0; i < count; i++) {
@@ -188,7 +188,6 @@ export const generateLocalTiles = async (location: string, count: number): Promi
   return tiles;
 };
 
-// Fix for missing members in gemini services
 export const generateSmartLoot = async (party: Character[], classes: ClassDef[]): Promise<Item> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -225,7 +224,6 @@ export const generateSmartLoot = async (party: Character[], classes: ClassDef[])
   });
 };
 
-// Fix for missing members in gemini services
 export const rerollTraits = async (type: string, name: string, description: string, traits: any[]): Promise<any[]> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -256,7 +254,6 @@ export const rerollTraits = async (type: string, name: string, description: stri
   });
 };
 
-// Fix for missing members in gemini services
 export const generateSpellbook = async (className: string, description: string, count: number): Promise<Spell[]> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -284,7 +281,6 @@ export const generateSpellbook = async (className: string, description: string, 
   });
 };
 
-// Fix for missing members in gemini services
 export const rerollStats = async (name: string, className: string, currentStats: Stats, lockedStats: (keyof Stats)[]): Promise<Stats> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -313,7 +309,6 @@ export const rerollStats = async (name: string, className: string, currentStats:
   });
 };
 
-// Fix for missing members in gemini services
 export const generateCharacterAppearance = async (name: string, race: string, gender: string, className: string, description: string): Promise<string> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -325,13 +320,12 @@ export const generateCharacterAppearance = async (name: string, race: string, ge
   });
 };
 
-// Fix for missing members in gemini services
 export const generateClassMechanics = async (name: string, description: string): Promise<any> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
-      contents: `Class Name: ${name}. Description: ${description}. Generate TTRPG class mechanics. Output ONLY JSON.`,
+      contents: `Class Name: ${name}. Description: ${description}. Generate TTRPG class mechanics with 5 unique feats. Output ONLY JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -352,7 +346,9 @@ export const generateClassMechanics = async (name: string, description: string):
                   description: { type: Type.STRING }
                 },
                 required: ["name", "description"]
-              }
+              },
+              minItems: 5,
+              maxItems: 5
             },
             initialSpells: {
               type: Type.ARRAY,
@@ -376,7 +372,6 @@ export const generateClassMechanics = async (name: string, description: string):
   });
 };
 
-// Fix for missing members in gemini services
 export const generateClassEquipment = async (name: string, description: string, hitDie: string, hasSpells: boolean): Promise<Item[]> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -415,7 +410,6 @@ export const generateClassEquipment = async (name: string, description: string, 
   });
 };
 
-// Fix for missing members in gemini services
 export const generateSingleSpell = async (className: string, description: string, level: number): Promise<Spell> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -440,7 +434,6 @@ export const generateSingleSpell = async (className: string, description: string
   });
 };
 
-// Fix for missing members in gemini services
 export const getArchitectAdvice = async (type: string, name: string, description: string): Promise<string[]> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -459,7 +452,6 @@ export const getArchitectAdvice = async (type: string, name: string, description
   });
 };
 
-// Fix for missing members in gemini services
 export const generateMonsterStats = async (name: string, description: string, isBoss: boolean): Promise<any> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -473,6 +465,7 @@ export const generateMonsterStats = async (name: string, description: string, is
           properties: {
             hp: { type: Type.INTEGER },
             ac: { type: Type.INTEGER },
+            size: { type: Type.STRING, enum: ["Small", "Medium", "Large", "Huge", "Gargantuan"] },
             stats: {
               type: Type.OBJECT,
               properties: {
@@ -508,7 +501,7 @@ export const generateMonsterStats = async (name: string, description: string, is
               }
             }
           },
-          required: ["hp", "ac", "stats", "abilities"]
+          required: ["hp", "ac", "stats", "abilities", "size"]
         }
       }
     });
@@ -516,7 +509,6 @@ export const generateMonsterStats = async (name: string, description: string, is
   });
 };
 
-// Fix for missing members in gemini services
 export const generateMonsterAbilities = async (name: string, description: string): Promise<MonsterAbility[]> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -542,7 +534,6 @@ export const generateMonsterAbilities = async (name: string, description: string
   });
 };
 
-// Fix for missing members in gemini services
 export const generateItemMechanics = async (name: string, type: string, description: string): Promise<any> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
@@ -575,7 +566,6 @@ export const generateItemMechanics = async (name: string, type: string, descript
   });
 };
 
-// Fix for missing members in gemini services
 export const generateItemMechanicsList = async (name: string, type: string, description: string): Promise<ItemMechanic[]> => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();

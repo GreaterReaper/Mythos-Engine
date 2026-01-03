@@ -43,7 +43,6 @@ export interface Spell {
   description: string;
 }
 
-/* Added ClassDef interface to fix type errors across multiple components */
 export interface ClassDef {
   id: string;
   name: string;
@@ -59,6 +58,7 @@ export interface ClassDef {
   authorId?: string;
   authorName?: string;
   startingItemIds?: string[];
+  deletedAt?: number;
 }
 
 export interface Character {
@@ -82,12 +82,13 @@ export interface Character {
   authorId?: string;
   authorName?: string;
   usedAsiPoints?: number;
+  unspentAsiPoints?: number;
   isSpectral?: boolean;
   size: EntitySize;
   position?: { x: number, y: number };
+  deletedAt?: number;
 }
 
-/* Added MonsterAbility interface to fix type errors in services and components */
 export interface MonsterAbility {
   name: string;
   effect: string;
@@ -106,13 +107,12 @@ export interface Monster {
   imageUrl?: string;
   isBoss?: boolean;
   authorId?: string;
-  /* Added authorName to Monster interface to fix property missing error */
   authorName?: string;
   size: EntitySize;
   position?: { x: number, y: number };
+  deletedAt?: number;
 }
 
-/* Added ItemMechanic interface to fix type errors in services and components */
 export interface ItemMechanic {
   name: string;
   description: string;
@@ -128,8 +128,15 @@ export interface Item {
   lore: string;
   imageUrl?: string;
   authorId?: string;
-  /* Added authorName to Item interface to fix property missing error */
   authorName?: string;
+  deletedAt?: number;
+}
+
+export interface Graveyard {
+  characters: Character[];
+  monsters: Monster[];
+  items: Item[];
+  classes: ClassDef[];
 }
 
 export interface GameLog {

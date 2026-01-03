@@ -85,7 +85,7 @@ export const generateImage = async (prompt: string, referenceBase64?: string): P
 export const getDMResponse = async (history: any[], plot: string, input: string, party: Character[], summary: string, model: string) => {
   return withRetry(async (forcedModel) => {
     const ai = getAI();
-    const partyStr = party.map(c => `${c.name} (${c.race} ${c.classId} Level ${c.level})`).join(", ");
+    const partyStr = party.map(c => `${c.name} (${c.race} ${c.classId} Level ${c.level} ${c.isMentor ? 'AI Mentor' : 'Player'})`).join(", ");
     
     const response = await ai.models.generateContent({
       model: forcedModel || model,
@@ -93,19 +93,15 @@ export const getDMResponse = async (history: any[], plot: string, input: string,
       config: {
         systemInstruction: `You are a dark fantasy Dungeon Master. 
         CAMPAIGN FLOW:
-        - The story MUST start in the Rusty Tankard Tavern.
-        - Miri (Energetic Fighter), Lina (Timid Mage), and Seris (Stoic Archer) approach the player(s) to join a goblin hunting party.
-        - Progression: The party moves from Goblins to Skeletons, Spectral Horrors, Orcs, Stone Golems, Fire Elementals, Vanguard Drakes, and eventually the Eye of the Void and Gorechimera as they level up.
+        - Miri (Fighter), Lina (Mage), and Seris (Archer) are NON-PLAYABLE AI MENTORS. 
+        - If the player is alone or struggling, you can narratively "Summon the Mentor Trio" to join the fellowship. They automatically scale to the player's level.
+        - Mentors should explain rules, suggest tactics, and roleplay their personalities (Lina: Timid, Seris: Stoic, Miri: Bold).
         
-        ROLEPLAY GUIDELINES FOR AI PARTY MEMBERS:
-        - Lina: Timid, soft-voiced human Mage. Worries for party safety.
-        - Seris: Stoic, extremely logical elf Archer. Aloof.
-        - Miri: Bold, energetic human Fighter. Loves battle and encourages the party.
+        EXP & PROGRESSION:
+        - Award EXP after combat or story beats (e.g., +150 EXP).
+        - Mentors scale automatically; do not worry about their EXP, just their presence as tactical aids.
         
-        AI PARTY BEHAVIOR:
-        - Narrate actions for Lina, Seris, and Miri if not player-controlled. 
-        - Balance: Adjust monster counts and difficulty based on party level.
-        - Keep responses concise but immersive. Use d20 rolls for checks.`,
+        Keep responses immersive and use d20 rolls for all checks.`,
       }
     });
     return response.text || "The darkness of the Grey Marches presses in, but you find no response in the silence.";

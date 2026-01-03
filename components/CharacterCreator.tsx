@@ -80,7 +80,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
       const newChar: Character = {
         id: Math.random().toString(36).substr(2, 9),
         name, classId, race, gender, description: charDescription, level: 1, 
-        stats: { ...stats }, hp: 10, maxHp: 10, gold: 50, feats: feats.slice(0, 5), isPlayer: true, 
+        stats: { ...stats }, hp: 10, maxHp: 10, gold: 50, exp: 0, expToNextLevel: 1000,
+        feats: feats.slice(0, 5), isPlayer: true, 
         inventory: selectedClass?.startingItemIds || [], size: 'Medium', imageUrl,
         unspentAsiPoints: 0,
         knownSpells: selectedClass?.initialSpells || []
@@ -127,6 +128,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="grim-card p-6 md:p-8 border-2 border-[#b28a48]/20 rounded-sm space-y-6">
+          <div className="p-4 bg-amber-950/20 border border-amber-900/30 rounded-sm mb-4">
+             <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-1">Mentor Notice</p>
+             <p className="text-[9px] text-neutral-500 italic">Miri, Lina, and Seris are AI mentors and cannot be selected as your playable soul. Create your own legend to join their fellowship.</p>
+          </div>
           <h3 className="text-xl font-black fantasy-font text-neutral-300">Summon New Soul</h3>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] uppercase outline-none" />
           
@@ -178,19 +183,21 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               <div className="p-4 bg-black/60 backdrop-blur-sm">
                 <div className="flex justify-between items-start">
                   <div className="min-w-0">
-                    <h4 className="text-lg font-black fantasy-font text-[#b28a48] truncate">{char.name}</h4>
-                    <p className="text-[8px] text-neutral-500 uppercase tracking-widest">{char.race} • LVL {char.level}</p>
+                    <h4 className={`text-lg font-black fantasy-font ${char.isMentor ? 'text-blue-400' : 'text-[#b28a48]'} truncate`}>{char.name}</h4>
+                    <p className="text-[8px] text-neutral-500 uppercase tracking-widest">{char.isMentor ? 'AI Mentor' : char.race} • LVL {char.level}</p>
                   </div>
-                  {char.unspentAsiPoints ? (
-                    <span className="bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded-sm animate-pulse ml-2">ASI+</span>
+                  {char.exp >= char.expToNextLevel ? (
+                    <span className="bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded-sm animate-pulse ml-2">LEVEL UP</span>
                   ) : null}
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onBanish(char); }}
-                  className="absolute top-2 right-2 p-2 bg-black/80 rounded-full text-neutral-800 hover:text-red-600 opacity-0 group-hover:opacity-100 lg:opacity-0 transition-opacity"
-                >
-                  🗑️
-                </button>
+                {!char.isMentor && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onBanish(char); }}
+                    className="absolute top-2 right-2 p-2 bg-black/80 rounded-full text-neutral-800 hover:text-red-600 opacity-0 group-hover:opacity-100 lg:opacity-0 transition-opacity"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -204,7 +211,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
             
             <div className="p-6 pt-20 md:p-0">
                <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-                  {/* Left Column: Image & Stats */}
                   <div className="w-full lg:w-1/3 space-y-6">
                     <div className="aspect-square bg-black rounded-sm border border-neutral-800 overflow-hidden shrink-0 shadow-2xl mx-auto max-w-[300px] lg:max-w-none">
                       {selectedChar.imageUrl && <img src={selectedChar.imageUrl} className="w-full h-full object-cover" />}
@@ -218,8 +224,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                                 <p className="text-xl font-black text-red-500">{selectedChar.hp} / {selectedChar.maxHp}</p>
                             </div>
                             <div className="bg-black/60 border border-neutral-800 p-3 rounded-sm text-center">
-                                <p className="text-[8px] font-black text-neutral-600 uppercase mb-1">Essence Gold</p>
-                                <p className="text-xl font-black text-amber-500">{selectedChar.gold}g</p>
+                                <p className="text-[8px] font-black text-neutral-600 uppercase mb-1">Experience</p>
+                                <p className="text-xl font-black text-amber-500">{selectedChar.exp} / {selectedChar.expToNextLevel}</p>
                             </div>
                         </div>
 
@@ -242,12 +248,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     </div>
                   </div>
 
-                  {/* Right Column: Lore, Feats, Inventory */}
                   <div className="flex-1 space-y-8 text-left pb-10 md:pb-0">
                     <div>
                       <h3 className="text-3xl md:text-5xl font-black fantasy-font text-[#b28a48] leading-tight break-words">{selectedChar.name}</h3>
                       <p className="text-[10px] md:text-sm text-neutral-500 uppercase tracking-widest font-black mt-1">
-                        {selectedChar.race} {selectedClass?.name || 'Vagabond'} • Level {selectedChar.level}
+                        {selectedChar.isMentor ? 'AI Mentor' : selectedChar.race} {selectedClass?.name || 'Vagabond'} • Level {selectedChar.level}
                       </p>
                       <p className="text-xs italic text-neutral-400 font-serif mt-6 leading-relaxed border-l-2 border-[#b28a48]/20 pl-4">
                         "{selectedChar.description}"
@@ -255,7 +260,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-                        {/* Traits Section */}
                         <div className="space-y-6">
                             <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Traits & Feats</h4>
                             <div className="space-y-3">
@@ -270,7 +274,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                             </div>
                         </div>
 
-                        {/* Possessions Section */}
                         <div className="space-y-6">
                             <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Inventory</h4>
                             <div className="space-y-2">
@@ -301,7 +304,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                                 )}
                             </div>
 
-                            {/* Spells Section */}
                             {(selectedChar.knownSpells && selectedChar.knownSpells.length > 0) && (
                                 <div className="pt-6">
                                     <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Inscribed Arcanum</h4>

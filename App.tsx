@@ -17,10 +17,54 @@ import SoulCairn from './components/SoulCairn';
 import { generateImage, generateRules } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
-const REGISTRY_VERSION = 27; 
+const REGISTRY_VERSION = 29; 
+
+export const MENTOR_TEMPLATES: Partial<Character>[] = [
+  { 
+    id: 'hero-lina', name: 'Lina', classId: 'cls-mage', race: 'Human', gender: 'Female', gold: 50, exp: 0, expToNextLevel: 1000,
+    description: "A timid human mage with a soft voice. She is an AI mentor here to guide you.", level: 1, stats: { strength: 8, dexterity: 12, constitution: 13, intelligence: 14, wisdom: 16, charisma: 14 }, hp: 10, maxHp: 10, 
+    feats: [
+      { name: 'Resonant Buffs', description: 'Buffs spread to allies within 15ft.' },
+      { name: 'Divine Healing', description: 'Heals restore extra to low targets.' },
+      { name: 'Beacon of Aura', description: 'Immunity to fear for nearby allies.' },
+      { name: 'Mana Font', description: 'Recover a Level 1 spell slot.' },
+      { name: 'Etheric Bond', description: 'Share damage with a linked ally.' }
+    ], 
+    knownSpells: [
+      { name: 'Holy Veil', level: 1, school: 'Abjuration', description: 'Shield 15 damage.' },
+      { name: 'Bless', level: 1, school: 'Enchantment', description: '+1d4 to rolls.' },
+      { name: 'Celestial Light', level: 1, school: 'Evocation', description: 'Heal and grant +2 AC.' }
+    ],
+    inventory: ['itm-mage-wand-1', 'itm-healer-robes'], isPlayer: false, isMentor: true, authorId: 'system', size: 'Medium' 
+  },
+  { 
+    id: 'hero-seris', name: 'Seris', classId: 'cls-archer', race: 'Elf', gender: 'Female', gold: 50, exp: 0, expToNextLevel: 1000,
+    description: "A stoic elf archer. She is an AI mentor who analyzes tactical weaknesses.", level: 1, stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 12, wisdom: 15, charisma: 8 }, hp: 11, maxHp: 11, 
+    feats: [
+      { name: 'Sky Shot', description: 'Perfect accuracy on flyers.' },
+      { name: 'Exposed Weakness', description: '+1d10 bonus damage.' },
+      { name: 'Lightfoot Reflex', description: '+2 AC while moving.' },
+      { name: 'Trick Shot: Ricochet', description: 'Hit secondary target.' },
+      { name: 'Volley of Thorns', description: 'Cone of arrow damage.' }
+    ], 
+    inventory: ['itm-arch-bow-1', 'itm-scout-leather'], isPlayer: false, isMentor: true, authorId: 'system', size: 'Medium' 
+  },
+  { 
+    id: 'hero-miri', name: 'Miri', classId: 'cls-fighter', race: 'Human', gender: 'Female', gold: 50, exp: 0, expToNextLevel: 1000,
+    description: "An energetic human fighter. She is an AI mentor focused on frontline bravery.", level: 1, stats: { strength: 16, dexterity: 14, constitution: 16, intelligence: 8, wisdom: 10, charisma: 12 }, hp: 12, maxHp: 12, 
+    feats: [
+      { name: 'Shield Wall', description: '+2 AC to self and allies.' },
+      { name: 'Shield Bash', description: '1d8 damage and stun.' },
+      { name: 'Guardian Intercept', description: 'Take hits for allies.' },
+      { name: 'Steel Focus', description: 'Advantage on Con saves.' },
+      { name: 'Master Duelist', description: 'Crit immune in 1v1.' }
+    ], 
+    inventory: ['itm-fig-sword-1', 'itm-fig-shield-1', 'itm-half-plate-1'], isPlayer: false, isMentor: true, authorId: 'system', size: 'Medium' 
+  }
+];
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v27-Calamity-Rise",
+  version: "March-2025-v29-Solo-Pioneer",
   classes: [
     {
       id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, they can shoot flying enemies out of the air with great accuracy. They pick a single enemy that is exposed to deal extra damage against. They wear leather armor to stay protected and light. They use special arrows for utility.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Bows', 'Leather Armor', 'Perception'], features: [
@@ -91,7 +135,7 @@ const MONTHLY_CONTENT = {
     {
       id: 'cls-dark-knight', name: 'Dark Knight', description: 'Heavy knights wielding 2H swords and life-draining dark magic.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [4, 3, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['2H Swords', 'Heavy Armor', 'Intimidation'], features: [
         { name: 'Momentum Reaper', description: 'Successful hits grant a 10ft free dash that ignores opportunity attacks.' },
-        { name: 'Living Dead', description: 'Survive fatal damage at 1 HP for 1 full combat turn. Must be healed for your Max HP total by end of turn or die.' },
+        { name: 'Living Dead', description: 'Survive fatal damage at 1 HP for 1 full combat turn (Until start of your next turn). Must be healed for your Max HP total by end of turn or die.' },
         { name: 'Living Shadow', description: 'Summon a twin of shadow. It mimics your attacks for 2 turns at 50% damage.' },
         { name: 'Ignite Aether', description: 'Sacrifice 10 HP to deal 2d10 necrotic damage on your next hit.' },
         { name: 'Chill of the Abyss', description: 'Enemies within 5ft have -2 to all attack rolls and -10ft movement.' }
@@ -151,55 +195,14 @@ const MONTHLY_CONTENT = {
     { id: 'itm-dk-blade-1', name: 'Soul-Reaper', type: 'Weapon' as const, rarity: 'Rare' as const, damageRoll: '2d6', damageType: 'Necrotic', classRestrictions: ['cls-dark-knight'], description: 'Blackened edge.', mechanics: [], lore: 'Order relic.', authorId: 'system' },
     { id: 'itm-dk-plate-1', name: 'Gloom Plate', type: 'Armor' as const, rarity: 'Rare' as const, ac: 18, classRestrictions: ['cls-dark-knight'], description: 'Void-stained steel.', mechanics: [], lore: 'Dark Knight uniform.', authorId: 'system' }
   ],
-  heroes: [
-    { 
-      id: 'hero-lina', name: 'Lina', classId: 'cls-mage', race: 'Human' as const, gender: 'Female' as const, gold: 50, 
-      description: "A timid human mage with a soft voice.", level: 1, stats: { strength: 8, dexterity: 12, constitution: 13, intelligence: 14, wisdom: 16, charisma: 14 }, hp: 10, maxHp: 10, 
-      feats: [
-        { name: 'Resonant Buffs', description: 'Buffs spread to allies within 15ft.' },
-        { name: 'Divine Healing', description: 'Heals restore extra to low targets.' },
-        { name: 'Beacon of Aura', description: 'Immunity to fear for nearby allies.' },
-        { name: 'Mana Font', description: 'Recover a Level 1 spell slot.' },
-        { name: 'Etheric Bond', description: 'Share damage with a linked ally.' }
-      ], 
-      knownSpells: [
-        { name: 'Holy Veil', level: 1, school: 'Abjuration', description: 'Shield 15 damage.' },
-        { name: 'Bless', level: 1, school: 'Enchantment', description: '+1d4 to rolls.' },
-        { name: 'Celestial Light', level: 1, school: 'Evocation', description: 'Heal and grant +2 AC.' }
-      ],
-      inventory: ['itm-mage-wand-1', 'itm-healer-robes'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
-    },
-    { 
-      id: 'hero-seris', name: 'Seris', classId: 'cls-archer', race: 'Elf' as const, gender: 'Female' as const, gold: 50, 
-      description: "A stoic elf archer.", level: 1, stats: { strength: 10, dexterity: 18, constitution: 12, intelligence: 12, wisdom: 15, charisma: 8 }, hp: 11, maxHp: 11, 
-      feats: [
-        { name: 'Sky Shot', description: 'Perfect accuracy on flyers.' },
-        { name: 'Exposed Weakness', description: '+1d10 bonus damage.' },
-        { name: 'Lightfoot Reflex', description: '+2 AC while moving.' },
-        { name: 'Trick Shot: Ricochet', description: 'Hit secondary target.' },
-        { name: 'Volley of Thorns', description: 'Cone of arrow damage.' }
-      ], 
-      inventory: ['itm-arch-bow-1', 'itm-scout-leather'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
-    },
-    { 
-      id: 'hero-miri', name: 'Miri', classId: 'cls-fighter', race: 'Human' as const, gender: 'Female' as const, gold: 50, 
-      description: "An energetic human fighter.", level: 1, stats: { strength: 16, dexterity: 14, constitution: 16, intelligence: 8, wisdom: 10, charisma: 12 }, hp: 12, maxHp: 12, 
-      feats: [
-        { name: 'Shield Wall', description: '+2 AC to self and allies.' },
-        { name: 'Shield Bash', description: '1d8 damage and stun.' },
-        { name: 'Guardian Intercept', description: 'Take hits for allies.' },
-        { name: 'Steel Focus', description: 'Advantage on Con saves.' },
-        { name: 'Master Duelist', description: 'Crit immune in 1v1.' }
-      ], 
-      inventory: ['itm-fig-sword-1', 'itm-fig-shield-1', 'itm-half-plate-1'], isPlayer: false, authorId: 'system', size: 'Medium' as const 
-    }
-  ],
+  heroes: MENTOR_TEMPLATES as Character[],
   initialCampaign: {
     plot: "The Grey Marches have been swallowed by a spectral fog. Shadows move within.",
-    summary: "You meet Miri, Lina, and Seris at the Rusty Tankard Tavern. They need a fourth to hunt goblins in the mist.",
+    summary: "You meet Miri, Lina, and Seris at the Rusty Tankard Tavern. They are veteran hunters who will mentor you as you seek to clear the mist.",
     locationName: "Rusty Tankard Tavern",
     rules: [
-      { id: 'rule-1', category: 'Combat', name: 'Momentum', content: 'Moving 10ft adds +2 damage.' }
+      { id: 'rule-1', category: 'Combat', name: 'Momentum', content: 'Moving 10ft adds +2 damage.' },
+      { id: 'rule-2', category: 'Progression', name: 'Experience', content: 'Gain EXP by defeating foes. Reach your threshold to ascend in power.' }
     ]
   }
 };
@@ -328,7 +331,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
-      {/* Mobile Top Navigation Bar */}
       <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-black/80 border-b border-[#b28a48]/20 backdrop-blur-md z-[100] h-16 shrink-0">
         <button onClick={() => setMobileSidebarOpen(true)} className="text-[#b28a48] text-2xl p-2 active:scale-90 transition-transform">
           ☰
@@ -336,7 +338,7 @@ const App: React.FC = () => {
         <h1 className="text-lg font-black tracking-widest text-[#b28a48] fantasy-font truncate max-w-[60%]">
           {campaign.locationName || 'Mythos Engine'}
         </h1>
-        <div className="w-8"></div> {/* Spacer for symmetry */}
+        <div className="w-8"></div>
       </header>
 
       <Sidebar 
@@ -366,7 +368,6 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Global Notifications Overlay */}
       <div className="fixed top-20 lg:top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
         {notifications.map(n => (
           <div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black/95 border ${n.type === 'error' ? 'border-red-900 text-red-400' : 'border-[#b28a48] text-[#b28a48]'} max-w-[280px] md:max-w-md`}>

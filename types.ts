@@ -73,9 +73,12 @@ export interface Character {
   hp: number;
   maxHp: number;
   gold: number;
+  exp: number;
+  expToNextLevel: number;
   feats: Trait[];
   imageUrl?: string;
   isPlayer: boolean;
+  isMentor?: boolean;
   inventory: string[];
   knownSpells?: Spell[];
   lockedStats?: (keyof Stats)[];
@@ -133,11 +136,10 @@ export interface Item {
   authorId?: string;
   authorName?: string;
   deletedAt?: number;
-  // New tactical properties
   damageRoll?: string;
   damageType?: string;
   ac?: number;
-  classRestrictions?: string[]; // IDs of classes that can use this
+  classRestrictions?: string[];
 }
 
 export interface Graveyard {
@@ -176,7 +178,7 @@ export interface CampaignState {
 }
 
 export interface SyncMessage {
-  type: 'STATE_UPDATE' | 'NEW_LOG' | 'GIVE_LOOT' | 'SHARE_RESOURCE' | 'SUMMARY_UPDATE' | 'COMBAT_SYNC';
+  type: 'STATE_UPDATE' | 'NEW_LOG' | 'GIVE_LOOT' | 'SHARE_RESOURCE' | 'SUMMARY_UPDATE' | 'COMBAT_SYNC' | 'EXP_REWARD';
   payload: any;
   senderId: string;
   senderName: string;

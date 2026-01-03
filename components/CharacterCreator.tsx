@@ -352,6 +352,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const selectedClass = classes.find(c => c?.id === selectedChar?.classId);
   const charInventory = items.filter(i => selectedChar?.inventory.includes(i.id));
   const isPremade = selectedChar?.id.startsWith('hero-');
+  const currentRacialData = RACIAL_TRAITS[race];
 
   return (
     <div className="space-y-12 pb-12">
@@ -407,17 +408,44 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                 </div>
               </div>
               
-              <div className="space-y-2 text-left">
-                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Heritage (Race)</label>
-                <select 
-                    value={race} 
-                    onChange={(e) => setRace(e.target.value as RaceType)} 
-                    className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48] rounded-sm"
-                  >
-                    {(Object.keys(RACIAL_TRAITS) as RaceType[]).map(r => (
-                      <option key={r} value={r}>{RACIAL_TRAITS[r].icon} {r}</option>
+              <div className="space-y-4 text-left">
+                <div className="space-y-2">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest">Heritage (Race)</label>
+                  <select 
+                      value={race} 
+                      onChange={(e) => setRace(e.target.value as RaceType)} 
+                      className="w-full bg-black border border-neutral-800 p-4 text-[11px] text-[#b28a48] font-bold uppercase tracking-widest outline-none appearance-none cursor-pointer focus:border-[#b28a48] rounded-sm"
+                    >
+                      {(Object.keys(RACIAL_TRAITS) as RaceType[]).map(r => (
+                        <option key={r} value={r}>{RACIAL_TRAITS[r].icon} {r}</option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Heritage Insight Panel */}
+                <div className="bg-amber-950/10 border border-amber-900/20 p-4 rounded-sm animate-in fade-in duration-500">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">{currentRacialData.icon}</span>
+                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Heritage Insight: {race}</p>
+                  </div>
+                  <p className="text-[9px] text-neutral-500 italic mb-3 font-serif">{currentRacialData.flavor}</p>
+                  <div className="space-y-2">
+                    {currentRacialData.traits.map((t, idx) => (
+                      <div key={idx} className="border-l border-amber-900/30 pl-3">
+                        <p className="text-[8px] font-black text-[#b28a48] uppercase tracking-tighter">Innate: {t.name}</p>
+                        <p className="text-[8px] text-neutral-400 font-serif leading-tight">{t.description}</p>
+                      </div>
                     ))}
-                </select>
+                    <div className="pt-2 border-t border-amber-900/10">
+                      <p className="text-[7px] font-black text-amber-700 uppercase tracking-widest">Racial Ability Modifiers:</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {Object.entries(RACIAL_BONUSES[race]).map(([stat, val]) => (
+                          <span key={stat} className="text-[7px] text-green-600 font-black">+{val} {stat.slice(0,3).toUpperCase()}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2 text-left">
@@ -485,7 +513,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
             {filteredCharacters.map(char => (
               <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className="grim-card flex flex-col group border-[#b28a48]/10 hover:border-[#b28a48]/60 transition-all cursor-pointer shadow-xl overflow-hidden bg-black rounded-sm active:scale-98">
                 <div className="h-40 md:h-48 bg-black relative">
-                  {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-5xl">👤</div>}
+                  {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-3xl">👤</div>}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
                   
                   {/* Banish Button Overlay */}
@@ -589,11 +617,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     {selectedChar.feats.map((f, i) => (
-                      <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'} ${!isPremade ? 'cursor-pointer hover:border-neutral-700' : 'cursor-default'}`}>
-                         {!isPremade && <span className="text-amber-600 mt-0.5">{f.locked ? '†' : '○'}</span>}
+                      <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'} ${!isPremade && !(f as any).isInnate ? 'cursor-pointer hover:border-neutral-700' : 'cursor-default'}`}>
+                         {!isPremade && <span className={`mt-0.5 ${(f as any).isInnate ? 'text-amber-700 opacity-50' : 'text-amber-600'}`}>{f.locked ? '†' : '○'}</span>}
                          <div className="flex-1">
                            <div className="flex justify-between items-start mb-1">
-                             <h6 className="text-[11px] font-black uppercase tracking-wider text-[#b28a48]">{f.name}</h6>
+                             <h6 className={`text-[11px] font-black uppercase tracking-wider ${(f as any).isInnate ? 'text-amber-700' : 'text-[#b28a48]'}`}>{f.name} {(f as any).isInnate && '(Innate)'}</h6>
                              {f.usageCheck && (
                                <span className="text-[7px] font-black px-1.5 py-0.5 bg-amber-950/50 text-amber-500 border border-amber-900/30 rounded-sm uppercase tracking-tighter">
                                  {f.dc ? `DC ${f.dc} ` : ''}{f.usageCheck}
@@ -630,7 +658,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
               <div className="mt-12 flex flex-col items-center gap-6">
                 {!isPremade && (
                   <button 
-                    onClick={(e) => handleDeleteCharacter(e, selectedChar.id, selectedChar.name)}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteCharacter(e, selectedChar.id, selectedChar.name); }}
                     className="text-[9px] font-black text-red-900/60 hover:text-red-500 uppercase tracking-[0.4em] transition-all border border-red-900/20 px-6 py-3 rounded-sm hover:bg-red-950/10"
                   >
                     Banish Soul From Fellowship

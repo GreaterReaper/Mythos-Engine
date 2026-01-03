@@ -3,11 +3,11 @@ export interface UserAccount {
   username: string;
   displayName: string;
   isAdmin?: boolean;
-  pin?: string; // 4-digit pin for cloud sync
-  version: number; // For tracking persistence and migrations
-  registryEra: string; // "Eternal" for accounts created today+
-  sessionId?: string; // Unique token to track the current active device/session
-  friends?: string[]; // Array of usernames (sigils) previously played with
+  pin?: string;
+  version: number;
+  registryEra: string;
+  sessionId?: string;
+  friends?: string[];
 }
 
 export interface Stats {
@@ -23,26 +23,16 @@ export interface Trait {
   name: string;
   description: string;
   locked?: boolean;
-  usageCheck?: string; // e.g. "Strength Save", "Acrobatics", "CON Save"
-  dc?: number; // The Difficulty Class for the check
+  usageCheck?: string;
+  dc?: number;
 }
 
+export type EntitySize = 'Small' | 'Medium' | 'Large' | 'Huge' | 'Gargantuan';
+
 export type RaceType = 
-  | 'Human' 
-  | 'Variant Human' 
-  | 'Dwarf' 
-  | 'Elf' 
-  | 'Half-Elf' 
-  | 'Orc' 
-  | 'Goblin' 
-  | 'Kobold' 
-  | 'Tiefling' 
-  | 'Dragonborn'
-  | 'Tabaxi' 
-  | 'Lizardfolk' 
-  | 'Minotaur' 
-  | 'Satyr'
-  | 'Vesperian';
+  | 'Human' | 'Variant Human' | 'Dwarf' | 'Elf' | 'Half-Elf' | 'Orc' | 'Goblin' 
+  | 'Kobold' | 'Tiefling' | 'Dragonborn' | 'Tabaxi' | 'Lizardfolk' | 'Minotaur' 
+  | 'Satyr' | 'Vesperian';
 
 export type GenderType = 'Male' | 'Female' | 'Non-binary' | 'Other';
 
@@ -51,6 +41,24 @@ export interface Spell {
   level: number;
   school: string;
   description: string;
+}
+
+/* Added ClassDef interface to fix type errors across multiple components */
+export interface ClassDef {
+  id: string;
+  name: string;
+  description: string;
+  hitDie: string;
+  startingHp: number;
+  hpPerLevel: number;
+  spellSlots: number[];
+  preferredStats: string[];
+  bonuses: string[];
+  features: Trait[];
+  initialSpells: Spell[];
+  authorId?: string;
+  authorName?: string;
+  startingItemIds?: string[];
 }
 
 export interface Character {
@@ -68,34 +76,18 @@ export interface Character {
   feats: Trait[];
   imageUrl?: string;
   isPlayer: boolean;
-  inventory: string[]; // Array of item IDs
+  inventory: string[];
   knownSpells?: Spell[];
   lockedStats?: (keyof Stats)[];
   authorId?: string;
   authorName?: string;
-  usedAsiPoints?: number; // Total +1s added to stats via ASI
-  isSpectral?: boolean; // True if created while quota was exhausted
+  usedAsiPoints?: number;
+  isSpectral?: boolean;
+  size: EntitySize;
+  position?: { x: number, y: number };
 }
 
-export interface ClassFeature extends Trait {}
-
-export interface ClassDef {
-  id: string;
-  name: string;
-  description: string;
-  hitDie: string;
-  startingHp: number;
-  hpPerLevel: number;
-  spellSlots: number[];
-  features: ClassFeature[];
-  initialSpells?: Spell[];
-  preferredStats?: string[];
-  bonuses?: string[];
-  startingItemIds?: string[];
-  authorId?: string;
-  authorName?: string;
-}
-
+/* Added MonsterAbility interface to fix type errors in services and components */
 export interface MonsterAbility {
   name: string;
   effect: string;
@@ -114,10 +106,18 @@ export interface Monster {
   imageUrl?: string;
   isBoss?: boolean;
   authorId?: string;
+  /* Added authorName to Monster interface to fix property missing error */
   authorName?: string;
+  size: EntitySize;
+  position?: { x: number, y: number };
 }
 
-export interface ItemMechanic extends Trait {}
+/* Added ItemMechanic interface to fix type errors in services and components */
+export interface ItemMechanic {
+  name: string;
+  description: string;
+  locked?: boolean;
+}
 
 export interface Item {
   id: string;
@@ -128,11 +128,12 @@ export interface Item {
   lore: string;
   imageUrl?: string;
   authorId?: string;
+  /* Added authorName to Item interface to fix property missing error */
   authorName?: string;
 }
 
 export interface GameLog {
-  role: 'dm' | 'player';
+  role: 'dm' | 'player' | 'system';
   content: string;
   timestamp: number;
   senderId?: string;
@@ -155,39 +156,12 @@ export interface CampaignState {
   locationName?: string;
   worldMapUrl?: string;
   localMapTiles?: string[];
-}
-
-export interface MigrationData {
-  user: UserAccount;
-  characters: Character[];
-  classes: ClassDef[];
-  monsters: Monster[];
-  items: Item[];
-  campaign: CampaignState;
-}
-
-export type SyncMessageType = 
-  | 'STATE_UPDATE' 
-  | 'NEW_LOG' 
-  | 'GIVE_LOOT' 
-  | 'SHARE_RESOURCE' 
-  | 'SUMMARY_UPDATE'
-  | 'KICK' 
-  | 'PULSE' 
-  | 'HANDSHAKE'
-  | 'QUOTA_SYNC'
-  | 'MAP_UPDATE'
-  | 'FRIEND_BEAT';
-
-export interface ServerLog {
-  id: string;
-  message: string;
-  type: 'info' | 'warn' | 'error' | 'success';
-  timestamp: number;
+  activeEnemies?: Monster[];
+  combatActive?: boolean;
 }
 
 export interface SyncMessage {
-  type: SyncMessageType;
+  type: 'STATE_UPDATE' | 'NEW_LOG' | 'GIVE_LOOT' | 'SHARE_RESOURCE' | 'SUMMARY_UPDATE' | 'COMBAT_SYNC';
   payload: any;
   senderId: string;
   senderName: string;

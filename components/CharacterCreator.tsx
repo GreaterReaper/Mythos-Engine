@@ -286,7 +286,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
         knownSpells: [],
         lockedStats: [],
         gold: 50,
-        isSpectral
+        isSpectral,
+        /* Added default size to fix required property error */
+        size: 'Medium'
       };
       
       setCharacters(prev => [...prev, newChar]);

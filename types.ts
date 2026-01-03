@@ -1,4 +1,3 @@
-
 export interface UserAccount {
   username: string;
   displayName: string;
@@ -153,6 +152,15 @@ export interface CampaignState {
   locationName?: string;
   worldMapUrl?: string;
   localMapTiles?: string[];
+}
+
+export interface MigrationData {
+  user: UserAccount;
+  characters: Character[];
+  classes: ClassDef[];
+  monsters: Monster[];
+  items: Item[];
+  campaign: CampaignState;
 }
 
 export type SyncMessageType = 

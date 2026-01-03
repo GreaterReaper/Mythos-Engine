@@ -74,6 +74,7 @@ export interface Character {
   authorId?: string;
   authorName?: string;
   usedAsiPoints?: number; // Total +1s added to stats via ASI
+  isSpectral?: boolean; // True if created while quota was exhausted
 }
 
 export interface ClassFeature extends Trait {}

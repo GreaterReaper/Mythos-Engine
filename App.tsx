@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell, MigrationData } from './types';
+import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell, MigrationData, Trait } from './types';
 import Sidebar from './components/Sidebar';
 import CampaignView from './components/CampaignView';
 import CharacterCreator from './components/CharacterCreator';
@@ -13,7 +13,8 @@ import ArchivePanel from './components/ArchivePanel';
 import SpellCodex from './components/SpellCodex';
 import ProfilePanel from './components/ProfilePanel';
 import RulesManifest from './components/RulesManifest';
-import { generateImage, generateWorldMap, generateLocalTiles } from './services/gemini';
+// Added missing imports: generateWorldMap, generateLocalTiles
+import { generateImage, generateCharacterFeats, generateWorldMap, generateLocalTiles } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
 interface Notification {
@@ -192,6 +193,48 @@ const App: React.FC = () => {
       return false;
     }
   }, [notify]);
+
+  // Background Restoration Pulse for Spectral Souls
+  useEffect(() => {
+    if (!currentUser || characters.length === 0) return;
+    
+    const interval = setInterval(async () => {
+      const spectralChar = characters.find(c => c.isSpectral);
+      if (!spectralChar) return;
+
+      console.log(`Restoration Pulse: Attempting to heal spectral soul ${spectralChar.name}...`);
+      
+      const selectedClass = classes.find(cls => cls.id === spectralChar.classId);
+      
+      try {
+        let imageUrl = spectralChar.imageUrl;
+        let classFeats = spectralChar.feats.filter(f => (f as any).isInnate); // Keep innate feats
+        
+        // Attempt portrait if missing
+        if (!imageUrl || imageUrl.startsWith('data:image/svg')) {
+          const prompt = `Fantasy TTRPG character portrait. A ${spectralChar.gender} ${spectralChar.race} ${selectedClass?.name}. Appearance: ${spectralChar.description}. Atmosphere: dark fantasy.`;
+          imageUrl = await generateImage(prompt);
+        }
+
+        // Attempt class feats
+        const generatedFeats = await generateCharacterFeats(selectedClass?.name || 'Adventurer', selectedClass?.description || '');
+        classFeats = [...classFeats, ...generatedFeats];
+
+        setCharacters(prev => prev.map(c => 
+          c.id === spectralChar.id 
+            ? { ...c, imageUrl, feats: classFeats, isSpectral: false } 
+            : c
+        ));
+        
+        notify(`${spectralChar.name}'s soul has fully manifested!`, "success");
+      } catch (e) {
+        // Quota still hit, will retry next pulse
+        console.warn(`Restoration Pulse: ${spectralChar.name} remains spectral. Quota limited.`);
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [currentUser, characters, classes, notify]);
 
   const handleMigrationExport = useCallback(() => {
     if (!currentUser) return "";
@@ -464,7 +507,7 @@ const App: React.FC = () => {
       
       <main className={`flex-1 relative overflow-y-auto transition-all duration-300 pb-[calc(60px+var(--safe-bottom))] lg:pb-0 pt-[calc(48px+var(--safe-top))] lg:pt-0`}>
         <div className="p-3 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} manifestBasics={manifestBasics} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} setCharacters={setCharacters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} manifestBasics={manifestBasics} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} items={items} setItems={setItems} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}

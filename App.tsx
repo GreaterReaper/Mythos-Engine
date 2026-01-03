@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -11,6 +10,7 @@ import MultiplayerPanel from './components/MultiplayerPanel';
 import LoginScreen from './components/LoginScreen';
 import ArchivePanel from './components/ArchivePanel';
 import SpellCodex from './components/SpellCodex';
+import ProfilePanel from './components/ProfilePanel';
 import { generateImage } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
@@ -205,7 +205,7 @@ const SYSTEM_ITEMS: Item[] = [
 ];
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells'>('campaign');
+  const [activeTab, setActiveTab] = useState<'campaign' | 'characters' | 'classes' | 'bestiary' | 'armory' | 'multiplayer' | 'archive' | 'spells' | 'profile'>('campaign');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const [diceTrayOpen, setDiceTrayOpen] = useState(false);
@@ -688,6 +688,7 @@ const App: React.FC = () => {
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}
           {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
+          {activeTab === 'profile' && <ProfilePanel user={currentUser} />}
           {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={serverLogs} joinSession={(id) => { setIsHost(false); const conn = peerRef.current!.connect(id); setupConnection(conn); }} setIsHost={setIsHost} forceSync={(sel) => {
               const state: any = {};
               if (sel.characters) state.characters = characters;

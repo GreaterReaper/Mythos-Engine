@@ -16,6 +16,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onSignOut, u
     { id: 'spells', label: 'Spells', icon: '✨' },
     { id: 'bestiary', label: 'Beasts', icon: '🐉' },
     { id: 'armory', label: 'Gear', icon: '🛡️' },
+    { id: 'profile', label: 'Soul', icon: '🆔' },
     { id: 'multiplayer', label: 'Portal', icon: '🌀' },
     { id: 'archive', label: 'Archive', icon: '📦' },
   ];

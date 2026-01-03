@@ -30,7 +30,8 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 110; // Incremented for change-detection logic
+const SYSTEM_VERSION = 111; 
+const REGISTRY_VERSION = 2; // Incremented to trigger legacy account deletion
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -214,6 +215,15 @@ const App: React.FC = () => {
   const [lastRoll, setLastRoll] = useState<DiceRoll | null>(null);
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    // Legacy Clearance: Delete previous accounts if registry version mismatch
+    const currentRegVersion = parseInt(localStorage.getItem('mythos_registry_version') || '0');
+    if (currentRegVersion < REGISTRY_VERSION) {
+      localStorage.removeItem('mythos_accounts');
+      localStorage.removeItem('mythos_active_session');
+      localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
+      return null;
+    }
+
     const saved = localStorage.getItem('mythos_active_session');
     const user = saved ? JSON.parse(saved) : null;
     if (user) (window as any).isMythosAdmin = !!user.isAdmin;
@@ -283,7 +293,6 @@ const App: React.FC = () => {
     const rawGlobal = localStorage.getItem(globalKey);
     let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
 
-    // Update master repository if version mismatch OR if an admin has intentionally modified system content
     if (currentUser?.isAdmin) {
       const currentSystemData = {
         monsters: localMonsters.filter(m => m.authorId === 'system'),
@@ -322,7 +331,6 @@ const App: React.FC = () => {
     };
   }, [currentUser?.isAdmin, notify]);
 
-  // Fix: Admin greeting with strict session-based guard to prevent repeats
   useEffect(() => {
     if (currentUser?.isAdmin && hasNotifiedAdminRef.current !== currentUser.username) {
       notify("Omniscience Enabled.", "success");
@@ -341,13 +349,14 @@ const App: React.FC = () => {
       const payload = {
         pin: currentUser.pin,
         isAdmin: currentUser.isAdmin,
-        data: { characters, classes, monsters, items, campaign, playerName: currentUser.displayName }
+        displayName: currentUser.displayName,
+        data: { characters, classes, monsters, items, campaign }
       };
-      cloudArchive[currentUser.username] = payload;
+      cloudArchive[currentUser.username.toLowerCase()] = payload;
       localStorage.setItem(etherKey, JSON.stringify(cloudArchive));
       notify("Saga Synchronized with the Ether.", "success");
     } else {
-      const entry = cloudArchive[currentUser.username];
+      const entry = cloudArchive[currentUser.username.toLowerCase()];
       if (!entry) {
         notify("No chronicle found for this sigil in the Ether.", "error");
         return;
@@ -581,7 +590,6 @@ const App: React.FC = () => {
       });
     }
 
-    // Explicitly manifest and notify on Admin action
     const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems, false);
     setCharacters(synced.newChars);
     setClasses(synced.newClasses);
@@ -631,7 +639,6 @@ const App: React.FC = () => {
     return aggregated;
   }, []);
 
-  // Data Loading Effect - Runs silent background integrity check
   useEffect(() => {
     if (currentUser) {
       const uPrefix = currentUser.username;
@@ -655,7 +662,6 @@ const App: React.FC = () => {
         loadedItems = savedItems ? JSON.parse(savedItems) : [];
       }
 
-      // Silent resonance check on load - explicitly true for silent param
       const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems, true);
       setCharacters(synced.newChars);
       setClasses(synced.newClasses);
@@ -674,11 +680,8 @@ const App: React.FC = () => {
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
     }
-    // Fix: syncGlobalSystemArchive removed from deps to break loop, 
-    // it's only called on load and manually during manifests/syncs.
   }, [currentUser?.username, aggregateAllResources, deduplicateAndMergeItems]);
 
-  // Periodic persistence and background integrity sentinel
   useEffect(() => {
     if (!currentUser) return;
     const uPrefix = currentUser.username;
@@ -806,7 +809,6 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {/* Slimmed Top Bar for Mobile */}
       <div className="fixed top-0 right-0 left-0 lg:left-64 h-[calc(48px+var(--safe-top))] z-[60] bg-black/85 backdrop-blur-lg border-b border-neutral-900 px-4 md:px-6 flex items-center justify-between pt-[var(--safe-top)]">
         <div className="flex items-center gap-3 md:gap-8">
            <div className="flex flex-col items-end">

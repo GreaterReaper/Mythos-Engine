@@ -19,19 +19,39 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     e.preventDefault();
     setError(null);
     
-    const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
-    // Ensure case-insensitive username lookup with trimming
-    const user = accounts.find(a => a.username.toLowerCase() === username.trim().toLowerCase());
+    const cleanUser = username.trim().toLowerCase();
+    if (!cleanUser) return setError("Identify thy soul.");
+
+    // Ether Search: Check conceptual secured cloud registry first
+    const etherArchive: Record<string, any> = JSON.parse(localStorage.getItem('mythos_ether_archive') || '{}');
+    const cloudAccount = etherArchive[cleanUser];
+
+    const localAccounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
+    let user = localAccounts.find(a => a.username.toLowerCase() === cleanUser);
+
+    // Concept: If not found locally but exists in Cloud, "Sync Restore"
+    if (!user && cloudAccount) {
+      if (cloudAccount.pin === pin) {
+        user = {
+          username: cleanUser,
+          displayName: cloudAccount.displayName || cleanUser,
+          isAdmin: cloudAccount.isAdmin || false,
+          pin: cloudAccount.pin
+        };
+        localAccounts.push(user);
+        localStorage.setItem('mythos_accounts', JSON.stringify(localAccounts));
+      } else {
+        return setError("Arcane PIN mismatch for this Ether Sigil.");
+      }
+    }
 
     if (!user) {
-      setError("This soul has not been inscribed.");
+      setError("This soul is not inscribed locally or in the Ether.");
       return;
     }
 
-    // Case-insensitive Admin override check
     const isElevating = adminCode.trim().toUpperCase() === ADMIN_SECRET.toUpperCase();
     
-    // Status transfer: Admins bypass PIN check
     if (!isElevating && !user.isAdmin && pin !== user.pin) {
       setError("Arcane PIN mismatch.");
       return;
@@ -49,7 +69,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     e.preventDefault();
     setError(null);
 
-    if (!username || !displayName) {
+    const cleanUser = username.trim().toLowerCase();
+    const cleanDisplay = displayName.trim();
+
+    if (!cleanUser || !cleanDisplay) {
       setError("The grimoire requires all details.");
       return;
     }
@@ -59,21 +82,36 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
       return;
     }
 
-    const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
-    if (accounts.some(a => a.username.toLowerCase() === username.trim().toLowerCase())) {
-      setError("This sigil is already bound.");
+    // Uniqueness Enforcement: Check local and Cloud registry
+    const localAccounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
+    const etherArchive: Record<string, any> = JSON.parse(localStorage.getItem('mythos_ether_archive') || '{}');
+
+    if (localAccounts.some(a => a.username.toLowerCase() === cleanUser) || etherArchive[cleanUser]) {
+      setError("This sigil is already bound to another soul.");
       return;
     }
 
+    const isAdmin = adminCode.trim().toUpperCase() === ADMIN_SECRET.toUpperCase();
     const newUser: UserAccount = {
-      username: username.toLowerCase().trim(),
-      displayName: displayName.trim(),
-      isAdmin: adminCode.trim().toUpperCase() === ADMIN_SECRET.toUpperCase(),
+      username: cleanUser,
+      displayName: cleanDisplay,
+      isAdmin,
       pin: pin
     };
 
-    accounts.push(newUser);
-    localStorage.setItem('mythos_accounts', JSON.stringify(accounts));
+    // Commit to Local Registry
+    localAccounts.push(newUser);
+    localStorage.setItem('mythos_accounts', JSON.stringify(localAccounts));
+    
+    // Auto-Sync to Cloud Registry (Device Transfer Security)
+    etherArchive[cleanUser] = {
+        pin: pin,
+        isAdmin,
+        displayName: cleanDisplay,
+        data: { characters: [], classes: [], monsters: [], items: [], campaign: { plot: '', summary: '', logs: [], party: [], rules: [] } }
+    };
+    localStorage.setItem('mythos_ether_archive', JSON.stringify(etherArchive));
+
     localStorage.setItem('mythos_active_session', JSON.stringify(newUser));
     setCurrentUser(newUser);
   };
@@ -85,7 +123,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
           <div className="mb-8">
             <h1 className="text-4xl md:text-5xl font-black tracking-[0.3em] text-[#b28a48] drop-shadow-[0_2px_10px_rgba(178,138,72,0.5)] mb-2">MYTHOS</h1>
             <div className="h-px w-32 bg-gradient-to-r from-transparent via-[#b28a48] to-transparent mx-auto opacity-50"></div>
-            <p className="text-[10px] text-neutral-500 uppercase tracking-[0.5em] mt-4 font-bold">Arcane TTRPG Engine</p>
+            <p className="text-[10px] text-neutral-500 uppercase tracking-[0.5em] mt-4 font-bold">Secured Ether Registry</p>
           </div>
 
           <div className="flex border-b border-[#1a1a1a] mb-8">
@@ -93,20 +131,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
               onClick={() => { setIsRegistering(false); setError(null); }}
               className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${!isRegistering ? 'text-[#b28a48] border-b-2 border-[#b28a48]' : 'text-neutral-700'}`}
             >
-              Enter Grimoire
+              Enter Registry
             </button>
             <button 
               onClick={() => { setIsRegistering(true); setError(null); }}
               className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${isRegistering ? 'text-[#b28a48] border-b-2 border-[#b28a48]' : 'text-neutral-700'}`}
             >
-              Inscribe Soul
+              Inscribe Sigil
             </button>
           </div>
 
           <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
             {isRegistering && (
               <div className="space-y-1 text-left">
-                <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Soul Name (Display)</label>
+                <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Soul Identity (Display)</label>
                 <input
                   type="text"
                   value={displayName}
@@ -118,7 +156,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
             )}
             
             <div className="space-y-1 text-left">
-              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Sigil (Username)</label>
+              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Unique Sigil (Username)</label>
               <input
                 type="text"
                 value={username}
@@ -129,7 +167,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
             </div>
 
             <div className="space-y-1 text-left">
-              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Arcane PIN (4-Digits)</label>
+              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600">Arcane PIN (Secure Token)</label>
               <input
                 type="password"
                 maxLength={4}
@@ -141,7 +179,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
             </div>
 
             <div className="space-y-1 text-left">
-              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600 opacity-40">Admin Access Code (Optional)</label>
+              <label className="text-[8px] font-black uppercase tracking-widest text-neutral-600 opacity-40">Architect Override (Optional)</label>
               <input
                 type="password"
                 value={adminCode}
@@ -157,12 +195,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
               type="submit"
               className="w-full bg-[#1a1a1a] hover:bg-[#b28a48] hover:text-black border border-[#b28a48]/30 py-4 text-[10px] font-black uppercase tracking-[0.4em] text-[#b28a48] transition-all shadow-lg mt-4"
             >
-              {isRegistering ? 'Sacrifice Identity' : 'Bind Session'}
+              {isRegistering ? 'Commit to Ether' : 'Synchronize Soul'}
             </button>
           </form>
 
           <p className="mt-8 text-[7px] text-neutral-800 italic uppercase tracking-tighter">
-            By inscribing, your saga is forever bound to the Mythos Archive.
+            Registry Version 2.0: Previous local identities have been purged for Ether-Link security.
           </p>
         </div>
       </div>

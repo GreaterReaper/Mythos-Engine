@@ -133,6 +133,11 @@ export interface Item {
   authorId?: string;
   authorName?: string;
   deletedAt?: number;
+  // New tactical properties
+  damageRoll?: string;
+  damageType?: string;
+  ac?: number;
+  classRestrictions?: string[]; // IDs of classes that can use this
 }
 
 export interface Graveyard {

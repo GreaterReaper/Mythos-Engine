@@ -248,15 +248,24 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                             <h4 className="text-[10px] font-black uppercase text-neutral-500 tracking-[0.3em] border-b border-neutral-900 pb-2">Possessions</h4>
                             <div className="space-y-2">
                                 {charInventoryItems.length > 0 ? charInventoryItems.map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 bg-black/40 border border-neutral-900 rounded-sm">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-lg">{item.type === 'Weapon' ? '⚔️' : '🛡️'}</span>
-                                            <div>
-                                                <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">{item.name}</p>
-                                                <div className="flex items-center gap-2">
-                                                   <p className="text-[8px] text-neutral-600 uppercase font-black">{item.type}</p>
-                                                   <span className={`text-[6px] font-black uppercase px-1 border rounded-[2px] ${RARITY_COLORS[item.rarity || 'Common']}`}>{item.rarity || 'Common'}</span>
+                                    <div key={i} className="p-3 bg-black/40 border border-neutral-900 rounded-sm">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-lg">{item.type === 'Weapon' ? '⚔️' : '🛡️'}</span>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-neutral-300 uppercase tracking-widest">{item.name}</p>
+                                                    <div className="flex items-center gap-2">
+                                                       <p className="text-[8px] text-neutral-600 uppercase font-black">{item.type}</p>
+                                                       <span className={`text-[6px] font-black uppercase px-1 border rounded-[2px] ${RARITY_COLORS[item.rarity || 'Common']}`}>{item.rarity || 'Common'}</span>
+                                                    </div>
                                                 </div>
+                                            </div>
+                                            <div className="text-right">
+                                              {item.type === 'Weapon' && item.damageRoll ? (
+                                                <span className="text-[9px] font-black text-red-500 uppercase">{item.damageRoll} {item.damageType}</span>
+                                              ) : item.type === 'Armor' && item.ac !== undefined ? (
+                                                <span className="text-[9px] font-black text-blue-400 uppercase">AC {item.ac}</span>
+                                              ) : null}
                                             </div>
                                         </div>
                                     </div>

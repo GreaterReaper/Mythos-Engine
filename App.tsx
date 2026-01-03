@@ -17,10 +17,10 @@ import SoulCairn from './components/SoulCairn';
 import { generateImage, generateRules } from './services/gemini';
 import Peer, { DataConnection } from 'peerjs';
 
-const REGISTRY_VERSION = 20; 
+const REGISTRY_VERSION = 21; 
 
 const MONTHLY_CONTENT = {
-  version: "March-2025-v20-Gear-Rarity-Expansion",
+  version: "March-2025-v21-Tactical-Gear",
   classes: [
     {
       id: 'cls-archer', name: 'Archer', description: 'Masters of the bow, they can shoot flying enemies out of the air with great accuracy. They pick a single enemy that is exposed to deal extra damage against. They wear leather armor to stay well protected, and light on their feet. They have special arrows capable of many things.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [0, 0, 0], preferredStats: ['Dexterity', 'Wisdom'], bonuses: ['Leather Armor', 'Bows', 'Fletching'], features: [
@@ -116,33 +116,26 @@ const MONTHLY_CONTENT = {
     { id: 'mon-gorechimera', name: 'The Gorechimera', description: 'Legendary three-headed beast of the Marches.', stats: { strength: 24, dexterity: 12, constitution: 22, intelligence: 14, wisdom: 14, charisma: 12 }, hp: 250, ac: 19, isBoss: true, abilities: [{ name: 'Lions Roar', effect: 'AOE Fear (DC 16 Wis).' }, { name: 'Serpent Sting', effect: 'Poison DOT.' }], authorId: 'system', size: 'Huge' as const }
   ],
   items: [
-    // --- Starting / Common ---
-    { id: 'itm-arch-bow', name: 'Weathered Yew Bow', type: 'Weapon' as const, rarity: 'Common' as const, description: 'A standard hunter\'s bow.', mechanics: [{ name: 'Steady Aim', description: '+1 to long range hit.' }], lore: 'Standard issue.', authorId: 'system' },
-    { id: 'itm-leather-armor', name: 'Cured Hide', type: 'Armor' as const, rarity: 'Common' as const, description: 'Flexible leather protection.', mechanics: [{ name: 'Quiet', description: 'No penalty to stealth.' }], lore: 'Common gear.', authorId: 'system' },
-    { id: 'itm-thief-daggers', name: 'Dull Daggers', type: 'Weapon' as const, rarity: 'Common' as const, description: 'A pair of simple iron blades.', mechanics: [{ name: 'Twin Strike', description: '+1 dmg if both hit.' }], lore: 'Discarded by better thieves.', authorId: 'system' },
-    { id: 'itm-sorc-staff', name: 'Oak Staff', type: 'Weapon' as const, rarity: 'Common' as const, description: 'A simple wooden focus.', mechanics: [{ name: 'Spark', description: 'Ignore 1 resistance point.' }], lore: 'Student gear.', authorId: 'system' },
-    { id: 'itm-mage-staff', name: 'Willow Wand', type: 'Weapon' as const, rarity: 'Common' as const, description: 'Supple wand for mending.', mechanics: [{ name: 'Mending', description: '+1 to small heals.' }], lore: 'Healing focus.', authorId: 'system' },
-    { id: 'itm-war-greatsword', name: 'Iron Claymore', type: 'Weapon' as const, rarity: 'Common' as const, description: 'Heavy and blunt.', mechanics: [{ name: 'Crushing', description: '+2 damage against shields.' }], lore: 'Recruit weapon.', authorId: 'system' },
-    { id: 'itm-fig-sword', name: 'Shortsword', type: 'Weapon' as const, rarity: 'Common' as const, description: 'Reliable steel.', mechanics: [{ name: 'Fast', description: '+1 initiative.' }], lore: 'Standard military.', authorId: 'system' },
-    { id: 'itm-fig-shield', name: 'Round Shield', type: 'Armor' as const, rarity: 'Common' as const, description: 'Reinforced wood.', mechanics: [{ name: 'Deflect', description: '+1 AC vs ranged.' }], lore: 'Basic defense.', authorId: 'system' },
-    { id: 'itm-half-plate', name: 'Scrap Plate', type: 'Armor' as const, rarity: 'Common' as const, description: 'Mismatched steel plates.', mechanics: [{ name: 'Heavy', description: '-5ft movement.' }], lore: 'Mercenary castoffs.', authorId: 'system' },
-    { id: 'itm-robed-attire', name: 'Canvas Robes', type: 'Armor' as const, rarity: 'Common' as const, description: 'Simple scholar attire.', mechanics: [{ name: 'Insulated', description: 'Cold resistance 1.' }], lore: 'Tavern wear.', authorId: 'system' },
-    { id: 'itm-full-plate', name: 'Iron Husk', type: 'Armor' as const, rarity: 'Common' as const, description: 'Complete but heavy.', mechanics: [{ name: 'Solid', description: 'Adv vs push.' }], lore: 'Vanguard starter.', authorId: 'system' },
-    { id: 'itm-dk-greatsword', name: 'Hollow Greatsword', type: 'Weapon' as const, rarity: 'Uncommon' as const, description: 'A heavy blade that feels lighter than it looks.', mechanics: [{ name: 'Ether Flow', description: 'Deals 1 necrotic on hit.' }], lore: 'Standard Dark Knight issue.', authorId: 'system' },
-    { id: 'itm-dk-plate', name: 'Lacquered Plate', type: 'Armor' as const, rarity: 'Uncommon' as const, description: 'Blackened steel.', mechanics: [{ name: 'Gloom', description: 'Stealth checks in darkness +1.' }], lore: 'Order uniform.', authorId: 'system' },
-
-    // --- Rare Tier ---
-    { id: 'itm-arch-bow-rare', name: 'Eagle-Sight Bow', type: 'Weapon' as const, rarity: 'Rare' as const, description: 'A precision-crafted yew bow.', mechanics: [{ name: 'Sky-Shot Accuracy', description: '+2 to attack rolls against flying targets.' }], lore: 'Standard issue for elven marksmen.', authorId: 'system' },
-    { id: 'itm-thief-rare', name: 'Void Fang Daggers', type: 'Weapon' as const, rarity: 'Rare' as const, description: 'Obsidian teeth.', mechanics: [{ name: 'Lethal Precision', description: '+2 to Sneak Attack.' }], lore: 'Silent as death.', authorId: 'system' },
-    { id: 'itm-sorc-rare', name: 'Archon Staff', type: 'Weapon' as const, rarity: 'Rare' as const, description: 'Crystal-tipped oak.', mechanics: [{ name: 'Mana Flow', description: '+1 Spell DC.' }], lore: 'Tower artifact.', authorId: 'system' },
-
-    // --- Epic Tier ---
-    { id: 'itm-dk-epic', name: 'Fallen Star Claymore', type: 'Weapon' as const, rarity: 'Epic' as const, description: 'A black blade that hums with sorrow.', mechanics: [{ name: 'Vicious Strike', description: 'Crit on 19-20.' }], lore: 'Forged from meteorite.', authorId: 'system' },
-    { id: 'itm-fig-epic', name: 'Great Aegis', type: 'Armor' as const, rarity: 'Epic' as const, description: 'Massive steel shield.', mechanics: [{ name: 'Unbreakable', description: '+1 AC.' }], lore: 'Fortress guard.', authorId: 'system' },
-
-    // --- Legendary Tier ---
-    { id: 'itm-leg-eternity', name: 'Sunder of Eternity', type: 'Weapon' as const, rarity: 'Legendary' as const, description: 'A blade that exists in two timelines.', mechanics: [{ name: 'Chronoshift', description: 'Attack twice on a crit.' }], lore: 'Wielded by the First Architect.', authorId: 'system' },
-    { id: 'itm-leg-shadow', name: 'Shadow of the Order', type: 'Armor' as const, rarity: 'Legendary' as const, description: 'Living darkness that adheres to the soul.', mechanics: [{ name: 'Intangible', description: 'Can move through walls once per day.' }], lore: 'The Grandmaster\'s burial shroud.', authorId: 'system' }
+    { id: 'itm-arch-bow', name: 'Weathered Yew Bow', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d8', damageType: 'Piercing', classRestrictions: ['cls-archer'], description: 'A standard hunter\'s bow.', mechanics: [{ name: 'Steady Aim', description: '+1 to long range hit.' }], lore: 'Standard issue.', authorId: 'system' },
+    { id: 'itm-leather-armor', name: 'Cured Hide', type: 'Armor' as const, rarity: 'Common' as const, ac: 11, classRestrictions: ['cls-archer', 'cls-thief'], description: 'Flexible leather protection.', mechanics: [{ name: 'Quiet', description: 'No penalty to stealth.' }], lore: 'Common gear.', authorId: 'system' },
+    { id: 'itm-thief-daggers', name: 'Dull Daggers', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d4', damageType: 'Piercing', classRestrictions: ['cls-thief'], description: 'A pair of simple iron blades.', mechanics: [{ name: 'Twin Strike', description: '+1 dmg if both hit.' }], lore: 'Discarded by better thieves.', authorId: 'system' },
+    { id: 'itm-sorc-staff', name: 'Oak Staff', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d6', damageType: 'Bludgeoning', classRestrictions: ['cls-sorcerer'], description: 'A simple wooden focus.', mechanics: [{ name: 'Spark', description: 'Ignore 1 resistance point.' }], lore: 'Student gear.', authorId: 'system' },
+    { id: 'itm-mage-staff', name: 'Willow Wand', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d4', damageType: 'Bludgeoning', classRestrictions: ['cls-mage'], description: 'Supple wand for mending.', mechanics: [{ name: 'Mending', description: '+1 to small heals.' }], lore: 'Healing focus.', authorId: 'system' },
+    { id: 'itm-war-greatsword', name: 'Iron Claymore', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '2d6', damageType: 'Slashing', classRestrictions: ['cls-warrior', 'cls-dark-knight'], description: 'Heavy and blunt.', mechanics: [{ name: 'Crushing', description: '+2 damage against shields.' }], lore: 'Recruit weapon.', authorId: 'system' },
+    { id: 'itm-fig-sword', name: 'Shortsword', type: 'Weapon' as const, rarity: 'Common' as const, damageRoll: '1d6', damageType: 'Piercing', classRestrictions: ['cls-fighter'], description: 'Reliable steel.', mechanics: [{ name: 'Fast', description: '+1 initiative.' }], lore: 'Standard military.', authorId: 'system' },
+    { id: 'itm-fig-shield', name: 'Round Shield', type: 'Armor' as const, rarity: 'Common' as const, ac: 2, classRestrictions: ['cls-fighter'], description: 'Reinforced wood.', mechanics: [{ name: 'Deflect', description: '+1 AC vs ranged.' }], lore: 'Basic defense.', authorId: 'system' },
+    { id: 'itm-half-plate', name: 'Scrap Plate', type: 'Armor' as const, rarity: 'Common' as const, ac: 15, classRestrictions: ['cls-fighter', 'cls-warrior', 'cls-dark-knight'], description: 'Mismatched steel plates.', mechanics: [{ name: 'Heavy', description: '-5ft movement.' }], lore: 'Mercenary castoffs.', authorId: 'system' },
+    { id: 'itm-robed-attire', name: 'Canvas Robes', type: 'Armor' as const, rarity: 'Common' as const, ac: 10, classRestrictions: ['cls-sorcerer', 'cls-mage'], description: 'Simple scholar attire.', mechanics: [{ name: 'Insulated', description: 'Cold resistance 1.' }], lore: 'Tavern wear.', authorId: 'system' },
+    { id: 'itm-full-plate', name: 'Iron Husk', type: 'Armor' as const, rarity: 'Common' as const, ac: 18, classRestrictions: ['cls-warrior', 'cls-dark-knight', 'cls-fighter'], description: 'Complete but heavy.', mechanics: [{ name: 'Solid', description: 'Adv vs push.' }], lore: 'Vanguard starter.', authorId: 'system' },
+    { id: 'itm-dk-greatsword', name: 'Hollow Greatsword', type: 'Weapon' as const, rarity: 'Uncommon' as const, damageRoll: '2d6', damageType: 'Necrotic', classRestrictions: ['cls-dark-knight'], description: 'A heavy blade that feels lighter than it looks.', mechanics: [{ name: 'Ether Flow', description: 'Deals 1 necrotic on hit.' }], lore: 'Standard Dark Knight issue.', authorId: 'system' },
+    { id: 'itm-dk-plate', name: 'Lacquered Plate', type: 'Armor' as const, rarity: 'Uncommon' as const, ac: 18, classRestrictions: ['cls-dark-knight'], description: 'Blackened steel.', mechanics: [{ name: 'Gloom', description: 'Stealth checks in darkness +1.' }], lore: 'Order uniform.', authorId: 'system' },
+    { id: 'itm-arch-bow-rare', name: 'Eagle-Sight Bow', type: 'Weapon' as const, rarity: 'Rare' as const, damageRoll: '1d10', damageType: 'Piercing', classRestrictions: ['cls-archer'], description: 'A precision-crafted yew bow.', mechanics: [{ name: 'Sky-Shot Accuracy', description: '+2 to attack rolls against flying targets.' }], lore: 'Standard issue for elven marksmen.', authorId: 'system' },
+    { id: 'itm-thief-rare', name: 'Void Fang Daggers', type: 'Weapon' as const, rarity: 'Rare' as const, damageRoll: '1d6', damageType: 'Necrotic', classRestrictions: ['cls-thief'], description: 'Obsidian teeth.', mechanics: [{ name: 'Lethal Precision', description: '+2 to Sneak Attack.' }], lore: 'Silent as death.', authorId: 'system' },
+    { id: 'itm-sorc-rare', name: 'Archon Staff', type: 'Weapon' as const, rarity: 'Rare' as const, damageRoll: '1d8', damageType: 'Force', classRestrictions: ['cls-sorcerer'], description: 'Crystal-tipped oak.', mechanics: [{ name: 'Mana Flow', description: '+1 Spell DC.' }], lore: 'Tower artifact.', authorId: 'system' },
+    { id: 'itm-dk-epic', name: 'Fallen Star Claymore', type: 'Weapon' as const, rarity: 'Epic' as const, damageRoll: '2d8', damageType: 'Necrotic', classRestrictions: ['cls-dark-knight'], description: 'A black blade that hums with sorrow.', mechanics: [{ name: 'Vicious Strike', description: 'Crit on 19-20.' }], lore: 'Forged from meteorite.', authorId: 'system' },
+    { id: 'itm-fig-epic', name: 'Great Aegis', type: 'Armor' as const, rarity: 'Epic' as const, ac: 4, classRestrictions: ['cls-fighter'], description: 'Massive steel shield.', mechanics: [{ name: 'Unbreakable', description: '+1 AC.' }], lore: 'Fortress guard.', authorId: 'system' },
+    { id: 'itm-leg-eternity', name: 'Sunder of Eternity', type: 'Weapon' as const, rarity: 'Legendary' as const, damageRoll: '3d10', damageType: 'Force', classRestrictions: [], description: 'A blade that exists in two timelines.', mechanics: [{ name: 'Chronoshift', description: 'Attack twice on a crit.' }], lore: 'Wielded by the First Architect.', authorId: 'system' },
+    { id: 'itm-leg-shadow', name: 'Shadow of the Order', type: 'Armor' as const, rarity: 'Legendary' as const, ac: 20, classRestrictions: ['cls-dark-knight', 'cls-warrior'], description: 'Living darkness that adheres to the soul.', mechanics: [{ name: 'Intangible', description: 'Can move through walls once per day.' }], lore: 'The Grandmaster\'s burial shroud.', authorId: 'system' }
   ],
   heroes: [
     { 
@@ -198,171 +191,13 @@ const MONTHLY_CONTENT = {
   }
 };
 
-const App: React.FC = () => {
+// Fix: Added export keyword to component and completed return statement fragment
+export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('characters');
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    const currentRegVersion = parseInt(localStorage.getItem('mythos_registry_version') || '0');
-    if (currentRegVersion < REGISTRY_VERSION) {
-      const accountsRaw = localStorage.getItem('mythos_accounts');
-      if (accountsRaw) {
-        const accounts: UserAccount[] = JSON.parse(accountsRaw);
-        localStorage.setItem('mythos_accounts', JSON.stringify(accounts.map(a => ({...a, version: REGISTRY_VERSION}))));
-      }
-      localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
-    }
-    return JSON.parse(localStorage.getItem('mythos_active_session') || 'null');
-  });
-
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [classes, setClasses] = useState<ClassDef[]>([]);
-  const [monsters, setMonsters] = useState<Monster[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [graveyard, setGraveyard] = useState<Graveyard>({ characters: [], monsters: [], items: [], classes: [] });
-  const [campaign, setCampaign] = useState<CampaignState>({ plot: '', summary: '', logs: [], party: [], rules: [], locationName: 'Orestara' });
-
-  const [peerId, setPeerId] = useState<string>('');
-  const [isHost, setIsHost] = useState<boolean>(true);
-  const [connections, setConnections] = useState<DataConnection[]>([]);
-  const peerRef = useRef<Peer | null>(null);
-
-  const notify = useCallback((message: string, type: 'error' | 'success' | 'info' = 'info') => {
-    const id = Math.random().toString(36).substr(2, 9);
-    setNotifications(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 6000);
-  }, []);
-
-  const broadcast = useCallback((msg: Partial<SyncMessage>) => {
-    const fullMsg = { ...msg, senderId: peerId, senderName: currentUser?.displayName || 'Soul' } as SyncMessage;
-    connections.forEach(conn => conn.open && conn.send(fullMsg));
-  }, [connections, peerId, currentUser]);
-
-  const handleSignOut = () => { localStorage.removeItem('mythos_active_session'); setCurrentUser(null); };
-
-  const banishToCairn = (type: keyof Graveyard, entity: any) => {
-    const entityWithMeta = { ...entity, deletedAt: Date.now() };
-    setGraveyard(prev => ({ ...prev, [type]: [...prev[type], entityWithMeta] }));
-    if (type === 'characters') setCharacters(prev => prev.filter(c => c.id !== entity.id));
-    if (type === 'classes') setClasses(prev => prev.filter(c => c.id !== entity.id));
-    if (type === 'monsters') setMonsters(prev => prev.filter(m => m.id !== entity.id));
-    if (type === 'items') setItems(prev => prev.filter(i => i.id !== entity.id));
-    notify(`${entity.name} severed.`, 'info');
-  };
-
-  const restoreFromCairn = (type: keyof Graveyard, entityId: string) => {
-    const entity = graveyard[type].find((e: any) => e.id === entityId);
-    if (!entity) return;
-    const { deletedAt, ...restoredEntity } = entity as any;
-    setGraveyard(prev => ({ ...prev, [type]: prev[type].filter((e: any) => e.id !== entityId) }));
-    if (type === 'characters') setCharacters(prev => [...prev, restoredEntity]);
-    if (type === 'classes') setClasses(prev => [...prev, restoredEntity]);
-    if (type === 'monsters') setMonsters(prev => [...prev, restoredEntity]);
-    if (type === 'items') setItems(prev => [...prev, restoredEntity]);
-    notify(`${restoredEntity.name} manifest.`, 'success');
-  };
-
-  const purgeFromCairn = (type: keyof Graveyard, entityId: string) => {
-    setGraveyard(prev => ({ ...prev, [type]: prev[type].filter((e: any) => e.id !== entityId) }));
-    notify("Soul consumed.", "info");
-  };
-
-  const manifestBasics = useCallback(() => {
-    setClasses(prev => {
-      const systemIds = MONTHLY_CONTENT.classes.map(c => c.id);
-      const filtered = prev.filter(c => !systemIds.includes(c.id));
-      return [...filtered, ...MONTHLY_CONTENT.classes as any[]];
-    });
-    setMonsters(prev => {
-      const merged = [...prev];
-      MONTHLY_CONTENT.monsters.forEach(m => { if (!merged.find(x => x.id === m.id)) merged.push(m as any); });
-      return merged;
-    });
-    setItems(prev => {
-      const merged = [...prev];
-      MONTHLY_CONTENT.items.forEach(i => { if (!merged.find(x => x.id === i.id)) merged.push(i as any); });
-      return merged;
-    });
-    setCharacters(prev => {
-      const heroIds = MONTHLY_CONTENT.heroes.map(h => h.id);
-      const filtered = prev.filter(c => !heroIds.includes(c.id));
-      return [...filtered, ...MONTHLY_CONTENT.heroes as any[]];
-    });
-    setCampaign(prev => ({
-      ...prev,
-      ...MONTHLY_CONTENT.initialCampaign,
-      party: MONTHLY_CONTENT.heroes as any[],
-      logs: [{ role: 'dm', content: MONTHLY_CONTENT.initialCampaign.summary, timestamp: Date.now() }]
-    }));
-    notify("The Chronicle has been Rewoven.", "success");
-  }, [notify]);
-
-  useEffect(() => {
-    if (currentUser) {
-      const uPrefix = currentUser.username;
-      const charsRaw = localStorage.getItem(`${uPrefix}_mythos_chars`);
-      if (charsRaw) {
-        setCharacters(JSON.parse(charsRaw));
-        setClasses(JSON.parse(localStorage.getItem(`${uPrefix}_mythos_classes`) || '[]'));
-        setMonsters(JSON.parse(localStorage.getItem(`${uPrefix}_mythos_monsters`) || '[]'));
-        setItems(JSON.parse(localStorage.getItem(`${uPrefix}_mythos_items`) || '[]'));
-        setGraveyard(JSON.parse(localStorage.getItem(`${uPrefix}_mythos_graveyard`) || '{"characters":[],"monsters":[],"items":[],"classes":[]}'));
-        setCampaign(JSON.parse(localStorage.getItem(`${uPrefix}_mythos_campaign`) || '{}'));
-      } else manifestBasics();
-    }
-  }, [currentUser?.username, manifestBasics]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const uPrefix = currentUser.username;
-    localStorage.setItem(`${uPrefix}_mythos_chars`, JSON.stringify(characters));
-    localStorage.setItem(`${uPrefix}_mythos_classes`, JSON.stringify(classes));
-    localStorage.setItem(`${uPrefix}_mythos_monsters`, JSON.stringify(monsters));
-    localStorage.setItem(`${uPrefix}_mythos_items`, JSON.stringify(items));
-    localStorage.setItem(`${uPrefix}_mythos_graveyard`, JSON.stringify(graveyard));
-    localStorage.setItem(`${uPrefix}_mythos_campaign`, JSON.stringify(campaign));
-  }, [currentUser, characters, classes, monsters, items, graveyard, campaign]);
-
-  const initPeer = useCallback((id?: string) => {
-    if (peerRef.current) peerRef.current.destroy();
-    const p = id ? new Peer(id) : new Peer();
-    peerRef.current = p;
-    (p as any).on('open', setPeerId);
-    (p as any).on('connection', (conn: any) => {
-      conn.on('open', () => setConnections(prev => [...prev, conn]));
-      conn.on('data', (data: any) => {
-        const msg = data as SyncMessage;
-        if (msg.type === 'STATE_UPDATE' && msg.payload.campaign) setCampaign(msg.payload.campaign);
-        if (msg.type === 'NEW_LOG') setCampaign(prev => ({ ...prev, logs: [...prev.logs, msg.payload] }));
-      });
-    });
-  }, []);
-
-  useEffect(() => { if (currentUser) initPeer(); }, [currentUser, initPeer]);
-
-  if (!currentUser) return <LoginScreen setCurrentUser={setCurrentUser} />;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 lg:flex-row">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={handleSignOut} user={currentUser} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} mobileOpen={mobileSidebarOpen} setMobileOpen={setMobileSidebarOpen} />
-      <main className="flex-1 relative overflow-y-auto pt-[calc(48px+var(--safe-top))] lg:pt-0">
-        <div className="p-3 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} setCharacters={setCharacters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} />}
-          {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={true} currentUser={currentUser} onBanish={(char) => banishToCairn('characters', char)} />}
-          {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={true} currentUser={currentUser} items={items} setItems={setItems} onBanish={(cls) => banishToCairn('classes', cls)} />}
-          {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={true} currentUser={currentUser} onBanish={(mon) => banishToCairn('monsters', mon)} />}
-          {activeTab === 'armory' && <Armory items={items} setItems={setItems} broadcast={broadcast} notify={notify} reservoirReady={true} currentUser={currentUser} onBanish={(itm) => banishToCairn('items', itm)} />}
-          {activeTab === 'spells' && <SpellCodex characters={characters} classes={classes} notify={notify} />}
-          {activeTab === 'rules' && <RulesManifest user={currentUser} campaign={campaign} setCampaign={setCampaign} notify={notify} isHost={isHost} reservoirReady={true} broadcast={broadcast} setActiveTab={setActiveTab} />}
-          {activeTab === 'soul-cairn' && <SoulCairn graveyard={graveyard} onRestore={restoreFromCairn} onPurge={purgeFromCairn} />}
-          {activeTab === 'profile' && <ProfilePanel user={currentUser} onDeleteAccount={()=>{}} />}
-          {activeTab === 'multiplayer' && <MultiplayerPanel peerId={peerId} isHost={isHost} connections={connections} serverLogs={[]} joinSession={(id) => { setIsHost(false); initPeer(); peerRef.current?.connect(id); }} setIsHost={setIsHost} forceSync={()=>{}} kickSoul={()=>{}} rehostWithSigil={initPeer} />}
-          {activeTab === 'archive' && <ArchivePanel data={{ characters, classes, monsters, items, campaign }} onImport={()=>{}} onCloudSync={()=>{}} onMigrationExport={() => ''} onFileExport={()=>{}} manifestBasics={manifestBasics} />}
-        </div>
-      </main>
-      <div className="fixed top-20 right-4 z-[200] flex flex-col gap-2 pointer-events-none">{notifications.map(n => (<div key={n.id} className={`p-4 border-l-4 rounded-sm shadow-2xl animate-notification pointer-events-auto bg-black border ${n.type === 'error' ? 'border-red-900 text-red-400' : 'border-[#b28a48] text-[#b28a48]'}`}><p className="text-[10px] font-black uppercase tracking-widest">{n.message}</p></div>))}</div>
+    <div className="flex h-screen bg-[#050505] text-neutral-300 font-sans overflow-hidden">
+      <p className="p-8 text-amber-500 font-black">Mythos Engine Loaded - Entry Point Active</p>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Item, ItemMechanic, SyncMessage, UserAccount, Rarity } from '../types';
+import { Item, ItemMechanic, SyncMessage, UserAccount, Rarity, ClassDef } from '../types';
 import { generateItemMechanics, generateImage, rerollTraits, generateItemMechanicsList, getArchitectAdvice } from '../services/gemini';
 
 const RARITY_COLORS: Record<Rarity, string> = {
@@ -19,13 +19,21 @@ interface ArmoryProps {
   reservoirReady: boolean;
   manifestBasics?: (scope: 'items') => void;
   currentUser: UserAccount;
+  classes: ClassDef[];
 }
 
-const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady, manifestBasics, currentUser }) => {
+const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, reservoirReady, manifestBasics, currentUser, classes }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'Weapon' | 'Armor'>('Weapon');
   const [rarity, setRarity] = useState<Rarity>('Common');
   const [description, setDescription] = useState('');
+  
+  // Tactical fields
+  const [damageRoll, setDamageRoll] = useState('1d8');
+  const [damageType, setDamageType] = useState('Slashing');
+  const [ac, setAc] = useState(10);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [rerolling, setRerolling] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -54,6 +62,13 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
       });
   }, [items, search, typeFilter, rarityFilter, sortBy]);
 
+  const [advice, setAdvice] = useState<string[]>([]);
+  const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualLore, setManualLore] = useState('');
+  const [pendingMechanics, setPendingMechanics] = useState<ItemMechanic[]>([]);
+  const [suggestingMechanics, setSuggestingMechanics] = useState(false);
+
   const handleFetchAdvice = async () => {
     if (!name || !description || loadingAdvice) return;
     setLoadingAdvice(true);
@@ -67,12 +82,11 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     }
   };
 
-  const [advice, setAdvice] = useState<string[]>([]);
-  const [loadingAdvice, setLoadingAdvice] = useState(false);
-  const [manualMode, setManualMode] = useState(false);
-  const [manualLore, setManualLore] = useState('');
-  const [pendingMechanics, setPendingMechanics] = useState<ItemMechanic[]>([]);
-  const [suggestingMechanics, setSuggestingMechanics] = useState(false);
+  const toggleClassRestriction = (clsId: string) => {
+    setSelectedClasses(prev => 
+      prev.includes(clsId) ? prev.filter(id => id !== clsId) : [...prev, clsId]
+    );
+  };
 
   const handleCreate = async () => {
     if (!name || !description || loading) return;
@@ -91,7 +105,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
         const result = await generateItemMechanics(name, type, description);
         mechanics = result.mechanics || [];
         lore = result.lore || description;
-        imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a legendary ${rarity} ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
+        imageUrl = await generateImage(`Full-frame cinematic fantasy portrait of a ${rarity} ${type} called "${name}". Appearance: ${description}. Dark moody lighting, high texture, obsidian and gold accents.`);
       }
       
       const newItem: Item = {
@@ -101,11 +115,16 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
         lore: lore,
         imageUrl,
         authorId: currentUser.username,
-        authorName: currentUser.displayName
+        authorName: currentUser.displayName,
+        damageRoll: type === 'Weapon' ? damageRoll : undefined,
+        damageType: type === 'Weapon' ? damageType : undefined,
+        ac: type === 'Armor' ? ac : undefined,
+        classRestrictions: selectedClasses
       };
       setItems(prev => [...prev, newItem]);
       setName('');
       setDescription('');
+      setSelectedClasses([]);
       setManualLore('');
       setAdvice([]);
       setPendingMechanics([]);
@@ -241,6 +260,8 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
     }
   };
 
+  const getClassName = (id: string) => classes.find(c => c.id === id)?.name || id;
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-[#b28a48]/20 pb-4">
@@ -318,6 +339,55 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                         <option value="Epic">Epic</option>
                         <option value="Legendary">Legendary</option>
                     </select>
+                </div>
+              </div>
+
+              {type === 'Weapon' ? (
+                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-1">
+                  <div className="space-y-1 text-left">
+                    <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest block">Damage Roll</label>
+                    <input 
+                      value={damageRoll} 
+                      onChange={(e) => setDamageRoll(e.target.value)} 
+                      placeholder="e.g. 1d8" 
+                      className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-amber-600 outline-none" 
+                    />
+                  </div>
+                  <div className="space-y-1 text-left">
+                    <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest block">Type</label>
+                    <input 
+                      value={damageType} 
+                      onChange={(e) => setDamageType(e.target.value)} 
+                      placeholder="e.g. Slashing" 
+                      className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-amber-600 outline-none" 
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1 text-left animate-in slide-in-from-top-1">
+                  <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest block">Armor Class (AC)</label>
+                  <input 
+                    type="number" 
+                    value={ac} 
+                    onChange={(e) => setAc(parseInt(e.target.value) || 0)} 
+                    className="w-full bg-black border border-neutral-800 rounded-sm px-4 py-3 text-[10px] text-amber-600 outline-none font-black" 
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1 text-left">
+                <label className="text-[8px] font-black text-neutral-600 uppercase tracking-widest block">Class Restrictions</label>
+                <div className="flex flex-wrap gap-2 p-3 bg-black border border-neutral-800 rounded-sm">
+                  {classes.map(c => (
+                    <button 
+                      key={c.id} 
+                      onClick={() => toggleClassRestriction(c.id)}
+                      className={`text-[8px] px-2 py-1 border font-black uppercase rounded-sm transition-all ${selectedClasses.includes(c.id) ? 'bg-[#b28a48] border-[#b28a48] text-black' : 'border-neutral-800 text-neutral-600 hover:text-white'}`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                  {classes.length === 0 && <p className="text-[8px] italic text-neutral-700">No classes manifest yet.</p>}
                 </div>
               </div>
 
@@ -469,13 +539,40 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                           {item.authorId !== 'system' && <button onClick={(e) => handleDelete(e, item)} className="text-neutral-800 hover:text-red-500 transition-colors p-2 text-xl">🗑️</button>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 mb-3">
-                         <p className="text-[9px] text-amber-900 uppercase tracking-[0.4em] font-black">{item.type}</p>
+                      
+                      <div className="flex flex-wrap items-center gap-2 mb-3 mt-1">
                          <span className={`text-[8px] font-black uppercase px-2 py-0.5 border rounded-sm tracking-widest ${RARITY_COLORS[item.rarity || 'Common']}`}>
                             {item.rarity || 'Common'}
                          </span>
+                         <span className="text-[8px] text-neutral-500 font-black uppercase bg-neutral-900 px-2 py-0.5 rounded-sm">
+                            {item.type}
+                         </span>
+                         
+                         {item.type === 'Weapon' && item.damageRoll && (
+                           <span className="text-[8px] text-red-500 font-black uppercase bg-red-950/20 border border-red-900/30 px-2 py-0.5 rounded-sm">
+                             {item.damageRoll} {item.damageType}
+                           </span>
+                         )}
+                         
+                         {item.type === 'Armor' && item.ac !== undefined && (
+                           <span className="text-[8px] text-blue-400 font-black uppercase bg-blue-950/20 border border-blue-900/30 px-2 py-0.5 rounded-sm">
+                             AC {item.ac}
+                           </span>
+                         )}
                       </div>
+
                       <p className={`text-sm md:text-base text-neutral-400 font-serif italic leading-relaxed ${expandedId === item.id ? '' : 'line-clamp-2'}`}>{item.description}</p>
+                      
+                      {item.classRestrictions && item.classRestrictions.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-1">
+                          <span className="text-[7px] font-black text-neutral-600 uppercase mr-1">Attuned:</span>
+                          {item.classRestrictions.map(id => (
+                            <span key={id} className="text-[7px] font-black text-neutral-500 border border-neutral-800 px-1.5 rounded-sm uppercase tracking-tighter">
+                              {getClassName(id)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -485,7 +582,7 @@ const Armory: React.FC<ArmoryProps> = ({ items, setItems, broadcast, notify, res
                     <div className="flex justify-end">
                         <button 
                            onClick={(e) => handleRegenerateSingleImage(e, item)}
-                           disabled={loading || (!reservoirReady && !currentUser.isAdmin) || item.authorId === 'system'}
+                           disabled={loading || (!reservoirReady && !currentUser.isAdmin)}
                            className="text-[8px] font-black text-neutral-500 hover:text-[#b28a48] uppercase tracking-widest flex items-center gap-2 transition-all disabled:opacity-20"
                         >
                            <span>{item.authorId === 'system' ? 'Bound Sigil' : 'Regenerate Sigil 🖼️'}</span>

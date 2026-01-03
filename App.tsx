@@ -30,7 +30,7 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 108; // Incremented for visual archive update
+const SYSTEM_VERSION = 109; // Incremented for sync logic update
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -277,12 +277,12 @@ const App: React.FC = () => {
     return Object.values(merged);
   }, []);
 
-  const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[]) => {
+  const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[], silent: boolean = true) => {
     const globalKey = 'mythos_ether_system_master';
     const rawGlobal = localStorage.getItem(globalKey);
     let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
 
-    // Architect master repository update: Admin role only
+    // Update master repository only if admin role is active and version mismatch or explicit trigger
     if (currentUser?.isAdmin && masterArchive.version < SYSTEM_VERSION) {
       masterArchive = {
         version: SYSTEM_VERSION,
@@ -292,7 +292,7 @@ const App: React.FC = () => {
         heroes: localChars.filter(c => c.authorId === 'system')
       };
       localStorage.setItem(globalKey, JSON.stringify(masterArchive));
-      notify("Master Chronicle resonating with new Arcane Truths.", "success");
+      if (!silent) notify("Master Archive resonated with latest Arcane Truths.", "success");
     }
 
     const ensureIntegrity = <T extends { authorId?: string; id: string }>(localList: T[], masterList: T[]): T[] => {
@@ -308,7 +308,7 @@ const App: React.FC = () => {
     };
   }, [currentUser?.isAdmin, notify]);
 
-  // Dedicated effect for Admin Greeting to prevent notification spam on every sync
+  // Admin greeting triggered only once per session change
   useEffect(() => {
     if (currentUser?.isAdmin) {
       notify("Omniscience Enabled.", "success");
@@ -337,7 +337,7 @@ const App: React.FC = () => {
       }
       if (currentUser.isAdmin || entry.pin === currentUser.pin) {
         const d = entry.data;
-        const synced = syncGlobalSystemArchive(d.characters, d.classes, d.monsters, d.items);
+        const synced = syncGlobalSystemArchive(d.characters, d.classes, d.monsters, d.items, true);
         setCharacters(synced.newChars);
         setClasses(synced.newClasses);
         setMonsters(synced.newMonsters);
@@ -564,7 +564,8 @@ const App: React.FC = () => {
       });
     }
 
-    const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems);
+    // Explicitly manifest and notify on Admin action
+    const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems, false);
     setCharacters(synced.newChars);
     setClasses(synced.newClasses);
     setMonsters(synced.newMonsters);
@@ -613,6 +614,7 @@ const App: React.FC = () => {
     return aggregated;
   }, []);
 
+  // Data Loading Effect - Runs silent background integrity check
   useEffect(() => {
     if (currentUser) {
       const uPrefix = currentUser.username;
@@ -636,7 +638,8 @@ const App: React.FC = () => {
         loadedItems = savedItems ? JSON.parse(savedItems) : [];
       }
 
-      const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems);
+      // Silent resonance check on load
+      const synced = syncGlobalSystemArchive(loadedChars, loadedClasses, loadedMonsters, loadedItems, true);
       setCharacters(synced.newChars);
       setClasses(synced.newClasses);
       setMonsters(synced.newMonsters);
@@ -656,6 +659,7 @@ const App: React.FC = () => {
     }
   }, [currentUser?.username, aggregateAllResources, deduplicateAndMergeItems, syncGlobalSystemArchive]);
 
+  // Periodic persistence and background integrity sentinel
   useEffect(() => {
     if (!currentUser) return;
     const uPrefix = currentUser.username;

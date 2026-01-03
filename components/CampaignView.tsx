@@ -315,7 +315,14 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                   <div className="grid grid-cols-1 gap-4">
                     {focusedChar.feats.map((f, i) => (
                       <div key={i} className="p-5 bg-black/20 border border-neutral-900 rounded-sm border-l-2 border-l-amber-900/50">
-                        <h6 className="text-xs font-black text-[#b28a48] uppercase mb-1">{f.name}</h6>
+                        <div className="flex justify-between items-start mb-1">
+                          <h6 className="text-xs font-black text-[#b28a48] uppercase">{f.name}</h6>
+                          {f.usageCheck && (
+                            <span className="text-[8px] font-black px-2 py-0.5 bg-amber-950 text-amber-500 border border-amber-900/30 rounded-sm uppercase tracking-widest">
+                              {f.dc ? `DC ${f.dc} ` : ''}{f.usageCheck}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-neutral-400 font-serif italic leading-relaxed">{f.description}</p>
                       </div>
                     ))}

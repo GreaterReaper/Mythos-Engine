@@ -1,3 +1,4 @@
+
 export interface UserAccount {
   username: string;
   displayName: string;
@@ -13,7 +14,6 @@ export interface Stats {
   strength: number;
   dexterity: number;
   constitution: number;
-  // Fix: Removed duplicate intelligence property
   intelligence: number;
   wisdom: number;
   charisma: number;
@@ -23,6 +23,8 @@ export interface Trait {
   name: string;
   description: string;
   locked?: boolean;
+  usageCheck?: string; // e.g. "Strength Save", "Acrobatics", "CON Save"
+  dc?: number; // The Difficulty Class for the check
 }
 
 export type RaceType = 
@@ -159,8 +161,8 @@ export type SyncMessageType =
   | 'GIVE_LOOT' 
   | 'SHARE_RESOURCE' 
   | 'SUMMARY_UPDATE'
-  | 'KICK'
-  | 'PULSE'
+  | 'KICK' 
+  | 'PULSE' 
   | 'HANDSHAKE'
   | 'QUOTA_SYNC'
   | 'MAP_UPDATE'

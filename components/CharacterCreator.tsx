@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Character, ClassDef, Stats, Trait, RaceType, GenderType, Item, Spell, UserAccount } from '../types';
 import { generateImage, generateCharacterFeats, rerollTraits, generateSpellbook, rerollStats } from '../services/gemini';
@@ -590,9 +591,16 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     {selectedChar.feats.map((f, i) => (
                       <div key={i} onClick={() => toggleFeatLock(selectedChar.id, i)} className={`p-4 border rounded-sm flex items-start gap-3 transition-all ${f.locked ? 'bg-amber-950/5 border-amber-900/40' : 'bg-black border-neutral-900'} ${!isPremade ? 'cursor-pointer hover:border-neutral-700' : 'cursor-default'}`}>
                          {!isPremade && <span className="text-amber-600 mt-0.5">{f.locked ? '†' : '○'}</span>}
-                         <div>
-                           <h6 className="text-[11px] font-black uppercase mb-1 tracking-wider text-[#b28a48]">{f.name}</h6>
-                           <p className="text-[10px] text-neutral-500 font-serif italic leading-relaxed italic">{f.description}</p>
+                         <div className="flex-1">
+                           <div className="flex justify-between items-start mb-1">
+                             <h6 className="text-[11px] font-black uppercase tracking-wider text-[#b28a48]">{f.name}</h6>
+                             {f.usageCheck && (
+                               <span className="text-[7px] font-black px-1.5 py-0.5 bg-amber-950/50 text-amber-500 border border-amber-900/30 rounded-sm uppercase tracking-tighter">
+                                 {f.dc ? `DC ${f.dc} ` : ''}{f.usageCheck}
+                               </span>
+                             )}
+                           </div>
+                           <p className="text-[10px] text-neutral-500 font-serif italic leading-relaxed">{f.description}</p>
                          </div>
                       </div>
                     ))}

@@ -154,14 +154,20 @@ export const generateCharacterFeats = async (className: string, description: str
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. 
-      RULES: Output ONLY JSON. Field 'description' MUST be pure mechanical rules-text. NO conversational text.`,
+      RULES: Output ONLY JSON. Field 'description' MUST be pure mechanical rules-text. 
+      IMPORTANT: For active abilities, include a 'usageCheck' (e.g. "DEX Save" or "Athletics Check") and a 'dc' (Difficulty Class, e.g. 14).`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
-            properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
+            properties: { 
+              name: { type: Type.STRING }, 
+              description: { type: Type.STRING },
+              usageCheck: { type: Type.STRING, description: "Ability or Skill required for the feat" },
+              dc: { type: Type.INTEGER, description: "The difficulty class for the check" }
+            },
             required: ["name", "description"]
           }
         }
@@ -246,14 +252,20 @@ export const rerollTraits = async (
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
       contents: `Generate ${countToGenerate} NEW unique ${contextType} traits for "${contextName}". 
-      Description must be strictly mechanical rules-text. Context: ${contextDesc}`,
+      Description must be strictly mechanical rules-text. Context: ${contextDesc}
+      IMPORTANT: For active abilities, include a 'usageCheck' (e.g. "CON Save") and a 'dc' (e.g. 15).`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
-            properties: { name: { type: Type.STRING }, description: { type: Type.STRING } },
+            properties: { 
+              name: { type: Type.STRING }, 
+              description: { type: Type.STRING },
+              usageCheck: { type: Type.STRING },
+              dc: { type: Type.INTEGER }
+            },
             required: ["name", "description"]
           }
         }
@@ -426,7 +438,15 @@ export const generateClassMechanics = async (name: string, description: string):
             spellSlots: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Number of slots for level 1, 2, 3 spells" },
             preferredStats: { type: Type.ARRAY, items: { type: Type.STRING } },
             bonuses: { type: Type.ARRAY, items: { type: Type.STRING } },
-            features: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING } } } },
+            features: { type: Type.ARRAY, items: { 
+              type: Type.OBJECT, 
+              properties: { 
+                name: { type: Type.STRING }, 
+                description: { type: Type.STRING },
+                usageCheck: { type: Type.STRING },
+                dc: { type: Type.INTEGER }
+              } 
+            } },
             initialSpells: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, level: { type: Type.INTEGER }, school: { type: Type.STRING }, description: { type: Type.STRING } } } }
           },
           required: ["hitDie", "startingHp", "hpPerLevel", "spellSlots", "preferredStats", "bonuses", "features", "initialSpells"]

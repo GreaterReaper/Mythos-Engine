@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Character, ClassDef, Monster, Item, CampaignState, SyncMessage, GameLog, ServerLog, UserAccount, Spell } from './types';
 import Sidebar from './components/Sidebar';
@@ -237,15 +238,33 @@ const App: React.FC = () => {
     if (scope === 'all' || scope === 'heroes') {
         const heroes: Character[] = [
             {
-                id: 'hero-miri', name: 'Miri', classId: 'basic-warrior', race: 'Human', gender: 'Female', gold: 100, description: "Swordswoman with copper hair.", level: 1, stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 }, hp: 12, maxHp: 12, feats: [{ name: 'Restless Spirit', description: 'Gains +2 to Initiative.' }], inventory: ['sys-iron-longsword'], isPlayer: true, authorId: 'system', authorName: 'Orestara'
+                id: 'hero-miri', name: 'Miri', classId: 'basic-warrior', race: 'Human', gender: 'Female', gold: 100, 
+                description: "Energetic human swordswoman with copper hair, wearing worn iron plate armor.", 
+                level: 1, stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 }, 
+                hp: 12, maxHp: 12, feats: [{ name: 'Restless Spirit', description: 'Gains +2 to Initiative.' }], 
+                inventory: ['sys-iron-longsword'], isPlayer: true, authorId: 'system', authorName: 'Orestara'
             },
             {
-                id: 'hero-zola', name: 'Zola', classId: 'basic-mage', race: 'Bat Person', gender: 'Female', gold: 150, description: "Vesperian mage with leathery wings.", level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 }, hp: 10, maxHp: 10, feats: [{ name: 'Leathery Wings', description: 'Gains flying speed.' }], inventory: [], isPlayer: false, authorId: 'system', authorName: 'Orestara'
+                id: 'hero-lina', name: 'Lina', classId: 'basic-warrior', race: 'Elf', gender: 'Female', gold: 120, 
+                description: "Graceful elven scout with silver-braided hair and sharp emerald eyes, clad in dark leather.", 
+                level: 1, stats: { strength: 12, dexterity: 18, constitution: 12, intelligence: 14, wisdom: 15, charisma: 12 }, 
+                hp: 10, maxHp: 10, feats: [{ name: 'Wild Senses', description: 'Advantage on Perception checks.' }], 
+                inventory: ['sys-iron-longsword'], isPlayer: false, authorId: 'system', authorName: 'Orestara'
+            },
+            {
+                id: 'hero-seris', name: 'Seris', classId: 'basic-mage', race: 'Tiefling', gender: 'Female', gold: 150, 
+                description: "Obsidian-skinned Tiefling sorceress with curved horns and glowing violet eyes, draped in tattered velvet robes.", 
+                level: 1, stats: { strength: 8, dexterity: 16, constitution: 12, intelligence: 15, wisdom: 16, charisma: 10 }, 
+                hp: 10, maxHp: 10, feats: [{ name: 'Abyssal Spark', description: 'Fire damage ignores minor resistance.' }], 
+                inventory: [], isPlayer: false, authorId: 'system', authorName: 'Orestara'
             }
         ];
         for (let h of heroes) {
           if (!h.imageUrl) {
-            try { h.imageUrl = await generateImage(`Fated hero portrait: ${h.name}, ${h.race}.`); setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]); } catch(e) {}
+            try { 
+              h.imageUrl = await generateImage(`High-quality dark fantasy character portrait: ${h.name}. Appearance: ${h.description}. Painted masterpiece style.`); 
+              setCharacters(prev => [...prev.filter(pc => pc.id !== h.id), h]); 
+            } catch(e) {}
           }
         }
         updatedChars = [...updatedChars.filter(c => !heroes.some(h => h.id === c.id)), ...heroes];

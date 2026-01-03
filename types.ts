@@ -4,6 +4,8 @@ export interface UserAccount {
   displayName: string;
   isAdmin?: boolean;
   pin?: string; // 4-digit pin for cloud sync
+  version: number; // For tracking persistence and migrations
+  registryEra: string; // "Eternal" for accounts created today+
 }
 
 export interface Stats {
@@ -63,7 +65,6 @@ export interface Character {
   inventory: string[]; // Array of item IDs
   knownSpells?: Spell[];
   lockedStats?: (keyof Stats)[];
-  // Fix: Added authorId and authorName to Character to support system-wide attribution and integrity checks
   authorId?: string;
   authorName?: string;
 }

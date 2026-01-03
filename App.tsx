@@ -30,8 +30,8 @@ interface DiceRoll {
 const LOCKOUT_DURATION = 65; 
 const DAILY_PRO_LIMIT = 50;
 const DAILY_FLASH_LIMIT = 1500;
-const SYSTEM_VERSION = 111; 
-const REGISTRY_VERSION = 2; // Incremented to trigger legacy account deletion
+const SYSTEM_VERSION = 112; 
+const REGISTRY_VERSION = 3; // Persistence Big Bang Version
 
 const THEMATIC_SPELLS: Record<string, Spell[]> = {
   sorcerer: [
@@ -215,13 +215,24 @@ const App: React.FC = () => {
   const [lastRoll, setLastRoll] = useState<DiceRoll | null>(null);
 
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
-    // Legacy Clearance: Delete previous accounts if registry version mismatch
     const currentRegVersion = parseInt(localStorage.getItem('mythos_registry_version') || '0');
+    
+    // Persistence Check: If version is too old, purge. 
+    // Otherwise, we allow it to persist but mark for evolution.
     if (currentRegVersion < REGISTRY_VERSION) {
-      localStorage.removeItem('mythos_accounts');
-      localStorage.removeItem('mythos_active_session');
-      localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
-      return null;
+      const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
+      // Only keep accounts that are already marked as "Eternal" or version >= 112
+      const persistentAccounts = accounts.filter(a => a.registryEra === 'Eternal' || a.version >= 112);
+      
+      if (persistentAccounts.length === 0 && accounts.length > 0) {
+        localStorage.removeItem('mythos_accounts');
+        localStorage.removeItem('mythos_active_session');
+        localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
+        return null;
+      } else {
+        localStorage.setItem('mythos_accounts', JSON.stringify(persistentAccounts));
+        localStorage.setItem('mythos_registry_version', REGISTRY_VERSION.toString());
+      }
     }
 
     const saved = localStorage.getItem('mythos_active_session');
@@ -288,48 +299,80 @@ const App: React.FC = () => {
     return Object.values(merged);
   }, []);
 
-  const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[], silent: boolean = true) => {
+  /**
+   * Automatic Data Evolution Logic:
+   * Ensures that system entities (Monsters, Items, Classes) are always up to date
+   * with the latest definitions in the code, while preserving user-made content.
+   */
+  const evolveSoulData = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[], currentAcctVersion: number) => {
     const globalKey = 'mythos_ether_system_master';
     const rawGlobal = localStorage.getItem(globalKey);
     let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
 
-    if (currentUser?.isAdmin) {
-      const currentSystemData = {
-        monsters: localMonsters.filter(m => m.authorId === 'system'),
-        items: localItems.filter(i => i.authorId === 'system'),
-        classes: localClasses.filter(c => c.authorId === 'system'),
-        heroes: localChars.filter(c => c.authorId === 'system')
+    // Architect Mode: Auto-update the master archive if current code is newer
+    if (currentUser?.isAdmin && masterArchive.version < SYSTEM_VERSION) {
+      masterArchive = {
+        version: SYSTEM_VERSION,
+        monsters: SYSTEM_MONSTERS,
+        items: SYSTEM_ITEMS,
+        classes: [], // Classes are mostly dynamically generated or hardcoded in manifestBasics
+        heroes: []
       };
-
-      const dataChanged = JSON.stringify(currentSystemData) !== JSON.stringify({
-        monsters: masterArchive.monsters,
-        items: masterArchive.items,
-        classes: masterArchive.classes,
-        heroes: masterArchive.heroes
-      });
-
-      if (masterArchive.version < SYSTEM_VERSION || dataChanged) {
-        masterArchive = {
-          version: Math.max(SYSTEM_VERSION, masterArchive.version),
-          ...currentSystemData
-        };
-        localStorage.setItem(globalKey, JSON.stringify(masterArchive));
-        if (!silent) notify("Master Archive resonated with latest Arcane Truths.", "success");
-      }
+      localStorage.setItem(globalKey, JSON.stringify(masterArchive));
     }
 
-    const ensureIntegrity = <T extends { authorId?: string; id: string }>(localList: T[], masterList: T[]): T[] => {
-      const masterMap = new Map(masterList.map(m => [m.id, m]));
-      return localList.map(item => (item.authorId === 'system' && masterMap.has(item.id)) ? masterMap.get(item.id)! : item);
+    const upgradeEntity = <T extends { authorId?: string; id: string }>(localList: T[], systemList: T[]): T[] => {
+      const systemMap = new Map(systemList.map(m => [m.id, m]));
+      return localList.map(item => {
+        // If it's a system entity and we have a newer version in code, HOT SWAP it.
+        if (item.authorId === 'system' && systemMap.has(item.id)) {
+           return { ...item, ...systemMap.get(item.id) };
+        }
+        return item;
+      });
     };
 
     return {
-      newChars: ensureIntegrity(localChars, masterArchive.heroes),
-      newClasses: ensureIntegrity(localClasses, masterArchive.classes),
-      newMonsters: ensureIntegrity(localMonsters, masterArchive.monsters),
-      newItems: ensureIntegrity(localItems, masterArchive.items)
+      newChars: upgradeEntity(localChars, []), 
+      newClasses: upgradeEntity(localClasses, []),
+      newMonsters: upgradeEntity(localMonsters, SYSTEM_MONSTERS),
+      newItems: upgradeEntity(localItems, SYSTEM_ITEMS)
     };
-  }, [currentUser?.isAdmin, notify]);
+  }, [currentUser?.isAdmin]);
+
+  const syncGlobalSystemArchive = useCallback((localChars: Character[], localClasses: ClassDef[], localMonsters: Monster[], localItems: Item[], silent: boolean = true) => {
+    const { newChars, newClasses, newMonsters, newItems } = evolveSoulData(localChars, localClasses, localMonsters, localItems, currentUser?.version || 0);
+
+    // Update master repository if version mismatch OR if an admin has intentionally modified system content
+    if (currentUser?.isAdmin) {
+      const globalKey = 'mythos_ether_system_master';
+      const rawGlobal = localStorage.getItem(globalKey);
+      let masterArchive = rawGlobal ? JSON.parse(rawGlobal) : { version: 0, monsters: [], items: [], classes: [], heroes: [] };
+
+      const currentSystemData = {
+        monsters: newMonsters.filter(m => m.authorId === 'system'),
+        items: newItems.filter(i => i.authorId === 'system'),
+        classes: newClasses.filter(c => c.authorId === 'system'),
+        heroes: newChars.filter(c => c.authorId === 'system')
+      };
+
+      if (masterArchive.version < SYSTEM_VERSION) {
+        masterArchive = {
+          version: SYSTEM_VERSION,
+          ...currentSystemData
+        };
+        localStorage.setItem(globalKey, JSON.stringify(masterArchive));
+        if (!silent) notify("Master Archive evolved to latest version.", "success");
+      }
+    }
+
+    return {
+      newChars,
+      newClasses,
+      newMonsters,
+      newItems: deduplicateAndMergeItems(newItems)
+    };
+  }, [currentUser?.isAdmin, currentUser?.version, notify, evolveSoulData, deduplicateAndMergeItems]);
 
   useEffect(() => {
     if (currentUser?.isAdmin && hasNotifiedAdminRef.current !== currentUser.username) {
@@ -350,6 +393,8 @@ const App: React.FC = () => {
         pin: currentUser.pin,
         isAdmin: currentUser.isAdmin,
         displayName: currentUser.displayName,
+        version: SYSTEM_VERSION,
+        registryEra: 'Eternal',
         data: { characters, classes, monsters, items, campaign }
       };
       cloudArchive[currentUser.username.toLowerCase()] = payload;
@@ -367,17 +412,17 @@ const App: React.FC = () => {
         setCharacters(synced.newChars);
         setClasses(synced.newClasses);
         setMonsters(synced.newMonsters);
-        setItems(deduplicateAndMergeItems(synced.newItems));
+        setItems(synced.newItems);
         setCampaign(d.campaign);
-        notify("Chronicle Restored & Resonated from the Ether.", "success");
+        notify("Chronicle Evolved & Restored.", "success");
       } else {
-        notify("Arcane PIN mismatch. Access Denied.", "error");
+        notify("Arcane PIN mismatch.", "error");
       }
     }
-  }, [currentUser, characters, classes, monsters, items, campaign, notify, deduplicateAndMergeItems, syncGlobalSystemArchive]);
+  }, [currentUser, characters, classes, monsters, items, campaign, notify, syncGlobalSystemArchive]);
 
   const manifestBasics = async (scope: 'all' | 'monsters' | 'items' | 'heroes' | 'adventure' = 'all') => {
-    notify("Channeling fated archetypes and artifacts...", "info");
+    notify("Channeling fated archetypes...", "info");
     
     let updatedMonsters = [...monsters];
     let updatedItems = [...items];
@@ -389,7 +434,7 @@ const App: React.FC = () => {
       const monstersToAdd = [...SYSTEM_MONSTERS].filter(m => !existingIds.has(m.id));
       for (let m of monstersToAdd) {
         if (!m.imageUrl) {
-          try { m.imageUrl = await generateImage(`High-fidelity TTRPG creature avatar: ${m.name}. Description: ${m.description}. Dark fantasy oil painting, sharp focus, atmospheric background.`); } catch(e) {}
+          try { m.imageUrl = await generateImage(`TTRPG creature: ${m.name}. Description: ${m.description}. Dark fantasy oil painting.`); } catch(e) {}
         }
       }
       updatedMonsters = [...updatedMonsters, ...monstersToAdd];
@@ -400,7 +445,7 @@ const App: React.FC = () => {
       const itemsToAdd = [...SYSTEM_ITEMS].filter(i => !existingIds.has(i.id));
       for (let i of itemsToAdd) {
         if (!i.imageUrl) {
-          try { i.imageUrl = await generateImage(`TTRPG relic artifact avatar: ${i.name}. Type: ${i.type}. Material: obsidian, iron, gold filigree. Highly detailed macro lens photography style, cinematic lighting.`); } catch(e) {}
+          try { i.imageUrl = await generateImage(`TTRPG artifact: ${i.name}. Material: obsidian, iron. Macro photography style.`); } catch(e) {}
         }
       }
       updatedItems = deduplicateAndMergeItems([...updatedItems, ...itemsToAdd]);
@@ -511,55 +556,16 @@ const App: React.FC = () => {
                 classId: 'basic-fighter',
                 race: 'Human',
                 gender: 'Female',
-                description: "An energetic swordswoman with a playful personality. Part of an inseparable trio with Seris and Lina.",
+                description: "Energetic swordswoman.",
                 level: 1,
                 stats: { strength: 16, dexterity: 14, constitution: 15, intelligence: 10, wisdom: 12, charisma: 14 },
                 hp: 12, maxHp: 12,
                 feats: [
-                    { name: 'Restless Spirit', description: 'Gains +2 to Initiative and cannot be surprised.' },
-                    { name: 'Sword Waltz', description: 'Bonus action to give an enemy disadvantage on their next attack.' }
+                    { name: 'Restless Spirit', description: 'Gains +2 to Initiative.' },
+                    { name: 'Sword Waltz', description: 'Enemy disadvantage on attack.' }
                 ],
                 inventory: ['sys-iron-longsword', 'sys-evening-shield', 'sys-warrior-plate'],
                 isPlayer: true,
-                authorId: 'system',
-                authorName: 'Orestara'
-            },
-            {
-                id: 'hero-seris',
-                name: 'Seris',
-                classId: 'basic-archer',
-                race: 'Elf',
-                gender: 'Female',
-                description: "A reserved Elven archer who prefers distance. Member of the inseparable trio with Miri and Lina.",
-                level: 1,
-                stats: { strength: 8, dexterity: 17, constitution: 12, intelligence: 16, wisdom: 14, charisma: 10 },
-                hp: 10, maxHp: 10,
-                feats: [
-                    { name: 'Aloof Precision', description: 'Deals extra 1d6 damage to targets further than 40ft away.' },
-                    { name: 'Defensive Sarcasm', description: 'Force a DC 12 WIS save or Charm an enemy that misses you.' }
-                ],
-                inventory: ['sys-sky-piercer-bow', 'sys-thief-leathers'],
-                isPlayer: false,
-                authorId: 'system',
-                authorName: 'Orestara'
-            },
-            {
-                id: 'hero-lina',
-                name: 'Lina',
-                classId: 'basic-mage',
-                race: 'Human',
-                gender: 'Female',
-                description: "A gentle priestess from a rural chapel. Member of the inseparable trio with Miri and Seris.",
-                level: 1,
-                stats: { strength: 9, dexterity: 11, constitution: 15, intelligence: 14, wisdom: 16, charisma: 13 },
-                hp: 12, maxHp: 12,
-                feats: [
-                    { name: 'Rural Kindness', description: 'Healing grants the target a +2 bonus to their next save.' },
-                    { name: 'Quiet Devotion', description: 'Can cast supportive spells silently once per rest.' }
-                ],
-                inventory: ['sys-menders-staff', 'sys-sorcerer-robes'],
-                knownSpells: THEMATIC_SPELLS.mage.slice(0, 3),
-                isPlayer: false,
                 authorId: 'system',
                 authorName: 'Orestara'
             }
@@ -568,51 +574,27 @@ const App: React.FC = () => {
         const heroesToAdd = heroes.filter(h => !existingHeroIds.has(h.id));
         for (let h of heroesToAdd) {
           if (!h.imageUrl) {
-            try { h.imageUrl = await generateImage(`High-quality TTRPG hero portrait avatar: ${h.name}, ${h.race} ${h.classId}. Description: ${h.description}. Professional character concept art, dark fantasy aesthetic.`); } catch(e) {}
+            try { h.imageUrl = await generateImage(`TTRPG hero portrait: ${h.name}. Dark fantasy concept art.`); } catch(e) {}
           }
         }
         updatedChars = [...updatedChars, ...heroesToAdd];
-    }
-
-    if (scope === 'all' || scope === 'adventure') {
-      const adventurePlot = "The Silvermarsh is dying. A ghastly pallor has infected the wildlife, turning them into aggressive aberrations. Local legends speak of a Gorechimera reborn from the filth of a forgotten battlefield. The party must venture into the heart of the mire to sever the source of the corruption before it reaches the capital.";
-      const starterLog: GameLog = {
-        role: 'dm',
-        content: "You stand at the edge of the Silvermarsh. The air is thick with the scent of damp earth and something metallic. A pale, sickly mist clings to the twisted trees. Ahead, a group of frantic Goblins are fleeing from a Dread Skeleton that seems to be oozing the same white ichor infecting the plants. What do you do?",
-        timestamp: Date.now()
-      };
-      setCampaign({
-        plot: adventurePlot,
-        summary: "The fellowship has arrived at the Silvermarsh to investigate a spreading blight linked to a Gorechimera.",
-        logs: [starterLog],
-        party: updatedChars.slice(0, 3), 
-        rules: []
-      });
     }
 
     const synced = syncGlobalSystemArchive(updatedChars, updatedClasses, updatedMonsters, updatedItems, false);
     setCharacters(synced.newChars);
     setClasses(synced.newClasses);
     setMonsters(synced.newMonsters);
-    setItems(deduplicateAndMergeItems(synced.newItems));
+    setItems(synced.newItems);
 
-    notify("Chronicle Manifested. Master Avatars resonated globally.", "success");
+    notify("Archive Manifested.", "success");
   };
-
-  const diceNeeded = useMemo(() => {
-    if (campaign.logs.length === 0) return false;
-    const lastLog = campaign.logs[campaign.logs.length - 1];
-    if (lastLog.role !== 'dm') return false;
-    const triggerWords = ['roll', 'die', 'dice', 'd20', 'd100', 'd12', 'd10', 'd8', 'd6', 'd4'];
-    return triggerWords.some(word => lastLog.content.toLowerCase().includes(word));
-  }, [campaign.logs]);
 
   const handleRollDice = (sides: number) => {
     const result = Math.floor(Math.random() * sides) + 1;
     const roll: DiceRoll = { id: Math.random().toString(36).substr(2, 9), sides, result, timestamp: Date.now() };
     setLastRoll(roll);
     setRollHistory(prev => [roll, ...prev].slice(0, 10));
-    if (result === sides && sides >= 10) notify(`CRITICAL! Natural ${result} on d${sides}`, 'success');
+    if (result === sides && sides >= 10) notify(`CRITICAL! Natural ${result}`, 'success');
   };
 
   const aggregateAllResources = useCallback((suffix: string) => {
@@ -631,9 +613,7 @@ const App: React.FC = () => {
               }
             });
           }
-        } catch (e) {
-          console.error(`Aggregator: Corrupted data in ${key}`, e);
-        }
+        } catch (e) {}
       }
     }
     return aggregated;
@@ -666,7 +646,7 @@ const App: React.FC = () => {
       setCharacters(synced.newChars);
       setClasses(synced.newClasses);
       setMonsters(synced.newMonsters);
-      setItems(deduplicateAndMergeItems(synced.newItems));
+      setItems(synced.newItems);
 
       const savedCampaign = localStorage.getItem(`${uPrefix}_mythos_campaign`);
       setCampaign(savedCampaign ? JSON.parse(savedCampaign) : { plot: '', summary: '', logs: [], party: [], rules: [] });
@@ -680,7 +660,7 @@ const App: React.FC = () => {
         setDailyProUsed(0); setDailyFlashUsed(0);
       }
     }
-  }, [currentUser?.username, aggregateAllResources, deduplicateAndMergeItems]);
+  }, [currentUser?.username, aggregateAllResources, syncGlobalSystemArchive]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -711,11 +691,7 @@ const App: React.FC = () => {
       const { type } = e.detail;
       if (type === 'dm') {
         setArcaneTokens(prev => Math.max(prev - 1, 0));
-        setDmModel(currentModel => {
-          if (currentModel.includes('pro')) setDailyProUsed(p => p + 1);
-          else setDailyFlashUsed(p => p + 1);
-          return currentModel;
-        });
+        setDailyFlashUsed(p => p + 1);
       }
       if (type === 'utility') {
         setReservoir(prev => Math.max(prev - e.detail.cost, 0));
@@ -846,9 +822,7 @@ const App: React.FC = () => {
             )}
           </div>
         )}
-        {(diceTrayOpen || diceNeeded) && (
-          <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'} ${diceNeeded && !diceTrayOpen ? 'animate-bounce border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : ''}`}>🎲</button>
-        )}
+        <button onClick={() => setDiceTrayOpen(!diceTrayOpen)} className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center text-xl md:text-2xl transition-all pointer-events-auto shadow-[0_0_20px_rgba(0,0,0,0.8)] border ${diceTrayOpen ? 'bg-[#b28a48] text-black border-amber-300' : 'bg-neutral-900 text-[#b28a48] border-[#b28a48]/30 hover:border-[#b28a48] hover:bg-black'}`}>🎲</button>
       </div>
     </div>
   );

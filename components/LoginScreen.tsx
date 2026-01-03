@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { UserAccount } from '../types';
 
@@ -21,15 +20,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     setError(null);
     
     const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
-    const user = accounts.find(a => a.username.toLowerCase() === username.toLowerCase());
+    // Ensure case-insensitive username lookup with trimming
+    const user = accounts.find(a => a.username.toLowerCase() === username.trim().toLowerCase());
 
     if (!user) {
       setError("This soul has not been inscribed.");
       return;
     }
 
-    // Admin override or PIN match
-    const isElevating = adminCode === ADMIN_SECRET;
+    // Case-insensitive Admin override check
+    const isElevating = adminCode.trim().toUpperCase() === ADMIN_SECRET.toUpperCase();
+    
+    // Status transfer: Admins bypass PIN check
     if (!isElevating && !user.isAdmin && pin !== user.pin) {
       setError("Arcane PIN mismatch.");
       return;
@@ -58,7 +60,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     }
 
     const accounts: UserAccount[] = JSON.parse(localStorage.getItem('mythos_accounts') || '[]');
-    if (accounts.some(a => a.username.toLowerCase() === username.toLowerCase())) {
+    if (accounts.some(a => a.username.toLowerCase() === username.trim().toLowerCase())) {
       setError("This sigil is already bound.");
       return;
     }
@@ -66,7 +68,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ setCurrentUser }) => {
     const newUser: UserAccount = {
       username: username.toLowerCase().trim(),
       displayName: displayName.trim(),
-      isAdmin: adminCode === ADMIN_SECRET,
+      isAdmin: adminCode.trim().toUpperCase() === ADMIN_SECRET.toUpperCase(),
       pin: pin
     };
 

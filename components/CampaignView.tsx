@@ -1,12 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CampaignState, GameLog, Character, ClassDef, SyncMessage, Item, UserAccount } from '../types';
+import { CampaignState, GameLog, Character, ClassDef, SyncMessage, Item, UserAccount, Stats } from '../types';
 import { getDMResponse, generateSmartLoot, generateSummary, generateWorldMap, generateLocalTiles } from '../services/gemini';
 
 interface CampaignViewProps {
   campaign: CampaignState;
   setCampaign: React.Dispatch<React.SetStateAction<CampaignState>>;
   characters: Character[];
+  setCharacters: React.Dispatch<React.SetStateAction<Character[]>>;
   broadcast: (msg: Partial<SyncMessage>) => void;
   isHost: boolean;
   classes: ClassDef[];
@@ -22,8 +23,10 @@ interface CampaignViewProps {
   manifestBasics?: (scope: 'adventure') => void;
 }
 
+const ASI_LEVELS = [4, 8, 12, 16, 19];
+
 const CampaignView: React.FC<CampaignViewProps> = ({ 
-  campaign, setCampaign, characters, broadcast, isHost, 
+  campaign, setCampaign, characters, setCharacters, broadcast, isHost, 
   classes, playerName, notify, arcadeReady, dmModel, 
   setDmModel, isQuotaExhausted, localResetTime, items, user,
   manifestBasics
@@ -31,10 +34,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
   const [focusedCharId, setFocusedCharId] = useState<string | null>(null);
   const [viewMap, setViewMap] = useState<'chat' | 'world' | 'tactical'>('chat');
+  // Fix: Added missing recruitmentOpen state
+  const [recruitmentOpen, setRecruitmentOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,6 +45,50 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [campaign.logs, viewMap]);
+
+  const handleLevelUp = (charId: string) => {
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId) return c;
+      const cls = classes.find(cl => cl.id === c.classId);
+      const newLevel = c.level + 1;
+      const hpGain = (cls?.hpPerLevel || 5) + Math.floor((c.stats.constitution - 10) / 2);
+      const newMaxHp = c.maxHp + hpGain;
+      return { ...c, level: newLevel, maxHp: newMaxHp, hp: newMaxHp };
+    }));
+    notify("Soul Essence Ascended. Level Gained.", "success");
+  };
+
+  const calculateTotalAsiPoints = (level: number) => {
+    const gainedAsis = ASI_LEVELS.filter(l => level >= l).length;
+    return gainedAsis * 2;
+  };
+
+  const handleApplyAsi = (charId: string, stat: keyof Stats) => {
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId) return c;
+      const totalAvailable = calculateTotalAsiPoints(c.level);
+      const spent = c.usedAsiPoints || 0;
+      if (spent >= totalAvailable) return c;
+      
+      const newStats = { ...c.stats, [stat]: c.stats[stat] + 1 };
+      const newUsed = spent + 1;
+      
+      // Recalculate max HP if CON changed
+      let newMaxHp = c.maxHp;
+      let newHp = c.hp;
+      if (stat === 'constitution') {
+        const oldMod = Math.floor((c.stats.constitution - 10) / 2);
+        const newMod = Math.floor((newStats.constitution - 10) / 2);
+        if (newMod > oldMod) {
+          const hpDiff = c.level; // 1 HP per level per modifier increase
+          newMaxHp += hpDiff;
+          newHp += hpDiff;
+        }
+      }
+
+      return { ...c, stats: newStats, usedAsiPoints: newUsed, maxHp: newMaxHp, hp: newHp };
+    }));
+  };
 
   const handleNarrativeSynthesis = async () => {
     setSummarizing(true);
@@ -125,9 +172,12 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     } catch (e) {} finally { setLoading(false); }
   };
 
-  const focusedChar = campaign.party.find(c => c.id === focusedCharId);
+  const focusedChar = characters.find(c => c.id === focusedCharId);
   const focusedClass = focusedChar ? classes.find(cl => cl.id === focusedChar.classId) : null;
   const focusedInventory = focusedChar ? items.filter(i => focusedChar.inventory.includes(i.id)) : [];
+
+  const totalAsi = focusedChar ? calculateTotalAsiPoints(focusedChar.level) : 0;
+  const asiRemaining = focusedChar ? totalAsi - (focusedChar.usedAsiPoints || 0) : 0;
 
   if (campaign.logs.length === 0) {
     return (
@@ -248,7 +298,15 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                 </div>
                 <div className="text-left">
                   <h2 className="text-4xl md:text-6xl font-black fantasy-font text-[#b28a48] tracking-widest">{focusedChar.name}</h2>
-                  <p className="text-sm md:text-lg text-neutral-500 font-black uppercase tracking-[0.4em] mt-1">{focusedChar.race} • Level {focusedChar.level} {focusedClass?.name}</p>
+                  <div className="flex items-center gap-4 mt-1">
+                    <p className="text-sm md:text-lg text-neutral-500 font-black uppercase tracking-[0.4em]">{focusedChar.race} • Level {focusedChar.level} {focusedClass?.name}</p>
+                    <button 
+                      onClick={() => handleLevelUp(focusedChar.id)}
+                      className="bg-green-900/30 hover:bg-green-700/50 border border-green-500/40 text-green-400 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-sm transition-all"
+                    >
+                      Ascend Level ⚡
+                    </button>
+                  </div>
                 </div>
               </div>
               <button onClick={() => setFocusedCharId(null)} className="text-neutral-600 hover:text-white text-5xl active:scale-90">✕</button>
@@ -268,13 +326,31 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                   <p className="text-center mt-2 font-black text-xl text-neutral-200">{focusedChar.hp} / {focusedChar.maxHp}</p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 text-left">
-                  {Object.entries(focusedChar.stats).map(([s, v]) => (
-                    <div key={s} className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center">
-                      <p className="text-[8px] text-neutral-600 font-black uppercase mb-1">{s.slice(0,3)}</p>
-                      <p className="text-2xl font-black text-amber-600">{v as number}</p>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Sacred Attributes</h4>
+                    {asiRemaining > 0 && (
+                      <span className="text-[10px] font-black text-amber-500 animate-pulse uppercase tracking-widest">
+                        {asiRemaining} ASI PTS AVAILABLE
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-left">
+                    {(Object.keys(focusedChar.stats) as Array<keyof Stats>).map((s) => (
+                      <div key={s} className="bg-black/60 p-4 border border-neutral-900 rounded-sm text-center relative group">
+                        <p className="text-[8px] text-neutral-600 font-black uppercase mb-1">{s.slice(0,3)}</p>
+                        <p className="text-2xl font-black text-amber-600">{focusedChar.stats[s]}</p>
+                        {asiRemaining > 0 && (
+                          <button 
+                            onClick={() => handleApplyAsi(focusedChar.id, s)}
+                            className="absolute -top-1 -right-1 w-5 h-5 bg-amber-600 text-black text-xs font-black rounded-full shadow-lg border border-black hover:bg-amber-400 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="bg-amber-950/10 p-6 border border-amber-900/20 rounded-sm text-left">
@@ -311,8 +387,9 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                 </section>
 
                 <section>
-                  <h4 className="text-sm font-black fantasy-font text-neutral-500 border-b border-neutral-900 pb-2 mb-4">Innate Destinies</h4>
+                  <h4 className="text-sm font-black fantasy-font text-neutral-500 border-b border-neutral-900 pb-2 mb-4">Class & Innate Destinies</h4>
                   <div className="grid grid-cols-1 gap-4">
+                    {/* Native racial feats and initial class feats */}
                     {focusedChar.feats.map((f, i) => (
                       <div key={i} className="p-5 bg-black/20 border border-neutral-900 rounded-sm border-l-2 border-l-amber-900/50">
                         <div className="flex justify-between items-start mb-1">
@@ -322,6 +399,16 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                               {f.dc ? `DC ${f.dc} ` : ''}{f.usageCheck}
                             </span>
                           )}
+                        </div>
+                        <p className="text-sm text-neutral-400 font-serif italic leading-relaxed">{f.description}</p>
+                      </div>
+                    ))}
+                    {/* Features from the actual class record */}
+                    {focusedClass?.features.map((f, i) => (
+                      <div key={`class-${i}`} className="p-5 bg-blue-900/5 border border-neutral-900 rounded-sm border-l-2 border-l-blue-900/50">
+                        <div className="flex justify-between items-start mb-1">
+                          <h6 className="text-xs font-black text-blue-400 uppercase">{f.name}</h6>
+                          <span className="text-[7px] font-black px-2 py-0.5 bg-blue-900/20 text-blue-500 border border-blue-900/30 rounded-sm uppercase tracking-widest">Archetype</span>
                         </div>
                         <p className="text-sm text-neutral-400 font-serif italic leading-relaxed">{f.description}</p>
                       </div>

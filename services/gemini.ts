@@ -176,7 +176,7 @@ export const generateCharacterFeats = async (className: string, description: str
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: forcedModel || 'gemini-3-flash-preview',
-      contents: `Generate 3 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. 
+      contents: `Generate 5 unique TTRPG traits/feats for a level 1 ${className}. Lore: ${description}. 
       RULES: Output ONLY JSON. Field 'description' MUST be pure mechanical rules-text. 
       IMPORTANT: For active abilities, include a 'usageCheck' (e.g. "DEX Save" or "Athletics Check") and a 'dc' (Difficulty Class, e.g. 14).`,
       config: {
@@ -449,7 +449,8 @@ export const generateClassMechanics = async (name: string, description: string):
       THEMATIC INTEGRITY RULE: 
       - Wizard/Arcanist/Mage archetypes MUST NOT have healing spells (Cure Wounds, etc.).
       - Cleric/Priest archetypes MUST NOT have purely destructive arcane spells like Fireball unless thematic for their deity.
-      - Ensure all spells and features match the class flavor description.`,
+      - Ensure all spells and features match the class flavor description.
+      - Always generate EXACTLY 5 class features.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

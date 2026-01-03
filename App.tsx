@@ -301,13 +301,31 @@ const App: React.FC = () => {
     if (scope === 'all') {
       const basicClasses: ClassDef[] = [
         {
-          id: 'basic-warrior', name: 'Warrior', description: 'Mighty physical vanguards.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency'], startingItemIds: ['sys-iron-longsword', 'sys-leather-armor'], features: [{ name: 'Mighty Roar', description: 'Bonus action: 1d8 temporary HP.' }], initialSpells: [], authorId: 'system', authorName: 'Orestara'
+          id: 'basic-warrior', name: 'Warrior', description: 'Mighty physical vanguards.', hitDie: 'd12', startingHp: 12, hpPerLevel: 7, spellSlots: [0, 0, 0], preferredStats: ['Strength', 'Constitution'], bonuses: ['Heavy Armor Proficiency'], startingItemIds: ['sys-iron-longsword', 'sys-leather-armor'], features: [
+            { name: 'Mighty Roar', description: 'Bonus action: 1d8 temporary HP.' },
+            { name: 'Cleaving Strike', description: 'When you drop a creature to 0 HP with a melee attack, you can make an additional attack as a bonus action.' },
+            { name: 'Indomitable Will', description: 'Advantage on saves against being Frightened or Charmed.' },
+            { name: 'Battle Cry', description: 'Grant all allies within 30ft advantage on their next attack roll (Once per short rest).' },
+            { name: 'Shield Bash', description: 'As a bonus action, shove a creature with your shield if you hit them with a melee attack.' }
+          ], initialSpells: [], authorId: 'system', authorName: 'Orestara'
         },
         {
-          id: 'basic-mage', name: 'Mage', description: 'Supportive aether-users.', hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery'], startingItemIds: ['sys-oak-staff', 'sys-leather-armor'], features: [{ name: 'Vital Flow', description: 'Restore 1d10 hit points.' }], initialSpells: THEMATIC_SPELLS.mage, authorId: 'system', authorName: 'Orestara'
+          id: 'basic-mage', name: 'Mage', description: 'Supportive aether-users.', hitDie: 'd8', startingHp: 10, hpPerLevel: 6, spellSlots: [4, 3, 2], preferredStats: ['Wisdom', 'Charisma'], bonuses: ['Healing Mastery'], startingItemIds: ['sys-oak-staff', 'sys-leather-armor'], features: [
+            { name: 'Vital Flow', description: 'Restore 1d10 hit points.' },
+            { name: 'Arcane Recovery', description: 'Regain half your level in spell slots once per day during a short rest.' },
+            { name: 'Elemental Attunement', description: 'Resistance to one damage type (Cold, Fire, or Lightning) chosen at the end of a long rest.' },
+            { name: 'Spell Shield', description: 'As a reaction, add your proficiency bonus to your AC against a spell attack.' },
+            { name: 'Focused Mind', description: 'Advantage on concentration checks to maintain spells.' }
+          ], initialSpells: THEMATIC_SPELLS.mage, authorId: 'system', authorName: 'Orestara'
         },
         {
-          id: 'basic-dark-knight', name: 'Dark Knight', description: 'Vanguards of the void who trade vitality for ruinous power.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [2, 0, 0], preferredStats: ['Charisma', 'Strength'], bonuses: ['Heavy Armor Proficiency', 'Necrotic Affinity'], startingItemIds: ['sys-ebony-greatsword', 'sys-dread-plate'], features: [{ name: 'Soul-Resonance (Abyssal)', description: 'Gain Resonance stacks on kills or saves. Spend stacks to heal or deal necrotic ruin.' }], initialSpells: THEMATIC_SPELLS.darkKnight, authorId: 'system', authorName: 'Orestara'
+          id: 'basic-dark-knight', name: 'Dark Knight', description: 'Vanguards of the void who trade vitality for ruinous power.', hitDie: 'd10', startingHp: 10, hpPerLevel: 6, spellSlots: [2, 0, 0], preferredStats: ['Charisma', 'Strength'], bonuses: ['Heavy Armor Proficiency', 'Necrotic Affinity'], startingItemIds: ['sys-ebony-greatsword', 'sys-dread-plate'], features: [
+            { name: 'Soul-Resonance (Abyssal)', description: 'Gain Resonance stacks on kills or saves. Spend stacks to heal or deal necrotic ruin.' },
+            { name: 'Abyssal Pact', description: 'Immune to Frightened condition.' },
+            { name: 'Dreadful Aspect', description: 'As an action, force enemies within 30ft to make a WIS save or be frightened for 1 minute.' },
+            { name: 'Vampiric Blade', description: 'Once per turn, deal an extra 1d6 necrotic damage and gain the same amount in HP.' },
+            { name: 'Shadow Step', description: 'Teleport up to 30ft to an unoccupied space you can see in dim light or darkness.' }
+          ], initialSpells: THEMATIC_SPELLS.darkKnight, authorId: 'system', authorName: 'Orestara'
         }
       ];
       updatedClasses = [...updatedClasses.filter(c => !c.id.startsWith('basic')), ...basicClasses];
@@ -433,7 +451,7 @@ const App: React.FC = () => {
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onSignOut={handleSignOut} user={currentUser} onlineFriends={onlineFriends} />
       <main className="flex-1 relative overflow-y-auto scrollbar-hide pb-[calc(60px+var(--safe-bottom))] lg:pb-0 pt-[calc(48px+var(--safe-top))] lg:pt-0">
         <div className="p-3 md:p-8 max-w-6xl mx-auto min-h-full">
-          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} manifestBasics={manifestBasics} />}
+          {activeTab === 'campaign' && <CampaignView campaign={campaign} setCampaign={setCampaign} characters={characters} broadcast={broadcast} isHost={isHost} classes={classes} playerName={currentUser.displayName} notify={notify} arcadeReady={true} dmModel="gemini-3-pro-preview" setDmModel={()=>{}} isQuotaExhausted={false} localResetTime="" items={items} user={currentUser} manifestBasics={manifestBasics} setCharacters={setCharacters} />}
           {activeTab === 'characters' && <CharacterCreator characters={characters} setCharacters={setCharacters} classes={classes} items={items} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} />}
           {activeTab === 'classes' && <ClassLibrary classes={classes} setClasses={setClasses} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} currentUser={currentUser} items={items} setItems={setItems} />}
           {activeTab === 'bestiary' && <Bestiary monsters={monsters} setMonsters={setMonsters} broadcast={broadcast} notify={notify} reservoirReady={reservoirReady} manifestBasics={manifestBasics} currentUser={currentUser} />}

@@ -1,3 +1,4 @@
+
 export interface UserAccount {
   username: string;
   displayName: string;
@@ -72,6 +73,7 @@ export interface Character {
   lockedStats?: (keyof Stats)[];
   authorId?: string;
   authorName?: string;
+  usedAsiPoints?: number; // Total +1s added to stats via ASI
 }
 
 export interface ClassFeature extends Trait {}

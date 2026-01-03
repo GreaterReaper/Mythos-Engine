@@ -182,6 +182,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
   const [learningSpells, setLearningSpells] = useState<string | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [refImage, setRefImage] = useState<string | null>(null);
+  const [activeStatInfo, setActiveStatInfo] = useState<keyof Stats | null>(null);
+  const [activeTraitTooltipIdx, setActiveTraitTooltipIdx] = useState<number | null>(null);
 
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'hp' | 'level'>('name');
@@ -456,9 +458,28 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                   <p className="text-[9px] text-neutral-500 italic mb-3 font-serif">{currentRacialData.flavor}</p>
                   <div className="space-y-2">
                     {currentRacialData.traits.map((t, idx) => (
-                      <div key={idx} className="border-l border-amber-900/30 pl-3">
-                        <p className="text-[8px] font-black text-[#b28a48] uppercase tracking-tighter">Innate: {t.name}</p>
-                        <p className="text-[8px] text-neutral-400 font-serif leading-tight">{t.description}</p>
+                      <div 
+                        key={idx} 
+                        className="border-l border-amber-900/30 pl-3 relative group cursor-help outline-none"
+                        tabIndex={0}
+                        role="button"
+                        aria-haspopup="true"
+                        onClick={() => setActiveTraitTooltipIdx(activeTraitTooltipIdx === idx ? null : idx)}
+                        onBlur={() => setActiveTraitTooltipIdx(null)}
+                      >
+                        {/* Racial Trait Tooltip */}
+                        <div className={`absolute left-0 bottom-full mb-3 z-50 transition-all duration-300 w-64 pointer-events-none
+                          ${activeTraitTooltipIdx === idx ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0'}
+                        `}>
+                           <div className="bg-[#0c0c0c] border border-amber-900/40 p-3 rounded-sm shadow-[0_10px_30px_rgba(0,0,0,0.8)] text-left">
+                              <p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1.5 border-b border-amber-900/20 pb-1">{t.name}</p>
+                              <p className="text-[9px] text-neutral-300 font-serif italic leading-relaxed">{t.description}</p>
+                           </div>
+                           <div className="w-2 h-2 bg-[#0c0c0c] border-r border-b border-amber-900/40 rotate-45 -mt-1 ml-4"></div>
+                        </div>
+
+                        <p className="text-[8px] font-black text-[#b28a48] uppercase tracking-tighter">Innate: {t.name} <span className="opacity-40 ml-1">ⓘ</span></p>
+                        <p className="text-[8px] text-neutral-400 font-serif leading-tight line-clamp-1">{t.description}</p>
                       </div>
                     ))}
                     <div className="pt-2 border-t border-amber-900/10">
@@ -508,6 +529,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                           isPreferred ? 'border-amber-500/40 shadow-[0_0_10px_rgba(178,138,72,0.1)]' : 'border-neutral-900'
                         }`}
                       >
+                        {/* Tooltip Overlay */}
+                        <div className="absolute inset-x-0 bottom-full mb-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 z-50">
+                           <div className="bg-neutral-900 border border-amber-900/40 p-2.5 rounded-sm shadow-2xl text-left min-w-[140px] max-w-[180px]">
+                              <p className="text-[8px] font-black text-amber-500 uppercase tracking-[0.2em] mb-1.5 border-b border-amber-900/20 pb-1">{s}</p>
+                              <p className="text-[8px] text-neutral-400 font-serif italic leading-relaxed">{STAT_DESCRIPTIONS[s]}</p>
+                           </div>
+                        </div>
+
                         <button 
                           className={`text-[8px] font-bold uppercase mb-1 tracking-tighter block w-full transition-colors ${
                             isPreferred ? 'text-amber-500' : 'text-neutral-600'
@@ -633,8 +662,16 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                       <div 
                         key={stat} 
                         onClick={() => toggleStatLockOnChar(selectedChar.id, stat)}
-                        className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center transition-all relative ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'} ${!isPremade ? 'cursor-pointer' : 'cursor-default'}`}
+                        className={`bg-black/60 border p-4 md:p-6 rounded-sm flex flex-col items-center transition-all relative group ${selectedChar.lockedStats?.includes(stat) ? 'border-amber-900/60 bg-amber-950/10' : 'border-neutral-900'} ${!isPremade ? 'cursor-pointer' : 'cursor-default'}`}
                       >
+                        {/* Static View Tooltip */}
+                        <div className="absolute inset-x-0 bottom-full mb-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 z-50 px-2">
+                           <div className="bg-neutral-900 border border-amber-900/40 p-2.5 rounded-sm shadow-2xl text-left">
+                              <p className="text-[8px] font-black text-amber-500 uppercase tracking-[0.2em] mb-1.5 border-b border-amber-900/20 pb-1">{stat}</p>
+                              <p className="text-[8px] text-neutral-400 font-serif italic leading-relaxed">{STAT_DESCRIPTIONS[stat]}</p>
+                           </div>
+                        </div>
+
                         <div className="flex justify-between w-full mb-2">
                           {!isPremade && (
                             <span className={`text-base ${selectedChar.lockedStats?.includes(stat) ? 'text-amber-600' : 'text-neutral-800'}`}>

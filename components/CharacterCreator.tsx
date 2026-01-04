@@ -132,61 +132,90 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
              <p className="text-[10px] text-amber-500 font-black uppercase tracking-widest mb-1">Mentor Notice</p>
              <p className="text-[9px] text-neutral-500 italic">Miri, Lina, and Seris are AI mentors and cannot be selected as your playable soul. Create your own legend to join their fellowship.</p>
           </div>
-          <h3 className="text-xl font-black fantasy-font text-neutral-300">Summon New Soul</h3>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] uppercase outline-none" />
+          <h3 className="text-xl font-black fantasy-font text-neutral-300 uppercase">Summon New Soul</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[8px] text-neutral-600 font-black uppercase">Race Selection</label>
-              <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase min-h-[50px]">
-                {Object.keys(RACIAL_BONUSES).map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              <div className="p-2 bg-amber-950/20 border border-amber-900/30 rounded-sm">
-                 <p className="text-[7px] text-neutral-500 font-black uppercase mb-1">Innate Bonuses</p>
-                 <div className="flex flex-wrap gap-2">
-                    {Object.entries(currentBonus).map(([s, val]) => (
-                      <span key={s} className="text-[8px] text-amber-500 font-black uppercase">+{val} {s.slice(0,3)}</span>
-                    ))}
-                 </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-[8px] text-neutral-600 font-black uppercase tracking-widest block mb-1">Soul Name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="NAME..." className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] uppercase outline-none" />
+            </div>
+
+            <div>
+              <label className="text-[8px] text-neutral-600 font-black uppercase tracking-widest block mb-1">Race Selection</label>
+              <div className="grid grid-cols-2 gap-2">
+                <select value={race} onChange={(e) => setRace(e.target.value as RaceType)} className="w-full bg-black border border-neutral-800 p-3 text-xs text-[#b28a48] outline-none uppercase">
+                  {Object.keys(RACIAL_BONUSES).map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <div className="p-2 bg-amber-950/10 border border-amber-900/20 rounded-sm flex items-center justify-center">
+                  <div className="flex flex-wrap gap-2 justify-center">
+                      {Object.entries(currentBonus).map(([s, val]) => (
+                        <span key={s} className="text-[7px] text-amber-500/80 font-black uppercase">+{val} {s.slice(0,3)}</span>
+                      ))}
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="space-y-1">
-               <label className="text-[8px] text-neutral-600 font-black uppercase">Legendary Path</label>
-               <select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-full bg-black border border-neutral-800 p-4 text-sm text-[#b28a48] outline-none uppercase min-h-[50px]">
-                <option value="">PATH...</option>
-                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+
+            <div>
+              <label className="text-[8px] text-neutral-600 font-black uppercase tracking-widest block mb-1">Legendary Path (Classes Available)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-60 overflow-y-auto scrollbar-hide p-1">
+                {classes.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => setClassId(c.id)}
+                    className={`p-3 border-2 rounded-sm text-left transition-all relative group ${classId === c.id ? 'border-[#b28a48] bg-amber-950/20' : 'border-neutral-900 bg-black hover:border-neutral-700'}`}
+                  >
+                    <p className={`text-[10px] font-black uppercase tracking-widest ${classId === c.id ? 'text-[#b28a48]' : 'text-neutral-500'}`}>{c.name}</p>
+                    <p className="text-[7px] text-neutral-600 italic line-clamp-1 mt-0.5">{c.hitDie} Hit Die</p>
+                    {classId === c.id && <span className="absolute top-1 right-1 text-[#b28a48] text-[8px]">◈</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[8px] text-neutral-600 font-black uppercase tracking-widest block mb-1">Ability Scores (Point Buy)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(Object.keys(stats) as Array<keyof Stats>).map(s => (
+                  <div key={s} className="bg-neutral-900/30 p-2 border border-neutral-800 flex justify-between items-center rounded-sm">
+                    <span className="text-[9px] uppercase font-black text-neutral-600">{s.slice(0,3)}</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleStatChange(s, -1)} className="text-[#b28a48] hover:text-white transition-colors w-5 h-5 flex items-center justify-center text-xs">-</button>
+                      <span className="font-black text-white text-[10px]">{stats[s]}</span>
+                      <button onClick={() => handleStatChange(s, 1)} className="text-[#b28a48] hover:text-white transition-colors w-5 h-5 flex items-center justify-center text-xs">+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-            {(Object.keys(stats) as Array<keyof Stats>).map(s => (
-              <div key={s} className="bg-neutral-900/50 p-3 border border-neutral-800 flex justify-between items-center rounded-sm">
-                <span className="text-[10px] uppercase font-black text-neutral-600">{s.slice(0,3)}</span>
-                <div className="flex items-center gap-2 md:gap-3">
-                  <button onClick={() => handleStatChange(s, -1)} className="text-[#b28a48] hover:text-white transition-colors w-6 h-6 flex items-center justify-center">-</button>
-                  <span className="font-black text-white text-xs">{stats[s]}</span>
-                  <button onClick={() => handleStatChange(s, 1)} className="text-[#b28a48] hover:text-white transition-colors w-6 h-6 flex items-center justify-center">+</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button onClick={handleCreate} disabled={generating || pointsRemaining < 0 || !name || !classId} className="w-full bg-[#b28a48] text-black py-4 font-black uppercase tracking-widest disabled:opacity-20 active:scale-95 text-xs md:text-sm">Inscribe Legend ({pointsRemaining} pts)</button>
+          <button onClick={handleCreate} disabled={generating || pointsRemaining < 0 || !name || !classId} className="w-full bg-[#b28a48] text-black py-4 font-black uppercase tracking-widest disabled:opacity-20 active:scale-95 text-xs md:text-sm shadow-xl">
+            {generating ? 'CHANNELING...' : `Inscribe Legend (${pointsRemaining} pts left)`}
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {characters.map(char => (
+          {characters.length === 0 ? (
+            <div className="col-span-full border-2 border-dashed border-neutral-900 rounded-sm p-12 text-center opacity-30 flex flex-col items-center justify-center">
+              <span className="text-5xl mb-4">👤</span>
+              <p className="text-[10px] font-black uppercase tracking-widest">No souls manifest in this fellowship yet.</p>
+            </div>
+          ) : characters.map(char => (
             <div key={char.id} onClick={() => setSelectedCharacterId(char.id)} className={`grim-card group relative border-2 rounded-sm overflow-hidden hover:border-[#b28a48]/40 transition-all cursor-pointer ${selectedCharacterId === char.id ? 'border-[#b28a48]' : 'border-neutral-800'}`}>
-              <div className="h-40 md:h-48 bg-neutral-900">
+              <div className="h-40 md:h-48 bg-neutral-900 relative">
                 {char.imageUrl ? <img src={char.imageUrl} className="w-full h-full object-cover" alt={char.name} /> : <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">👤</div>}
+                {char.isMentor && (
+                  <div className="absolute top-2 left-2 bg-blue-600/80 backdrop-blur-sm text-white text-[7px] px-2 py-0.5 font-black rounded-sm uppercase border border-blue-400/40">AI MENTOR</div>
+                )}
               </div>
               <div className="p-4 bg-black/60 backdrop-blur-sm">
                 <div className="flex justify-between items-start">
                   <div className="min-w-0">
                     <h4 className={`text-lg font-black fantasy-font ${char.isMentor ? 'text-blue-400' : 'text-[#b28a48]'} truncate`}>{char.name}</h4>
-                    <p className="text-[8px] text-neutral-500 uppercase tracking-widest">{char.isMentor ? 'AI Mentor' : char.race} • LVL {char.level}</p>
+                    <p className="text-[8px] text-neutral-500 uppercase tracking-widest">{char.race} • LVL {char.level}</p>
                   </div>
-                  {char.exp >= char.expToNextLevel ? (
+                  {char.exp >= char.expToNextLevel && !char.isMentor ? (
                     <span className="bg-amber-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded-sm animate-pulse ml-2">LEVEL UP</span>
                   ) : null}
                 </div>
@@ -224,8 +253,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                                 <p className="text-xl font-black text-red-500">{selectedChar.hp} / {selectedChar.maxHp}</p>
                             </div>
                             <div className="bg-black/60 border border-neutral-800 p-3 rounded-sm text-center">
-                                <p className="text-[8px] font-black text-neutral-600 uppercase mb-1">Experience</p>
-                                <p className="text-xl font-black text-amber-500">{selectedChar.exp} / {selectedChar.expToNextLevel}</p>
+                                <p className="text-[8px] font-black text-neutral-600 uppercase mb-1">{selectedChar.isMentor ? 'Role' : 'Experience'}</p>
+                                <p className={`text-xl font-black ${selectedChar.isMentor ? 'text-blue-400' : 'text-amber-500'}`}>
+                                  {selectedChar.isMentor ? 'MENTOR' : `${selectedChar.exp} / ${selectedChar.expToNextLevel}`}
+                                </p>
                             </div>
                         </div>
 
@@ -252,7 +283,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ characters, setChar
                     <div>
                       <h3 className="text-3xl md:text-5xl font-black fantasy-font text-[#b28a48] leading-tight break-words">{selectedChar.name}</h3>
                       <p className="text-[10px] md:text-sm text-neutral-500 uppercase tracking-widest font-black mt-1">
-                        {selectedChar.isMentor ? 'AI Mentor' : selectedChar.race} {selectedClass?.name || 'Vagabond'} • Level {selectedChar.level}
+                        {selectedChar.race} {selectedClass?.name || 'Vagabond'} • Level {selectedChar.level}
                       </p>
                       <p className="text-xs italic text-neutral-400 font-serif mt-6 leading-relaxed border-l-2 border-[#b28a48]/20 pl-4">
                         "{selectedChar.description}"

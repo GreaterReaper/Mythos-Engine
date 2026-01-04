@@ -95,11 +95,15 @@ export const getDMResponse = async (history: any[], plot: string, input: string,
         CAMPAIGN FLOW:
         - Miri (Fighter), Lina (Mage), and Seris (Archer) are NON-PLAYABLE AI MENTORS. 
         - If the player is alone or struggling, you can narratively "Summon the Mentor Trio" to join the fellowship. They automatically scale to the player's level.
-        - Mentors should explain rules, suggest tactics, and roleplay their personalities (Lina: Timid, Seris: Stoic, Miri: Bold).
+        - Mentors should explain rules, suggest tactics, and roleplay their personalities.
+
+        SPECIFIC MECHANICS:
+        - Dark Knight "Living Dead": Lasts 1 full combat turn. DK survives at 1HP. Damage dealt heals the DK. If healing < Max HP at turn end, they MUST make a Death Save or die.
+        - Gorechimera: Boss with Lion (Roar), Serpent (Venom), and Goat (Heal/Revive) heads. Very dangerous.
         
         EXP & PROGRESSION:
         - Award EXP after combat or story beats (e.g., +150 EXP).
-        - Mentors scale automatically; do not worry about their EXP, just their presence as tactical aids.
+        - ASI Points are granted at levels 4, 8, 12, 16, and 19.
         
         Keep responses immersive and use d20 rolls for all checks.`,
       }

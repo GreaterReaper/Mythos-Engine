@@ -50,7 +50,7 @@ const CampaignView: React.FC<CampaignViewProps> = ({
     const baseStats = template.stats || { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 };
     const scaledStats = { ...baseStats };
     
-    // ASI points at 4, 8, 12, 16, 19
+    // Scale stats roughly based on ASI levels (4, 8, 12, 16, 19)
     const asiLevels = [4, 8, 12, 16, 19];
     const asiCount = asiLevels.filter(lvl => targetLevel >= lvl).length;
     const primary = cls?.preferredStats?.[0]?.toLowerCase() as keyof Stats || 'strength';
@@ -135,9 +135,9 @@ const CampaignView: React.FC<CampaignViewProps> = ({
       
       const newStats = { ...c.stats };
       let unspentAsi = c.unspentAsiPoints || 0;
-      // Requirement: ASI at 4, 8, 12, 16, 19
+      
+      // Grant ASI at levels 4, 8, 12, 16, and 19
       const isAsiLevel = [4, 8, 12, 16, 19].includes(newLevel);
-
       if (isAsiLevel) {
         unspentAsi += 2;
       }

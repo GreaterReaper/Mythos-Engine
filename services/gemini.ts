@@ -98,7 +98,7 @@ export const getDMResponse = async (history: any[], plot: string, input: string,
         - Mentors should explain rules, suggest tactics, and roleplay their personalities.
 
         SPECIFIC MECHANICS:
-        - Dark Knight "Living Dead": Lasts 1 full combat turn. DK survives at 1HP. Damage dealt heals the DK. If healing < Max HP at turn end, they MUST make a Death Save or die.
+        - Dark Knight "Living Dead": Lasts 1 full combat turn. DK survives at 1HP. Damage dealt heals the DK. If total healing received < Max HP at turn end, they MUST make a Death Save or die.
         - Gorechimera: Boss with Lion (Roar), Serpent (Venom), and Goat (Heal/Revive) heads. Very dangerous.
         
         EXP & PROGRESSION:

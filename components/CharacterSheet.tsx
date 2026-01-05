@@ -3,34 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { Character, Stats, Ability, Item } from '../types';
 import { RECOMMENDED_STATS } from '../constants';
 import SpellSlotManager from './SpellSlotManager';
-
-interface TooltipProps {
-  title: string;
-  content: string;
-  children: React.ReactNode;
-  subTitle?: string;
-}
-
-const Tooltip: React.FC<TooltipProps> = ({ title, content, children, subTitle }) => {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="relative inline-block w-full" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      {children}
-      {show && (
-        <div className="absolute z-[100] bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 bg-[#0c0a09] border border-[#a16207] text-[10px] text-gray-400 shadow-[0_10px_30px_rgba(0,0,0,0.9)] animate-in fade-in zoom-in pointer-events-none border-t-2 border-t-red-900">
-          <div className="flex justify-between items-center border-b border-[#a16207]/20 mb-2 pb-1">
-            <p className="font-cinzel text-[#a16207] font-bold">{title}</p>
-            {subTitle && <span className="text-red-900 text-[8px] italic">{subTitle}</span>}
-          </div>
-          <p className="italic leading-relaxed">{content}</p>
-          <div className="mt-2 flex justify-center">
-            <div className="text-[8px] text-[#a16207]/40 tracking-widest">ᛟ ᚱ ᛞ ᛖ ᚱ</div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+import Tooltip from './Tooltip';
 
 interface CharacterSheetProps {
   character: Character;
@@ -123,11 +96,11 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                 return (
                   <Tooltip 
                     key={s} 
-                    title={s.toUpperCase()} 
+                    title={s} 
                     subTitle={`Mod: ${mod >= 0 ? '+' : ''}${mod}`}
                     content={`Thy ${s} attribute determines thy bonus to relevant checks and saving throws.`}
                   >
-                    <div className={`p-2 border relative group cursor-help transition-all ${
+                    <div className={`p-2 border relative group cursor-help transition-all h-full ${
                       isRecommended && hasASI 
                         ? 'border-gold shadow-[0_0_15px_rgba(161,98,7,0.3)] bg-gold/5' 
                         : 'border-red-900/20 bg-black/40 hover:border-red-900/50'
@@ -172,7 +145,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
               >
                 <div className="p-2 bg-red-900/5 border-l-2 border-red-900 cursor-help hover:bg-red-900/10 transition-colors">
                   <div className="flex justify-between text-[10px] font-cinzel">
-                    <span className="text-gold">{a.name}</span>
+                    <span className="text-gold uppercase tracking-tighter">{a.name}</span>
                     <span className="text-red-900 italic opacity-50">{a.type === 'Spell' ? `LVL ${a.baseLevel}` : a.type}</span>
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1 line-clamp-1">{a.description}</p>
@@ -199,7 +172,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                       'border-red-900 text-red-900'
                     }`}>{item.name[0]}</div>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-cinzel text-gold truncate">{item.name}</p>
+                      <p className="text-[10px] font-cinzel text-gold truncate uppercase">{item.name}</p>
                       <p className="text-[8px] text-gray-500 uppercase">{item.rarity} {item.type}</p>
                     </div>
                   </div>
@@ -214,7 +187,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         {activeTab === 'Lore' && (
           <div className="space-y-4">
             <div className="p-3 bg-red-900/5 border-l-2 border-red-900">
-              <h4 className="text-[10px] font-cinzel text-red-900 uppercase mb-2">Thy Chronicle</h4>
+              <h4 className="text-[10px] font-cinzel text-red-900 uppercase mb-2 tracking-widest">Thy Chronicle</h4>
               <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{character.biography || "No lore has been transcribed into the Engine's memory."}</p>
             </div>
           </div>

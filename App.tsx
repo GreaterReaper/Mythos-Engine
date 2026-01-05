@@ -187,21 +187,32 @@ const App: React.FC = () => {
     });
   };
 
-  // Fix: Explicitly cast char to Character to resolve 'unknown' property issues on line 257
+  // Fix: Improved type safety for character property access and arithmetic operations in handleLevelUp
   const handleLevelUp = (id: string) => {
-    const foundChar = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
-    if (!foundChar) return;
-    const char = foundChar as Character;
-    const nextExp = char.level * 1000;
-    if (char.exp >= nextExp) {
-      const archName = char.archetype;
-      const archInfo = ARCHETYPE_INFO[archName as string] || state.customArchetypes.find(a => a.name === archName) || { hpDie: 8, spells: [] };
-      const newLevel = char.level + 1;
-      const hpGain = Math.floor(Math.random() * archInfo.hpDie) + 1 + Math.floor((char.stats.con - 10) / 2);
+    const allChars: Character[] = [...state.characters, ...state.mentors];
+    const char = allChars.find(c => c.id === id);
+    if (!char) return;
+
+    const currentLevel = (char.level as number) || 1;
+    const currentExp = (char.exp as number) || 0;
+    const nextExp = currentLevel * 1000;
+
+    if (currentExp >= nextExp) {
+      const archName = char.archetype as string;
+      const customArch = state.customArchetypes.find(a => a.name === archName);
+      const defaultArch = ARCHETYPE_INFO[archName];
+      const hpDie = (defaultArch?.hpDie || customArch?.hpDie || 8) as number;
+      
+      const newLevel = currentLevel + 1;
+      const conValue = (char.stats?.con as number) || 10;
+      const hpGain = Math.floor(Math.random() * hpDie) + 1 + Math.floor((conValue - 10) / 2);
       const isASILevel = [4, 8, 12, 16, 19].includes(newLevel);
       
       let spellSlotsUpdate = {};
-      const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archName as Archetype) || (archInfo.spells && archInfo.spells.length > 0);
+      const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archName as Archetype) || 
+                       (customArch?.spells && customArch.spells.length > 0) || 
+                       (defaultArch?.spells && defaultArch.spells.length > 0);
+      
       if (isCaster) {
         const slots = SPELL_SLOT_PROGRESSION[newLevel] || {};
         spellSlotsUpdate = { maxSpellSlots: slots, spellSlots: slots };
@@ -209,21 +220,23 @@ const App: React.FC = () => {
 
       updateCharacter(id, {
         level: newLevel,
-        exp: char.exp - nextExp,
-        maxHp: char.maxHp + hpGain,
-        currentHp: char.maxHp + hpGain,
-        asiPoints: char.asiPoints + (isASILevel ? 2 : 0),
+        exp: currentExp - nextExp,
+        maxHp: (char.maxHp as number) + hpGain,
+        currentHp: (char.maxHp as number) + hpGain,
+        asiPoints: (char.asiPoints as number) + (isASILevel ? 2 : 0),
         ...spellSlotsUpdate
       });
     }
   };
 
+  // Fix: Improved character lookup and type safety in addExpToParty
   const addExpToParty = (amount: number) => {
     state.party.forEach(id => {
-      const foundChar = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
-      if (foundChar) {
-        const char = foundChar as Character;
-        const newExp = char.exp + amount;
+      const allChars: Character[] = [...state.characters, ...state.mentors];
+      const char = allChars.find(c => c.id === id);
+      if (char) {
+        const currentExp = (char.exp as number) || 0;
+        const newExp = currentExp + amount;
         updateCharacter(id, { exp: newExp });
         handleLevelUp(id);
       }

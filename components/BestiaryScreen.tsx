@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Monster } from '../types';
+import Tooltip from './Tooltip';
 
 interface BestiaryScreenProps {
   monsters: Monster[];
@@ -39,22 +40,22 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
 
       <div className="flex flex-col md:flex-row gap-4 p-4 bg-black/40 rune-border items-end">
         <div className="flex-1 space-y-2 w-full">
-          <label className="text-[10px] font-cinzel text-red-900 uppercase">Search the Void</label>
+          <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Search the Void</label>
           <input 
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name or type..."
-            className="w-full bg-[#0c0a09] border border-red-900/50 p-2 text-xs text-gold outline-none focus:border-gold transition-all"
+            className="w-full bg-[#0c0a09] border border-red-900/50 p-2 text-xs text-gold outline-none focus:border-gold transition-all font-cinzel"
           />
         </div>
 
         <div className="w-full md:w-48 space-y-2">
-          <label className="text-[10px] font-cinzel text-red-900 uppercase">Sort By Difficulty</label>
+          <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Sort By Difficulty</label>
           <select 
             value={sortBy} 
             onChange={(e) => setSortBy(e.target.value as SortCriteria)}
-            className="w-full bg-[#0c0a09] border border-red-900/50 p-2 text-xs text-gold outline-none cursor-pointer"
+            className="w-full bg-[#0c0a09] border border-red-900/50 p-2 text-xs text-gold outline-none cursor-pointer font-cinzel"
           >
             <option value="expReward">EXP Reward (Threat)</option>
             <option value="hp">Vitality (HP)</option>
@@ -84,7 +85,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="block text-[10px] text-gold font-cinzel uppercase opacity-50">Threat Level</span>
+                  <span className="block text-[10px] text-gold font-cinzel uppercase opacity-50 tracking-tighter">Threat Level</span>
                   <span className={`text-xs border px-2 py-0.5 rounded font-cinzel shadow-lg ${isBoss ? 'bg-gold text-black border-white' : 'bg-red-900/40 text-white border-gold/30'}`}>
                     {monster.expReward} EXP
                   </span>
@@ -99,14 +100,16 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
                 <h4 className="text-[10px] font-cinzel text-gold uppercase mb-2 opacity-60 tracking-widest">Innate Manifestations</h4>
                 <div className="flex flex-wrap gap-2">
                   {monster.abilities.map((a, i) => (
-                    <div key={i} className="group/ability relative">
-                      <span className="text-[10px] border border-red-900/50 px-2 py-1 text-red-900 uppercase font-cinzel cursor-help hover:bg-red-900 hover:text-white transition-colors block">
-                        {a.name}
-                      </span>
-                      <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-black border border-gold text-[10px] text-gray-400 opacity-0 group-hover/ability:opacity-100 pointer-events-none transition-opacity z-[100] shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
-                        <p className="text-gold font-cinzel mb-1 border-b border-gold/20 pb-1">{a.name} <span className="text-red-800 text-[8px]">[{a.type}]</span></p>
-                        <p className="italic">{a.description}</p>
-                      </div>
+                    <div key={i} className="min-w-[80px]">
+                      <Tooltip 
+                        title={a.name} 
+                        subTitle={a.type} 
+                        content={a.description}
+                      >
+                        <span className="text-[10px] border border-red-900/50 px-2 py-1 text-red-900 uppercase font-cinzel cursor-help hover:bg-red-900 hover:text-white transition-colors block text-center truncate">
+                          {a.name}
+                        </span>
+                      </Tooltip>
                     </div>
                   ))}
                 </div>
@@ -117,7 +120,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
 
         {sortedMonsters.length === 0 && (
           <div className="col-span-full py-20 text-center border-2 border-dashed border-red-900/20 rounded-lg">
-            <p className="text-gray-500 font-cinzel italic">The shadows are empty. No monsters match thy vision.</p>
+            <p className="text-gray-500 font-cinzel italic uppercase">The shadows are empty. No monsters match thy vision.</p>
           </div>
         )}
       </div>

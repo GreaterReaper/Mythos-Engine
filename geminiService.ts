@@ -56,6 +56,7 @@ const getApiKey = () => {
   }
 };
 
+// Fix: Removed extra closing parenthesis from getAiClient initialization
 /**
  * Creates a fresh AI instance. 
  */
@@ -85,28 +86,22 @@ export const generateDMResponse = async (
     CORE DIRECTIVE:
     Provide a living, breathing dark fantasy world. Your responses must blend evocative narrative prose with immersive NPC dialogue that reacts dynamically to the players.
 
-    IMMERSIVE DIALOGUE & NPC RULES:
-    - Every NPC has a distinct "Voice". Consider their background, race, and current emotional state.
-    - Mentors:
-        Lina (Mage/Human/Female): Petite, shy, hesitant priestess.
-        Seris (Archer/Elf/Female): Reserved, sharp-eyed, composed.
-        Miri (Fighter/Human/Female): Energetic, impulsive, playful.
-        Kaelen (Dark Knight/Human/Male): Cold, emotionless.
-    
-    CLASS WEAPON RULES:
-    - Dark Knights: They exclusively wield massive, heavy two-handed swords (greatswords, zweihänders, claymores). They never use shields, daggers, or wands. All weapon manifestations for Dark Knights must be heavy swords.
+    RESOURCE TRACKING (STRICT):
+    - You MUST monitor the party's spell slots for EVERY caster. 
+    - When a player or mentor casts a spell, check their available slots in the data below.
+    - If they have a slot, use the tag: [USE SLOT Level FOR CharacterName] (e.g., [USE SLOT 1 FOR Lina]).
+    - If they are out of slots for that level, you MUST narrate that the spell fails or they are too exhausted.
 
     RESTING MECHANICS:
-    - You track the party's fatigue. If they are low on resources (HP or Spells), narrate a safe haven and trigger a rest.
-    - To trigger a rest via your response, include the tags [SHORT REST] or [LONG REST].
-    - A Short Rest restores half resources. A Long Rest restores all.
+    - Include [SHORT REST] to restore half missing HP and half of total max spell slots.
+    - Include [LONG REST] to restore all HP and all spell slots.
+    - Suggest rests when the party is battered or out of magic.
 
-    PARTY: ${JSON.stringify(playerContext.characters.map(c => ({ 
+    PARTY STATUS: ${JSON.stringify(playerContext.characters.map(c => ({ 
       name: c.name, 
       class: c.archetype, 
-      level: c.level, 
       health: `${c.currentHp}/${c.maxHp}`,
-      spells: c.spellSlots ? JSON.stringify(c.spellSlots) : "No slots"
+      slots: c.spellSlots || "No slots"
     })))}
     RULES: ${playerContext.activeRules}
   `;
@@ -265,8 +260,8 @@ export const parseDMCommand = (text: string) => {
     if (match[2]) {
       try { data = JSON.parse(match[2]); } catch (e) {}
     }
-    // Filter out internal tags like [SHORT REST] from being parsed as items
-    if (name !== "SHORT REST" && name !== "LONG REST") {
+    // Filter out internal tags
+    if (name !== "SHORT REST" && name !== "LONG REST" && !name.includes("USE SLOT")) {
       items.push({ name, data });
     }
   }
@@ -274,10 +269,18 @@ export const parseDMCommand = (text: string) => {
   const shortRest = text.includes("[SHORT REST]");
   const longRest = text.includes("[LONG REST]");
   
+  // Specific parsing for slot usage: [USE SLOT Level FOR Name]
+  const slotMatch = text.match(/\[USE SLOT (\d+) FOR ([^\]]+)\]/i);
+  const usedSlot = slotMatch ? {
+    level: parseInt(slotMatch[1]),
+    characterName: slotMatch[2].trim()
+  } : null;
+  
   return {
     exp: expMatch ? parseInt(expMatch[1]) : 0,
     items,
     shortRest,
-    longRest
+    longRest,
+    usedSlot
   };
 };

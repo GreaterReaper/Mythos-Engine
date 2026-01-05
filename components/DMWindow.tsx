@@ -16,13 +16,14 @@ interface DMWindowProps {
   onAwardItem: (name: string, data?: Partial<Item>) => void;
   onShortRest: () => void;
   onLongRest: () => void;
+  onAIRuntimeUseSlot: (level: number, characterName: string) => void;
   isHost: boolean;
 }
 
 const DMWindow: React.FC<DMWindowProps> = ({ 
   campaign, allCampaigns, characters, onMessage, onCreateCampaign, 
   onSelectCampaign, onQuitCampaign, onAwardExp, onAwardItem, 
-  onShortRest, onLongRest, isHost 
+  onShortRest, onLongRest, onAIRuntimeUseSlot, isHost 
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +42,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
     onMessage(userMsg);
     setInput('');
     
-    // Only host triggers the AI response to maintain synchronization
     if (!isHost) return;
 
     setIsLoading(true);
@@ -56,17 +56,25 @@ const DMWindow: React.FC<DMWindowProps> = ({
       onMessage(dmMsg);
       
       if (responseText) {
-        const { exp, items, shortRest, longRest } = parseDMCommand(responseText);
+        const { exp, items, shortRest, longRest, usedSlot } = parseDMCommand(responseText);
+        
         if (exp > 0) onAwardExp(exp);
         items.forEach(item => onAwardItem(item.name, item.data));
         
+        if (usedSlot) {
+          const success = onAIRuntimeUseSlot(usedSlot.level, usedSlot.characterName);
+          if (success) {
+            onMessage({ role: 'system', content: `[Aetheric Drain] ${usedSlot.characterName} consumes a level ${usedSlot.level} slot.`, timestamp: Date.now() });
+          }
+        }
+
         if (shortRest) {
           onShortRest();
-          onMessage({ role: 'system', content: "The party takes a Short Rest. Vitality and aetheric reserves partially restore.", timestamp: Date.now() });
+          onMessage({ role: 'system', content: "The party takes a Short Rest. Vitality and magic partially return.", timestamp: Date.now() });
         }
         if (longRest) {
           onLongRest();
-          onMessage({ role: 'system', content: "The party takes a Long Rest. All souls are fully mended and aetheric reserves are replenished.", timestamp: Date.now() });
+          onMessage({ role: 'system', content: "The party takes a Long Rest. Total restoration of body and spirit.", timestamp: Date.now() });
         }
       }
     } catch (err) {
@@ -95,7 +103,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Create New Chronicle */}
           <div className="space-y-6">
              <div className="flex items-center gap-4 mb-4">
                 <div className="h-px flex-1 bg-red-900/30"></div>
@@ -116,7 +123,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
                  <button onClick={() => onCreateCampaign(newTitle, newPrompt)} disabled={!newTitle || !newPrompt || characters.length === 0} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white font-cinzel font-bold border border-gold disabled:opacity-30 transition-all shadow-lg shadow-red-900/20">
                    INITIATE CHRONICLE
                  </button>
-                 {characters.length === 0 && <p className="text-[8px] text-center text-red-500 font-cinzel">THOU MUST BIND SOULS TO THY FELLOWSHIP BEFORE STARTING.</p>}
                </div>
              ) : (
                <div className="rune-border p-8 bg-black/40 border-gold/20 italic text-gray-500 font-cinzel text-center">
@@ -125,7 +131,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
              )}
           </div>
 
-          {/* Archived Chronicles */}
           <div className="space-y-6">
              <div className="flex items-center gap-4 mb-4">
                 <div className="h-px flex-1 bg-red-900/30"></div>
@@ -170,7 +175,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
           <button 
             onClick={onQuitCampaign}
             className="text-red-900 hover:text-red-500 font-bold transition-colors text-lg px-2"
-            title="Seal Chronicle (Return to Hub)"
           >
             ×
           </button>
@@ -179,18 +183,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
         <div className="flex items-center gap-2">
           {isHost && (
             <>
-              <button 
-                onClick={manualShortRest}
-                className="text-[8px] text-amber-500 border border-amber-900/40 px-2 py-0.5 hover:bg-amber-900/20 transition-all uppercase font-cinzel"
-              >
-                Short Rest
-              </button>
-              <button 
-                onClick={manualLongRest}
-                className="text-[8px] text-blue-500 border border-blue-900/40 px-2 py-0.5 hover:bg-blue-900/20 transition-all uppercase font-cinzel"
-              >
-                Long Rest
-              </button>
+              <button onClick={manualShortRest} className="text-[8px] text-amber-500 border border-amber-900/40 px-2 py-0.5 hover:bg-amber-900/20 uppercase font-cinzel">Short Rest</button>
+              <button onClick={manualLongRest} className="text-[8px] text-blue-500 border border-blue-900/40 px-2 py-0.5 hover:bg-blue-900/20 uppercase font-cinzel">Long Rest</button>
             </>
           )}
           <span className="text-[8px] text-red-900 font-cinzel bg-red-900/10 px-2 py-0.5 border border-red-900/20 uppercase">

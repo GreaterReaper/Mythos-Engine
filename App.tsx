@@ -187,9 +187,11 @@ const App: React.FC = () => {
     });
   };
 
+  // Fix: Explicitly cast char to Character to resolve 'unknown' property issues on line 257
   const handleLevelUp = (id: string) => {
-    const char = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
-    if (!char) return;
+    const foundChar = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
+    if (!foundChar) return;
+    const char = foundChar as Character;
     const nextExp = char.level * 1000;
     if (char.exp >= nextExp) {
       const archName = char.archetype;
@@ -218,14 +220,27 @@ const App: React.FC = () => {
 
   const addExpToParty = (amount: number) => {
     state.party.forEach(id => {
-      const char = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
-      if (char) {
-        // Explicitly cast char.exp to number to resolve unknown type inference errors during addition
-        const newExp = (char.exp as number) + amount;
+      const foundChar = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
+      if (foundChar) {
+        const char = foundChar as Character;
+        const newExp = char.exp + amount;
         updateCharacter(id, { exp: newExp });
         handleLevelUp(id);
       }
     });
+  };
+
+  const handleAIRuntimeSlotUsage = (level: number, characterName: string) => {
+    const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+    // Find character by name (case-insensitive)
+    const target = partyChars.find(c => c.name.toLowerCase() === characterName.toLowerCase());
+    
+    if (target && target.spellSlots && target.spellSlots[level] > 0) {
+      const newSlots = { ...target.spellSlots, [level]: (target.spellSlots[level] || 1) - 1 };
+      updateCharacter(target.id, { spellSlots: newSlots });
+      return true;
+    }
+    return false;
   };
 
   const handleShortRest = () => {
@@ -240,6 +255,7 @@ const App: React.FC = () => {
           Object.entries(char.maxSpellSlots).forEach(([lvl, max]) => {
             const level = parseInt(lvl);
             const current = char.spellSlots?.[level] || 0;
+            // Restore half of the TOTAL slots (rounded up), but never exceed max
             restoredSlots[level] = Math.min(max, current + Math.ceil(max / 2));
           });
         }
@@ -322,7 +338,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden">
-      {/* Mobile Top Header */}
       <header className="md:hidden flex justify-between items-center px-4 py-3 bg-[#0c0a09] border-b border-red-900/40 z-[90]">
         <h1 className="text-lg font-cinzel font-bold text-[#a16207]">Mythos Engine</h1>
         <div 
@@ -376,6 +391,7 @@ const App: React.FC = () => {
               onAwardItem={handleAwardItem}
               onShortRest={handleShortRest}
               onLongRest={handleLongRest}
+              onAIRuntimeUseSlot={handleAIRuntimeSlotUsage}
               isHost={state.multiplayer.isHost}
             />
           )}

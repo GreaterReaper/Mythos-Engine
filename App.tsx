@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
-  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, MapToken
+  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, MapToken, Currency, Shop, ShopItem
 } from './types';
 import { 
   MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STARTER_CAMPAIGN_PROMPT, STORAGE_PREFIX
@@ -18,12 +18,15 @@ import TutorialScreen from './components/TutorialScreen';
 import AccountPortal from './components/AccountPortal';
 import NexusScreen from './components/NexusScreen';
 import SpellsScreen from './components/SpellsScreen';
-import { generateItemDetails, generateMonsterDetails, safeId, parseSoulSignature, hydrateState, manifestSoulLore } from './geminiService';
+import ShopModal from './components/ShopModal';
+import TavernScreen from './components/TavernScreen';
+import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, parseSoulSignature, hydrateState, manifestSoulLore } from './geminiService';
 
 declare var Peer: any;
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
+  const [isShopLoading, setIsShopLoading] = useState(false);
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
 
@@ -62,7 +65,14 @@ const App: React.FC = () => {
     }
   }, [state]);
 
-  // Soul Weaver Logic: Auto-populate lore for empty characters when campaign is active
+  // Background Pre-fetching for Shop
+  useEffect(() => {
+    if (activeTab === 'Tavern' && !(state as any).currentTavernShop && !isShopLoading) {
+      handleOpenShop(true); // Pre-fetch silently
+    }
+  }, [activeTab]);
+
+  // Soul Weaver Logic
   useEffect(() => {
     const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
     if (activeCampaign && state.multiplayer.isHost) {
@@ -146,11 +156,13 @@ const App: React.FC = () => {
         }
       }));
 
+      // Send local identity and current characters to ensure global roster sync
       conn.send({ 
         type: 'IDENTITY', 
         payload: { 
           username: state.userAccount.username,
-          id: state.userAccount.id
+          id: state.userAccount.id,
+          characters: state.characters.filter(c => c.ownerName === state.userAccount.username || !c.ownerName)
         } 
       });
 
@@ -175,9 +187,16 @@ const App: React.FC = () => {
               ? prev.userAccount.friends.map(f => f.name === data.payload.username ? updatedFriend : f)
               : [...prev.userAccount.friends, updatedFriend];
             
+            // Integrate remote characters into local roster
+            const remoteChars = (data.payload.characters || []).map((c: Character) => ({
+              ...c,
+              ownerName: data.payload.username
+            }));
+
             return {
               ...prev,
-              userAccount: { ...prev.userAccount, friends: newFriends }
+              userAccount: { ...prev.userAccount, friends: newFriends },
+              characters: [...prev.characters.filter(c => c.ownerName !== data.payload.username), ...remoteChars]
             };
           });
           break;
@@ -186,6 +205,16 @@ const App: React.FC = () => {
           break;
         case 'ADD_CHARACTER':
           setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] }));
+          break;
+        case 'UPDATE_CHARACTER':
+          setState(prev => ({
+            ...prev,
+            characters: prev.characters.map(c => c.id === data.payload.id ? { ...c, ...data.payload.updates } : c),
+            mentors: prev.mentors.map(m => m.id === data.payload.id ? { ...m, ...data.payload.updates } : m)
+          }));
+          break;
+        case 'UPDATE_PARTY':
+          setState(prev => ({ ...prev, party: data.payload }));
           break;
         case 'UPDATE_MAP':
           setState(prev => ({ ...prev, mapTokens: data.payload }));
@@ -244,7 +273,6 @@ const App: React.FC = () => {
       if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c) };
       const mentor = prev.mentors.find(m => m.id === id);
       if (mentor) {
-        // Automatically ensure mentors keep their items equipped if inventory changes
         const newInventory = updates.inventory || mentor.inventory;
         const finalUpdates = { 
           ...updates, 
@@ -254,6 +282,7 @@ const App: React.FC = () => {
       }
       return prev;
     });
+    broadcast('UPDATE_CHARACTER', { id, updates });
   };
 
   const handleLevelUp = (id: string) => {
@@ -299,14 +328,86 @@ const App: React.FC = () => {
 
   const addExpToParty = (amount: number) => {
     state.party.forEach(id => {
-      const allChars: Character[] = [...state.characters, ...state.mentors];
-      const char = allChars.find(c => c.id === id);
+      const char = [...state.characters, ...state.mentors].find(c => c.id === id);
       if (char) {
         const currentExp = char.exp || 0;
-        const newExp = currentExp + amount;
-        updateCharacter(id, { exp: newExp });
+        updateCharacter(id, { exp: currentExp + amount });
         handleLevelUp(id);
       }
+    });
+  };
+
+  const addCurrencyToParty = (curr: Partial<Currency>) => {
+    state.party.forEach(id => {
+      const char = [...state.characters, ...state.mentors].find(c => c.id === id);
+      if (char) {
+        const updatedVault: Currency = {
+          aurels: (char.currency.aurels || 0) + (curr.aurels || 0),
+          shards: (char.currency.shards || 0) + (curr.shards || 0),
+          ichor: (char.currency.ichor || 0) + (curr.ichor || 0),
+        };
+        updateCharacter(id, { currency: updatedVault });
+      }
+    });
+  };
+
+  const handleOpenShop = async (preFetch: boolean = false) => {
+    // If shop already exists and we're not pre-fetching, just open the modal (happens automatically via state)
+    const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
+    if (!preFetch && (activeCampaign?.activeShop || (state as any).currentTavernShop)) return;
+
+    setIsShopLoading(true);
+    const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+    const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
+    const context = activeCampaign?.prompt || "A warm, bustling tavern with an obsidian fireplace.";
+    
+    try {
+      const shop = await generateShopInventory(context, Math.ceil(avgLevel));
+      if (state.activeCampaignId) {
+        setState(prev => ({
+          ...prev,
+          campaigns: prev.campaigns.map(c => 
+            c.id === prev.activeCampaignId ? { ...c, activeShop: shop } : c
+          )
+        }));
+      } else {
+        setState(prev => ({ ...prev, currentTavernShop: shop }));
+      }
+    } catch (e) {
+      console.error("Shop manifestation failed.");
+    } finally {
+      setIsShopLoading(false);
+    }
+  };
+
+  const handleBuyItem = (shopItem: ShopItem, buyerId: string) => {
+    const buyer = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
+    if (!buyer) return;
+
+    // Deduct cost
+    const updatedCurrency: Currency = {
+      aurels: buyer.currency.aurels - shopItem.cost.aurels,
+      shards: buyer.currency.shards - shopItem.cost.shards,
+      ichor: buyer.currency.ichor - shopItem.cost.ichor,
+    };
+
+    // Strip cost for character inventory and global armory
+    const { cost, ...standardItem } = shopItem;
+    const newInventory = [...buyer.inventory, standardItem];
+
+    // Update character
+    updateCharacter(buyerId, { 
+      currency: updatedCurrency,
+      inventory: newInventory 
+    });
+
+    // Populate armory if unique
+    setState(prev => {
+      const alreadyInArmory = prev.armory.some(i => i.name.toLowerCase() === standardItem.name.toLowerCase());
+      if (!alreadyInArmory) {
+        return { ...prev, armory: [...prev.armory, standardItem] };
+      }
+      return prev;
     });
   };
 
@@ -362,10 +463,9 @@ const App: React.FC = () => {
   const handleAwardItem = async (name: string, data?: Partial<Item>) => {
     let item = state.armory.find(i => i.name.toLowerCase() === name.toLowerCase());
     if (!item) {
-      const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      const context = activeCampaign?.history.slice(-5).map(m => m.content).join(' ') || "The party finds a treasure.";
+      const context = "The party finds a treasure.";
       const generatedStats = await generateItemDetails(name, context, Math.ceil(avgLevel));
       item = {
         id: safeId(),
@@ -387,7 +487,6 @@ const App: React.FC = () => {
         const isMentor = recipient.id.startsWith('mentor-');
         updateCharacter(recipientId, { 
           inventory: newInventory,
-          // Auto-equip for mentors
           equippedIds: isMentor ? newInventory.map(i => i.id) : recipient.equippedIds
         });
       }
@@ -397,10 +496,9 @@ const App: React.FC = () => {
   const handleAwardMonster = async (name: string) => {
     let monster = state.bestiary.find(m => m.name.toLowerCase() === name.toLowerCase());
     if (!monster) {
-      const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      const context = activeCampaign?.history.slice(-5).map(m => m.content).join(' ') || "A new threat emerges.";
+      const context = "A new threat emerges.";
       const generated = await generateMonsterDetails(name, context, Math.ceil(avgLevel));
       const newMonster: Monster = {
         id: safeId(),
@@ -435,7 +533,8 @@ const App: React.FC = () => {
       title,
       prompt,
       history: [{ role: 'system', content: `Campaign Started: ${title}. ${prompt}`, timestamp: Date.now() }],
-      participants: state.party
+      participants: state.party,
+      isCombatActive: false
     };
     setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: newCampaign.id }));
     setActiveTab('Chronicles');
@@ -447,6 +546,50 @@ const App: React.FC = () => {
   };
 
   const activeCampaign = useMemo(() => state.campaigns.find(c => c.id === state.activeCampaignId) || null, [state.campaigns, state.activeCampaignId]);
+  
+  // Tactical visibility logic: Only show if an active campaign has combat manifested.
+  const showTacticsTab = activeCampaign?.isCombatActive || false;
+
+  const handleSetCombatActive = (active: boolean) => {
+    if (!state.activeCampaignId) return;
+    setState(prev => ({
+      ...prev,
+      campaigns: prev.campaigns.map(c => 
+        c.id === prev.activeCampaignId ? { ...c, isCombatActive: active } : c
+      )
+    }));
+  };
+
+  const handleAddCharacter = (c: Character) => {
+    setState(p => {
+      const isFirstChar = p.characters.length === 0;
+      const newChar = { ...c, isPrimarySoul: isFirstChar, ownerName: p.userAccount.username };
+      
+      const updatedCharacters = [...p.characters, newChar];
+      const updatedParty = isFirstChar ? [...p.party, newChar.id] : p.party;
+
+      return {
+        ...p,
+        characters: updatedCharacters,
+        party: updatedParty
+      };
+    });
+    broadcast('ADD_CHARACTER', { ...c, ownerName: state.userAccount.username });
+    if (state.characters.length === 0) {
+      broadcast('UPDATE_PARTY', [...state.party, c.id]);
+    }
+  };
+
+  const handleToggleParty = (id: string) => {
+    setState(prev => {
+      const newParty = prev.party.includes(id) 
+        ? prev.party.filter(p => p !== id) 
+        : [...prev.party, id];
+      
+      broadcast('UPDATE_PARTY', newParty);
+      return { ...prev, party: newParty };
+    });
+  };
 
   if (!state.userAccount.isLoggedIn) {
     return <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />;
@@ -472,22 +615,52 @@ const App: React.FC = () => {
         setActiveTab={setActiveTab} 
         userAccount={state.userAccount} 
         multiplayer={state.multiplayer}
+        showTactics={showTacticsTab}
       />
       
       <main className="relative flex-1 overflow-y-auto bg-leather">
         <div className="mx-auto min-h-full max-w-7xl p-4 pb-20 md:p-8 md:pb-8">
+          {(activeCampaign?.activeShop || (state as any).currentTavernShop) && (
+            <ShopModal 
+              shop={activeCampaign?.activeShop || (state as any).currentTavernShop}
+              characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
+              onClose={() => {
+                if (activeCampaign) {
+                  setState(prev => ({
+                    ...prev,
+                    campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, activeShop: null } : c)
+                  }));
+                } else {
+                  setState(prev => ({ ...prev, currentTavernShop: null }));
+                }
+              }}
+              onBuy={handleBuyItem}
+            />
+          )}
+
+          {activeTab === 'Tavern' && (
+            <TavernScreen 
+              party={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
+              onLongRest={handleLongRest}
+              onOpenShop={() => handleOpenShop(false)}
+              isHost={state.multiplayer.isHost}
+              isShopLoading={isShopLoading}
+            />
+          )}
+
           {activeTab === 'Fellowship' && (
             <FellowshipScreen 
               characters={state.characters} 
-              onAdd={(c) => { setState(p => ({ ...p, characters: [...p.characters, c] })); broadcast('ADD_CHARACTER', c); }} 
+              onAdd={handleAddCharacter} 
               onDelete={(id) => setState(p => ({...p, characters: p.characters.filter(c => c.id !== id)}))}
               onUpdate={updateCharacter}
               mentors={state.mentors}
               onUpdateMentor={updateCharacter}
               party={state.party}
-              setParty={(party) => setState(p => ({...p, party}))}
+              setParty={(party) => { setState(p => ({...p, party})); broadcast('UPDATE_PARTY', party); }}
               customArchetypes={state.customArchetypes}
               onAddCustomArchetype={handleAddCustomArchetype}
+              username={state.userAccount.username}
             />
           )}
           {activeTab === 'Chronicles' && (
@@ -507,11 +680,14 @@ const App: React.FC = () => {
               onSelectCampaign={(id) => setState(p => ({ ...p, activeCampaignId: id }))}
               onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))}
               onAwardExp={addExpToParty}
+              onAwardCurrency={addCurrencyToParty}
               onAwardItem={handleAwardItem}
               onAwardMonster={handleAwardMonster}
               onShortRest={handleShortRest}
               onLongRest={handleLongRest}
               onAIRuntimeUseSlot={handleAIRuntimeSlotUsage}
+              onOpenShop={() => handleOpenShop(false)}
+              onSetCombatActive={handleSetCombatActive}
               isHost={state.multiplayer.isHost}
               username={state.userAccount.username}
             />

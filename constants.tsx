@@ -211,6 +211,7 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'legendary-saint-relic', name: 'Glow-Heart of the First Saint', description: 'A legendary pulsating crystal that radiates an eternal, holy light. Darkness cannot exist in its presence.', type: 'Utility', rarity: 'Legendary', stats: { wis: 5, con: 2 }, archetypes: [Archetype.Mage] }
 ];
 
+// Added default currency to the createMentor function to satisfy the Character interface requirements.
 const createMentor = (data: Partial<Character>): Character => {
   const inventory = data.inventory || [];
   return {
@@ -225,6 +226,8 @@ const createMentor = (data: Partial<Character>): Character => {
     maxHp: 10,
     currentHp: 10,
     stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    // Default currency added here
+    currency: { aurels: 0, shards: 0, ichor: 0 },
     inventory: inventory,
     equippedIds: inventory.map(i => i.id),
     spells: [],
@@ -359,7 +362,7 @@ export const MENTORS: Character[] = [
     inventory: [INITIAL_ITEMS.find(i => i.id === 'start-hammer')!, INITIAL_ITEMS.find(i => i.id === 'start-plate')!],
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
-    description: 'A broad-shouldered Orc woman with graying hair, wielding a maul that looks like a fallen monument.',
+    description: 'A broad-supported Orc woman with graying hair, wielding a maul that looks like a fallen monument.',
     biography: 'Brunnhilde is the surviving matriarch of the Iron-Grip Clan. She sees the world through a lens of duty and protective rage. She treats the fellowship like her own wayward cubs, alternating between booming laughter and terrifyingly quiet intensity in the heat of battle. To her, "Steel is the only truth in a world of ghosts," and she ensures that truth is felt by every enemy that dares cross the party\'s path.'
   }),
   createMentor({
@@ -521,6 +524,62 @@ export const INITIAL_MONSTERS: Monster[] = [
     ],
     description: 'A pallid, terrifying hybrid with heads of a Lion, Goat, and Serpent. The goat head pulses with unholy restoration.',
     expReward: 5000
+  },
+  {
+    id: 'monster-hollow-king',
+    name: 'The Hollow King',
+    type: 'Undead',
+    hp: 420,
+    ac: 20,
+    abilities: [
+      { name: 'Soul Drain', description: 'Melee attack that heals the King for half the damage dealt.', type: 'Active', levelReq: 1 },
+      { name: 'Crown of Sorrows', description: 'AOE blast dealing 4d10 psychic damage and slowing all nearby foes.', type: 'Active', levelReq: 1 },
+      { name: 'Command Shadows', description: 'Summons 1d4 Shadow Wraiths to his side.', type: 'Active', levelReq: 1 }
+    ],
+    description: 'An ancient monarch who refused to pass into the void. He sits upon a throne of obsidian, eyes glowing with a baleful, blue light.',
+    expReward: 8000
+  },
+  {
+    id: 'monster-obsidian-colossus',
+    name: 'Titan of Obsidian',
+    type: 'Hybrid',
+    hp: 550,
+    ac: 22,
+    abilities: [
+      { name: 'Seismic Slam', description: 'The Titan strikes the ground, knocking all nearby targets Prone.', type: 'Active', levelReq: 1 },
+      { name: 'Shard Rain', description: 'Erupts shards of glass-like obsidian. 6d8 piercing damage in a 30ft radius.', type: 'Active', levelReq: 1 },
+      { name: 'Reflective Shell', description: 'For one round, all targeted spells are reflected back at the caster.', type: 'Active', levelReq: 1 }
+    ],
+    description: 'A monolithic engine of war carved from the very obsidian core of the mountains. It pulses with a raw, geological malice.',
+    expReward: 10000
+  },
+  {
+    id: 'monster-void-kraken',
+    name: 'Void-Eater Kraken',
+    type: 'Hybrid',
+    hp: 480,
+    ac: 16,
+    abilities: [
+      { name: 'Reality Warp', description: 'Teleports up to 60ft and immediately makes one attack.', type: 'Active', levelReq: 1 },
+      { name: 'Ink of the Abyss', description: 'A cloud of absolute darkness that blinds and poisons those within.', type: 'Active', levelReq: 1 },
+      { name: 'Tentacle Crush', description: 'Grapples up to four targets simultaneously, dealing 2d12 damage per turn.', type: 'Active', levelReq: 1 }
+    ],
+    description: 'A cosmic horror that swims through the aetheric mists. Its skin is a shifting map of dying stars.',
+    expReward: 9500
+  },
+  {
+    id: 'monster-shadow-sovereign',
+    name: 'Sovereign Shadow-Dragon',
+    type: 'Draconian',
+    hp: 600,
+    ac: 19,
+    abilities: [
+      { name: 'Breath of Ruin', description: 'A massive cone of necrotic fire. 12d8 damage, half on successful save.', type: 'Active', levelReq: 1 },
+      { name: 'Wing Buffet', description: 'Knocks all targets back 20ft and deals 3d10 bludgeoning damage.', type: 'Active', levelReq: 1 },
+      { name: 'Terrifying Presence', description: 'Frightens all enemies who can see the Dragon for 1 minute.', type: 'Active', levelReq: 1 }
+    ],
+    description: 'The eldest of the shadow drakes, whose wings can blot out the aetheric sun. Legend says it was born from the first tear shed by the Engine.',
+    expReward: 15000
   }
 ];
 

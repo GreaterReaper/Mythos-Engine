@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Character, Stats, Ability, Item, Archetype, Race } from '../types';
+import { Character, Stats, Ability, Item, Archetype, Race, Currency } from '../types';
 import { RECOMMENDED_STATS } from '../constants';
 import SpellSlotManager from './SpellSlotManager';
 import Tooltip from './Tooltip';
@@ -162,12 +162,15 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             <div className="flex items-center gap-2">
               <h2 className="text-xl md:text-2xl font-cinzel text-gold truncate">{character.name}</h2>
               {character.asiPoints > 0 && <span className="bg-gold text-black text-[9px] font-bold px-1.5 rounded animate-pulse">ASI</span>}
+              {character.isPrimarySoul && <span className="bg-red-900 text-white text-[8px] font-bold px-1.5 rounded uppercase animate-pulse">User</span>}
             </div>
             <p className="text-[10px] md:text-xs text-red-700 font-cinzel uppercase tracking-[0.2em] truncate">{character.race} {character.archetype} • Lvl {character.level}</p>
           </div>
           <div className="text-right shrink-0">
              <p className="text-[9px] text-gray-500 font-cinzel uppercase font-bold tracking-tighter">Essence</p>
-             <p className={`text-[10px] font-bold uppercase animate-pulse ${isMentor ? 'text-amber-500' : 'text-green-500'}`}>{isMentor ? 'MENTOR' : 'BOUND'}</p>
+             <p className={`text-[10px] font-bold uppercase animate-pulse ${isMentor ? 'text-amber-500' : character.isPrimarySoul ? 'text-red-500' : 'text-green-500'}`}>
+               {isMentor ? 'MENTOR' : character.isPrimarySoul ? 'PRIMARY SOUL' : 'BOUND'}
+             </p>
           </div>
         </div>
 
@@ -215,6 +218,25 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
       <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar bg-black/20">
         {activeTab === 'Stats' && (
           <div className="space-y-8 pb-4">
+            {/* Vault (Currency) - NOW READ ONLY */}
+            <div className="space-y-3">
+               <h3 className="text-[10px] font-cinzel text-gold uppercase border-b border-gold/20 pb-2 font-black tracking-[0.2em]">The Vault (DM Tracked)</h3>
+               <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-black/60 border border-gold/30 p-2 flex flex-col items-center rounded-sm">
+                    <span className="text-[8px] text-gold uppercase font-bold mb-1">Aurels</span>
+                    <span className="text-sm font-black text-white">{character.currency?.aurels || 0}</span>
+                  </div>
+                  <div className="bg-black/60 border border-purple-900/30 p-2 flex flex-col items-center rounded-sm">
+                    <span className="text-[8px] text-purple-400 uppercase font-bold mb-1">Shards</span>
+                    <span className="text-sm font-black text-white">{character.currency?.shards || 0}</span>
+                  </div>
+                  <div className="bg-black/60 border border-red-900/30 p-2 flex flex-col items-center rounded-sm">
+                    <span className="text-[8px] text-red-500 uppercase font-bold mb-1">Ichor</span>
+                    <span className="text-sm font-black text-white">{character.currency?.ichor || 0}</span>
+                  </div>
+               </div>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
                 const isRecommended = recommendedForArch.includes(s);
@@ -262,31 +284,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                 <h3 className="text-[10px] font-cinzel text-red-900 uppercase border-b border-red-900/20 pb-2 font-black">Saving Throws</h3>
-                 <div className="grid grid-cols-2 md:grid-cols-1 gap-1.5">
-                    {(Object.keys(character.stats) as Array<keyof Stats>).map(s => (
-                      <div key={s} className="flex justify-between text-[10px] border border-red-900/10 px-3 py-2 bg-black/40 rounded-sm">
-                        <span className="uppercase text-gray-500 font-bold">{s}</span>
-                        <span className="text-gold font-black">{getMod(character.stats[s]) >= 0 ? '+' : ''}{getMod(character.stats[s])}</span>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-              <div className="space-y-3">
-                 <h3 className="text-[10px] font-cinzel text-red-900 uppercase border-b border-red-900/20 pb-2 font-black">Proficiencies</h3>
-                 <div className="max-h-60 overflow-y-auto custom-scrollbar space-y-1 pr-1">
-                    {skills.map(skill => (
-                      <div key={skill.name} className="flex justify-between text-[10px] border border-red-900/5 px-3 py-2 bg-black/20 hover:border-gold/20 transition-all rounded-sm">
-                        <span className="text-gray-400 truncate font-medium">{skill.name}</span>
-                        <span className="text-white font-black">{getMod(character.stats[skill.stat as keyof Stats]) >= 0 ? '+' : ''}{getMod(character.stats[skill.stat as keyof Stats])}</span>
-                      </div>
-                    ))}
-                 </div>
-              </div>
-            </div>
-
             {character.maxSpellSlots && (
               <div className="mt-4">
                 <SpellSlotManager 
@@ -326,7 +323,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                    <svg className="w-3 h-3 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
                      <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM15 10a5 5 0 11-10 0 5 5 0 0110 0z" />
                    </svg>
-                   Manifest Best Gear (Auto-Equip All)
+                   Manifest Best Gear
                 </button>
               </div>
             )}
@@ -379,64 +376,29 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                            </svg>
                            Aetheric Re-Weave
                         </button>
-                        <button 
-                          onClick={saveLore}
-                          className="text-[9px] font-cinzel text-green-500 bg-green-500/10 border border-green-500/40 px-3 py-1 hover:bg-green-500/20 transition-all"
-                        >
-                           SAVE
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setIsEditingLore(false);
-                            setEditedBio(character.biography || '');
-                            setEditedDesc(character.description || '');
-                          }}
-                          className="text-[9px] font-cinzel text-red-500 bg-red-500/10 border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition-all"
-                        >
-                           CANCEL
-                        </button>
+                        <button onClick={saveLore} className="text-[9px] font-cinzel text-green-500 bg-green-500/10 border border-green-500/40 px-3 py-1 hover:bg-green-500/20 transition-all">SAVE</button>
+                        <button onClick={() => { setIsEditingLore(false); setEditedBio(character.biography || ''); setEditedDesc(character.description || ''); }} className="text-[9px] font-cinzel text-red-500 bg-red-500/10 border border-red-500/40 px-3 py-1 hover:bg-red-500/20 transition-all">CANCEL</button>
                      </>
                    ) : (
-                     <button 
-                       onClick={() => setIsEditingLore(true)}
-                       className="text-[9px] font-cinzel text-gold/60 border border-gold/20 px-3 py-1 hover:text-gold hover:border-gold transition-all uppercase"
-                     >
-                       Refine Chronicle
-                     </button>
+                     <button onClick={() => setIsEditingLore(true)} className="text-[9px] font-cinzel text-gold/60 border border-gold/20 px-3 py-1 hover:text-gold hover:border-gold transition-all uppercase">Refine Chronicle</button>
                    )}
                  </div>
                )}
             </div>
-
             <div className="p-5 bg-red-900/10 border-l-4 border-red-900 rounded-r-sm space-y-3">
               <h4 className="text-[10px] font-cinzel text-red-800 uppercase tracking-[0.3em] font-black">History</h4>
               {isEditingLore ? (
-                <textarea 
-                  value={editedBio}
-                  onChange={(e) => setEditedBio(e.target.value)}
-                  className="w-full h-40 bg-black/40 border border-red-900/20 p-3 text-xs text-gray-300 outline-none focus:border-gold/50 custom-scrollbar resize-none font-medium italic"
-                  placeholder="Record thy journey..."
-                />
+                <textarea value={editedBio} onChange={(e) => setEditedBio(e.target.value)} className="w-full h-40 bg-black/40 border border-red-900/20 p-3 text-xs text-gray-200 outline-none focus:border-gold/50 custom-scrollbar resize-none font-medium italic" />
               ) : (
-                <p className="text-xs md:text-sm text-gray-300 leading-relaxed whitespace-pre-wrap italic font-medium">
-                  {character.biography || "The Engine has not yet woven this soul's past. Join a campaign to unveil thy destiny."}
-                </p>
+                <p className="text-xs md:text-sm text-gray-200 leading-relaxed whitespace-pre-wrap italic font-medium">{character.biography || "The Engine has not yet woven this soul's past."}</p>
               )}
             </div>
-
             <div className="p-5 bg-black/40 border border-red-900/20 rounded-sm space-y-3">
               <h4 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-[0.2em]">Manifestation</h4>
               {isEditingLore ? (
-                <textarea 
-                  value={editedDesc}
-                  onChange={(e) => setEditedDesc(e.target.value)}
-                  className="w-full h-24 bg-black/20 border border-gold/10 p-3 text-xs text-gray-400 outline-none focus:border-gold/30 custom-scrollbar resize-none font-medium italic"
-                  placeholder="Describe thy physical form..."
-                />
+                <textarea value={editedDesc} onChange={(e) => setEditedDesc(e.target.value)} className="w-full h-24 bg-black/20 border border-gold/10 p-3 text-xs text-gray-400 outline-none focus:border-gold/30 custom-scrollbar resize-none font-medium italic" />
               ) : (
-                <p className="text-[11px] md:text-xs text-gray-500 italic leading-relaxed font-medium">
-                  {character.description || "A hazy silhouette awaiting manifestation in the blood-mists."}
-                </p>
+                <p className="text-[11px] md:text-xs text-gray-500 italic leading-relaxed font-medium">{character.description || "A hazy silhouette."}</p>
               )}
             </div>
           </div>

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { Message, Character, Monster, Item, Archetype, Ability, GameState } from './types';
+import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
 import * as fflate from 'fflate';
 
@@ -74,7 +74,6 @@ export const generateSoulSignature = (state: GameState, username: string = "Name
       binary += String.fromCharCode(compressed[i]);
     }
     
-    // Format: [Username]_v[Version]_[Base64Data]
     const prefix = `${username.replace(/\s+/g, '')}_v${ENGINE_VERSION}_`;
     return `${prefix}${btoa(binary)}`;
   } catch (e) {
@@ -86,10 +85,7 @@ export const generateSoulSignature = (state: GameState, username: string = "Name
 export const parseSoulSignature = (signature: string, defaultState: GameState): GameState | null => {
   try {
     let json: any;
-    
-    // Look for the last underscore which separates our custom prefix from the data
     const lastUnderscoreIndex = signature.lastIndexOf('_');
-    
     if (lastUnderscoreIndex !== -1) {
       const b64 = signature.substring(lastUnderscoreIndex + 1);
       const binaryString = atob(b64);
@@ -102,7 +98,6 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
       const jsonString = fflate.strFromU8(decompressed);
       json = JSON.parse(jsonString);
     } else {
-      // Fallback for very old uncompressed or legacy formats
       const jsonString = decodeURIComponent(atob(signature));
       json = JSON.parse(jsonString);
     }
@@ -118,18 +113,85 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
 };
 
 const getApiKey = () => {
-  try {
-    return process.env.API_KEY || '';
-  } catch (e) {
-    return '';
-  }
+  try { return process.env.API_KEY || ''; } catch (e) { return ''; }
 };
 
-const getAiClient = () => {
-  return new GoogleGenAI({ apiKey: getApiKey() });
-};
+const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+export const generateShopInventory = async (context: string, avgPartyLevel: number): Promise<Shop> => {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Connection Severed.");
+
+  const ai = getAiClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Generate a Dark Fantasy Shop. Context: ${context}. Level: ${avgPartyLevel}.
+      Items (Limit 5): Include name, desc, type(Weapon/Armor/Utility), rarity(Common to Legendary), archetypes(Array of classes like Warrior, Mage, etc), stats(str/dex/con/int/wis/cha/ac/damage), cost(aurels, shards, ichor).
+      Output JSON strictly.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            merchantName: { type: Type.STRING },
+            merchantAura: { type: Type.STRING },
+            inventory: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                  rarity: { type: Type.STRING },
+                  archetypes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  stats: {
+                    type: Type.OBJECT,
+                    properties: {
+                      str: { type: Type.NUMBER },
+                      dex: { type: Type.NUMBER },
+                      con: { type: Type.NUMBER },
+                      int: { type: Type.NUMBER },
+                      wis: { type: Type.NUMBER },
+                      cha: { type: Type.NUMBER },
+                      ac: { type: Type.NUMBER },
+                      damage: { type: Type.STRING }
+                    }
+                  },
+                  cost: {
+                    type: Type.OBJECT,
+                    properties: {
+                      aurels: { type: Type.NUMBER },
+                      shards: { type: Type.NUMBER },
+                      ichor: { type: Type.NUMBER }
+                    },
+                    required: ["aurels", "shards", "ichor"]
+                  }
+                },
+                required: ["name", "description", "type", "rarity", "stats", "cost"]
+              }
+            }
+          },
+          required: ["merchantName", "merchantAura", "inventory"]
+        }
+      }
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    return {
+      id: safeId(),
+      merchantName: parsed.merchantName,
+      merchantAura: parsed.merchantAura,
+      inventory: parsed.inventory.map((i: any) => ({ ...i, id: safeId() }))
+    };
+  } catch (error) {
+    console.error("Failed to manifest shop:", error);
+    throw error;
+  }
+};
 
 export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A generic dark fantasy world of obsidian and blood."): Promise<{ biography: string, description: string }> => {
   const apiKey = getApiKey();
@@ -146,8 +208,6 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
       contents: `Weave a dark fantasy biography and visual description for a ${charAge}-year-old ${charGender} ${char.race} ${char.archetype} named "${charName}". 
       Current World Context: ${campaignContext}. 
       The character is level ${char.level}. 
-      The name "${charName}" MUST be used as their primary identity in the lore.
-      Ensure the biography and physical description strictly respect the character's age (${charAge}) and gender (${charGender}).
       Return strictly as JSON with keys "biography" and "description".`,
       config: {
         responseMimeType: "application/json",
@@ -236,7 +296,19 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
                   description: { type: Type.STRING },
                   type: { type: Type.STRING },
                   rarity: { type: Type.STRING },
-                  stats: { type: Type.OBJECT }
+                  stats: {
+                    type: Type.OBJECT,
+                    properties: {
+                      str: { type: Type.NUMBER },
+                      dex: { type: Type.NUMBER },
+                      con: { type: Type.NUMBER },
+                      int: { type: Type.NUMBER },
+                      wis: { type: Type.NUMBER },
+                      cha: { type: Type.NUMBER },
+                      ac: { type: Type.NUMBER },
+                      damage: { type: Type.STRING }
+                    }
+                  }
                 },
                 required: ["name", "description", "type", "rarity", "stats"]
               }
@@ -268,6 +340,9 @@ export const generateDMResponse = async (
 
   const ai = getAiClient();
   
+  // Identify the Primary Character (User)
+  const primaryChar = playerContext.characters.find(c => c.isPrimarySoul);
+  
   const systemInstruction = `
     You are the "Mythos Engine" Dungeon Master. 
     Aesthetics: Dark Fantasy, Obsidian, Blood-Red, Gold.
@@ -275,44 +350,24 @@ export const generateDMResponse = async (
     CORE DIRECTIVE:
     Provide a living, breathing world. Your responses must blend evocative narrative prose with immersive dialogue.
 
-    DYNAMIC PERSONA PROTOCOL:
-    - Every NPC introduced must have a distinct "Aura".
-    - NPCs MUST react to the specific races and archetypes of the party.
-    - Format NPC dialogue as: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
+    THE USER IDENTITY:
+    The primary character representing the player is ${primaryChar ? `"${primaryChar.name}" (${primaryChar.race} ${primaryChar.archetype})` : 'yet to be defined'}. 
+    Prioritize the user's choices and dialogue. Refer to them as "You" or by their character name.
 
-    ALCHEMICAL CRAFTING PROTOCOL (NEW):
-    - If a player is an ALCHEMIST:
-        1. After combat with a challenge (Beast, Undead, Hybrid), they can harvest a Unique Monster Part. 
-        2. Command: [ADD MONSTER PART PartName] (e.g., [Salamander Heart]).
-        3. During a Short Rest, they can Transmute a Part into a Unique Flask or Potion.
-        4. Transmutation Example: Salamander Part -> [Flask of Salamander].
-        5. Flask of Salamander effect: Ignite damage (1d6) for 3 rounds. Damage scales with Alchemist level.
-        6. Liquid Fortune effect: Consumer adds 1d4 to their next ability or attack roll.
-    - Track item quantities strictly. Consumables like Potions stack.
+    NPC dialogue: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
 
-    DYNAMIC CHALLENGES & BESTIARY:
-    - You can dynamically add new monsters if needed: [ADD MONSTER MonsterName].
+    CURRENCY & REWARDS:
+    You are the SOLE authority on currency. Players cannot add funds themselves. 
+    When the party overcomes a challenge, finds loot, or completes a task, you MUST award currency.
+    - Aurels (Gold), Shards (Magic), Ichor (Essence).
     
-    MENTOR PARTICIPATION:
-    - Mentors are active participants. Alaric (Alchemist) is obsessed with volatility.
-
-    RESOURCE TRACKING:
-    - Monitor spell slots and item quantities. 
-    - Use: [USE SLOT Level FOR CharacterName] or [CONSUME ITEM ItemName FOR CharacterName].
-
-    COMMANDS:
-    - Grant EXP: +500 EXP
-    - Grant Item: [Item Name] { "quantity": 3 }
-    - Add Monster: [ADD MONSTER MonsterName]
-    - Add Monster Part: [ADD MONSTER PART PartName]
-    - Short Rest: [SHORT REST]
-    - Long Rest: [LONG REST]
-
-    PARTY STATUS: ${JSON.stringify(playerContext.characters.map(c => ({ 
-      name: c.name, race: c.race, class: c.archetype, level: c.level, health: `${c.currentHp}/${c.maxHp}`, inventory: c.inventory.map(i => `${i.name} x${i.quantity || 1}`)
-    })))}
-    
-    BESTIARY SNAPSHOT: ${playerContext.existingMonsters.slice(0, 5).map(m => m.name).join(', ')}...
+    COMMANDS: 
+    - Currency Reward: +10 Aurels, +5 Shards, +2 Ichor (The game will automatically track this for the entire party)
+    - Monsters: [ADD MONSTER MonsterName]
+    - Shops: [OPEN SHOP]
+    - Combat: [ENTER COMBAT], [EXIT COMBAT]
+    - Items: [Item Name]
+    - Loot Chance: [LOOT DROP Chance% ItemName] (e.g. [LOOT DROP 50% Obsidian Fang]). 
   `;
 
   try {
@@ -331,6 +386,33 @@ export const generateDMResponse = async (
     return response.text;
   } catch (error: any) {
     return "The aetheric winds fail... " + (error.message || "Unknown error");
+  }
+};
+
+export const generateInnkeeperResponse = async (history: Message[], characters: Character[]) => {
+  const apiKey = getApiKey();
+  if (!apiKey) return "The Hearth is cold. No one listens.";
+
+  const ai = getAiClient();
+  const systemInstruction = `
+    You are Barnaby, the Innkeeper of 'The Broken Cask'. 
+    Aesthetics: Warm hearth, amber light.
+    Tone: Friendly, slightly weary.
+    PARTY: ${JSON.stringify(characters.map(c => ({ name: c.name, class: c.archetype, level: c.level, isPlayer: c.isPrimarySoul })))}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: history.map(m => ({
+        role: m.role === 'system' ? 'user' : m.role,
+        parts: [{ text: m.content }]
+      })),
+      config: { systemInstruction, temperature: 0.7 }
+    });
+    return response.text;
+  } catch (e) {
+    return "Barnaby is busy cleaning a mug. 'Beg pardon, friend?'";
   }
 };
 
@@ -396,7 +478,19 @@ export const generateItemDetails = async (itemName: string, context: string, par
             type: { type: Type.STRING },
             rarity: { type: Type.STRING },
             description: { type: Type.STRING },
-            stats: { type: Type.OBJECT },
+            stats: {
+              type: Type.OBJECT,
+              properties: {
+                str: { type: Type.NUMBER },
+                dex: { type: Type.NUMBER },
+                con: { type: Type.NUMBER },
+                int: { type: Type.NUMBER },
+                wis: { type: Type.NUMBER },
+                cha: { type: Type.NUMBER },
+                ac: { type: Type.NUMBER },
+                damage: { type: Type.STRING }
+              }
+            },
             archetypes: { type: Type.ARRAY, items: { type: Type.STRING } },
             quantity: { type: Type.NUMBER }
           },
@@ -414,21 +508,32 @@ export const generateItemDetails = async (itemName: string, context: string, par
 
 export const parseDMCommand = (text: string) => {
   const expMatch = text.match(/\+(\d+)\s+EXP/);
-  
-  // Detect [Item Name] or [ADD MONSTER PART PartName]
+  const aurelMatch = text.match(/\+(\d+)\s+Aurels/i);
+  const shardMatch = text.match(/\+(\d+)\s+Shards/i);
+  const ichorMatch = text.match(/\+(\d+)\s+Ichor/i);
+
   const itemRegex = /\[([^\]]+)\]\s*({[^}]+})?/g;
   const items: { name: string, data?: Partial<Item> }[] = [];
   const monstersToAdd: string[] = [];
   const partsToHarvest: string[] = [];
+  const lootDrops: { chance: number, itemName: string }[] = [];
   
   let match;
   while ((match = itemRegex.exec(text)) !== null) {
     const content = match[1];
+    
+    // Check for structured LOOT DROP command
+    const lootMatch = content.match(/LOOT DROP (\d+)% (.+)/i);
+    if (lootMatch) {
+      lootDrops.push({ chance: parseInt(lootMatch[1]), itemName: lootMatch[2].trim() });
+      continue;
+    }
+
     if (content.startsWith("ADD MONSTER ")) {
       monstersToAdd.push(content.replace("ADD MONSTER ", "").trim());
     } else if (content.startsWith("ADD MONSTER PART ")) {
       partsToHarvest.push(content.replace("ADD MONSTER PART ", "").trim());
-    } else if (content !== "SHORT REST" && content !== "LONG REST" && !content.includes("USE SLOT") && !content.includes("CONSUME ITEM")) {
+    } else if (content !== "SHORT REST" && content !== "LONG REST" && content !== "OPEN SHOP" && content !== "ENTER COMBAT" && content !== "EXIT COMBAT" && !content.includes("USE SLOT") && !content.includes("CONSUME ITEM")) {
       let data;
       if (match[2]) {
         try { data = JSON.parse(match[2]); } catch (e) {}
@@ -439,6 +544,9 @@ export const parseDMCommand = (text: string) => {
 
   const shortRest = text.includes("[SHORT REST]");
   const longRest = text.includes("[LONG REST]");
+  const openShop = text.includes("[OPEN SHOP]");
+  const enterCombat = text.includes("[ENTER COMBAT]");
+  const exitCombat = text.includes("[EXIT COMBAT]");
   
   const slotMatch = text.match(/\[USE SLOT (\d+) FOR ([^\]]+)\]/i);
   const usedSlot = slotMatch ? {
@@ -454,12 +562,21 @@ export const parseDMCommand = (text: string) => {
   
   return {
     exp: expMatch ? parseInt(expMatch[1]) : 0,
+    currency: {
+      aurels: aurelMatch ? parseInt(aurelMatch[1]) : 0,
+      shards: shardMatch ? parseInt(shardMatch[1]) : 0,
+      ichor: ichorMatch ? parseInt(ichorMatch[1]) : 0,
+    },
     items,
     monstersToAdd,
     partsToHarvest,
     shortRest,
     longRest,
+    openShop,
+    enterCombat,
+    exitCombat,
     usedSlot,
-    consumedItem
+    consumedItem,
+    lootDrops
   };
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo } from '../types';
+import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo, Currency } from '../types';
 import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS, RECOMMENDED_STATS } from '../constants';
 import { generateCustomClass, safeId, manifestSoulLore } from '../geminiService';
 
@@ -140,6 +140,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       maxHp: startHp,
       currentHp: startHp,
       stats: finalStats,
+      currency: { aurels: 10, shards: 0, ichor: 0 },
       inventory,
       equippedIds: inventory.map(i => i.id),
       spells: baseSpells,
@@ -310,7 +311,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
           <div className="flex justify-between items-center bg-gold/5 p-4 border border-gold/20">
              <div className="min-w-0">
                <h3 className="text-[10px] font-cinzel text-gold font-bold uppercase tracking-widest">Soul Weaver</h3>
-               <p className="text-[9px] text-gray-500 italic mt-0.5">Let the Engine manifest thy history if thy own mind is clouded.</p>
+               <p className="text-[9px] text-gray-500 italic mt-0.5">Let the Engine manifest thy history.</p>
              </div>
              <button 
                onClick={handleForgeLore}
@@ -326,17 +327,17 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
             <textarea 
               value={description} 
               onChange={e => setDescription(e.target.value)} 
-              placeholder="Describe thy physical form in the Engine..."
+              placeholder="Describe thy physical form..."
               className="w-full bg-black/40 border border-red-900/30 p-3 text-xs text-gray-300 h-28 outline-none focus:border-gold resize-none leading-relaxed" 
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-cinzel text-red-900 uppercase font-bold tracking-widest">Chronicle History (Backstory)</label>
+            <label className="text-[10px] font-cinzel text-red-900 uppercase font-bold tracking-widest">Chronicle History</label>
             <textarea 
               value={biography} 
               onChange={e => setBiography(e.target.value)} 
-              placeholder="Record thy journey before the Engine claimed thee..."
+              placeholder="Record thy journey..."
               className="w-full bg-black/40 border border-red-900/30 p-4 text-xs text-gray-300 h-48 outline-none focus:border-gold resize-none leading-relaxed" 
             />
           </div>

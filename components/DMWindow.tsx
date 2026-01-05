@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Campaign, Message, Character, Item, MapToken, Monster } from '../types';
+import { Campaign, Message, Character, Item, MapToken, Monster, Currency } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
 import { RULES_MANIFEST, MENTORS, TUTORIAL_SCENARIO } from '../constants';
 import DiceTray from './DiceTray';
@@ -18,23 +18,25 @@ interface DMWindowProps {
   onSelectCampaign: (id: string) => void;
   onQuitCampaign: () => void;
   onAwardExp: (amount: number) => void;
+  onAwardCurrency: (curr: Partial<Currency>) => void;
   onAwardItem: (name: string, data?: Partial<Item>) => void;
   onAwardMonster: (name: string) => Promise<Monster>;
   onShortRest: () => void;
   onLongRest: () => void;
   onAIRuntimeUseSlot: (level: number, characterName: string) => boolean;
+  onOpenShop: () => void;
+  onSetCombatActive: (active: boolean) => void;
   isHost: boolean;
   username: string;
 }
 
 const DMWindow: React.FC<DMWindowProps> = ({ 
   campaign, allCampaigns, characters, bestiary, mapTokens, onUpdateMap, onMessage, onCreateCampaign, 
-  onSelectCampaign, onQuitCampaign, onAwardExp, onAwardItem, onAwardMonster,
-  onShortRest, onLongRest, onAIRuntimeUseSlot, isHost, username
+  onSelectCampaign, onQuitCampaign, onAwardExp, onAwardCurrency, onAwardItem, onAwardMonster,
+  onShortRest, onLongRest, onAIRuntimeUseSlot, onOpenShop, onSetCombatActive, isHost, username
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showCombatView, setShowCombatView] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [newTitle, setNewTitle] = useState('');
@@ -42,7 +44,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [campaign?.history, showCombatView, isLoading]);
+  }, [campaign?.history, isLoading]);
 
   const handleSend = async () => {
     if (!campaign || !input.trim() || isLoading) return;
@@ -64,11 +66,34 @@ const DMWindow: React.FC<DMWindowProps> = ({
       onMessage(dmMsg);
       
       if (responseText) {
-        const { exp, items, monstersToAdd, shortRest, longRest, usedSlot } = parseDMCommand(responseText);
+        const { exp, currency, items, monstersToAdd, shortRest, longRest, openShop, enterCombat, exitCombat, usedSlot, lootDrops } = parseDMCommand(responseText);
         
         if (exp > 0) onAwardExp(exp);
+        if (currency.aurels > 0 || currency.shards > 0 || currency.ichor > 0) onAwardCurrency(currency);
+        
         items.forEach(item => onAwardItem(item.name, item.data));
         
+        // Handle Loot Drops (Chance Based)
+        for (const drop of lootDrops) {
+          const roll = Math.floor(Math.random() * 100) + 1;
+          const success = roll <= drop.chance;
+          
+          if (success) {
+            await onAwardItem(drop.itemName);
+            onMessage({ 
+              role: 'system', 
+              content: `[Loot Secured] A d100 roll of ${roll} vs ${drop.chance}% succeeds. ${drop.itemName} has been claimed from the wreckage.`, 
+              timestamp: Date.now() 
+            });
+          } else {
+            onMessage({ 
+              role: 'system', 
+              content: `[Loot Failed] A d100 roll of ${roll} vs ${drop.chance}% fails. The remains yield only dust.`, 
+              timestamp: Date.now() 
+            });
+          }
+        }
+
         for (const mName of monstersToAdd) {
           const m = await onAwardMonster(mName);
           onMessage({ role: 'system', content: `[Aetheric Resonance] The Bestiary grows. ${m.name} (Threat: ${m.expReward} EXP) has been archived.`, timestamp: Date.now() });
@@ -83,11 +108,23 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
         if (shortRest) {
           onShortRest();
-          onMessage({ role: 'system', content: "The party takes a Short Rest. Vitality and magic partially return.", timestamp: Date.now() });
+          onMessage({ role: 'system', content: "The party takes a Short Rest.", timestamp: Date.now() });
         }
         if (longRest) {
           onLongRest();
-          onMessage({ role: 'system', content: "The party takes a Long Rest. Total restoration of body and spirit.", timestamp: Date.now() });
+          onMessage({ role: 'system', content: "The party takes a Long Rest.", timestamp: Date.now() });
+        }
+        if (openShop) {
+          onOpenShop();
+          onMessage({ role: 'system', content: "A merchant manifests their aetheric wares.", timestamp: Date.now() });
+        }
+        if (enterCombat) {
+          onSetCombatActive(true);
+          onMessage({ role: 'system', content: "The Tactical Grid manifests. Prepare for conflict.", timestamp: Date.now() });
+        }
+        if (exitCombat) {
+          onSetCombatActive(false);
+          onMessage({ role: 'system', content: "The Tactical Grid fades. Danger has passed.", timestamp: Date.now() });
         }
       }
     } catch (err) {
@@ -127,7 +164,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
                     <div className="rune-border p-6 bg-gold/5 border-gold/30 space-y-4 relative overflow-hidden group shadow-xl">
                       <div className="absolute top-0 right-0 bg-gold text-black text-[8px] font-bold px-3 py-1 font-cinzel animate-pulse z-10">RECOMMENDED</div>
                       <h4 className="text-lg font-cinzel text-gold">The Trial of Resonance</h4>
-                      <p className="text-xs text-gray-400 leading-relaxed italic">"The herald of the Engine awaits. Face the spectral guardian and learn the laws of steel and aether."</p>
+                      <p className="text-xs text-gray-400 leading-relaxed italic">"Face the spectral guardian and learn the laws of steel and aether."</p>
                       <button 
                         onClick={() => onCreateCampaign(TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt)}
                         className="w-full py-4 bg-gold text-black font-cinzel font-bold text-xs hover:bg-white transition-all shadow-lg active:scale-95"
@@ -144,7 +181,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-cinzel text-red-900 uppercase font-bold tracking-widest">The Premise</label>
-                      <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-4 text-gray-300 text-xs md:text-sm h-40 focus:border-gold outline-none resize-none leading-relaxed" placeholder="Describe the shadow falling over the land..." />
+                      <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-4 text-gray-300 text-xs md:text-sm h-40 focus:border-gold outline-none resize-none leading-relaxed" placeholder="Describe the shadow falling..." />
                     </div>
                     <button onClick={() => onCreateCampaign(newTitle, newPrompt)} disabled={!newTitle || !newPrompt || characters.length === 0} className="w-full py-5 bg-red-900 hover:bg-red-800 text-white font-cinzel font-bold border border-gold disabled:opacity-30 transition-all shadow-2xl active:scale-95">
                       INITIATE CHRONICLE
@@ -153,7 +190,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
                </div>
              ) : (
                <div className="rune-border p-12 bg-black/40 border-gold/20 italic text-gray-500 font-cinzel text-center text-sm md:text-lg">
-                 Waiting for the Engine Host to manifest a new Chronicle...
+                 Waiting for the Engine Host to manifest...
                </div>
              )}
           </div>
@@ -172,7 +209,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
                      <div className="min-w-0 pr-4">
                        <h4 className="font-cinzel text-gold group-hover:text-white transition-colors truncate text-sm md:text-base font-bold">{c.title}</h4>
                        <p className="text-[10px] text-gray-500 uppercase font-cinzel mt-1 tracking-tighter">
-                         {c.history.length} Entries • Last Resonance: {new Date(c.history[c.history.length-1]?.timestamp || 0).toLocaleDateString()}
+                         {c.history.length} Entries • {new Date(c.history[c.history.length-1]?.timestamp || 0).toLocaleDateString()}
                        </p>
                      </div>
                      <button 
@@ -196,18 +233,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] md:h-[calc(100vh-160px)] rune-border bg-black/40 backdrop-blur overflow-hidden max-w-6xl mx-auto lg:flex-row shadow-2xl">
-      {/* Combat Mini-Map Overlay */}
-      {showCombatView && (
-        <div className="w-full lg:w-[400px] border-b lg:border-b-0 lg:border-r border-red-900/30 bg-black/70 p-4 md:p-6 animate-in slide-in-from-left duration-300 z-20">
-          <div className="flex justify-between items-center mb-6">
-             <h4 className="text-xs font-cinzel text-gold uppercase tracking-[0.2em] font-bold">Combat Manifest</h4>
-             <button onClick={() => setShowCombatView(false)} className="text-red-900 text-[10px] font-bold border border-red-900/30 px-2 py-1 uppercase hover:bg-red-900 hover:text-white transition-all">CLOSE</button>
-          </div>
-          <TacticalMap tokens={mapTokens} onUpdateTokens={onUpdateMap} compact={true} />
-        </div>
-      )}
-
+    <div className="flex flex-col h-[calc(100vh-140px)] md:h-[calc(100vh-160px)] rune-border bg-black/40 backdrop-blur overflow-hidden max-w-6xl mx-auto shadow-2xl">
       <div className="flex-1 flex flex-col min-w-0 bg-black/10">
         <div className="p-3 md:p-4 border-b border-red-900/50 flex justify-between items-center bg-red-900/10">
           <div className="flex items-center gap-3 min-w-0">
@@ -220,12 +246,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
             <h3 className="font-cinzel text-gold text-sm md:text-base truncate uppercase tracking-widest font-bold">{campaign.title}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowCombatView(!showCombatView)}
-              className={`text-[10px] font-cinzel px-3 py-1.5 border transition-all font-bold tracking-tight shadow-md ${showCombatView ? 'bg-gold text-black border-gold' : 'text-gold border-gold/40 hover:bg-gold/5'}`}
-            >
-              {showCombatView ? 'HIDE COMBAT' : 'SHOW COMBAT'}
-            </button>
+            {campaign.isCombatActive && <span className="text-[8px] bg-red-900 text-white px-2 py-0.5 animate-pulse font-bold">COMBAT ACTIVE</span>}
             {isHost && (
               <div className="hidden md:flex items-center gap-2">
                 <button onClick={onShortRest} className="text-[10px] text-amber-500 border border-amber-900/40 px-3 py-1.5 hover:bg-amber-900/20 uppercase font-cinzel font-bold">Short Rest</button>

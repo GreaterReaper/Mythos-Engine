@@ -38,6 +38,12 @@ export interface Stats {
   cha: number;
 }
 
+export interface Currency {
+  aurels: number; // Gold standard
+  shards: number; // Obsidian/Magic fragments
+  ichor: number;  // Blood/Ritual tokens
+}
+
 export interface Ability {
   name: string;
   description: string;
@@ -71,6 +77,17 @@ export interface Item {
   quantity?: number; // Added for stackable items
 }
 
+export interface ShopItem extends Item {
+  cost: Currency;
+}
+
+export interface Shop {
+  id: string;
+  merchantName: string;
+  merchantAura: string;
+  inventory: ShopItem[];
+}
+
 export interface MapToken {
   id: string;
   name: string;
@@ -92,6 +109,7 @@ export interface Character {
   maxHp: number;
   currentHp: number;
   stats: Stats;
+  currency: Currency;
   inventory: Item[];
   equippedIds: string[];
   spells: Ability[];
@@ -103,6 +121,8 @@ export interface Character {
   imageUrl?: string;
   asiPoints: number;
   isAiControlled?: boolean;
+  isPrimarySoul?: boolean; // The character representing the user
+  ownerName?: string; // The username of the player who created this soul
 }
 
 export interface Monster {
@@ -129,6 +149,8 @@ export interface Campaign {
   prompt: string;
   history: Message[];
   participants: string[];
+  activeShop?: Shop | null;
+  isCombatActive?: boolean;
 }
 
 export interface Friend {
@@ -146,7 +168,7 @@ export interface GameState {
   armory: Item[];
   bestiary: Monster[];
   customArchetypes: ArchetypeInfo[];
-  mapTokens: MapToken[]; // NEW: For combat synchronization
+  mapTokens: MapToken[];
   userAccount: {
     username: string;
     id: string;

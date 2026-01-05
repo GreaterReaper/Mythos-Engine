@@ -15,10 +15,11 @@ interface FellowshipScreenProps {
   setParty: (ids: string[]) => void;
   customArchetypes: ArchetypeInfo[];
   onAddCustomArchetype: (arch: ArchetypeInfo) => void;
+  username: string;
 }
 
 const FellowshipScreen: React.FC<FellowshipScreenProps> = ({ 
-  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype
+  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
@@ -35,6 +36,49 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
       setParty([...party, id]);
     }
   };
+
+  const localSouls = characters.filter(c => c.ownerName === username || !c.ownerName);
+  const remoteSouls = characters.filter(c => c.ownerName && c.ownerName !== username);
+
+  const renderCharacterCard = (char: Character) => (
+    <div 
+      key={char.id}
+      onClick={() => setSelectedCharId(char.id)}
+      className={`group relative cursor-pointer rune-border p-4 bg-black/60 backdrop-blur hover:bg-red-900/10 transition-all flex items-center gap-4 ${party.includes(char.id) ? 'border-gold shadow-[0_0_10px_rgba(161,98,7,0.3)]' : 'border-red-900/50'}`}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h3 className="font-cinzel text-gold truncate leading-tight">{char.name}</h3>
+          {char.isPrimarySoul && (
+            <span className="bg-red-900 text-white text-[7px] px-1 font-bold animate-pulse uppercase">User</span>
+          )}
+        </div>
+        <p className="text-[8px] text-gray-500 uppercase">{char.race} {char.archetype} • LVL {char.level}</p>
+        {char.ownerName && char.ownerName !== username && (
+          <p className="text-[7px] text-gold/40 uppercase mt-1 italic">Bound to {char.ownerName}</p>
+        )}
+      </div>
+      
+      {!viewingMentors && (
+        <div className="flex flex-col gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); toggleParty(char.id); }}
+            className={`p-1.5 border text-[8px] font-bold ${party.includes(char.id) ? 'bg-gold border-gold text-black' : 'border-red-900 text-red-900 hover:text-gold hover:border-gold'}`}
+          >
+            {party.includes(char.id) ? 'IN PARTY' : 'ADD'}
+          </button>
+          {char.ownerName === username && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDelete(char.id); }}
+              className="p-1 text-red-900 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              DEL
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-8 pb-20 max-w-5xl mx-auto">
@@ -74,47 +118,42 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
           <div className="h-[75vh]">
             <CharacterSheet 
               character={selectedChar} 
-              onUpdate={viewingMentors ? undefined : onUpdate} 
+              onUpdate={viewingMentors || selectedChar.ownerName !== username ? undefined : onUpdate} 
               isMentor={viewingMentors} 
             />
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {activeCharacters.map(char => (
-            <div 
-              key={char.id}
-              onClick={() => setSelectedCharId(char.id)}
-              className={`group relative cursor-pointer rune-border p-4 bg-black/60 backdrop-blur hover:bg-red-900/10 transition-all flex items-center gap-4 ${party.includes(char.id) ? 'border-gold shadow-[0_0_10px_rgba(161,98,7,0.3)]' : 'border-red-900/50'}`}
-            >
-              <div className="flex-1 min-w-0">
-                <h3 className="font-cinzel text-gold truncate leading-tight">{char.name}</h3>
-                <p className="text-[8px] text-gray-500 uppercase">{char.race} {char.archetype} • LVL {char.level}</p>
+        <div className="space-y-8">
+          {viewingMentors ? (
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+               {mentors.map(renderCharacterCard)}
+             </div>
+          ) : (
+            <>
+              {/* Your Souls */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-cinzel text-red-900 uppercase tracking-widest font-bold">Thy Local Souls</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {localSouls.map(renderCharacterCard)}
+                  {localSouls.length === 0 && (
+                    <div className="col-span-full py-12 text-center border border-dashed border-red-900/20">
+                      <p className="text-gray-600 font-cinzel text-[10px] uppercase italic">Thou hast no local souls bound yet.</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              
-              {!viewingMentors && (
-                <div className="flex flex-col gap-2">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); toggleParty(char.id); }}
-                    className={`p-1.5 border text-[8px] font-bold ${party.includes(char.id) ? 'bg-gold border-gold text-black' : 'border-red-900 text-red-900 hover:text-gold hover:border-gold'}`}
-                  >
-                    {party.includes(char.id) ? 'IN PARTY' : 'ADD'}
-                  </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onDelete(char.id); }}
-                    className="p-1 text-red-900 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    DEL
-                  </button>
+
+              {/* Remote Souls */}
+              {remoteSouls.length > 0 && (
+                <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-700">
+                  <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest font-bold">Bonded Souls from the Void</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {remoteSouls.map(renderCharacterCard)}
+                  </div>
                 </div>
               )}
-            </div>
-          ))}
-
-          {activeCharacters.length === 0 && (
-            <div className="col-span-full py-20 text-center border border-dashed border-red-900/20">
-              <p className="text-gray-600 font-cinzel text-xs uppercase italic">No souls bound to the engine yet.</p>
-            </div>
+            </>
           )}
         </div>
       )}

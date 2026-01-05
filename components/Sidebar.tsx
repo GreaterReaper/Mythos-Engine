@@ -12,15 +12,17 @@ interface SidebarProps {
     isHost: boolean;
     connectedPeers: string[];
   };
+  showTactics?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount, multiplayer }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount, multiplayer, showTactics }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const tabs = [
+    { id: 'Tavern', label: 'The Hearth', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { id: 'Fellowship', label: 'Souls', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
     { id: 'Chronicles', label: 'Chronicles', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-    { id: 'Tactics', label: 'Tactics', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
+    { id: 'Tactics', label: 'Tactics', icon: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7', hidden: !showTactics },
     { id: 'Nexus', label: 'Nexus', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
     { id: 'Archetypes', label: 'Paths', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: 'Spells', label: 'Grimoire', icon: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
@@ -33,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
     <>
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0c0a09]/95 backdrop-blur-md border-t border-red-900/50 flex justify-around items-center px-1 py-3 z-[100] safe-area-bottom overflow-x-auto no-scrollbar">
-        {tabs.map(tab => (
+        {tabs.filter(t => !t.hidden).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -59,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
         </div>
 
         <div className="flex-1 overflow-y-auto py-2 custom-scrollbar">
-          {tabs.map(tab => (
+          {tabs.filter(t => !t.hidden).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}

@@ -150,7 +150,7 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'start-bow', name: 'Frontier Bow', description: 'A sturdy longbow made of darkened yew.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Archer, Archetype.Thief] },
   { id: 'start-dagger', name: 'Scoundrel\'s Dirk', description: 'A serrated blade favored by those who strike from shadow.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief, Archetype.Archer] },
   { id: 'start-staff', name: 'Ashwood Conduit', description: 'A simple staff used to focus aetheric energies.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 'start-sword', name: 'Soldier\'s Blade', description: 'A reliable iron longsword.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
+  { id: 'start-sword', name: 'Soldier\'S Blade', description: 'A reliable iron longsword.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'start-hammer', name: 'Iron Maul', description: 'A heavy hammer for crushing skulls and shields.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
   
   // Uncommon
@@ -213,6 +213,7 @@ export const MENTORS: Character[] = [
     spellSlots: { 1: 4, 2: 3, 3: 2 },
     maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
     description: 'A petite, shy priestess from a rural chapel. She wears simple white and gold cloth robes.',
+    biography: 'Lina was raised in a secluded monastery at the edge of the Sun-Drenched Wastes. While others sought power through steel, she found solace in the ancient chants of the Light-Bringers. She was sent to Oakhaven after a vision of the Mythos Engine consuming her home, her quiet demeanor belying a fierce dedication to shielding those who cannot protect themselves.',
     asiPoints: 0
   },
   {
@@ -231,6 +232,7 @@ export const MENTORS: Character[] = [
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
     description: 'An energetic and impulsive swordswoman with a bright, playful personality. She wears ribbon-adorned half-plate.',
+    biography: 'A former squire from the fallen Citadel of Rose-Gold, Miri refuses to let the darkness of the world dim her spirit. She often decorates her heavy armor with bright ribbons and trinkets found on the battlefield. Her fighting style is a whirlwind of steel and laughter, though those who mistake her cheer for weakness often find themselves at the business end of her longsword.',
     asiPoints: 0
   },
   {
@@ -249,6 +251,7 @@ export const MENTORS: Character[] = [
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
     description: 'A reserved, sharp-eyed elven archer who prefers quiet distance and composure.',
+    biography: 'Seris has outlived three generations of her human companions. She speaks rarely, her words as precise and lethal as her arrows. She left the Sylvan Glades when the corruption of the Obsidian Spire began to rot the world-trees. Now, she walks the frontier, a silent sentinel who observes the cycle of life and death with the clinical detachment of a scholar and the lethality of a master hunter.',
     asiPoints: 0
   }
 ];

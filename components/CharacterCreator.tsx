@@ -14,7 +14,7 @@ interface CharacterCreatorProps {
 const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate, customArchetypes, onSaveCustomArchetype }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
-  const [age, setAge] = useState(19);
+  const [age, setAge] = useState(21);
   const [gender, setGender] = useState('Female');
   const [race, setRace] = useState<Race>(Race.Human);
   const [archetype, setArchetype] = useState<Archetype | string>(Archetype.Warrior);
@@ -216,11 +216,26 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="col-span-2 space-y-1">
               <label className="text-[10px] font-cinzel text-red-900 uppercase">Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold outline-none focus:border-gold transition-all" />
+              <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all" />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">Age (Min 19)</label>
-              <input type="number" value={age} onChange={e => setAge(Math.max(19, parseInt(e.target.value)))} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold outline-none" />
+              <label className="text-[10px] font-cinzel text-red-900 uppercase">Chronicle Age</label>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => setAge(Math.max(0, age - 1))}
+                  className="w-10 h-10 border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all"
+                >-</button>
+                <input 
+                  type="number" 
+                  value={age} 
+                  onChange={e => setAge(Math.max(0, parseInt(e.target.value) || 0))} 
+                  className="flex-1 bg-black/40 border border-red-900/30 p-2 text-gold outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                />
+                <button 
+                  onClick={() => setAge(age + 1)}
+                  className="w-10 h-10 border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all"
+                >+</button>
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-cinzel text-red-900 uppercase">Gender</label>
@@ -285,15 +300,15 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
               const isRecommended = recommendedForArch.includes(s);
               return (
                 <div key={s} className={`flex flex-col p-2 bg-black/40 border transition-all relative ${isRecommended ? 'border-gold shadow-[0_0_10px_rgba(161,98,7,0.2)]' : 'border-red-900/20'}`}>
-                  {isRecommended && <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gold text-black text-[7px] px-1 font-bold font-cinzel border border-black uppercase">Primary</span>}
+                  {isRecommended && <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gold text-black text-[7px] px-1 font-bold font-cinzel border border-black uppercase z-10">Primary</span>}
                   <div className="flex justify-between items-center mb-2">
                     <span className={`text-[10px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-gold/60'}`}>{s}</span>
                     <span className="text-xs text-red-500">+{RACIAL_BONUSES[race][s] || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <button onClick={() => handleStatChange(s, -1)} className="w-6 h-6 border border-red-900 text-red-900">-</button>
+                    <button onClick={() => handleStatChange(s, -1)} className="w-10 h-10 border border-red-900/30 bg-black/20 text-red-900 flex items-center justify-center active:scale-90 transition-all">-</button>
                     <span className="text-xl font-bold">{stats[s]}</span>
-                    <button onClick={() => handleStatChange(s, 1)} className="w-6 h-6 border border-red-900 text-red-900">+</button>
+                    <button onClick={() => handleStatChange(s, 1)} className="w-10 h-10 border border-red-900/30 bg-black/20 text-red-900 flex items-center justify-center active:scale-90 transition-all">+</button>
                   </div>
                 </div>
               );

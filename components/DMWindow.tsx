@@ -6,15 +6,21 @@ import { RULES_MANIFEST, MENTORS } from '../constants';
 
 interface DMWindowProps {
   campaign: Campaign | null;
+  allCampaigns: Campaign[];
   characters: Character[];
   onMessage: (msg: Message) => void;
   onCreateCampaign: (title: string, prompt: string) => void;
+  onSelectCampaign: (id: string) => void;
+  onQuitCampaign: () => void;
   onAwardExp: (amount: number) => void;
   onAwardItem: (name: string, data?: Partial<Item>) => void;
   isHost: boolean;
 }
 
-const DMWindow: React.FC<DMWindowProps> = ({ campaign, characters, onMessage, onCreateCampaign, onAwardExp, onAwardItem, isHost }) => {
+const DMWindow: React.FC<DMWindowProps> = ({ 
+  campaign, allCampaigns, characters, onMessage, onCreateCampaign, 
+  onSelectCampaign, onQuitCampaign, onAwardExp, onAwardItem, isHost 
+}) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -60,32 +66,77 @@ const DMWindow: React.FC<DMWindowProps> = ({ campaign, characters, onMessage, on
 
   if (!campaign) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-8 max-w-xl mx-auto text-center">
-        <div className="space-y-4">
-          <h2 className="text-5xl font-cinzel text-gold drop-shadow-xl animate-in fade-in slide-in-from-top duration-1000">Manifest Thy World</h2>
-          <p className="text-red-900 font-cinzel text-[10px] tracking-widest uppercase">The Engine awaits thy prompt.</p>
+      <div className="space-y-12 max-w-6xl mx-auto animate-in fade-in duration-700">
+        <div className="text-center space-y-4">
+          <h2 className="text-5xl font-cinzel text-gold drop-shadow-xl">The Chronicle Hub</h2>
+          <p className="text-red-900 font-cinzel text-[10px] tracking-[0.3em] uppercase">The Engine stores every drop of blood spilled.</p>
         </div>
-        
-        {isHost ? (
-          <div className="w-full rune-border p-6 bg-black/60 backdrop-blur space-y-4 text-left">
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">Chronicle Title</label>
-              <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none" placeholder="..." />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">The Premise</label>
-              <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gray-300 text-xs h-32 focus:border-gold outline-none" placeholder="Describe the shadow falling over the land..." />
-            </div>
-            <button onClick={() => onCreateCampaign(newTitle, newPrompt)} disabled={!newTitle || !newPrompt || characters.length === 0} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white font-cinzel font-bold border border-gold disabled:opacity-30 transition-all">
-              INITIATE CHRONICLE
-            </button>
-            {characters.length === 0 && <p className="text-[8px] text-center text-red-500 font-cinzel">THOU MUST BIND SOULS TO THY FELLOWSHIP BEFORE STARTING.</p>}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Create New Chronicle */}
+          <div className="space-y-6">
+             <div className="flex items-center gap-4 mb-4">
+                <div className="h-px flex-1 bg-red-900/30"></div>
+                <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Manifest New World</h3>
+                <div className="h-px flex-1 bg-red-900/30"></div>
+             </div>
+             
+             {isHost ? (
+               <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-4">
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-cinzel text-red-900 uppercase">Chronicle Title</label>
+                   <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none" placeholder="e.g. The Obsidian Spire..." />
+                 </div>
+                 <div className="space-y-1">
+                   <label className="text-[10px] font-cinzel text-red-900 uppercase">The Premise</label>
+                   <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gray-300 text-xs h-32 focus:border-gold outline-none resize-none" placeholder="Describe the shadow falling over the land..." />
+                 </div>
+                 <button onClick={() => onCreateCampaign(newTitle, newPrompt)} disabled={!newTitle || !newPrompt || characters.length === 0} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white font-cinzel font-bold border border-gold disabled:opacity-30 transition-all shadow-lg shadow-red-900/20">
+                   INITIATE CHRONICLE
+                 </button>
+                 {characters.length === 0 && <p className="text-[8px] text-center text-red-500 font-cinzel">THOU MUST BIND SOULS TO THY FELLOWSHIP BEFORE STARTING.</p>}
+               </div>
+             ) : (
+               <div className="rune-border p-8 bg-black/40 border-gold/20 italic text-gray-500 font-cinzel text-center">
+                 Waiting for the Engine Host to manifest a new Chronicle...
+               </div>
+             )}
           </div>
-        ) : (
-          <div className="rune-border p-8 bg-black/40 border-gold/20 italic text-gray-500 font-cinzel">
-            Waiting for the Engine Host to manifest the Chronicle...
+
+          {/* Archived Chronicles */}
+          <div className="space-y-6">
+             <div className="flex items-center gap-4 mb-4">
+                <div className="h-px flex-1 bg-red-900/30"></div>
+                <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Archived Records</h3>
+                <div className="h-px flex-1 bg-red-900/30"></div>
+             </div>
+
+             <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+               {allCampaigns.length > 0 ? (
+                 allCampaigns.slice().reverse().map(c => (
+                   <div key={c.id} className="p-4 bg-black/40 border border-red-900/20 hover:border-gold/30 transition-all flex justify-between items-center group">
+                     <div className="min-w-0">
+                       <h4 className="font-cinzel text-gold group-hover:text-white transition-colors truncate">{c.title}</h4>
+                       <p className="text-[8px] text-gray-500 uppercase font-cinzel mt-1">
+                         {c.history.length} Entries • Last Resonance: {new Date(c.history[c.history.length-1]?.timestamp || 0).toLocaleDateString()}
+                       </p>
+                     </div>
+                     <button 
+                       onClick={() => onSelectCampaign(c.id)}
+                       className="px-3 py-1 bg-red-900/20 border border-red-900/40 text-[9px] font-cinzel text-red-900 hover:bg-red-900 hover:text-white transition-all uppercase tracking-tighter"
+                     >
+                       Rebind Soul
+                     </button>
+                   </div>
+                 ))
+               ) : (
+                 <div className="py-20 text-center border border-dashed border-red-900/10 opacity-30">
+                    <p className="font-cinzel italic text-xs text-gray-500 uppercase">The archives are empty.</p>
+                 </div>
+               )}
+             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -93,10 +144,21 @@ const DMWindow: React.FC<DMWindowProps> = ({ campaign, characters, onMessage, on
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] rune-border bg-black/40 backdrop-blur overflow-hidden max-w-4xl mx-auto">
       <div className="p-3 border-b border-red-900/50 flex justify-between items-center bg-red-900/5">
-        <h3 className="font-cinzel text-gold text-sm truncate uppercase tracking-widest">{campaign.title}</h3>
-        <span className="text-[8px] text-red-900 font-cinzel bg-red-900/10 px-2 py-0.5 border border-red-900/20">
-          {isHost ? 'ENGINE HOST' : 'BOUND SOUL'}
-        </span>
+        <div className="flex items-center gap-3 min-w-0">
+          <button 
+            onClick={onQuitCampaign}
+            className="text-red-900 hover:text-red-500 font-bold transition-colors text-lg px-2"
+            title="Seal Chronicle (Return to Hub)"
+          >
+            ×
+          </button>
+          <h3 className="font-cinzel text-gold text-sm truncate uppercase tracking-widest">{campaign.title}</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[8px] text-red-900 font-cinzel bg-red-900/10 px-2 py-0.5 border border-red-900/20 uppercase">
+            {isHost ? 'ENGINE HOST' : 'BOUND SOUL'}
+          </span>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
@@ -128,8 +190,20 @@ const DMWindow: React.FC<DMWindowProps> = ({ campaign, characters, onMessage, on
       </div>
 
       <div className="p-4 bg-black/80 border-t border-red-900/50 flex gap-2 items-end">
-        <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="DECLARE THY ACTIONS..." className="flex-1 bg-transparent border border-red-900/30 p-2 text-gold text-xs focus:border-gold outline-none resize-none h-12" />
-        <button onClick={handleSend} disabled={!input.trim() || isLoading} className="px-4 py-2 bg-red-900 text-white text-xs font-cinzel font-bold border border-gold hover:bg-red-800 disabled:opacity-50 transition-all">SPEAK</button>
+        <textarea 
+          value={input} 
+          onChange={e => setInput(e.target.value)} 
+          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
+          placeholder="DECLARE THY ACTIONS..." 
+          className="flex-1 bg-transparent border border-red-900/30 p-2 text-gold text-xs focus:border-gold outline-none resize-none h-12 custom-scrollbar" 
+        />
+        <button 
+          onClick={handleSend} 
+          disabled={!input.trim() || isLoading} 
+          className="px-4 py-2 bg-red-900 text-white text-xs font-cinzel font-bold border border-gold hover:bg-red-800 disabled:opacity-50 transition-all active:scale-95"
+        >
+          SPEAK
+        </button>
       </div>
     </div>
   );

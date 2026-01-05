@@ -18,21 +18,11 @@ import TutorialScreen from './components/TutorialScreen';
 import AccountPortal from './components/AccountPortal';
 import MatchmakingModal from './components/MatchmakingModal';
 import SpellsScreen from './components/SpellsScreen';
-import { generateItemDetails } from './geminiService';
+import { generateItemDetails, safeId } from './geminiService';
 
 declare var Peer: any;
 
 const STORAGE_KEY = 'mythos_engine_v3';
-
-/**
- * Utility to generate an ID even in non-secure or older environments.
- */
-const safeId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).substring(2, 15);
-};
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
@@ -352,6 +342,7 @@ const App: React.FC = () => {
           {activeTab === 'Chronicles' && (
             <DMWindow 
               campaign={activeCampaign} 
+              allCampaigns={state.campaigns}
               characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
               onMessage={(msg) => {
                 if (!activeCampaign) return;
@@ -364,6 +355,8 @@ const App: React.FC = () => {
                 broadcast('NEW_MESSAGE', msg);
               }}
               onCreateCampaign={createCampaign}
+              onSelectCampaign={(id) => setState(p => ({ ...p, activeCampaignId: id }))}
+              onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))}
               onAwardExp={addExpToParty}
               onAwardItem={handleAwardItem}
               isHost={state.multiplayer.isHost}

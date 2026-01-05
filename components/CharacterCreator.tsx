@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo } from '../types';
 import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS } from '../constants';
-import { generateVisual, generateCustomClass } from '../geminiService';
+import { generateVisual, generateCustomClass, safeId } from '../geminiService';
 
 interface CharacterCreatorProps {
   onCancel: () => void;
@@ -108,7 +108,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       if (customMatch.startingItem) {
         inventory = [{
           ...customMatch.startingItem as Item,
-          id: crypto.randomUUID(),
+          id: safeId(),
           archetypes: [customMatch.name]
         }];
       }
@@ -118,7 +118,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       baseSpells = defaultMatch.spells || [];
       // Add standard starting gear
       const classGear = INITIAL_ITEMS.filter(i => i.archetypes?.includes(archetype as Archetype));
-      inventory = classGear.filter(i => i.rarity === 'Common').map(i => ({...i, id: crypto.randomUUID()}));
+      inventory = classGear.filter(i => i.rarity === 'Common').map(i => ({...i, id: safeId()}));
     }
 
     const startHp = hpDie + conMod;
@@ -127,7 +127,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archetype as Archetype) || baseSpells.length > 0;
 
     const newChar: Character = {
-      id: crypto.randomUUID(),
+      id: safeId(),
       name,
       age,
       gender,

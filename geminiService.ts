@@ -3,6 +3,16 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability } from './types';
 
 /**
+ * Utility to generate an ID even in non-secure or older environments.
+ */
+export const safeId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15);
+};
+
+/**
  * Safely retrieves the API Key from the environment.
  * Prevents ReferenceError in browser environments where 'process' is undefined.
  */
@@ -52,11 +62,6 @@ export const generateDMResponse = async (
         Seris (Archer/Elf/Female): Reserved, sharp-eyed, composed.
         Miri (Fighter/Human/Female): Energetic, impulsive, playful.
         Kaelen (Dark Knight/Human/Male): Cold, emotionless.
-    
-    MECHANICAL COMMANDS:
-    - Grant EXP: "+[Amount] EXP"
-    - Grant Loot: "[Item Name]"
-    - Provide stats in JSON after the name if generating a new artifact: [Item Name] { ... }. 
     
     PARTY: ${JSON.stringify(playerContext.characters.map(c => ({ 
       name: c.name, 
@@ -167,7 +172,7 @@ export const generateCustomClass = async (prompt: string): Promise<{
     const data = JSON.parse(response.text || '{}');
     data.themedItems = (data.themedItems || []).map((item: any) => ({
       ...item,
-      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36),
+      id: safeId(),
       archetypes: [data.name]
     }));
     return data;

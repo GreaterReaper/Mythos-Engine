@@ -126,7 +126,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                     <span className="text-[8px] font-cinzel text-red-900 uppercase">{s}</span>
                     <div className="flex justify-between items-end">
                       <span className="text-2xl font-bold text-gold">{character.stats[s]}</span>
-                      <span className="text-xs text-red-500 mb-1">{getMod(character.stats[s]) >= 0 ? '+' : ''}{getMod(character.stats[s])}</span>
+                      <span className="text-xs text-red-500 mb-1">{getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}</span>
                     </div>
                     {!isMentor && character.asiPoints > 0 && (
                       <button onClick={() => handleStatUp(s)} className="absolute top-1 right-1 w-4 h-4 bg-gold text-black text-[10px] font-bold rounded flex items-center justify-center hover:scale-110 transition-transform">+</button>
@@ -171,7 +171,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
         {activeTab === 'Inventory' && (
           <div className="space-y-2">
-            {character.inventory.map((item, i) => (
+            {character.inventory.filter(item => !!item).map((item, i) => (
               <Tooltip 
                 key={i} 
                 title={item.name} 

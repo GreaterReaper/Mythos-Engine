@@ -137,7 +137,6 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
 
 export const INITIAL_ITEMS: Item[] = [
   // --- WEAPONS ---
-  // Common
   { id: 'start-bow', name: 'Frontier Bow', description: 'A sturdy longbow made of darkened yew.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Archer, Archetype.Thief] },
   { id: 'start-dagger', name: 'Scoundrel\'s Dirk', description: 'A serrated blade favored by those who strike from shadow.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief, Archetype.Archer] },
   { id: 'start-staff', name: 'Ashwood Conduit', description: 'A simple staff used to focus aetheric energies.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
@@ -164,13 +163,16 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'legendary-infinite-string', name: 'Artemis\' Regret', description: 'A bow with a string made of solidified moonlight.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+DEX', dex: 5 }, archetypes: [Archetype.Archer] },
 
   // --- ARMOR ---
-  { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Sorcerer] },
+  { id: 'start-robes', name: 'Apprentice Robes', description: 'Simple linen robes that allow for free movement of aether. Cloth armor.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
+  { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief] },
   { id: 'start-plate', name: 'Rusty Plate', description: 'Old, noisy metal armor.', type: 'Armor', rarity: 'Common', stats: { ac: 15 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
+  { id: 'start-shield', name: 'Rusted Aegis', description: 'A battered iron shield.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
   { id: 'un-studded', name: 'Studded Brigandine', description: 'Reinforced leather for more durability.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 13 }, archetypes: [Archetype.Archer, Archetype.Thief] },
-  { id: 'rare-aether-robe', name: 'Vestments of the Void', description: 'Robes woven with silk that seems to swallow light.', type: 'Armor', rarity: 'Rare', stats: { ac: 12, int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
+  { id: 'rare-aether-robe', name: 'Vestments of the Void', description: 'Cloth robes woven with silk that seems to swallow light.', type: 'Armor', rarity: 'Rare', stats: { ac: 12, int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
   { id: 'rare-shield', name: 'Gilded Aegis', description: 'A shield used by the high guard of Oakhaven.', type: 'Armor', rarity: 'Rare', stats: { ac: 3, wis: 1 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
   { id: 'epic-dread-plate', name: 'Dreadnought Shell', description: 'Armor made from the scales of a shadow drake.', type: 'Armor', rarity: 'Epic', stats: { ac: 19, con: 2 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'legendary-archon-plate', name: 'Celestial Carapace', description: 'Armor said to be worn by the first hero of the Engine.', type: 'Armor', rarity: 'Legendary', stats: { ac: 22, str: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
+  { id: 'legendary-mirror-shield', name: 'Mirror-Glass Bulwark', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror. Passive: Reflects gaze attacks back at foes.', type: 'Armor', rarity: 'Legendary', stats: { ac: 4, wis: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
 
   // --- UTILITY ---
   { id: 'un-ring', name: 'Aether Ring', description: 'A ring that hums with low-level magic.', type: 'Utility', rarity: 'Uncommon', stats: { int: 1 } },
@@ -191,12 +193,12 @@ export const MENTORS: Character[] = [
     maxHp: 52,
     currentHp: 52,
     stats: { str: 9, dex: 13, con: 15, int: 13, wis: 19, cha: 13 },
-    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-staff')!, INITIAL_ITEMS.find(i => i.id === 'start-leather')!],
+    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-staff')!, INITIAL_ITEMS.find(i => i.id === 'start-robes')!],
     spells: SPELL_LIBRARY[Archetype.Mage],
     abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
     spellSlots: { 1: 4, 2: 3, 3: 2 },
     maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
-    description: 'A petite, shy priestess from a rural chapel. She wears simple white and gold robes.',
+    description: 'A petite, shy priestess from a rural chapel. She wears simple white and gold cloth robes.',
     asiPoints: 0
   },
   {

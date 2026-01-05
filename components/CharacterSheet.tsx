@@ -74,9 +74,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   return (
     <div className="rune-border bg-black/80 backdrop-blur-lg overflow-hidden flex flex-col h-full max-h-[85vh]">
       <div className="p-4 border-b border-red-900/40 flex items-center gap-4 bg-red-900/5">
-        <div className="w-20 h-20 rounded border border-gold/30 overflow-hidden shrink-0 bg-black/40">
-           {character.imageUrl ? <img src={character.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-cinzel text-red-900/20">??</div>}
-        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-cinzel text-gold truncate">{character.name}</h2>
@@ -135,7 +132,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                         : 'border-red-900/20 bg-black/40 hover:border-red-900/50'
                     }`}>
                       {isRecommended && <span className={`absolute -top-1 left-1 bg-gold text-black text-[6px] px-1 font-bold font-cinzel border border-black uppercase z-10 ${hasASI ? 'animate-pulse' : ''}`}>Primary</span>}
-                      <span className={`text-[8px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-red-900'}`}>{s}</span>
+                      <span className={`text-[8px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-gold/60'}`}>{s}</span>
                       <div className="flex justify-between items-end">
                         <span className="text-2xl font-bold text-gold">{character.stats[s]}</span>
                         <span className="text-xs text-red-500 mb-1">{getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}</span>
@@ -213,20 +210,12 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
         {activeTab === 'Lore' && (
           <div className="space-y-4">
-            <div className="p-3 bg-red-900/5 border-l-2 border-gold/30">
-              <h4 className="text-[10px] font-cinzel text-gold uppercase mb-2">Visual Manifestation</h4>
-              <p className="text-xs text-gray-400 italic leading-relaxed">{character.description || "The aether has provided no visual record."}</p>
-            </div>
             <div className="p-3 bg-red-900/5 border-l-2 border-red-900">
               <h4 className="text-[10px] font-cinzel text-red-900 uppercase mb-2">Thy Chronicle</h4>
               <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{character.biography || "No lore has been transcribed into the Engine's memory."}</p>
             </div>
           </div>
         )}
-      </div>
-
-      <div className="p-3 bg-black border-t border-red-900/40">
-        <p className="text-[9px] text-gray-500 italic line-clamp-1">{character.description}</p>
       </div>
     </div>
   );

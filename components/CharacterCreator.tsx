@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo } from '../types';
 import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS, RECOMMENDED_STATS } from '../constants';
-import { generateVisual, generateCustomClass, safeId } from '../geminiService';
+import { generateCustomClass, safeId } from '../geminiService';
 
 interface CharacterCreatorProps {
   onCancel: () => void;
@@ -21,8 +21,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
   const [stats, setStats] = useState<Stats>({ str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 });
   const [description, setDescription] = useState('');
   const [biography, setBiography] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isForgingClass, setIsForgingClass] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   
@@ -82,19 +80,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     }
   };
 
-  const handleGenerateImage = async () => {
-    setIsGenerating(true);
-    // Construct a rich prompt that synthesizes all character data
-    const backgroundDetails = biography ? `. Their background and soul-essence is described as: ${biography}` : '';
-    const visualDetails = description ? `. Physical appearance: ${description}` : '. Manifest their visage based on their path and ancestry';
-    
-    const promptText = `High-quality close-up character portrait of a ${gender} ${race} ${archetype}. They are level 1, wearing basic starting equipment suited for their vocation${visualDetails}${backgroundDetails}. Style: Dark fantasy illustration, sharp focus, atmospheric lighting.`;
-    
-    const url = await generateVisual(promptText);
-    if (url) setImageUrl(url);
-    setIsGenerating(false);
-  };
-
   const finalize = () => {
     const conMod = Math.floor((finalStats.con - 10) / 2);
     
@@ -150,7 +135,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       maxSpellSlots: isCaster ? initialSlots : undefined,
       description,
       biography,
-      imageUrl: imageUrl || `https://picsum.photos/seed/${name}/400/600`,
       asiPoints: 0
     };
     onCreate(newChar);
@@ -218,7 +202,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
 
       {step === 1 && (
         <div className="space-y-6">
-          {/* Identity Section - Refactored for Mobile */}
           <div className="flex flex-col gap-4">
             <div className="w-full space-y-1">
               <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Aetheric Identity (Name)</label>
@@ -345,34 +328,14 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
 
       {step === 3 && (
         <div className="space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-cinzel text-red-900 uppercase">Visual Description (AI Prompt)</label>
-                <textarea 
-                  value={description} 
-                  onChange={e => setDescription(e.target.value)} 
-                  placeholder="Describe thy appearance for the Engine to manifest..."
-                  className="w-full bg-black/40 border border-red-900/30 p-2 text-xs text-gray-300 h-24 outline-none focus:border-gold resize-none" 
-                />
-              </div>
-              <button 
-                onClick={handleGenerateImage} 
-                disabled={isGenerating || (!description && !biography)} 
-                className="w-full py-2 border border-gold text-gold text-[10px] font-cinzel hover:bg-gold/10 disabled:opacity-50 transition-all"
-              >
-                {isGenerating ? 'Manifesting...' : 'Manifest AI Portrait'}
-              </button>
-            </div>
-            <div className="rune-border h-48 flex items-center justify-center bg-black/60 overflow-hidden relative">
-              {imageUrl ? (
-                <img src={imageUrl} alt="Portrait" className="w-full h-full object-cover" />
-              ) : (
-                <div className="text-center">
-                  <span className="text-[10px] font-cinzel text-red-900/20 uppercase block">Aether Empty</span>
-                </div>
-              )}
-            </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-cinzel text-red-900 uppercase">Visual Description</label>
+            <textarea 
+              value={description} 
+              onChange={e => setDescription(e.target.value)} 
+              placeholder="Describe thy appearance..."
+              className="w-full bg-black/40 border border-red-900/30 p-2 text-xs text-gray-300 h-24 outline-none focus:border-gold resize-none" 
+            />
           </div>
 
           <div className="space-y-1">

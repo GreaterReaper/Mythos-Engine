@@ -87,9 +87,6 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
               onClick={() => setSelectedCharId(char.id)}
               className={`group relative cursor-pointer rune-border p-4 bg-black/60 backdrop-blur hover:bg-red-900/10 transition-all flex items-center gap-4 ${party.includes(char.id) ? 'border-gold shadow-[0_0_10px_rgba(161,98,7,0.3)]' : 'border-red-900/50'}`}
             >
-              <div className="w-12 h-12 shrink-0 border border-gold/20 overflow-hidden bg-black/40">
-                {char.imageUrl && <img src={char.imageUrl} className="w-full h-full object-cover" />}
-              </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-cinzel text-gold truncate leading-tight">{char.name}</h3>
                 <p className="text-[8px] text-gray-500 uppercase">{char.race} {char.archetype} • LVL {char.level}</p>

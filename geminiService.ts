@@ -247,34 +247,6 @@ export const generateItemDetails = async (itemName: string, context: string, par
   }
 };
 
-export const generateVisual = async (prompt: string): Promise<string | null> => {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-
-  const ai = getAiClient();
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [{ text: `Dark fantasy, obsidian and gold, blood-red highlights: ${prompt}` }]
-      },
-      config: {
-        imageConfig: { aspectRatio: "1:1" }
-      }
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
-    }
-    return null;
-  } catch (error: any) {
-    console.error("Visual manifestation failed", error);
-    return null;
-  }
-};
-
 export const parseDMCommand = (text: string) => {
   const expMatch = text.match(/\+(\d+)\s+EXP/);
   const itemRegex = /\[([^\]]+)\]\s*({[^}]+})?/g;

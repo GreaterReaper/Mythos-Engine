@@ -1,0 +1,8 @@
+{
+  "name": "Mythos Engine",
+  "description": "A dark fantasy TTRPG platform with AI Dungeon Master, tactical maps, and procedural world-building using the Gemini API.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

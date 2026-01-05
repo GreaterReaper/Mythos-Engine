@@ -3,8 +3,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Mythos Engine - Dark Fantasy TTRPG</title>
+    
+    <!-- PWA & Mobile Meta -->
+    <meta name="theme-color" content="#0c0a09">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Mythos Engine">
+    <link rel="manifest" href="/manifest.json">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +23,9 @@
             background-color: #0c0a09; /* Obsidian */
             color: #d6d3d1;
             overflow: hidden;
+            /* Support for notched devices */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
         }
         h1, h2, h3, h4, .font-cinzel {
             font-family: 'Cinzel', serif;
@@ -47,6 +58,11 @@
         }
         .bg-leather {
             background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');
+        }
+        
+        /* Smooth transitions for mobile nav */
+        .mobile-nav-active {
+            filter: drop-shadow(0 0 8px rgba(161, 98, 7, 0.4));
         }
     </style>
 <script type="importmap">

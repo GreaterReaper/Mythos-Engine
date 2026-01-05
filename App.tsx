@@ -311,7 +311,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden">
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden">
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -321,7 +321,8 @@ const App: React.FC = () => {
       />
       
       <main className="flex-1 relative overflow-y-auto bg-leather">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-screen">
+        {/* pb-20 on mobile to clear the fixed bottom nav */}
+        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-full pb-20 md:pb-8">
           {activeTab === 'Fellowship' && (
             <FellowshipScreen 
               characters={state.characters} 
@@ -389,8 +390,8 @@ const App: React.FC = () => {
           )}
           {activeTab === 'Rules' && (
             <div className="space-y-6">
-              <h2 className="text-4xl font-cinzel text-[#a16207] border-b border-red-900 pb-2">Ancient Rules</h2>
-              <div className="rune-border p-6 bg-[#0c0a09]/80 backdrop-blur whitespace-pre-wrap leading-loose text-sm">
+              <h2 className="text-3xl md:text-4xl font-cinzel text-[#a16207] border-b border-red-900 pb-2">Ancient Laws</h2>
+              <div className="rune-border p-4 md:p-6 bg-[#0c0a09]/80 backdrop-blur whitespace-pre-wrap leading-loose text-xs md:text-sm">
                 {RULES_MANIFEST}
               </div>
             </div>

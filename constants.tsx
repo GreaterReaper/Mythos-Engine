@@ -435,3 +435,20 @@ The air is thick with rumors of a pallid beast stalking livestock... a Gorechime
 A stranger in dark, tattered robes approaches your table, clutching a parchment sealed with blood-red wax.
 "The Engine has chosen you," he whispers.
 `;
+
+export const TUTORIAL_SCENARIO = {
+  title: "The Trial of Resonance",
+  prompt: `
+    [TUTORIAL CAMPAIGN]
+    Goal: Introduce core mechanics through a guided trial.
+    The setting: The party (Miri, Lina, and Seris) stands at the threshold of the Obsidian Gate. 
+    A spectral voice, the Engine's Herald, challenges you to prove your resonance.
+    
+    TUTORIAL STEPS FOR DM:
+    1. Encounter 1: Narrative interaction. Ask Lina to perform a Wisdom (Aetheric) check to analyze the gate.
+    2. Encounter 2: Combat basics. Summon a 'Shadow Wolf' and explain how HP and AC work.
+    3. Encounter 3: Resource management. Force a small spell use from Lina or Kaelen, and explain the spell slot tracking.
+    
+    Please explain the mechanics clearly in-character as the Engine Herald.
+  `
+};

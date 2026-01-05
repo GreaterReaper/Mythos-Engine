@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Campaign, Message, Character, Item } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
-import { RULES_MANIFEST, MENTORS } from '../constants';
+import { RULES_MANIFEST, MENTORS, TUTORIAL_SCENARIO } from '../constants';
 
 interface DMWindowProps {
   campaign: Campaign | null;
@@ -111,18 +111,35 @@ const DMWindow: React.FC<DMWindowProps> = ({
              </div>
              
              {isHost ? (
-               <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-4">
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-cinzel text-red-900 uppercase">Chronicle Title</label>
-                   <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none" placeholder="e.g. The Obsidian Spire..." />
-                 </div>
-                 <div className="space-y-1">
-                   <label className="text-[10px] font-cinzel text-red-900 uppercase">The Premise</label>
-                   <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gray-300 text-xs h-32 focus:border-gold outline-none resize-none" placeholder="Describe the shadow falling over the land..." />
-                 </div>
-                 <button onClick={() => onCreateCampaign(newTitle, newPrompt)} disabled={!newTitle || !newPrompt || characters.length === 0} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white font-cinzel font-bold border border-gold disabled:opacity-30 transition-all shadow-lg shadow-red-900/20">
-                   INITIATE CHRONICLE
-                 </button>
+               <div className="space-y-6">
+                  {/* Tutorial Promo Card */}
+                  {allCampaigns.length === 0 && (
+                    <div className="rune-border p-6 bg-gold/5 border-gold/30 space-y-3 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 bg-gold text-black text-[7px] font-bold px-2 py-0.5 font-cinzel animate-pulse">RECOMMENDED</div>
+                      <h4 className="text-sm font-cinzel text-gold">The Trial of Resonance</h4>
+                      <p className="text-[10px] text-gray-400 leading-relaxed italic">"The herald of the Engine awaits. Face the spectral guardian and learn the laws of steel and aether."</p>
+                      <button 
+                        onClick={() => onCreateCampaign(TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt)}
+                        className="w-full py-3 bg-gold text-black font-cinzel font-bold text-xs hover:bg-white transition-all shadow-lg"
+                      >
+                        COMMENCE SACRED TRIAL (TUTORIAL)
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-cinzel text-red-900 uppercase">Chronicle Title</label>
+                      <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none" placeholder="e.g. The Obsidian Spire..." />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-cinzel text-red-900 uppercase">The Premise</label>
+                      <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gray-300 text-xs h-32 focus:border-gold outline-none resize-none" placeholder="Describe the shadow falling over the land..." />
+                    </div>
+                    <button onClick={() => onCreateCampaign(newTitle, newPrompt)} disabled={!newTitle || !newPrompt || characters.length === 0} className="w-full py-4 bg-red-900 hover:bg-red-800 text-white font-cinzel font-bold border border-gold disabled:opacity-30 transition-all shadow-lg shadow-red-900/20">
+                      INITIATE CHRONICLE
+                    </button>
+                  </div>
                </div>
              ) : (
                <div className="rune-border p-8 bg-black/40 border-gold/20 italic text-gray-500 font-cinzel text-center">

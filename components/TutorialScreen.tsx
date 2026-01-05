@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { MENTORS, STARTER_CAMPAIGN_PROMPT } from '../constants';
+import { MENTORS, TUTORIAL_SCENARIO } from '../constants';
 
 interface TutorialScreenProps {
   onComplete: (partyIds: string[], campaignTitle: string, campaignPrompt: string) => void;
@@ -19,8 +19,8 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ onComplete }) => {
       content: "Three guardians await to mentor you: Miri (Fighter), Lina (Mage), and Seris (Archer). They are your initial party, guiding you until your own soul finds strength.",
     },
     {
-      title: "Sacred Rite",
-      content: "Combat is a tactical dance. Growth requires EXP, granted solely by the DM's favor. Your soul persists between all Chronicles you endure.",
+      title: "The Sacred Trial",
+      content: "Combat is a tactical dance. To begin your journey, we recommend the 'Trial of Resonance'—a guided experience to learn the laws of steel and aether.",
     }
   ];
 
@@ -29,7 +29,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ onComplete }) => {
   const finalize = () => {
     // Select Lina, Miri, Seris IDs explicitly
     const partyIds = MENTORS.filter(m => ['Lina', 'Miri', 'Seris'].includes(m.name)).map(m => m.id);
-    onComplete(partyIds, "The Broken Cask", STARTER_CAMPAIGN_PROMPT);
+    onComplete(partyIds, TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt);
   };
 
   return (
@@ -51,7 +51,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ onComplete }) => {
              onClick={() => step < tutorialSteps.length - 1 ? setStep(step + 1) : finalize()}
              className="px-6 py-2 bg-red-900 text-white font-cinzel text-xs border border-gold hover:bg-red-800 transition-all"
            >
-             {step < tutorialSteps.length - 1 ? 'CONTINUE' : 'INITIATE BINDING'}
+             {step < tutorialSteps.length - 1 ? 'CONTINUE' : 'INITIATE TRIAL'}
            </button>
         </div>
       </div>

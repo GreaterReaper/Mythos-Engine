@@ -84,7 +84,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
 
   const handleGenerateImage = async () => {
     setIsGenerating(true);
-    const promptText = `${gender} ${race} ${archetype}, wearing tier-appropriate gear, dark fantasy: ${description}`;
+    // Construct a rich prompt that synthesizes all character data
+    const backgroundDetails = biography ? `. Their background and soul-essence is described as: ${biography}` : '';
+    const visualDetails = description ? `. Physical appearance: ${description}` : '. Manifest their visage based on their path and ancestry';
+    
+    const promptText = `High-quality close-up character portrait of a ${gender} ${race} ${archetype}. They are level 1, wearing basic starting equipment suited for their vocation${visualDetails}${backgroundDetails}. Style: Dark fantasy illustration, sharp focus, atmospheric lighting.`;
+    
     const url = await generateVisual(promptText);
     if (url) setImageUrl(url);
     setIsGenerating(false);
@@ -351,7 +356,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
                   className="w-full bg-black/40 border border-red-900/30 p-2 text-xs text-gray-300 h-24 outline-none focus:border-gold resize-none" 
                 />
               </div>
-              <button onClick={handleGenerateImage} disabled={isGenerating || !description} className="w-full py-2 border border-gold text-gold text-[10px] font-cinzel hover:bg-gold/10 disabled:opacity-50 transition-all">
+              <button 
+                onClick={handleGenerateImage} 
+                disabled={isGenerating || (!description && !biography)} 
+                className="w-full py-2 border border-gold text-gold text-[10px] font-cinzel hover:bg-gold/10 disabled:opacity-50 transition-all"
+              >
                 {isGenerating ? 'Manifesting...' : 'Manifest AI Portrait'}
               </button>
             </div>

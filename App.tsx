@@ -5,7 +5,7 @@ import {
   Item, Monster, Stats, Friend, ArchetypeInfo, Ability 
 } from './types';
 import { 
-  MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STARTER_CAMPAIGN_PROMPT
+  MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STARTER_CAMPAIGN_PROMPT, STORAGE_PREFIX
 } from './constants';
 import Sidebar from './components/Sidebar';
 import FellowshipScreen from './components/FellowshipScreen';
@@ -18,11 +18,9 @@ import TutorialScreen from './components/TutorialScreen';
 import AccountPortal from './components/AccountPortal';
 import NexusScreen from './components/NexusScreen';
 import SpellsScreen from './components/SpellsScreen';
-import { generateItemDetails, safeId } from './geminiService';
+import { generateItemDetails, safeId, parseSoulSignature } from './geminiService';
 
 declare var Peer: any;
-
-const STORAGE_KEY = 'mythos_engine_v3';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
@@ -52,30 +50,47 @@ const App: React.FC = () => {
     }
   };
 
-  const [state, setState] = useState<GameState>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
+  const [state, setState] = useState<GameState>(DEFAULT_STATE);
+
+  // Persistence logic keyed by username
+  useEffect(() => {
+    if (state.userAccount.isLoggedIn) {
+      const storageKey = `${STORAGE_PREFIX}${state.userAccount.username}`;
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    }
+  }, [state]);
+
+  const handleLogin = (username: string) => {
+    const storageKey = `${STORAGE_PREFIX}${username}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
         const parsed = JSON.parse(saved);
-        return {
+        setState({
           ...DEFAULT_STATE,
           ...parsed,
-          characters: Array.isArray(parsed.characters) ? parsed.characters : [],
-          campaigns: Array.isArray(parsed.campaigns) ? parsed.campaigns : [],
-          customArchetypes: Array.isArray(parsed.customArchetypes) ? parsed.customArchetypes : [],
-          party: Array.isArray(parsed.party) ? parsed.party : [],
-          armory: Array.isArray(parsed.armory) ? parsed.armory : INITIAL_ITEMS,
-        } as GameState;
+          userAccount: { ...parsed.userAccount, isLoggedIn: true }
+        });
+      } catch (e) {
+        console.error("Failed to rebind soul from local memory:", e);
+        setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } }));
       }
-    } catch (e) {
-      console.error("Failed to load state from localStorage:", e);
+    } else {
+      setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } }));
     }
-    return DEFAULT_STATE;
-  });
+  };
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+  const handleMigrateSoul = (signature: string) => {
+    const migratedState = parseSoulSignature(signature);
+    if (migratedState) {
+      setState({
+        ...migratedState,
+        userAccount: { ...migratedState.userAccount, isLoggedIn: true }
+      });
+      return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     if (state.userAccount.isLoggedIn && !peerRef.current && typeof window !== 'undefined') {
@@ -265,7 +280,7 @@ const App: React.FC = () => {
   const activeCampaign = useMemo(() => state.campaigns.find(c => c.id === state.activeCampaignId) || null, [state.campaigns, state.activeCampaignId]);
 
   if (!state.userAccount.isLoggedIn) {
-    return <AccountPortal onLogin={(name) => setState(p => ({...p, userAccount: {...p.userAccount, username: name, isLoggedIn: true}}))} />;
+    return <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />;
   }
 
   return (
@@ -333,6 +348,7 @@ const App: React.FC = () => {
               isHost={state.multiplayer.isHost}
               onConnect={connectToSoul}
               username={state.userAccount.username}
+              gameState={state}
             />
           )}
           {activeTab === 'Archetypes' && (

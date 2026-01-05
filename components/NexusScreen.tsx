@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { generateSoulSignature } from '../geminiService';
+import { GameState } from '../types';
 
 interface NexusScreenProps {
   peerId: string;
@@ -7,17 +9,24 @@ interface NexusScreenProps {
   isHost: boolean;
   onConnect: (id: string) => void;
   username: string;
+  gameState: GameState;
 }
 
-const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHost, onConnect, username }) => {
+const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHost, onConnect, username, gameState }) => {
   const [targetId, setTargetId] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
+  const [migrationSig, setMigrationSig] = useState('');
 
   useEffect(() => {
     // Check if app is already running as a PWA
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(isPWA);
   }, []);
+
+  const handleManifestSignature = () => {
+    const sig = generateSoulSignature(gameState);
+    setMigrationSig(sig);
+  };
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
@@ -29,7 +38,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHos
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* PWA Installation Ritual - Only show if not installed */}
+        {/* PWA Installation Ritual */}
         {!isStandalone && (
           <div className="rune-border p-5 bg-gold/5 border-gold/30 space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
             <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest flex items-center gap-2">
@@ -52,11 +61,56 @@ const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHos
           </div>
         )}
 
+        {/* Soul Migration Section */}
+        <div className="rune-border p-6 bg-red-900/5 border-gold/20 space-y-4">
+          <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+            Ritual of Migration (Transfer)
+          </h3>
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            Generate a Soul Signature to transfer thy chronicles, characters, and artifacts to another device.
+          </p>
+          
+          {!migrationSig ? (
+            <button 
+              onClick={handleManifestSignature}
+              className="w-full py-2 bg-gold/10 border border-gold text-gold font-cinzel text-[10px] hover:bg-gold/20 transition-all"
+            >
+              MANIFEST SOUL SIGNATURE
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <textarea 
+                readOnly 
+                value={migrationSig}
+                className="w-full h-24 bg-black/60 border border-gold/30 p-2 text-gold font-mono text-[8px] outline-none"
+              />
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(migrationSig);
+                    alert("Soul Signature bound to clipboard.");
+                  }}
+                  className="flex-1 py-1.5 bg-gold text-black font-cinzel text-[10px] font-bold"
+                >
+                  COPY SIGNATURE
+                </button>
+                <button 
+                  onClick={() => setMigrationSig('')}
+                  className="px-4 py-1.5 border border-red-900 text-red-900 font-cinzel text-[10px]"
+                >
+                  CLOSE
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Connection Portal */}
         <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-6">
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Thy Resonance Signature</label>
+              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Thy Resonance Signature (Local ID)</label>
               <div className="flex gap-2">
                 <input 
                   readOnly 
@@ -73,7 +127,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHos
                   COPY
                 </button>
               </div>
-              <p className="text-[9px] text-gray-600 italic">Share this ID with other souls to invite them to thy Engine.</p>
+              <p className="text-[9px] text-gray-600 italic">Share this ID for multiplayer soul-binding in the current session.</p>
             </div>
 
             <div className="h-px bg-red-900/20" />

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { Message, Character, Monster, Item, Archetype, Ability } from './types';
+import { Message, Character, Monster, Item, Archetype, Ability, GameState } from './types';
 
 /**
  * Utility to generate an ID even in non-secure or older environments.
@@ -13,8 +13,39 @@ export const safeId = () => {
 };
 
 /**
+ * Generates a Base64 encoded string of the current GameState for migration.
+ */
+export const generateSoulSignature = (state: GameState): string => {
+  try {
+    const json = JSON.stringify(state);
+    // Using btoa for basic encoding. In a production env, we'd use a compression lib.
+    return btoa(encodeURIComponent(json));
+  } catch (e) {
+    console.error("Failed to manifest Soul Signature", e);
+    return "";
+  }
+};
+
+/**
+ * Parses a Soul Signature back into a GameState object.
+ */
+export const parseSoulSignature = (signature: string): GameState | null => {
+  try {
+    const json = decodeURIComponent(atob(signature));
+    const parsed = JSON.parse(json);
+    // Basic validation: Check for essential keys
+    if (parsed && typeof parsed === 'object' && 'characters' in parsed && 'userAccount' in parsed) {
+      return parsed as GameState;
+    }
+    return null;
+  } catch (e) {
+    console.error("Invalid Soul Signature resonance", e);
+    return null;
+  }
+};
+
+/**
  * Safely retrieves the API Key from the environment.
- * Prevents ReferenceError in browser environments where 'process' is undefined.
  */
 const getApiKey = () => {
   try {
@@ -27,7 +58,6 @@ const getApiKey = () => {
 
 /**
  * Creates a fresh AI instance. 
- * Per guidelines: Create right before making an API call.
  */
 const getAiClient = () => {
   return new GoogleGenAI({ apiKey: getApiKey() });

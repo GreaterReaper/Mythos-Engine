@@ -220,9 +220,46 @@ const App: React.FC = () => {
     state.party.forEach(id => {
       const char = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
       if (char) {
-        const newExp = char.exp + amount;
+        // Explicitly cast char.exp to number to resolve unknown type inference errors during addition
+        const newExp = (char.exp as number) + amount;
         updateCharacter(id, { exp: newExp });
         handleLevelUp(id);
+      }
+    });
+  };
+
+  const handleShortRest = () => {
+    state.party.forEach(id => {
+      const char = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
+      if (char) {
+        const missingHp = char.maxHp - char.currentHp;
+        const restoredHp = Math.ceil(missingHp / 2);
+        
+        let restoredSlots = { ...char.spellSlots };
+        if (char.maxSpellSlots) {
+          Object.entries(char.maxSpellSlots).forEach(([lvl, max]) => {
+            const level = parseInt(lvl);
+            const current = char.spellSlots?.[level] || 0;
+            restoredSlots[level] = Math.min(max, current + Math.ceil(max / 2));
+          });
+        }
+
+        updateCharacter(id, {
+          currentHp: Math.min(char.maxHp, char.currentHp + restoredHp),
+          spellSlots: restoredSlots
+        });
+      }
+    });
+  };
+
+  const handleLongRest = () => {
+    state.party.forEach(id => {
+      const char = state.characters.find(c => c.id === id) || state.mentors.find(m => m.id === id);
+      if (char) {
+        updateCharacter(id, {
+          currentHp: char.maxHp,
+          spellSlots: char.maxSpellSlots ? { ...char.maxSpellSlots } : undefined
+        });
       }
     });
   };
@@ -337,6 +374,8 @@ const App: React.FC = () => {
               onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))}
               onAwardExp={addExpToParty}
               onAwardItem={handleAwardItem}
+              onShortRest={handleShortRest}
+              onLongRest={handleLongRest}
               isHost={state.multiplayer.isHost}
             />
           )}

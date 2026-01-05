@@ -96,11 +96,17 @@ export const generateDMResponse = async (
     CLASS WEAPON RULES:
     - Dark Knights: They exclusively wield massive, heavy two-handed swords (greatswords, zweihänders, claymores). They never use shields, daggers, or wands. All weapon manifestations for Dark Knights must be heavy swords.
 
+    RESTING MECHANICS:
+    - You track the party's fatigue. If they are low on resources (HP or Spells), narrate a safe haven and trigger a rest.
+    - To trigger a rest via your response, include the tags [SHORT REST] or [LONG REST].
+    - A Short Rest restores half resources. A Long Rest restores all.
+
     PARTY: ${JSON.stringify(playerContext.characters.map(c => ({ 
       name: c.name, 
       class: c.archetype, 
       level: c.level, 
-      health: `${c.currentHp}/${c.maxHp}`
+      health: `${c.currentHp}/${c.maxHp}`,
+      spells: c.spellSlots ? JSON.stringify(c.spellSlots) : "No slots"
     })))}
     RULES: ${playerContext.activeRules}
   `;
@@ -259,11 +265,19 @@ export const parseDMCommand = (text: string) => {
     if (match[2]) {
       try { data = JSON.parse(match[2]); } catch (e) {}
     }
-    items.push({ name, data });
+    // Filter out internal tags like [SHORT REST] from being parsed as items
+    if (name !== "SHORT REST" && name !== "LONG REST") {
+      items.push({ name, data });
+    }
   }
+
+  const shortRest = text.includes("[SHORT REST]");
+  const longRest = text.includes("[LONG REST]");
   
   return {
     exp: expMatch ? parseInt(expMatch[1]) : 0,
-    items
+    items,
+    shortRest,
+    longRest
   };
 };

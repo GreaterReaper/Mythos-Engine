@@ -14,12 +14,15 @@ interface DMWindowProps {
   onQuitCampaign: () => void;
   onAwardExp: (amount: number) => void;
   onAwardItem: (name: string, data?: Partial<Item>) => void;
+  onShortRest: () => void;
+  onLongRest: () => void;
   isHost: boolean;
 }
 
 const DMWindow: React.FC<DMWindowProps> = ({ 
   campaign, allCampaigns, characters, onMessage, onCreateCampaign, 
-  onSelectCampaign, onQuitCampaign, onAwardExp, onAwardItem, isHost 
+  onSelectCampaign, onQuitCampaign, onAwardExp, onAwardItem, 
+  onShortRest, onLongRest, isHost 
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,15 +56,34 @@ const DMWindow: React.FC<DMWindowProps> = ({
       onMessage(dmMsg);
       
       if (responseText) {
-        const { exp, items } = parseDMCommand(responseText);
+        const { exp, items, shortRest, longRest } = parseDMCommand(responseText);
         if (exp > 0) onAwardExp(exp);
         items.forEach(item => onAwardItem(item.name, item.data));
+        
+        if (shortRest) {
+          onShortRest();
+          onMessage({ role: 'system', content: "The party takes a Short Rest. Vitality and aetheric reserves partially restore.", timestamp: Date.now() });
+        }
+        if (longRest) {
+          onLongRest();
+          onMessage({ role: 'system', content: "The party takes a Long Rest. All souls are fully mended and aetheric reserves are replenished.", timestamp: Date.now() });
+        }
       }
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const manualShortRest = () => {
+    onShortRest();
+    onMessage({ role: 'system', content: "[Manual Action] The party takes a Short Rest.", timestamp: Date.now() });
+  };
+
+  const manualLongRest = () => {
+    onLongRest();
+    onMessage({ role: 'system', content: "[Manual Action] The party takes a Long Rest.", timestamp: Date.now() });
   };
 
   if (!campaign) {
@@ -155,6 +177,22 @@ const DMWindow: React.FC<DMWindowProps> = ({
           <h3 className="font-cinzel text-gold text-sm truncate uppercase tracking-widest">{campaign.title}</h3>
         </div>
         <div className="flex items-center gap-2">
+          {isHost && (
+            <>
+              <button 
+                onClick={manualShortRest}
+                className="text-[8px] text-amber-500 border border-amber-900/40 px-2 py-0.5 hover:bg-amber-900/20 transition-all uppercase font-cinzel"
+              >
+                Short Rest
+              </button>
+              <button 
+                onClick={manualLongRest}
+                className="text-[8px] text-blue-500 border border-blue-900/40 px-2 py-0.5 hover:bg-blue-900/20 transition-all uppercase font-cinzel"
+              >
+                Long Rest
+              </button>
+            </>
+          )}
           <span className="text-[8px] text-red-900 font-cinzel bg-red-900/10 px-2 py-0.5 border border-red-900/20 uppercase">
             {isHost ? 'ENGINE HOST' : 'BOUND SOUL'}
           </span>

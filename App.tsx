@@ -24,6 +24,16 @@ declare var Peer: any;
 
 const STORAGE_KEY = 'mythos_engine_v3';
 
+/**
+ * Utility to generate an ID even in non-secure or older environments.
+ */
+const safeId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15);
+};
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
   const [showMatchmaking, setShowMatchmaking] = useState(false);
@@ -42,7 +52,7 @@ const App: React.FC = () => {
     party: [],
     userAccount: {
       username: 'Nameless Soul',
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36),
+      id: safeId(),
       friends: [],
       sharedCreations: [],
       isLoggedIn: false
@@ -59,23 +69,18 @@ const App: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         
-        // Ensure critical arrays exist
-        parsed.characters = Array.isArray(parsed.characters) ? parsed.characters : [];
-        parsed.campaigns = Array.isArray(parsed.campaigns) ? parsed.campaigns : [];
-        parsed.customArchetypes = Array.isArray(parsed.customArchetypes) ? parsed.customArchetypes : [];
-        parsed.party = Array.isArray(parsed.party) ? parsed.party : [];
-        parsed.armory = Array.isArray(parsed.armory) ? parsed.armory : INITIAL_ITEMS;
-
-        // Mentors and Bestiary are always standardized
-        parsed.mentors = MENTORS;
-        parsed.bestiary = INITIAL_MONSTERS;
-        
-        // Merge armory with initial items to ensure new global items are available
-        const currentArmory = parsed.armory;
-        const missingInitial = INITIAL_ITEMS.filter(ii => !currentArmory.some((pa: Item) => pa.id === ii.id));
-        parsed.armory = [...currentArmory, ...missingInitial];
-        
-        return parsed as GameState;
+        // Ensure critical arrays and objects exist to avoid crashes
+        return {
+          ...DEFAULT_STATE,
+          ...parsed,
+          characters: Array.isArray(parsed.characters) ? parsed.characters : [],
+          campaigns: Array.isArray(parsed.campaigns) ? parsed.campaigns : [],
+          customArchetypes: Array.isArray(parsed.customArchetypes) ? parsed.customArchetypes : [],
+          party: Array.isArray(parsed.party) ? parsed.party : [],
+          armory: Array.isArray(parsed.armory) ? parsed.armory : INITIAL_ITEMS,
+          mentors: MENTORS, // Always use fresh mentor data
+          bestiary: INITIAL_MONSTERS, // Always use fresh bestiary data
+        } as GameState;
       }
     } catch (e) {
       console.error("Failed to load state from localStorage:", e);
@@ -133,6 +138,7 @@ const App: React.FC = () => {
     });
 
     conn.on('data', (data: any) => {
+      if (!data) return;
       switch (data.type) {
         case 'SYNC_STATE':
           setState(prev => ({ ...data.payload, userAccount: prev.userAccount }));
@@ -250,7 +256,7 @@ const App: React.FC = () => {
       const context = activeCampaign?.history.slice(-5).map(m => m.content).join(' ') || "The party finds a treasure.";
       const generatedStats = await generateItemDetails(name, context, Math.ceil(avgLevel));
       item = {
-        id: crypto.randomUUID(),
+        id: safeId(),
         name,
         description: generatedStats.description || 'A shimmering item.',
         type: (generatedStats.type as any) || 'Utility',
@@ -292,7 +298,7 @@ const App: React.FC = () => {
 
   const createCampaign = (title: string, prompt: string) => {
     const newCampaign: Campaign = {
-      id: crypto.randomUUID(),
+      id: safeId(),
       title,
       prompt,
       history: [{ role: 'system', content: `Campaign Started: ${title}. ${prompt}`, timestamp: Date.now() }],

@@ -2,16 +2,26 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability } from './types';
 
-// Safety check for environment variables to prevent top-level crashes
+/**
+ * Safely retrieves the API Key from the environment.
+ * Prevents ReferenceError in browser environments where 'process' is undefined.
+ */
 const getApiKey = () => {
   try {
-    return process.env.API_KEY || '';
+    // @ts-ignore
+    return (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
   } catch (e) {
     return '';
   }
 };
 
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
+/**
+ * Creates a fresh AI instance. 
+ * Per guidelines: Create right before making an API call.
+ */
+const getAiClient = () => {
+  return new GoogleGenAI({ apiKey: getApiKey() });
+};
 
 export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -24,8 +34,10 @@ export const generateDMResponse = async (
     existingItems: Item[];
   }
 ) => {
-  if (!getApiKey()) return "The Aetheric connection is severed (API Key missing). Please check your Vercel Environment Variables.";
+  const apiKey = getApiKey();
+  if (!apiKey) return "The Aetheric connection is severed (API Key missing). Please check your Vercel Environment Variables.";
 
+  const ai = getAiClient();
   const systemInstruction = `
     You are the "Mythos Engine" Dungeon Master. 
     Aesthetics: Obsidian, blood-red, gold. Font: Cinzel (Headers), Inter (UI). 
@@ -35,33 +47,22 @@ export const generateDMResponse = async (
 
     IMMERSIVE DIALOGUE & NPC RULES:
     - Every NPC has a distinct "Voice". Consider their background, race, and current emotional state.
-    - Mentors (Maintain these voices strictly):
-        Lina (Mage/Human/Female): Petite, shy, hesitant priestess. Stutters slightly when stressed.
-        Seris (Archer/Elf/Female): Reserved, sharp-eyed, composed. Speaks in short, clinical sentences.
-        Miri (Fighter/Human/Female): Energetic, impulsive, playful. Uses exclamations.
-        Kaelen (Dark Knight/Human/Male): Cold, emotionless, total emotional control.
-    - Campaign NPCs: For non-mentor NPCs, invent a personality and maintain it.
-
-    SITUATIONAL AWARENESS:
-    - If the party is wounded, NPCs should express concern, malice, or opportunistic greed.
+    - Mentors:
+        Lina (Mage/Human/Female): Petite, shy, hesitant priestess.
+        Seris (Archer/Elf/Female): Reserved, sharp-eyed, composed.
+        Miri (Fighter/Human/Female): Energetic, impulsive, playful.
+        Kaelen (Dark Knight/Human/Male): Cold, emotionless.
     
-    MECHANICAL COMMANDS (Keep these distinct from narrative):
-    - Grant EXP: "+[Amount] EXP" (DM ONLY).
-    - Grant Loot: "[Item Name]". 
-    - Provide stats in JSON after the name if generating a new artifact: [Item Name] { "type": "Weapon", "rarity": "Rare", "description": "...", "stats": { "damage": "1d8+STR" }, "archetypes": ["Warrior"] }. 
-    
-    SPELLCASTING:
-    - Casters use spell slots (1st-9th level).
-    - Higher level slots can be used to "Upcast" spells for increased power.
-    
-    EXP Scaling: Level Up = 1000 * Level.
+    MECHANICAL COMMANDS:
+    - Grant EXP: "+[Amount] EXP"
+    - Grant Loot: "[Item Name]"
+    - Provide stats in JSON after the name if generating a new artifact: [Item Name] { ... }. 
     
     PARTY: ${JSON.stringify(playerContext.characters.map(c => ({ 
       name: c.name, 
       class: c.archetype, 
       level: c.level, 
-      health: `${c.currentHp}/${c.maxHp}`,
-      slots: c.spellSlots
+      health: `${c.currentHp}/${c.maxHp}`
     })))}
     RULES: ${playerContext.activeRules}
   `;
@@ -85,10 +86,6 @@ export const generateDMResponse = async (
   }
 };
 
-/**
- * Procedurally generates a custom class based on a player's prompt.
- * Now populates at least 10 spells and a suite of armory items.
- */
 export const generateCustomClass = async (prompt: string): Promise<{ 
   name: string; 
   description: string; 
@@ -97,18 +94,19 @@ export const generateCustomClass = async (prompt: string): Promise<{
   spells: Ability[]; 
   themedItems: Item[];
 }> => {
-  if (!getApiKey()) throw new Error("API Key is missing. Forge thy connection in the Vercel settings.");
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key is missing. Forge thy connection in the Vercel settings.");
 
+  const ai = getAiClient();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Forge a unique dark fantasy TTRPG class for Mythos Engine based on this concept: "${prompt}".
       Rules:
-      1. Flavorful class name and grim description.
-      2. Hit die (6, 8, 10, or 12).
-      3. 3 core abilities (at least 1 Passive, 1 Active).
-      4. IF THE CLASS HAS MAGIC: Create exactly 12 themed spells (Levels 1-9) with upcasting scaling.
-      5. Create 5 themed items (1 Common, 1 Uncommon, 1 Rare, 1 Epic, 1 Legendary) for the Armory. 
+      1. Hit die (6, 8, 10, or 12).
+      2. 3 core abilities.
+      3. Exactly 12 themed spells (Levels 1-9).
+      4. 5 themed items (1 per rarity). 
       Return strictly as JSON.`,
       config: {
         responseMimeType: "application/json",
@@ -125,7 +123,7 @@ export const generateCustomClass = async (prompt: string): Promise<{
                 properties: {
                   name: { type: Type.STRING },
                   description: { type: Type.STRING },
-                  type: { type: Type.STRING, description: "Passive, Active, or Feat" },
+                  type: { type: Type.STRING },
                   levelReq: { type: Type.NUMBER }
                 },
                 required: ["name", "description", "type", "levelReq"]
@@ -138,9 +136,9 @@ export const generateCustomClass = async (prompt: string): Promise<{
                 properties: {
                   name: { type: Type.STRING },
                   description: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ["Spell"] },
+                  type: { type: Type.STRING },
                   levelReq: { type: Type.NUMBER },
-                  baseLevel: { type: Type.NUMBER, description: "1 to 9" },
+                  baseLevel: { type: Type.NUMBER },
                   scaling: { type: Type.STRING }
                 },
                 required: ["name", "description", "type", "levelReq", "baseLevel"]
@@ -152,8 +150,8 @@ export const generateCustomClass = async (prompt: string): Promise<{
                 type: Type.OBJECT,
                 properties: {
                   name: { type: Type.STRING },
-                  type: { type: Type.STRING, enum: ["Weapon", "Armor", "Utility"] },
-                  rarity: { type: Type.STRING, enum: ["Common", "Uncommon", "Rare", "Epic", "Legendary"] },
+                  type: { type: Type.STRING },
+                  rarity: { type: Type.STRING },
                   description: { type: Type.STRING },
                   stats: { type: Type.OBJECT }
                 },
@@ -166,11 +164,10 @@ export const generateCustomClass = async (prompt: string): Promise<{
       }
     });
 
-    const data = JSON.parse(response.text);
-    // Ensure IDs are present for items
-    data.themedItems = data.themedItems.map((item: any) => ({
+    const data = JSON.parse(response.text || '{}');
+    data.themedItems = (data.themedItems || []).map((item: any) => ({
       ...item,
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36),
       archetypes: [data.name]
     }));
     return data;
@@ -181,48 +178,31 @@ export const generateCustomClass = async (prompt: string): Promise<{
 };
 
 export const generateItemDetails = async (itemName: string, context: string, partyLevel: number): Promise<Partial<Item>> => {
-  if (!getApiKey()) return {};
+  const apiKey = getApiKey();
+  if (!apiKey) return {};
 
+  const ai = getAiClient();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest the essence of a dark fantasy TTRPG item named "${itemName}". 
-      Setting: Mythos Engine (Grimdark, Obsidian, Gold aesthetic).
-      Campaign Context: ${context}.
-      Average Party Level: ${partyLevel}.
-      Provide balanced TTRPG stats, rarity, and a flavorful description.`,
+      contents: `Manifest a dark fantasy TTRPG item named "${itemName}". Context: ${context}. Level: ${partyLevel}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            type: { type: Type.STRING, description: "Weapon, Armor, or Utility" },
-            rarity: { type: Type.STRING, description: "Common, Uncommon, Rare, Epic, or Legendary" },
+            type: { type: Type.STRING },
+            rarity: { type: Type.STRING },
             description: { type: Type.STRING },
-            stats: { 
-              type: Type.OBJECT,
-              properties: {
-                damage: { type: Type.STRING },
-                ac: { type: Type.NUMBER },
-                str: { type: Type.NUMBER },
-                dex: { type: Type.NUMBER },
-                con: { type: Type.NUMBER },
-                int: { type: Type.NUMBER },
-                wis: { type: Type.NUMBER },
-                cha: { type: Type.NUMBER },
-              }
-            },
-            archetypes: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING }
-            }
+            stats: { type: Type.OBJECT },
+            archetypes: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: ["type", "rarity", "description", "stats"]
         }
       }
     });
 
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error("Failed to manifest item details:", error);
     return {};
@@ -230,13 +210,15 @@ export const generateItemDetails = async (itemName: string, context: string, par
 };
 
 export const generateVisual = async (prompt: string): Promise<string | null> => {
-  if (!getApiKey()) return null;
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
 
+  const ai = getAiClient();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: `Dark fantasy, obsidian and gold aesthetic, cinematic, blood-red highlights: ${prompt}` }]
+        parts: [{ text: `Dark fantasy, obsidian and gold, blood-red highlights: ${prompt}` }]
       },
       config: {
         imageConfig: { aspectRatio: "1:1" }

@@ -27,7 +27,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
   }, []);
 
   const handleManifestSignature = () => {
-    const sig = generateSoulSignature(gameState);
+    const sig = generateSoulSignature(gameState, username);
     setMigrationSig(sig);
   };
 
@@ -182,7 +182,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
           </div>
         </div>
 
-        {/* Known Souls (Historical) */}
+        {/* Known Souls (Archives) */}
         <div className="rune-border p-6 bg-black/60 space-y-4">
           <div className="flex justify-between items-center border-b border-gold/30 pb-2">
             <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Known Souls (Archives)</h3>

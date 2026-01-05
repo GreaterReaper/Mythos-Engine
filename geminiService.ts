@@ -4,6 +4,8 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState } from
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
 import * as fflate from 'fflate';
 
+const ENGINE_VERSION = "1.0.0";
+
 export const safeId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -59,7 +61,7 @@ export const hydrateState = (data: Partial<GameState>, defaultState: GameState):
   };
 };
 
-export const generateSoulSignature = (state: GameState): string => {
+export const generateSoulSignature = (state: GameState, username: string = "Nameless"): string => {
   try {
     const stripped = stripState(state);
     const jsonString = JSON.stringify(stripped);
@@ -71,7 +73,10 @@ export const generateSoulSignature = (state: GameState): string => {
     for (let i = 0; i < len; i++) {
       binary += String.fromCharCode(compressed[i]);
     }
-    return `v2_${btoa(binary)}`;
+    
+    // Format: [Username]_v[Version]_[Base64Data]
+    const prefix = `${username.replace(/\s+/g, '')}_v${ENGINE_VERSION}_`;
+    return `${prefix}${btoa(binary)}`;
   } catch (e) {
     console.error("Failed to manifest Soul Signature", e);
     return "";
@@ -82,8 +87,11 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
   try {
     let json: any;
     
-    if (signature.startsWith('v2_')) {
-      const b64 = signature.substring(3);
+    // Look for the last underscore which separates our custom prefix from the data
+    const lastUnderscoreIndex = signature.lastIndexOf('_');
+    
+    if (lastUnderscoreIndex !== -1) {
+      const b64 = signature.substring(lastUnderscoreIndex + 1);
       const binaryString = atob(b64);
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
@@ -94,6 +102,7 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
       const jsonString = fflate.strFromU8(decompressed);
       json = JSON.parse(jsonString);
     } else {
+      // Fallback for very old uncompressed or legacy formats
       const jsonString = decodeURIComponent(atob(signature));
       json = JSON.parse(jsonString);
     }

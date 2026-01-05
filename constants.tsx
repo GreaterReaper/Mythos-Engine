@@ -167,7 +167,7 @@ export const INITIAL_ITEMS: Item[] = [
   
   // Epic
   { id: 'epic-void-reaver', name: 'Void Reaver', description: 'A massive 2H greatsword forged from obsidian, humming with a dark energy.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d10+STR', con: 2 }, archetypes: [Archetype.DarkKnight, Archetype.Warrior] },
-  { id: 'epic-sun-staff', name: 'Solar Focus', description: 'A staff tipped with a fragment of a captured star.', type: 'Weapon', rarity: 'Epic', stats: { wis: 3, cha: 1 }, archetypes: [Archetype.Mage, Archetype.Sorcerer] },
+  { id: 'epic-sun-staff', name: 'Solar Focus', description: 'A staff tipped with a fragment of a placeholder star.', type: 'Weapon', rarity: 'Epic', stats: { wis: 3, cha: 1 }, archetypes: [Archetype.Mage, Archetype.Sorcerer] },
   { id: 'epic-shadow-claws', name: 'Umbral Talons', description: 'Set of obsidian claws that extend from the user\'s shadows.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d6+DEX', dex: 2 }, archetypes: [Archetype.Thief] },
 
   // Legendary
@@ -190,14 +190,39 @@ export const INITIAL_ITEMS: Item[] = [
 
   // --- UTILITY ---
   { id: 'un-ring', name: 'Aether Ring', description: 'A ring that hums with low-level magic.', type: 'Utility', rarity: 'Uncommon', stats: { int: 1 } },
-  { id: 'rare-amulet', name: 'Locket of Lost Souls', description: 'Provides a small bonus to focus.', type: 'Utility', rarity: 'Rare', stats: { wis: 2 } },
+  { id: 'rare-amulet', name: 'Locket of Lost Souls', description: 'Provides a placeholder bonus to focus.', type: 'Utility', rarity: 'Rare', stats: { wis: 2 } },
   { id: 'epic-tome', name: 'Grimoire of the Abyss', description: 'Contains forbidden knowledge of the void.', type: 'Utility', rarity: 'Epic', stats: { int: 4, wis: -1 } },
   { id: 'legendary-shadow-mantle', name: 'Mantle of the Unseen God', description: 'A legendary cloak woven from pure darkness and forgotten whispers. The wearer becomes a literal ghost in the world.', type: 'Utility', rarity: 'Legendary', stats: { dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
   { id: 'legendary-saint-relic', name: 'Glow-Heart of the First Saint', description: 'A legendary pulsating crystal that radiates an eternal, holy light. Darkness cannot exist in its presence.', type: 'Utility', rarity: 'Legendary', stats: { wis: 5, con: 2 }, archetypes: [Archetype.Mage] }
 ];
 
+const createMentor = (data: Partial<Character>): Character => {
+  const inventory = data.inventory || [];
+  return {
+    id: 'unknown',
+    name: 'Unknown',
+    age: 0,
+    gender: 'N/A',
+    race: Race.Human,
+    archetype: Archetype.Warrior,
+    level: 1,
+    exp: 0,
+    maxHp: 10,
+    currentHp: 10,
+    stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    inventory: inventory,
+    equippedIds: inventory.map(i => i.id),
+    spells: [],
+    abilities: [],
+    asiPoints: 0,
+    description: '',
+    biography: '',
+    ...data
+  };
+};
+
 export const MENTORS: Character[] = [
-  {
+  createMentor({
     id: 'mentor-lina',
     name: 'Lina',
     age: 21,
@@ -205,7 +230,6 @@ export const MENTORS: Character[] = [
     race: Race.Human,
     archetype: Archetype.Mage,
     level: 5,
-    exp: 0,
     maxHp: 52,
     currentHp: 52,
     stats: { str: 9, dex: 13, con: 15, int: 13, wis: 19, cha: 13 },
@@ -215,10 +239,9 @@ export const MENTORS: Character[] = [
     spellSlots: { 1: 4, 2: 3, 3: 2 },
     maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
     description: 'A petite, shy priestess from a rural chapel. She wears simple white and gold cloth robes.',
-    biography: 'Lina was raised in a secluded monastery at the edge of the Sun-Drenched Wastes. While others sought power through steel, she found solace in the ancient chants of the Light-Bringers. She was sent to Oakhaven after a vision of the Mythos Engine consuming her home, her quiet demeanor belying a fierce dedication to shielding those who cannot protect themselves. She holds the record for the longest meditation in the Order of the Silent Sun.',
-    asiPoints: 0
-  },
-  {
+    biography: 'Lina was raised in a secluded monastery at the edge of the Sun-Drenched Wastes. While others sought power through steel, she found solace in the ancient chants of the Light-Bringers. She was sent to Oakhaven after a vision of the Mythos Engine consuming her home, her quiet demeanor belying a fierce dedication to shielding those who cannot protect themselves. She holds the record for the longest meditation in the Order of the Silent Sun.'
+  }),
+  createMentor({
     id: 'mentor-miri',
     name: 'Miri',
     age: 19,
@@ -226,7 +249,6 @@ export const MENTORS: Character[] = [
     race: Race.Human,
     archetype: Archetype.Fighter,
     level: 5,
-    exp: 0,
     maxHp: 68,
     currentHp: 68,
     stats: { str: 19, dex: 13, con: 17, int: 9, wis: 13, cha: 11 },
@@ -234,10 +256,9 @@ export const MENTORS: Character[] = [
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
     description: 'An energetic and impulsive swordswoman with a bright, playful personality. She wears ribbon-adorned half-plate.',
-    biography: 'A former squire from the fallen Citadel of Rose-Gold, Miri refuses to let the darkness of the world dim her spirit. She often decorates her heavy armor with bright ribbons and trinkets found on the battlefield. Her fighting style is a whirlwind of steel and laughter, though those who mistake her cheer for weakness often find themselves at the business end of her longsword. She is the last surviving member of the Rose-Gold Honor Guard.',
-    asiPoints: 0
-  },
-  {
+    biography: 'A former squire from the fallen Citadel of Rose-Gold, Miri refuses to let the darkness of the world dim her spirit. She often decorates her heavy armor with bright ribbons and trinkets found on the battlefield. Her fighting style is a whirlwind of steel and laughter, though those who mistake her cheer for weakness often find themselves at the business end of her longsword. She is the last surviving member of the Rose-Gold Honor Guard.'
+  }),
+  createMentor({
     id: 'mentor-seris',
     name: 'Seris',
     age: 120,
@@ -245,7 +266,6 @@ export const MENTORS: Character[] = [
     race: Race.Elf,
     archetype: Archetype.Archer,
     level: 5,
-    exp: 0,
     maxHp: 54,
     currentHp: 54,
     stats: { str: 11, dex: 21, con: 15, int: 13, wis: 13, cha: 9 },
@@ -253,10 +273,9 @@ export const MENTORS: Character[] = [
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
     description: 'A reserved, sharp-eyed elven archer who prefers quiet distance and composure.',
-    biography: 'Seris has outlived three generations of her human companions. She speaks rarely, her words as precise and lethal as her arrows. She left the Sylvan Glades when the corruption of the Obsidian Spire began to rot the world-trees. Now, she walks the frontier, a silent sentinel who observes the cycle of life and death with the clinical detachment of a scholar and the lethality of a master hunter. Her eyes are said to see the resonance of a heartbeat from a mile away.',
-    asiPoints: 0
-  },
-  {
+    biography: 'Seris has outlived three generations of her human companions. She speaks rarely, her words as precise and lethal as her arrows. She left the Sylvan Glades when the corruption of the Obsidian Spire began to rot the world-trees. Now, she walks the frontier, a silent sentinel who observes the cycle of life and death with the clinical detachment of a scholar and the lethality of a master hunter. Her eyes are said to see the resonance of a heartbeat from a mile away.'
+  }),
+  createMentor({
     id: 'mentor-kaelen',
     name: 'Kaelen',
     age: 34,
@@ -264,7 +283,6 @@ export const MENTORS: Character[] = [
     race: Race.Human,
     archetype: Archetype.DarkKnight,
     level: 5,
-    exp: 0,
     maxHp: 74,
     currentHp: 74,
     stats: { str: 19, dex: 10, con: 18, int: 10, wis: 10, cha: 14 },
@@ -273,10 +291,62 @@ export const MENTORS: Character[] = [
     abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
     spellSlots: { 1: 4, 2: 3, 3: 2 },
     maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
-    description: 'A towering figure in black obsidian plate. His face is a mask of indifference, eyes cold as the void.',
-    biography: 'Kaelen was a commander of the Black Wing Legion before the Engine claimed his emotions as tribute for survival. He walks the fine line between humanity and the abyss, wielding a heavy blade that siphons the very light from the air. He does not seek redemption, only the efficient termination of threats to the balance. His presence is as chilling as a grave-wind, and his silence is more terrifying than any war-cry.',
-    asiPoints: 0
-  }
+    description: 'A towering figure in black obsidian placeholder plate. His face is a mask of indifference, eyes cold as the void.',
+    biography: 'Kaelen was a commander of the Black Wing Legion before the Engine claimed his emotions as tribute for survival. He walks the fine line between humanity and the abyss, wielding a heavy blade that siphons the very light from the air. He does not seek redemption, only the efficient termination of threats to the balance. His presence is as chilling as a placeholder grave-wind, and his silence is more terrifying than any war-cry.'
+  }),
+  createMentor({
+    id: 'mentor-jax',
+    name: 'Jax',
+    age: 28,
+    gender: 'Male',
+    race: Race.Leonin,
+    archetype: Archetype.Thief,
+    level: 5,
+    maxHp: 58,
+    currentHp: 58,
+    stats: { str: 15, dex: 19, con: 16, int: 10, wis: 14, cha: 10 },
+    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-dagger')!, INITIAL_ITEMS.find(i => i.id === 'start-leather')!],
+    spells: [],
+    abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
+    description: 'A massive Leonin with scarred golden fur, moving with a silent, predatory grace.',
+    biography: 'Jax was once a noble hunter in the Sun-Kissed Savannah before the Engine\'s mists began to starve his pride. He turned to the shadows to survive, learning that the most lethal strike is the one the enemy never sees. He is a man of few words, preferring to let his blades and his intimidating presence speak for him. He treats the Engine like a rival predator—with wary respect and absolute focus.'
+  }),
+  createMentor({
+    id: 'mentor-xylar',
+    name: 'Xylar',
+    age: 45,
+    gender: 'Male',
+    race: Race.Dragonborn,
+    archetype: Archetype.Sorcerer,
+    level: 5,
+    maxHp: 48,
+    currentHp: 48,
+    stats: { str: 12, dex: 12, con: 14, int: 20, wis: 14, cha: 18 },
+    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-staff')!, INITIAL_ITEMS.find(i => i.id === 'start-robes')!],
+    spells: SPELL_LIBRARY[Archetype.Sorcerer],
+    abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
+    spellSlots: { 1: 4, 2: 3, 3: 2 },
+    maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
+    description: 'A Dragonborn with brilliant gold scales, clad in heavy, ancient sorcerer robes.',
+    biography: 'A scholar of the "Mathematical Aether," Xylar views the Engine as a grand puzzle to be solved. He was an archmage in the Crystal spires before they were shattered by the void. He possesses a prideful, academic demeanor, often lecturing mid-combat on the precise geometric alignment of a Fireball. Despite his arrogance, he is fiercely loyal to those who show an interest in the "True Laws of Reality."'
+  }),
+  createMentor({
+    id: 'mentor-brunnhilde',
+    name: 'Brunnhilde',
+    age: 42,
+    gender: 'Female',
+    race: Race.Orc,
+    archetype: Archetype.Warrior,
+    level: 5,
+    maxHp: 82,
+    currentHp: 82,
+    stats: { str: 21, dex: 10, con: 20, int: 8, wis: 12, cha: 12 },
+    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-hammer')!, INITIAL_ITEMS.find(i => i.id === 'start-plate')!],
+    spells: [],
+    abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
+    description: 'A broad-shouldered Orc woman with graying hair, wielding a maul that looks like a fallen monument.',
+    biography: 'Brunnhilde is the surviving matriarch of the Iron-Grip Clan. She sees the world through a lens of duty and protective rage. She treats the fellowship like her own wayward cubs, alternating between booming laughter and terrifyingly quiet intensity in the heat of battle. To her, "Steel is the only truth in a world of ghosts," and she ensures that truth is felt by every enemy that dares cross the party\'s path.'
+  })
 ];
 
 export const INITIAL_MONSTERS: Monster[] = [
@@ -298,7 +368,7 @@ export const INITIAL_MONSTERS: Monster[] = [
     hp: 40,
     ac: 17,
     abilities: [{ name: 'Leadership', description: 'Nearby allies add 1d4 to attack rolls.', type: 'Passive', levelReq: 1 }],
-    description: 'A disciplined commander in sturdy plate armor.',
+    description: 'A disciplined commander in sturdy placeholder plate armor.',
     expReward: 450
   },
 
@@ -332,7 +402,7 @@ export const INITIAL_MONSTERS: Monster[] = [
     hp: 45,
     ac: 16,
     abilities: [{ name: 'Unyielding Malice', description: 'Returns with 5 HP once per battle if killed.', type: 'Passive', levelReq: 1 }],
-    description: 'A skeletal knight clad in rusted soul-bound plate mail.',
+    description: 'A skeletal knight clad in rusted soul-bound placeholder plate mail.',
     expReward: 150
   },
   {
@@ -422,7 +492,7 @@ export const RULES_MANIFEST = `
 2. Players must roleplay actions; the AI will respond with consequences.
 3. Combat uses a 20x20 grid. Movement costs 1 tile per 5ft.
 4. EXP is awarded for overcoming challenges, not just killing.
-5. Death is permanent unless a specific "Revify" or "Resurrection" spell is used.
+5. Death is permanent unless a placeholder specific "Revify" or "Resurrection" spell is used.
 6. ASI points are granted at levels 4, 8, 12, 16, 19.
 7. Level Up requires EXP = 1000 * current_level.
 `;
@@ -441,13 +511,13 @@ export const TUTORIAL_SCENARIO = {
   prompt: `
     [TUTORIAL CAMPAIGN]
     Goal: Introduce core mechanics through a guided trial.
-    The setting: The party (Miri, Lina, and Seris) stands at the threshold of the Obsidian Gate. 
+    The setting: The fellowship of souls stands at the threshold of the Obsidian Gate. 
     A spectral voice, the Engine's Herald, challenges you to prove your resonance.
     
     TUTORIAL STEPS FOR DM:
-    1. Encounter 1: Narrative interaction. Ask Lina to perform a Wisdom (Aetheric) check to analyze the gate.
+    1. Encounter 1: Narrative interaction. Ask the party to perform a Wisdom (Aetheric) check to analyze the gate.
     2. Encounter 2: Combat basics. Summon a 'Shadow Wolf' and explain how HP and AC work.
-    3. Encounter 3: Resource management. Force a small spell use from Lina or Kaelen, and explain the spell slot tracking.
+    3. Encounter 3: Resource management. Explain spell slot tracking and essence resonance.
     
     Please explain the mechanics clearly in-character as the Engine Herald.
   `

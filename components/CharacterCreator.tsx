@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo } from '../types';
 import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS, RECOMMENDED_STATS } from '../constants';
-import { generateCustomClass, safeId } from '../geminiService';
+import { generateCustomClass, safeId, manifestSoulLore } from '../geminiService';
 
 interface CharacterCreatorProps {
   onCancel: () => void;
@@ -22,12 +22,13 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
   const [description, setDescription] = useState('');
   const [biography, setBiography] = useState('');
   const [isForgingClass, setIsForgingClass] = useState(false);
+  const [isForgingLore, setIsForgingLore] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   
   const [previewClassData, setPreviewClassData] = useState<ArchetypeInfo | null>(null);
 
   const usedPoints = useMemo(() => {
-    return (Object.keys(stats) as Array<keyof Stats>).reduce((acc, key) => acc + (POINT_BUY_COSTS[stats[key]] || 0), 0);
+    return (Object.keys(stats) as Array<keyof Stats>).reduce((acc, key) => acc + (POINT_BUY_COSTS[stats[key as keyof Stats]] || 0), 0);
   }, [stats]);
 
   const maxPoints = 27;
@@ -47,6 +48,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       return acc;
     }, {} as Stats);
   }, [stats, race]);
+
+  const handleForgeLore = async () => {
+    setIsForgingLore(true);
+    try {
+      const lore = await manifestSoulLore({ race, archetype, level: 1 });
+      setBiography(lore.biography);
+      setDescription(lore.description);
+    } catch (e) {
+      alert("Lore weaving failed. The mists are too thick.");
+    } finally {
+      setIsForgingLore(false);
+    }
+  };
 
   const handleForgeClass = async () => {
     if (!customPrompt) return;
@@ -106,13 +120,11 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       hpDie = defaultMatch.hpDie;
       baseAbilities = defaultMatch.coreAbilities;
       baseSpells = defaultMatch.spells || [];
-      // Add standard starting gear
       const classGear = INITIAL_ITEMS.filter(i => i.archetypes?.includes(archetype as Archetype));
       inventory = classGear.filter(i => i.rarity === 'Common').map(i => ({...i, id: safeId()}));
     }
 
     const startHp = hpDie + conMod;
-    
     const initialSlots = SPELL_SLOT_PROGRESSION[1];
     const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archetype as Archetype) || baseSpells.length > 0;
 
@@ -129,6 +141,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       currentHp: startHp,
       stats: finalStats,
       inventory,
+      equippedIds: inventory.map(i => i.id),
       spells: baseSpells,
       abilities: baseAbilities,
       spellSlots: isCaster ? initialSlots : undefined,
@@ -149,99 +162,66 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
   const recommendedForArch = useMemo(() => RECOMMENDED_STATS[archetype] || [], [archetype]);
 
   return (
-    <div className="rune-border p-6 bg-black/60 backdrop-blur max-w-3xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b border-red-900 pb-2">
-        <h2 className="text-2xl font-cinzel text-gold">Soul Forging</h2>
-        <button onClick={onCancel} className="text-red-900 text-xs uppercase tracking-tighter">Cancel</button>
+    <div className="rune-border p-5 md:p-8 bg-black/70 backdrop-blur-xl max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center border-b border-red-900/50 pb-3">
+        <h2 className="text-2xl md:text-3xl font-cinzel text-gold drop-shadow-lg">Soul Forging</h2>
+        <button onClick={onCancel} className="text-red-900 text-[10px] md:text-xs font-bold uppercase tracking-widest border border-red-900/30 px-3 py-1 hover:bg-red-900 hover:text-white transition-all">Cancel</button>
       </div>
 
       {previewClassData && (
-        <div className="fixed inset-0 z-[150] bg-black/90 flex items-center justify-center p-4">
-          <div className="max-w-xl w-full rune-border bg-[#0c0a09] p-8 space-y-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
-            <h2 className="text-3xl font-cinzel text-gold border-b border-red-900 pb-2">The Forged Path: {previewClassData.name}</h2>
-            <p className="text-xs text-gray-400 italic leading-relaxed">{previewClassData.description}</p>
-            <div className="grid grid-cols-2 gap-4 text-[10px] font-cinzel text-red-900 uppercase">
-              <span>Vitality: d{previewClassData.hpDie}</span>
-              {previewClassData.startingItem && <span>Initiation Gift: {previewClassData.startingItem.name}</span>}
-            </div>
+        <div className="fixed inset-0 z-[150] bg-black/95 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full rune-border bg-[#0c0a09] p-6 md:p-10 space-y-8 overflow-y-auto max-h-[90vh] custom-scrollbar shadow-2xl">
+            <h2 className="text-3xl font-cinzel text-gold border-b border-red-900 pb-3">The Forged Path: {previewClassData.name}</h2>
+            <p className="text-xs md:text-sm text-gray-400 italic leading-relaxed">{previewClassData.description}</p>
             
-            <div className="space-y-4">
-              <h3 className="text-xs font-cinzel text-gold border-b border-gold/20">Themed Armory Additions</h3>
-              <div className="grid grid-cols-1 gap-2">
-                {previewClassData.themedItems?.map((item, i) => (
-                  <div key={i} className="text-[9px] bg-red-900/10 p-1.5 border border-red-900/20 flex justify-between">
-                    <span className="text-gold uppercase font-bold">{item.name}</span>
-                    <span className="text-gray-500 uppercase">{item.rarity} {item.type}</span>
-                  </div>
-                ))}
-              </div>
-
-              <h3 className="text-xs font-cinzel text-gold border-b border-gold/20">Aetheric Manifestations ({previewClassData.spells?.length || 0} Spells)</h3>
-              {previewClassData.coreAbilities.map((ab, i) => (
-                <div key={i} className="bg-red-900/5 p-2 border-l border-red-900">
-                  <p className="text-[10px] font-bold text-red-900 uppercase">{ab.name} [{ab.type}]</p>
-                  <p className="text-[10px] text-gray-500">{ab.description}</p>
-                </div>
-              ))}
-              <div className="max-h-40 overflow-y-auto space-y-2 custom-scrollbar">
-                {previewClassData.spells?.map((sp, i) => (
-                  <div key={i} className="bg-blue-900/5 p-2 border-l-2 border-blue-900">
-                    <p className="text-[10px] font-bold text-blue-900 uppercase">{sp.name} [Lvl {sp.baseLevel} Spell]</p>
-                    <p className="text-[10px] text-gray-500">{sp.description}</p>
+            <div className="space-y-6">
+              <h3 className="text-xs font-cinzel text-gold border-b border-gold/20 pb-2 uppercase tracking-widest">Aetheric Manifestations</h3>
+              <div className="space-y-3">
+                {previewClassData.coreAbilities.map((ab, i) => (
+                  <div key={i} className="bg-red-900/10 p-3 border-l-2 border-red-900">
+                    <p className="text-[10px] font-bold text-red-900 uppercase tracking-widest">{ab.name} • {ab.type}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">{ab.description}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex gap-2 pt-4">
-              <button onClick={() => setPreviewClassData(null)} className="flex-1 py-3 border border-red-900 text-red-900 font-cinzel text-xs">RE-FORGE</button>
-              <button onClick={acceptForgedPath} className="flex-[2] py-3 bg-red-900 text-white font-cinzel border border-gold text-xs shadow-lg shadow-red-900/40">ACCEPT THIS DESTINY</button>
+            <div className="flex gap-4 pt-6">
+              <button onClick={() => setPreviewClassData(null)} className="flex-1 py-4 border border-red-900 text-red-900 font-cinzel text-xs font-bold hover:bg-red-900 hover:text-white transition-all">RE-FORGE</button>
+              <button onClick={acceptForgedPath} className="flex-[2] py-4 bg-red-900 text-white font-cinzel border border-gold text-xs font-bold shadow-lg shadow-red-900/40 hover:bg-red-800 transition-all">ACCEPT DESTINY</button>
             </div>
           </div>
         </div>
       )}
 
       {step === 1 && (
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4">
-            <div className="w-full space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Aetheric Identity (Name)</label>
+        <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest font-bold">Aetheric Identity (Name)</label>
               <input 
                 value={name} 
                 onChange={e => setName(e.target.value)} 
                 placeholder="Nameless Soul..."
-                className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all placeholder:text-gray-700" 
+                className="w-full bg-black/40 border border-red-900/30 p-3 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all" 
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Chronicle Age</label>
-                <div className="flex items-center gap-1 h-10">
-                  <button 
-                    onClick={() => setAge(Math.max(0, age - 1))}
-                    className="w-8 h-full border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all text-lg select-none"
-                    style={{ touchAction: 'manipulation' }}
-                  >-</button>
-                  <input 
-                    type="number" 
-                    value={age} 
-                    onChange={e => setAge(Math.max(0, parseInt(e.target.value) || 0))} 
-                    className="flex-1 min-w-0 bg-black/40 border border-red-900/30 h-full text-gold outline-none text-center font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                  />
-                  <button 
-                    onClick={() => setAge(age + 1)}
-                    className="w-8 h-full border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all text-lg select-none"
-                    style={{ touchAction: 'manipulation' }}
-                  >+</button>
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest font-bold">Age</label>
+                <input 
+                  type="number" 
+                  value={age} 
+                  onChange={e => setAge(Math.max(0, parseInt(e.target.value) || 0))} 
+                  className="w-full bg-black/40 border border-red-900/30 p-3 text-gold outline-none text-center font-bold text-sm" 
+                />
               </div>
-              
-              <div className="space-y-1">
-                <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Vessel Type (Gender)</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest font-bold">Vessel</label>
                 <select 
                   value={gender} 
                   onChange={e => setGender(e.target.value)} 
-                  className="w-full h-10 bg-black/40 border border-red-900/30 px-2 text-gold outline-none text-xs font-cinzel cursor-pointer hover:border-gold transition-colors"
+                  className="w-full h-[46px] bg-black/40 border border-red-900/30 px-3 text-gold outline-none text-xs font-cinzel cursor-pointer hover:border-gold transition-colors"
                 >
                   <option>Female</option>
                   <option>Male</option>
@@ -251,106 +231,120 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Ancestry (Race)</label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
+          <div className="space-y-3">
+            <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest font-bold">Ancestry (Race)</label>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {Object.values(Race).map(r => (
-                <button key={r} onClick={() => setRace(r)} className={`p-1.5 border text-[10px] font-cinzel transition-all ${race === r ? 'bg-red-900 border-gold text-white' : 'border-red-900/30 text-gray-500'}`}>{r}</button>
+                <button key={r} onClick={() => setRace(r)} className={`p-2 border text-[10px] font-cinzel transition-all font-bold uppercase ${race === r ? 'bg-red-900 border-gold text-white' : 'border-red-900/30 text-gray-500 hover:text-gold hover:border-gold/50'}`}>{r}</button>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Vocation (Class)</label>
-              <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest font-bold">Vocation (Class)</label>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
                 {allArchetypes.map(a => (
-                  <button key={a} onClick={() => { setArchetype(a); }} className={`p-1.5 border text-[10px] font-cinzel transition-all truncate ${archetype === a ? 'bg-red-900 border-gold text-white' : 'border-red-900/30 text-gray-500 hover:text-gold'}`}>{a}</button>
+                  <button key={a} onClick={() => setArchetype(a)} className={`p-2 border text-[10px] font-cinzel transition-all truncate font-bold uppercase ${archetype === a ? 'bg-red-900 border-gold text-white' : 'border-red-900/30 text-gray-500 hover:text-gold hover:border-gold/50'}`}>{a}</button>
                 ))}
               </div>
             </div>
-            <div className="space-y-2 border-l border-red-900/20 pl-4">
-              <label className="text-[10px] font-cinzel text-gold uppercase tracking-widest">Forge Custom Path</label>
+            <div className="space-y-3 border-l border-red-900/20 pl-6">
+              <label className="text-[10px] font-cinzel text-gold uppercase tracking-widest font-bold">Forge Custom Path</label>
               <textarea 
                 value={customPrompt} 
                 onChange={e => setCustomPrompt(e.target.value)}
-                placeholder="A wielder of lightning and shadows..."
-                className="w-full bg-black/40 border border-red-900/30 p-2 text-[10px] text-gray-300 h-16 outline-none focus:border-gold resize-none"
+                placeholder="A wielder of cosmic decay..."
+                className="w-full bg-black/40 border border-red-900/30 p-3 text-[11px] text-gray-300 h-24 outline-none focus:border-gold resize-none leading-relaxed"
               />
               <button 
                 onClick={handleForgeClass} 
                 disabled={isForgingClass || !customPrompt}
-                className="w-full py-1.5 bg-gold/10 border border-gold text-gold text-[10px] font-cinzel hover:bg-gold/20 disabled:opacity-30 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-gold/10 border border-gold text-gold text-[10px] font-cinzel hover:bg-gold/20 disabled:opacity-30 flex items-center justify-center gap-3 transition-all"
               >
-                {isForgingClass ? <div className="w-2 h-2 bg-gold animate-ping rounded-full" /> : null}
                 {isForgingClass ? 'CONSULTING ENGINE...' : 'FORGE NEW PATH'}
               </button>
             </div>
           </div>
 
-          <button onClick={() => setStep(2)} disabled={!name} className="w-full py-3 bg-red-900 text-white font-cinzel border border-gold hover:bg-red-800 disabled:opacity-50">Continue to Attributes</button>
+          <button onClick={() => setStep(2)} disabled={!name} className="w-full py-4 bg-red-900 text-white font-cinzel font-bold border border-gold hover:bg-red-800 disabled:opacity-50 transition-all shadow-xl shadow-red-900/20">CONTINUE TO ATTRIBUTES</button>
         </div>
       )}
 
       {step === 2 && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center bg-red-900/5 p-2 border border-red-900/20">
-            <span className="text-[10px] font-cinzel text-red-900">ATTRIBUTE POINTS</span>
-            <span className={`text-sm font-bold ${usedPoints > maxPoints ? 'text-red-500' : 'text-gold'}`}>{maxPoints - usedPoints} Available</span>
+        <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+          <div className="flex justify-between items-center bg-red-900/10 p-4 border border-red-900/30">
+            <span className="text-[10px] font-cinzel text-gold font-bold uppercase tracking-[0.2em]">Attribute Points</span>
+            <span className={`text-lg font-bold ${usedPoints > maxPoints ? 'text-red-500' : 'text-gold'}`}>{maxPoints - usedPoints} Available</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {(Object.keys(stats) as Array<keyof Stats>).map(s => {
               const isRecommended = recommendedForArch.includes(s);
               return (
-                <div key={s} className={`flex flex-col p-2 bg-black/40 border transition-all relative ${isRecommended ? 'border-gold shadow-[0_0_10px_rgba(161,98,7,0.2)]' : 'border-red-900/20'}`}>
-                  {isRecommended && <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gold text-black text-[7px] px-1 font-bold font-cinzel border border-black uppercase z-10">Primary</span>}
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-[10px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-gold/60'}`}>{s}</span>
-                    <span className="text-xs text-red-500">+{RACIAL_BONUSES[race][s] || 0}</span>
+                <div key={s} className={`flex flex-col p-4 bg-black/40 border transition-all relative ${isRecommended ? 'border-gold shadow-[0_0_15px_rgba(161,98,7,0.15)]' : 'border-red-900/20'}`}>
+                  {isRecommended && <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gold text-black text-[8px] px-2 py-0.5 font-bold font-cinzel border border-black uppercase z-10">Primary</span>}
+                  <div className="flex justify-between items-center mb-3">
+                    <span className={`text-[10px] font-cinzel uppercase font-bold tracking-widest ${isRecommended ? 'text-gold' : 'text-gold/60'}`}>{s}</span>
+                    <span className="text-xs text-red-500 font-bold">+{RACIAL_BONUSES[race][s] || 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <button onClick={() => handleStatChange(s, -1)} className="w-10 h-10 border border-red-900/30 bg-black/20 text-red-900 flex items-center justify-center active:scale-90 transition-all">-</button>
-                    <span className="text-xl font-bold">{stats[s]}</span>
-                    <button onClick={() => handleStatChange(s, 1)} className="w-10 h-10 border border-red-900/30 bg-black/20 text-red-900 flex items-center justify-center active:scale-90 transition-all">+</button>
+                    <button onClick={() => handleStatChange(s, -1)} className="w-10 h-10 border border-red-900/30 bg-black/20 text-red-900 flex items-center justify-center font-bold text-xl active:scale-90 transition-all">-</button>
+                    <span className="text-2xl font-bold text-white">{stats[s]}</span>
+                    <button onClick={() => handleStatChange(s, 1)} className="w-10 h-10 border border-red-900/30 bg-black/20 text-red-900 flex items-center justify-center font-bold text-xl active:scale-90 transition-all">+</button>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="flex gap-2">
-            <button onClick={() => setStep(1)} className="flex-1 py-3 border border-red-900 font-cinzel text-red-900">Back</button>
-            <button onClick={() => setStep(3)} disabled={usedPoints < maxPoints} className="flex-[2] py-3 bg-red-900 text-white font-cinzel border border-gold">Finalize Soul</button>
+          <div className="flex gap-4">
+            <button onClick={() => setStep(1)} className="flex-1 py-4 border border-red-900 font-cinzel text-red-900 font-bold uppercase hover:bg-red-900 hover:text-white transition-all">Back</button>
+            <button onClick={() => setStep(3)} disabled={usedPoints < maxPoints} className="flex-[2] py-4 bg-red-900 text-white font-cinzel border border-gold font-bold uppercase hover:bg-red-800 disabled:opacity-50 transition-all shadow-xl shadow-red-900/20">FINALIZE SOUL</button>
           </div>
         </div>
       )}
 
       {step === 3 && (
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
-          <div className="space-y-1">
-            <label className="text-[10px] font-cinzel text-red-900 uppercase">Visual Description</label>
+        <div className="space-y-8 animate-in slide-in-from-right-4 duration-300 max-h-[70vh] overflow-y-auto custom-scrollbar pr-2">
+          <div className="flex justify-between items-center bg-gold/5 p-4 border border-gold/20">
+             <div className="min-w-0">
+               <h3 className="text-[10px] font-cinzel text-gold font-bold uppercase tracking-widest">Soul Weaver</h3>
+               <p className="text-[9px] text-gray-500 italic mt-0.5">Let the Engine manifest thy history if thy own mind is clouded.</p>
+             </div>
+             <button 
+               onClick={handleForgeLore}
+               disabled={isForgingLore}
+               className="px-4 py-2 bg-gold/10 border border-gold text-gold font-cinzel text-[10px] hover:bg-gold/20 transition-all disabled:opacity-30 font-bold uppercase tracking-tighter"
+             >
+               {isForgingLore ? 'WEAVING...' : 'MANIFEST LORE'}
+             </button>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-cinzel text-red-900 uppercase font-bold tracking-widest">Visual Manifestation</label>
             <textarea 
               value={description} 
               onChange={e => setDescription(e.target.value)} 
-              placeholder="Describe thy appearance..."
-              className="w-full bg-black/40 border border-red-900/30 p-2 text-xs text-gray-300 h-24 outline-none focus:border-gold resize-none" 
+              placeholder="Describe thy physical form in the Engine..."
+              className="w-full bg-black/40 border border-red-900/30 p-3 text-xs text-gray-300 h-28 outline-none focus:border-gold resize-none leading-relaxed" 
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-cinzel text-red-900 uppercase">Detailed Character Lore</label>
+          <div className="space-y-2">
+            <label className="text-[10px] font-cinzel text-red-900 uppercase font-bold tracking-widest">Chronicle History (Backstory)</label>
             <textarea 
               value={biography} 
               onChange={e => setBiography(e.target.value)} 
-              placeholder="Record thy background, motivations, and destiny..."
-              className="w-full bg-black/40 border border-red-900/30 p-3 text-xs text-gray-300 h-40 outline-none focus:border-gold resize-none leading-relaxed" 
+              placeholder="Record thy journey before the Engine claimed thee..."
+              className="w-full bg-black/40 border border-red-900/30 p-4 text-xs text-gray-300 h-48 outline-none focus:border-gold resize-none leading-relaxed" 
             />
           </div>
 
-          <button onClick={finalize} className="w-full py-4 bg-red-900 text-white font-cinzel font-bold border border-gold shadow-lg shadow-red-900/30 transition-all hover:scale-[1.01]">
-            Bind Soul to Engine
-          </button>
+          <div className="flex gap-4">
+             <button onClick={() => setStep(2)} className="flex-1 py-4 border border-red-900 font-cinzel text-red-900 font-bold uppercase hover:bg-red-900 hover:text-white transition-all">Back</button>
+             <button onClick={finalize} className="flex-[3] py-4 bg-red-900 text-white font-cinzel font-bold border border-gold shadow-2xl shadow-red-900/50 transition-all hover:scale-[1.02] active:scale-95 uppercase tracking-widest">BIND SOUL TO ENGINE</button>
+          </div>
         </div>
       )}
     </div>

@@ -4,9 +4,6 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState } from
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
 import * as fflate from 'fflate';
 
-/**
- * Utility to generate an ID even in non-secure or older environments.
- */
 export const safeId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -14,11 +11,7 @@ export const safeId = () => {
   return Math.random().toString(36).substring(2, 15);
 };
 
-/**
- * Strips a GameState of static constants to reduce serialization size.
- */
 const stripState = (state: GameState): Partial<GameState> => {
-  // We only want to save things that are NOT in constants.
   const strippedArmory = state.armory.filter(item => 
     !INITIAL_ITEMS.some(init => init.id === item.id)
   );
@@ -32,7 +25,7 @@ const stripState = (state: GameState): Partial<GameState> => {
     party: state.party,
     userAccount: {
       ...state.userAccount,
-      peerId: undefined // Peer IDs are ephemeral and shouldn't be migrated
+      peerId: undefined
     },
     multiplayer: {
       isHost: state.multiplayer.isHost,
@@ -41,17 +34,17 @@ const stripState = (state: GameState): Partial<GameState> => {
   };
 };
 
-/**
- * Re-injects constants and ensures state validity.
- */
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => {
   return {
     ...defaultState,
     ...data,
-    mentors: MENTORS, // Always use fresh constants
-    bestiary: INITIAL_MONSTERS, // Always use fresh constants
+    mentors: MENTORS,
+    bestiary: [
+      ...INITIAL_MONSTERS,
+      ...(data.bestiary || []).filter(m => !INITIAL_MONSTERS.some(init => init.id === m.id))
+    ],
     armory: [
-      ...INITIAL_ITEMS, // Start with fresh constants
+      ...INITIAL_ITEMS,
       ...(data.armory || []).filter(item => !INITIAL_ITEMS.some(init => init.id === item.id))
     ],
     userAccount: {
@@ -66,9 +59,6 @@ export const hydrateState = (data: Partial<GameState>, defaultState: GameState):
   };
 };
 
-/**
- * Generates a compressed Base64 encoded string of the current GameState for migration.
- */
 export const generateSoulSignature = (state: GameState): string => {
   try {
     const stripped = stripState(state);
@@ -76,7 +66,6 @@ export const generateSoulSignature = (state: GameState): string => {
     const uint8 = fflate.strToU8(jsonString);
     const compressed = fflate.zlibSync(uint8, { level: 9 });
     
-    // Convert to base64 safely
     let binary = '';
     const len = compressed.byteLength;
     for (let i = 0; i < len; i++) {
@@ -89,9 +78,6 @@ export const generateSoulSignature = (state: GameState): string => {
   }
 };
 
-/**
- * Parses a Soul Signature back into a GameState object.
- */
 export const parseSoulSignature = (signature: string, defaultState: GameState): GameState | null => {
   try {
     let json: any;
@@ -108,7 +94,6 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
       const jsonString = fflate.strFromU8(decompressed);
       json = JSON.parse(jsonString);
     } else {
-      // Legacy uncompressed format
       const jsonString = decodeURIComponent(atob(signature));
       json = JSON.parse(jsonString);
     }
@@ -123,9 +108,6 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
   }
 };
 
-/**
- * Safely retrieves the API Key from the environment.
- */
 const getApiKey = () => {
   try {
     return process.env.API_KEY || '';
@@ -134,96 +116,68 @@ const getApiKey = () => {
   }
 };
 
-/**
- * Creates a fresh AI instance. 
- */
 const getAiClient = () => {
   return new GoogleGenAI({ apiKey: getApiKey() });
 };
 
 export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-export const generateDMResponse = async (
-  history: Message[],
-  playerContext: { 
-    characters: Character[]; 
-    mentors: Character[]; 
-    activeRules: string;
-    existingItems: Item[];
-  }
-) => {
+export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A generic dark fantasy world of obsidian and blood."): Promise<{ biography: string, description: string }> => {
   const apiKey = getApiKey();
-  if (!apiKey) return "The Aetheric connection is severed (API Key missing). Please check your Vercel Environment Variables.";
+  if (!apiKey) throw new Error("API Connection Severed.");
 
   const ai = getAiClient();
-  const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. 
-    Aesthetics: Obsidian, blood-red, gold. Font: Cinzel (Headers), Inter (UI). 
-    
-    CORE DIRECTIVE:
-    Provide a living, breathing dark fantasy world. Your responses must blend evocative narrative prose with immersive NPC dialogue that reacts dynamically to the players.
-
-    RESOURCE TRACKING (STRICT):
-    - You MUST monitor the party's spell slots for EVERY caster. 
-    - When a player or mentor casts a spell, check their available slots in the data below.
-    - If they have a slot, use the tag: [USE SLOT Level FOR CharacterName] (e.g., [USE SLOT 1 FOR Lina]).
-    - If they are out of slots for that level, you MUST narrate that the spell fails or they are too exhausted.
-
-    RESTING MECHANICS:
-    - Include [SHORT REST] to restore half missing HP and half of total max spell slots.
-    - Include [LONG REST] to restore all HP and all spell slots.
-    - Suggest rests when the party is battered or out of magic.
-
-    PARTY STATUS: ${JSON.stringify(playerContext.characters.map(c => ({ 
-      name: c.name, 
-      class: c.archetype, 
-      health: `${c.currentHp}/${c.maxHp}`,
-      slots: c.spellSlots || "No slots"
-    })))}
-    RULES: ${playerContext.activeRules}
-  `;
-
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: history.map(m => ({
-        role: m.role === 'system' ? 'user' : m.role,
-        parts: [{ text: m.content }]
-      })),
+      model: 'gemini-3-flash-preview',
+      contents: `Weave a dark fantasy biography and visual description for a ${char.race} ${char.archetype}. 
+      Current World Context: ${campaignContext}. 
+      The character is level ${char.level}. 
+      Return strictly as JSON with keys "biography" and "description".`,
       config: {
-        systemInstruction,
-        temperature: 0.9,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            biography: { type: Type.STRING },
+            description: { type: Type.STRING }
+          },
+          required: ["biography", "description"]
+        }
       }
     });
-
-    return response.text;
-  } catch (error: any) {
-    return "The aetheric winds fail... " + (error.message || "Unknown error");
+    return JSON.parse(response.text || '{}');
+  } catch (e) {
+    console.error("Soul-Weaver failed:", e);
+    return { biography: "A soul lost in the mists of the Engine.", description: "A figure shrouded in shadow." };
   }
 };
 
-export const generateCustomClass = async (prompt: string): Promise<{ 
-  name: string; 
-  description: string; 
-  hpDie: number; 
-  abilities: Ability[]; 
-  spells: Ability[]; 
-  themedItems: Item[];
-}> => {
+// Added missing generateCustomClass function to forge new archetypes using Gemini
+export const generateCustomClass = async (prompt: string): Promise<any> => {
   const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key is missing. Forge thy connection in the Vercel settings.");
+  if (!apiKey) throw new Error("API Connection Severed.");
 
   const ai = getAiClient();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Forge a unique dark fantasy TTRPG class for Mythos Engine based on this concept: "${prompt}".
-      Rules:
-      1. Hit die (6, 8, 10, or 12).
-      2. 3 core abilities.
-      3. Exactly 12 themed spells (Levels 1-9).
-      4. 5 themed items (1 per rarity). 
-      Return strictly as JSON.`,
+      model: 'gemini-3-flash-preview',
+      contents: `Forge a new dark fantasy TTRPG character class (archetype) based on this concept: "${prompt}".
+      Return strictly as JSON with the following structure:
+      {
+        "name": "Class Name",
+        "description": "Short flavor description",
+        "hpDie": 6, 8, 10, or 12,
+        "abilities": [
+          { "name": "Ability Name", "description": "Effect description", "type": "Passive" | "Active", "levelReq": 1 }
+        ],
+        "spells": [
+          { "name": "Spell Name", "description": "Effect description", "type": "Spell", "levelReq": 1, "baseLevel": 1 }
+        ],
+        "themedItems": [
+          { "name": "Item Name", "description": "Description", "type": "Weapon" | "Armor", "rarity": "Common" | "Uncommon", "stats": { "damage": "1d8+STR" } }
+        ]
+      }`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -254,8 +208,7 @@ export const generateCustomClass = async (prompt: string): Promise<{
                   description: { type: Type.STRING },
                   type: { type: Type.STRING },
                   levelReq: { type: Type.NUMBER },
-                  baseLevel: { type: Type.NUMBER },
-                  scaling: { type: Type.STRING }
+                  baseLevel: { type: Type.NUMBER }
                 },
                 required: ["name", "description", "type", "levelReq", "baseLevel"]
               }
@@ -266,12 +219,12 @@ export const generateCustomClass = async (prompt: string): Promise<{
                 type: Type.OBJECT,
                 properties: {
                   name: { type: Type.STRING },
+                  description: { type: Type.STRING },
                   type: { type: Type.STRING },
                   rarity: { type: Type.STRING },
-                  description: { type: Type.STRING },
                   stats: { type: Type.OBJECT }
                 },
-                required: ["name", "type", "rarity", "description", "stats"]
+                required: ["name", "description", "type", "rarity", "stats"]
               }
             }
           },
@@ -279,17 +232,127 @@ export const generateCustomClass = async (prompt: string): Promise<{
         }
       }
     });
+    return JSON.parse(response.text || '{}');
+  } catch (e) {
+    console.error("Class forging failed:", e);
+    throw e;
+  }
+};
 
-    const data = JSON.parse(response.text || '{}');
-    data.themedItems = (data.themedItems || []).map((item: any) => ({
-      ...item,
-      id: safeId(),
-      archetypes: [data.name]
-    }));
-    return data;
+export const generateDMResponse = async (
+  history: Message[],
+  playerContext: { 
+    characters: Character[]; 
+    mentors: Character[]; 
+    activeRules: string;
+    existingItems: Item[];
+    existingMonsters: Monster[];
+  }
+) => {
+  const apiKey = getApiKey();
+  if (!apiKey) return "The Aetheric connection is severed (API Key missing). Please check your Vercel Environment Variables.";
+
+  const ai = getAiClient();
+  
+  const systemInstruction = `
+    You are the "Mythos Engine" Dungeon Master. 
+    Aesthetics: Dark Fantasy, Obsidian, Blood-Red, Gold.
+    
+    CORE DIRECTIVE:
+    Provide a living, breathing world. Your responses must blend evocative narrative prose with immersive dialogue.
+
+    DYNAMIC PERSONA PROTOCOL:
+    - Every NPC introduced must have a distinct "Aura" (e.g., arrogant, frantic, ancient, hollow).
+    - NPCs MUST react to the specific races and archetypes of the party.
+    - Format NPC dialogue as: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
+    - NPCs are not static; they have hidden agendas and emotional biases.
+
+    DYNAMIC CHALLENGES & BESTIARY:
+    - You can dynamically add new monsters to the world if current ones don't fit the challenge level.
+    - To manifest a new monster in the archives, use: [ADD MONSTER MonsterName].
+    - Always consider the party's level when introducing threats.
+    
+    MENTOR PARTICIPATION:
+    - The mentors are active participants. They interject with advice/banter reflecting their established personalities.
+
+    RESOURCE TRACKING:
+    - Monitor spell slots. If a spell is cast: [USE SLOT Level FOR CharacterName].
+
+    COMMANDS:
+    - Grant EXP: +500 EXP
+    - Grant Item: [Item Name]
+    - Add Monster: [ADD MONSTER MonsterName]
+    - Short Rest: [SHORT REST]
+    - Long Rest: [LONG REST]
+
+    PARTY STATUS: ${JSON.stringify(playerContext.characters.map(c => ({ 
+      name: c.name, race: c.race, class: c.archetype, level: c.level, health: `${c.currentHp}/${c.maxHp}`
+    })))}
+    
+    BESTIARY SNAPSHOT: ${playerContext.existingMonsters.slice(0, 5).map(m => m.name).join(', ')}...
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: history.map(m => ({
+        role: m.role === 'system' ? 'user' : m.role,
+        parts: [{ text: m.content }]
+      })),
+      config: {
+        systemInstruction,
+        temperature: 0.85,
+      }
+    });
+
+    return response.text;
+  } catch (error: any) {
+    return "The aetheric winds fail... " + (error.message || "Unknown error");
+  }
+};
+
+export const generateMonsterDetails = async (monsterName: string, context: string, avgPartyLevel: number): Promise<Partial<Monster>> => {
+  const apiKey = getApiKey();
+  if (!apiKey) return {};
+
+  const ai = getAiClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Manifest a dark fantasy TTRPG monster named "${monsterName}". Context: ${context}. Appropriate for party level: ${avgPartyLevel}.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            type: { type: Type.STRING },
+            hp: { type: Type.NUMBER },
+            ac: { type: Type.NUMBER },
+            expReward: { type: Type.NUMBER },
+            description: { type: Type.STRING },
+            abilities: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                  levelReq: { type: Type.NUMBER }
+                },
+                required: ["name", "description", "type", "levelReq"]
+              }
+            }
+          },
+          required: ["type", "hp", "ac", "expReward", "description", "abilities"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || '{}');
   } catch (error) {
-    console.error("Custom class generation failed:", error);
-    throw error;
+    console.error("Failed to manifest monster details:", error);
+    return {};
   }
 };
 
@@ -327,26 +390,28 @@ export const generateItemDetails = async (itemName: string, context: string, par
 
 export const parseDMCommand = (text: string) => {
   const expMatch = text.match(/\+(\d+)\s+EXP/);
+  
+  // Detect [Item Name]
   const itemRegex = /\[([^\]]+)\]\s*({[^}]+})?/g;
   const items: { name: string, data?: Partial<Item> }[] = [];
+  const monstersToAdd: string[] = [];
   
   let match;
   while ((match = itemRegex.exec(text)) !== null) {
-    const name = match[1];
-    let data;
-    if (match[2]) {
-      try { data = JSON.parse(match[2]); } catch (e) {}
-    }
-    // Filter out internal tags
-    if (name !== "SHORT REST" && name !== "LONG REST" && !name.includes("USE SLOT")) {
-      items.push({ name, data });
+    const content = match[1];
+    if (content.startsWith("ADD MONSTER ")) {
+      monstersToAdd.push(content.replace("ADD MONSTER ", "").trim());
+    } else if (content !== "SHORT REST" && content !== "LONG REST" && !content.includes("USE SLOT")) {
+      let data;
+      if (match[2]) {
+        try { data = JSON.parse(match[2]); } catch (e) {}
+      }
+      items.push({ name: content, data });
     }
   }
 
   const shortRest = text.includes("[SHORT REST]");
   const longRest = text.includes("[LONG REST]");
-  
-  // Specific parsing for slot usage: [USE SLOT Level FOR Name]
   const slotMatch = text.match(/\[USE SLOT (\d+) FOR ([^\]]+)\]/i);
   const usedSlot = slotMatch ? {
     level: parseInt(slotMatch[1]),
@@ -356,6 +421,7 @@ export const parseDMCommand = (text: string) => {
   return {
     exp: expMatch ? parseInt(expMatch[1]) : 0,
     items,
+    monstersToAdd,
     shortRest,
     longRest,
     usedSlot

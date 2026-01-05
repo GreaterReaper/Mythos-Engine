@@ -53,7 +53,7 @@ export interface ArchetypeInfo {
   coreAbilities: Ability[];
   spells?: Ability[];
   startingItem?: Partial<Item>;
-  themedItems?: Item[]; // New: suggested items to add to global armory
+  themedItems?: Item[];
   authorId?: string;
 }
 
@@ -69,6 +69,15 @@ export interface Item {
   authorId?: string;
 }
 
+export interface MapToken {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  color: string;
+  type: 'Hero' | 'Enemy' | 'NPC';
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -82,10 +91,11 @@ export interface Character {
   currentHp: number;
   stats: Stats;
   inventory: Item[];
+  equippedIds: string[];
   spells: Ability[];
   abilities: Ability[];
-  spellSlots?: Record<number, number>; // Current slots for levels 1-9
-  maxSpellSlots?: Record<number, number>; // Max slots for levels 1-9
+  spellSlots?: Record<number, number>;
+  maxSpellSlots?: Record<number, number>;
   description: string;
   biography?: string;
   imageUrl?: string;
@@ -116,7 +126,7 @@ export interface Campaign {
   title: string;
   prompt: string;
   history: Message[];
-  participants: string[]; // Soul IDs
+  participants: string[];
 }
 
 export interface Friend {
@@ -134,6 +144,7 @@ export interface GameState {
   armory: Item[];
   bestiary: Monster[];
   customArchetypes: ArchetypeInfo[];
+  mapTokens: MapToken[]; // NEW: For combat synchronization
   userAccount: {
     username: string;
     id: string;
@@ -142,7 +153,7 @@ export interface GameState {
     isLoggedIn: boolean;
     peerId?: string;
   };
-  party: string[]; // IDs of characters in active party
+  party: string[];
   multiplayer: {
     isHost: boolean;
     connectedPeers: string[];

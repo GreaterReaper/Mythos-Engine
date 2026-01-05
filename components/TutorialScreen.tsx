@@ -1,12 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MENTORS, TUTORIAL_SCENARIO } from '../constants';
+import { Character } from '../types';
 
 interface TutorialScreenProps {
+  characters: Character[];
   onComplete: (partyIds: string[], campaignTitle: string, campaignPrompt: string) => void;
 }
 
-const TutorialScreen: React.FC<TutorialScreenProps> = ({ onComplete }) => {
+const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete }) => {
   const [step, setStep] = useState(0);
 
   const tutorialSteps = [
@@ -16,7 +18,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ onComplete }) => {
     },
     {
       title: "The Guardians",
-      content: "Three guardians await to mentor you: Miri (Fighter), Lina (Mage), and Seris (Archer). They are your initial party, guiding you until your own soul finds strength.",
+      content: "A fellowship of legendary souls awaits to mentor you. They are your initial party, guiding you until your own soul finds strength.",
     },
     {
       title: "The Sacred Trial",
@@ -26,10 +28,22 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ onComplete }) => {
 
   const current = tutorialSteps[step];
 
+  const finalPartyIds = useMemo(() => {
+    // Standard tutorial trio
+    const baseMentorNames = ['Lina', 'Miri', 'Seris'];
+    const baseIds = MENTORS.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
+    
+    // Add mentors that match the user's current characters
+    const matchingMentorIds = characters.map(pc => {
+        return MENTORS.find(m => m.archetype === pc.archetype)?.id;
+    }).filter((id): id is string => !!id);
+
+    // Ensure unique IDs
+    return Array.from(new Set([...baseIds, ...matchingMentorIds]));
+  }, [characters]);
+
   const finalize = () => {
-    // Select Lina, Miri, Seris IDs explicitly
-    const partyIds = MENTORS.filter(m => ['Lina', 'Miri', 'Seris'].includes(m.name)).map(m => m.id);
-    onComplete(partyIds, TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt);
+    onComplete(finalPartyIds, TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt);
   };
 
   return (

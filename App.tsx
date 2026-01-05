@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
-  Item, Monster, Stats, Friend, ArchetypeInfo, Ability 
+  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, MapToken
 } from './types';
 import { 
   MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STARTER_CAMPAIGN_PROMPT, STORAGE_PREFIX
@@ -18,7 +18,7 @@ import TutorialScreen from './components/TutorialScreen';
 import AccountPortal from './components/AccountPortal';
 import NexusScreen from './components/NexusScreen';
 import SpellsScreen from './components/SpellsScreen';
-import { generateItemDetails, safeId, parseSoulSignature, hydrateState } from './geminiService';
+import { generateItemDetails, generateMonsterDetails, safeId, parseSoulSignature, hydrateState, manifestSoulLore } from './geminiService';
 
 declare var Peer: any;
 
@@ -27,7 +27,6 @@ const App: React.FC = () => {
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
 
-  // Default Initial State
   const DEFAULT_STATE: GameState = {
     characters: [],
     mentors: MENTORS,
@@ -36,6 +35,10 @@ const App: React.FC = () => {
     armory: INITIAL_ITEMS,
     bestiary: INITIAL_MONSTERS,
     customArchetypes: [],
+    mapTokens: [
+      { id: 'mentor-lina', name: 'Lina', x: 5, y: 5, color: 'border-blue-500', type: 'Hero' },
+      { id: 'monster-shadow-wolf', name: 'Shadow Wolf', x: 10, y: 10, color: 'border-red-500', type: 'Enemy' }
+    ],
     party: [],
     userAccount: {
       username: 'Nameless Soul',
@@ -52,7 +55,6 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
 
-  // Persistence logic keyed by username
   useEffect(() => {
     if (state.userAccount.isLoggedIn) {
       const storageKey = `${STORAGE_PREFIX}${state.userAccount.username}`;
@@ -60,17 +62,36 @@ const App: React.FC = () => {
     }
   }, [state]);
 
+  // Soul Weaver Logic: Auto-populate lore for empty characters when campaign is active
+  useEffect(() => {
+    const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
+    if (activeCampaign && state.multiplayer.isHost) {
+      const emptyChars = state.characters.filter(c => state.party.includes(c.id) && (!c.biography || c.biography.length < 5));
+      if (emptyChars.length > 0) {
+        const processLore = async () => {
+          for (const char of emptyChars) {
+            try {
+              const lore = await manifestSoulLore(char, activeCampaign.prompt);
+              updateCharacter(char.id, { biography: lore.biography, description: lore.description });
+            } catch (e) {
+              console.error("Aetheric weaver failed for", char.name);
+            }
+          }
+        };
+        processLore();
+      }
+    }
+  }, [state.activeCampaignId]);
+
   const handleLogin = (username: string) => {
     const storageKey = `${STORAGE_PREFIX}${username}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Hydrate state to ensure constants like Mentors/Bestiary/Armory are fresh
         const hydrated = hydrateState(parsed, { ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, username, isLoggedIn: true } });
         setState(hydrated);
       } catch (e) {
-        console.error("Failed to rebind soul from local memory:", e);
         setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } }));
       }
     } else {
@@ -125,7 +146,6 @@ const App: React.FC = () => {
         }
       }));
 
-      // Send our identity immediately on open
       conn.send({ 
         type: 'IDENTITY', 
         payload: { 
@@ -166,6 +186,9 @@ const App: React.FC = () => {
           break;
         case 'ADD_CHARACTER':
           setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] }));
+          break;
+        case 'UPDATE_MAP':
+          setState(prev => ({ ...prev, mapTokens: data.payload }));
           break;
         case 'SHARE_ARCHETYPE':
           setState(prev => ({ ...prev, customArchetypes: [...prev.customArchetypes.filter(a => a.name !== data.payload.name), data.payload] }));
@@ -220,7 +243,15 @@ const App: React.FC = () => {
       const char = prev.characters.find(c => c.id === id);
       if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c) };
       const mentor = prev.mentors.find(m => m.id === id);
-      if (mentor) return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m) };
+      if (mentor) {
+        // Automatically ensure mentors keep their items equipped if inventory changes
+        const newInventory = updates.inventory || mentor.inventory;
+        const finalUpdates = { 
+          ...updates, 
+          equippedIds: newInventory.map(i => i.id) 
+        };
+        return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...finalUpdates } : m) };
+      }
       return prev;
     });
   };
@@ -230,8 +261,8 @@ const App: React.FC = () => {
     const char = allChars.find(c => c.id === id);
     if (!char) return;
 
-    const currentLevel = (char.level as number) || 1;
-    const currentExp = (char.exp as number) || 0;
+    const currentLevel = char.level || 1;
+    const currentExp = char.exp || 0;
     const nextExp = currentLevel * 1000;
 
     if (currentExp >= nextExp) {
@@ -241,7 +272,7 @@ const App: React.FC = () => {
       const hpDie = (defaultArch?.hpDie || customArch?.hpDie || 8) as number;
       
       const newLevel = currentLevel + 1;
-      const conValue = (char.stats?.con as number) || 10;
+      const conValue = char.stats.con || 10;
       const hpGain = Math.floor(Math.random() * hpDie) + 1 + Math.floor((conValue - 10) / 2);
       const isASILevel = [4, 8, 12, 16, 19].includes(newLevel);
       
@@ -258,9 +289,9 @@ const App: React.FC = () => {
       updateCharacter(id, {
         level: newLevel,
         exp: currentExp - nextExp,
-        maxHp: (char.maxHp as number) + hpGain,
-        currentHp: (char.maxHp as number) + hpGain,
-        asiPoints: (char.asiPoints as number) + (isASILevel ? 2 : 0),
+        maxHp: char.maxHp + hpGain,
+        currentHp: char.maxHp + hpGain,
+        asiPoints: char.asiPoints + (isASILevel ? 2 : 0),
         ...spellSlotsUpdate
       });
     }
@@ -271,8 +302,8 @@ const App: React.FC = () => {
       const allChars: Character[] = [...state.characters, ...state.mentors];
       const char = allChars.find(c => c.id === id);
       if (char) {
-        const currentExp = (char.exp as number) || 0;
-        const newExp = currentExp + (amount as number);
+        const currentExp = char.exp || 0;
+        const newExp = currentExp + amount;
         updateCharacter(id, { exp: newExp });
         handleLevelUp(id);
       }
@@ -351,8 +382,40 @@ const App: React.FC = () => {
     if (item && state.party.length > 0) {
       const recipientId = state.party[0];
       const recipient = state.characters.find(c => c.id === recipientId) || state.mentors.find(m => m.id === recipientId);
-      if (recipient) updateCharacter(recipientId, { inventory: [...recipient.inventory, item] });
+      if (recipient) {
+        const newInventory = [...recipient.inventory, item];
+        const isMentor = recipient.id.startsWith('mentor-');
+        updateCharacter(recipientId, { 
+          inventory: newInventory,
+          // Auto-equip for mentors
+          equippedIds: isMentor ? newInventory.map(i => i.id) : recipient.equippedIds
+        });
+      }
     }
+  };
+
+  const handleAwardMonster = async (name: string) => {
+    let monster = state.bestiary.find(m => m.name.toLowerCase() === name.toLowerCase());
+    if (!monster) {
+      const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
+      const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+      const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
+      const context = activeCampaign?.history.slice(-5).map(m => m.content).join(' ') || "A new threat emerges.";
+      const generated = await generateMonsterDetails(name, context, Math.ceil(avgLevel));
+      const newMonster: Monster = {
+        id: safeId(),
+        name,
+        type: (generated.type as any) || 'Humanoid',
+        hp: generated.hp || 20,
+        ac: generated.ac || 10,
+        expReward: generated.expReward || 100,
+        description: generated.description || 'A mysterious horror.',
+        abilities: generated.abilities || []
+      };
+      setState(prev => ({ ...prev, bestiary: [...prev.bestiary, newMonster] }));
+      return newMonster;
+    }
+    return monster;
   };
 
   const handleAddCustomArchetype = (arch: ArchetypeInfo) => {
@@ -378,6 +441,11 @@ const App: React.FC = () => {
     setActiveTab('Chronicles');
   };
 
+  const handleUpdateMap = (tokens: MapToken[]) => {
+    setState(prev => ({ ...prev, mapTokens: tokens }));
+    broadcast('UPDATE_MAP', tokens);
+  };
+
   const activeCampaign = useMemo(() => state.campaigns.find(c => c.id === state.activeCampaignId) || null, [state.campaigns, state.activeCampaignId]);
 
   if (!state.userAccount.isLoggedIn) {
@@ -385,16 +453,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden">
-      <header className="md:hidden flex justify-between items-center px-4 py-3 bg-[#0c0a09] border-b border-red-900/40 z-[90]">
-        <h1 className="text-lg font-cinzel font-bold text-[#a16207]">Mythos Engine</h1>
+    <div className="flex flex-col h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden md:flex-row">
+      <header className="z-[90] flex items-center justify-between border-b border-red-900/40 bg-[#0c0a09] px-4 py-3 md:hidden">
+        <h1 className="font-cinzel text-lg font-bold text-[#a16207]">Mythos Engine</h1>
         <div 
           onClick={() => setActiveTab('Nexus')}
-          className={`flex items-center gap-2 px-2 py-1 rounded-full text-[8px] font-bold transition-all cursor-pointer ${
-            state.multiplayer.connectedPeers.length > 0 ? 'bg-green-900/20 text-green-500 border border-green-500/30' : 'bg-red-900/20 text-red-500 border border-red-900/30'
+          className={`flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-[8px] font-bold transition-all ${
+            state.multiplayer.connectedPeers.length > 0 ? 'border border-green-500/30 bg-green-900/20 text-green-500' : 'border border-red-900/30 bg-red-900/20 text-red-500'
           }`}
         >
-          <div className={`w-1.5 h-1.5 rounded-full ${state.multiplayer.connectedPeers.length > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <div className={`h-1.5 w-1.5 rounded-full ${state.multiplayer.connectedPeers.length > 0 ? 'animate-pulse bg-green-500' : 'bg-red-500'}`} />
           {state.multiplayer.connectedPeers.length > 0 ? 'SOULS BONDED' : 'ALONE'}
         </div>
       </header>
@@ -406,8 +474,8 @@ const App: React.FC = () => {
         multiplayer={state.multiplayer}
       />
       
-      <main className="flex-1 relative overflow-y-auto bg-leather">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-full pb-20 md:pb-8">
+      <main className="relative flex-1 overflow-y-auto bg-leather">
+        <div className="mx-auto min-h-full max-w-7xl p-4 pb-20 md:p-8 md:pb-8">
           {activeTab === 'Fellowship' && (
             <FellowshipScreen 
               characters={state.characters} 
@@ -427,6 +495,9 @@ const App: React.FC = () => {
               campaign={activeCampaign} 
               allCampaigns={state.campaigns}
               characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
+              bestiary={state.bestiary}
+              mapTokens={state.mapTokens}
+              onUpdateMap={handleUpdateMap}
               onMessage={(msg) => {
                 if (!activeCampaign) return;
                 setState(prev => ({ ...prev, campaigns: prev.campaigns.map(c => c.id === activeCampaign.id ? { ...c, history: [...c.history, msg] } : c) }));
@@ -437,13 +508,20 @@ const App: React.FC = () => {
               onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))}
               onAwardExp={addExpToParty}
               onAwardItem={handleAwardItem}
+              onAwardMonster={handleAwardMonster}
               onShortRest={handleShortRest}
               onLongRest={handleLongRest}
               onAIRuntimeUseSlot={handleAIRuntimeSlotUsage}
               isHost={state.multiplayer.isHost}
+              username={state.userAccount.username}
             />
           )}
-          {activeTab === 'Tactics' && <TacticalMap />}
+          {activeTab === 'Tactics' && (
+            <TacticalMap 
+              tokens={state.mapTokens} 
+              onUpdateTokens={handleUpdateMap} 
+            />
+          )}
           {activeTab === 'Nexus' && (
             <NexusScreen 
               peerId={state.userAccount.peerId || ''}
@@ -481,17 +559,20 @@ const App: React.FC = () => {
           )}
           {activeTab === 'Rules' && (
             <div className="space-y-6">
-              <h2 className="text-3xl md:text-4xl font-cinzel text-[#a16207] border-b border-red-900 pb-2">Ancient Laws</h2>
+              <h2 className="font-cinzel text-3xl md:text-4xl text-[#a16207] border-b border-red-900 pb-2">Ancient Laws</h2>
               <div className="rune-border p-4 md:p-6 bg-[#0c0a09]/80 backdrop-blur whitespace-pre-wrap leading-loose text-xs md:text-sm">
                 {RULES_MANIFEST}
               </div>
             </div>
           )}
           {activeTab === 'Tutorial' && (
-            <TutorialScreen onComplete={(partyIds, title, prompt) => {
-              setState(p => ({...p, party: partyIds}));
-              createCampaign(title, prompt);
-            }} />
+            <TutorialScreen 
+              characters={state.characters}
+              onComplete={(partyIds, title, prompt) => {
+                setState(p => ({...p, party: partyIds}));
+                createCampaign(title, prompt);
+              }} 
+            />
           )}
         </div>
       </main>

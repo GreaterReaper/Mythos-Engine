@@ -213,42 +213,58 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
 
       {step === 1 && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="col-span-2 space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all" />
+          {/* Identity Section - Refactored for Mobile */}
+          <div className="flex flex-col gap-4">
+            <div className="w-full space-y-1">
+              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Aetheric Identity (Name)</label>
+              <input 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                placeholder="Nameless Soul..."
+                className="w-full bg-black/40 border border-red-900/30 p-2 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all placeholder:text-gray-700" 
+              />
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">Chronicle Age</label>
-              <div className="flex items-center gap-1">
-                <button 
-                  onClick={() => setAge(Math.max(0, age - 1))}
-                  className="w-10 h-10 border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all"
-                >-</button>
-                <input 
-                  type="number" 
-                  value={age} 
-                  onChange={e => setAge(Math.max(0, parseInt(e.target.value) || 0))} 
-                  className="flex-1 bg-black/40 border border-red-900/30 p-2 text-gold outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                />
-                <button 
-                  onClick={() => setAge(age + 1)}
-                  className="w-10 h-10 border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all"
-                >+</button>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Chronicle Age</label>
+                <div className="flex items-center gap-1 h-10">
+                  <button 
+                    onClick={() => setAge(Math.max(0, age - 1))}
+                    className="w-8 h-full border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all text-lg select-none"
+                    style={{ touchAction: 'manipulation' }}
+                  >-</button>
+                  <input 
+                    type="number" 
+                    value={age} 
+                    onChange={e => setAge(Math.max(0, parseInt(e.target.value) || 0))} 
+                    className="flex-1 min-w-0 bg-black/40 border border-red-900/30 h-full text-gold outline-none text-center font-bold text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                  />
+                  <button 
+                    onClick={() => setAge(age + 1)}
+                    className="w-8 h-full border border-red-900/30 bg-black/40 text-gold flex items-center justify-center hover:bg-red-900/20 active:scale-90 transition-all text-lg select-none"
+                    style={{ touchAction: 'manipulation' }}
+                  >+</button>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">Gender</label>
-              <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-black/40 border border-red-900/30 p-2 text-gold outline-none">
-                <option>Female</option>
-                <option>Male</option>
-                <option>Unknown</option>
-              </select>
+              
+              <div className="space-y-1">
+                <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Vessel Type (Gender)</label>
+                <select 
+                  value={gender} 
+                  onChange={e => setGender(e.target.value)} 
+                  className="w-full h-10 bg-black/40 border border-red-900/30 px-2 text-gold outline-none text-xs font-cinzel cursor-pointer hover:border-gold transition-colors"
+                >
+                  <option>Female</option>
+                  <option>Male</option>
+                  <option>Unknown</option>
+                </select>
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-cinzel text-red-900 uppercase">Ancestry</label>
+            <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Ancestry (Race)</label>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-1">
               {Object.values(Race).map(r => (
                 <button key={r} onClick={() => setRace(r)} className={`p-1.5 border text-[10px] font-cinzel transition-all ${race === r ? 'bg-red-900 border-gold text-white' : 'border-red-900/30 text-gray-500'}`}>{r}</button>
@@ -258,7 +274,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase">Vocation</label>
+              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Vocation (Class)</label>
               <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto custom-scrollbar pr-1">
                 {allArchetypes.map(a => (
                   <button key={a} onClick={() => { setArchetype(a); }} className={`p-1.5 border text-[10px] font-cinzel transition-all truncate ${archetype === a ? 'bg-red-900 border-gold text-white' : 'border-red-900/30 text-gray-500 hover:text-gold'}`}>{a}</button>

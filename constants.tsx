@@ -213,7 +213,7 @@ export const MENTORS: Character[] = [
     spellSlots: { 1: 4, 2: 3, 3: 2 },
     maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
     description: 'A petite, shy priestess from a rural chapel. She wears simple white and gold cloth robes.',
-    biography: 'Lina was raised in a secluded monastery at the edge of the Sun-Drenched Wastes. While others sought power through steel, she found solace in the ancient chants of the Light-Bringers. She was sent to Oakhaven after a vision of the Mythos Engine consuming her home, her quiet demeanor belying a fierce dedication to shielding those who cannot protect themselves.',
+    biography: 'Lina was raised in a secluded monastery at the edge of the Sun-Drenched Wastes. While others sought power through steel, she found solace in the ancient chants of the Light-Bringers. She was sent to Oakhaven after a vision of the Mythos Engine consuming her home, her quiet demeanor belying a fierce dedication to shielding those who cannot protect themselves. She holds the record for the longest meditation in the Order of the Silent Sun.',
     asiPoints: 0
   },
   {
@@ -232,7 +232,7 @@ export const MENTORS: Character[] = [
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
     description: 'An energetic and impulsive swordswoman with a bright, playful personality. She wears ribbon-adorned half-plate.',
-    biography: 'A former squire from the fallen Citadel of Rose-Gold, Miri refuses to let the darkness of the world dim her spirit. She often decorates her heavy armor with bright ribbons and trinkets found on the battlefield. Her fighting style is a whirlwind of steel and laughter, though those who mistake her cheer for weakness often find themselves at the business end of her longsword.',
+    biography: 'A former squire from the fallen Citadel of Rose-Gold, Miri refuses to let the darkness of the world dim her spirit. She often decorates her heavy armor with bright ribbons and trinkets found on the battlefield. Her fighting style is a whirlwind of steel and laughter, though those who mistake her cheer for weakness often find themselves at the business end of her longsword. She is the last surviving member of the Rose-Gold Honor Guard.',
     asiPoints: 0
   },
   {
@@ -251,7 +251,7 @@ export const MENTORS: Character[] = [
     spells: [],
     abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
     description: 'A reserved, sharp-eyed elven archer who prefers quiet distance and composure.',
-    biography: 'Seris has outlived three generations of her human companions. She speaks rarely, her words as precise and lethal as her arrows. She left the Sylvan Glades when the corruption of the Obsidian Spire began to rot the world-trees. Now, she walks the frontier, a silent sentinel who observes the cycle of life and death with the clinical detachment of a scholar and the lethality of a master hunter.',
+    biography: 'Seris has outlived three generations of her human companions. She speaks rarely, her words as precise and lethal as her arrows. She left the Sylvan Glades when the corruption of the Obsidian Spire began to rot the world-trees. Now, she walks the frontier, a silent sentinel who observes the cycle of life and death with the clinical detachment of a scholar and the lethality of a master hunter. Her eyes are said to see the resonance of a heartbeat from a mile away.',
     asiPoints: 0
   }
 ];

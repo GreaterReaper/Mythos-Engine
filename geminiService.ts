@@ -2,7 +2,16 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability } from './types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safety check for environment variables to prevent top-level crashes
+const getApiKey = () => {
+  try {
+    return process.env.API_KEY || '';
+  } catch (e) {
+    return '';
+  }
+};
+
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -15,6 +24,8 @@ export const generateDMResponse = async (
     existingItems: Item[];
   }
 ) => {
+  if (!getApiKey()) return "The Aetheric connection is severed (API Key missing). Please check your Vercel Environment Variables.";
+
   const systemInstruction = `
     You are the "Mythos Engine" Dungeon Master. 
     Aesthetics: Obsidian, blood-red, gold. Font: Cinzel (Headers), Inter (UI). 
@@ -86,6 +97,8 @@ export const generateCustomClass = async (prompt: string): Promise<{
   spells: Ability[]; 
   themedItems: Item[];
 }> => {
+  if (!getApiKey()) throw new Error("API Key is missing. Forge thy connection in the Vercel settings.");
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -168,6 +181,8 @@ export const generateCustomClass = async (prompt: string): Promise<{
 };
 
 export const generateItemDetails = async (itemName: string, context: string, partyLevel: number): Promise<Partial<Item>> => {
+  if (!getApiKey()) return {};
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -215,6 +230,8 @@ export const generateItemDetails = async (itemName: string, context: string, par
 };
 
 export const generateVisual = async (prompt: string): Promise<string | null> => {
+  if (!getApiKey()) return null;
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',

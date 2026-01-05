@@ -63,6 +63,9 @@ export const generateDMResponse = async (
         Miri (Fighter/Human/Female): Energetic, impulsive, playful.
         Kaelen (Dark Knight/Human/Male): Cold, emotionless.
     
+    CLASS WEAPON RULES:
+    - Dark Knights: They exclusively wield massive, heavy two-handed swords (greatswords, zweihänders, claymores). They never use shields, daggers, or wands. All weapon manifestations for Dark Knights must be heavy swords.
+
     PARTY: ${JSON.stringify(playerContext.characters.map(c => ({ 
       name: c.name, 
       class: c.archetype, 

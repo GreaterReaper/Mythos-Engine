@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Character, Stats, Ability, Item } from '../types';
+import { RECOMMENDED_STATS } from '../constants';
 import SpellSlotManager from './SpellSlotManager';
 
 interface TooltipProps {
@@ -68,6 +69,8 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     onUpdate(character.id, { spellSlots: { ...character.maxSpellSlots } });
   };
 
+  const recommendedForArch = useMemo(() => RECOMMENDED_STATS[character.archetype] || [], [character.archetype]);
+
   return (
     <div className="rune-border bg-black/80 backdrop-blur-lg overflow-hidden flex flex-col h-full max-h-[85vh]">
       <div className="p-4 border-b border-red-900/40 flex items-center gap-4 bg-red-900/5">
@@ -115,25 +118,35 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         {activeTab === 'Stats' && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-3">
-              {(Object.keys(character.stats) as Array<keyof Stats>).map(s => (
-                <Tooltip 
-                  key={s} 
-                  title={s.toUpperCase()} 
-                  subTitle={`Mod: ${getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}`}
-                  content={`Thy ${s} attribute determines thy bonus to relevant checks and saving throws.`}
-                >
-                  <div className="p-2 border border-red-900/20 bg-black/40 relative group cursor-help transition-colors hover:border-red-900/50">
-                    <span className="text-[8px] font-cinzel text-red-900 uppercase">{s}</span>
-                    <div className="flex justify-between items-end">
-                      <span className="text-2xl font-bold text-gold">{character.stats[s]}</span>
-                      <span className="text-xs text-red-500 mb-1">{getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}</span>
+              {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
+                const isRecommended = recommendedForArch.includes(s);
+                const hasASI = character.asiPoints > 0;
+                
+                return (
+                  <Tooltip 
+                    key={s} 
+                    title={s.toUpperCase()} 
+                    subTitle={`Mod: ${getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}`}
+                    content={`Thy ${s} attribute determines thy bonus to relevant checks and saving throws.`}
+                  >
+                    <div className={`p-2 border relative group cursor-help transition-all ${
+                      isRecommended && hasASI 
+                        ? 'border-gold shadow-[0_0_15px_rgba(161,98,7,0.3)] bg-gold/5' 
+                        : 'border-red-900/20 bg-black/40 hover:border-red-900/50'
+                    }`}>
+                      {isRecommended && <span className={`absolute -top-1 left-1 bg-gold text-black text-[6px] px-1 font-bold font-cinzel border border-black uppercase z-10 ${hasASI ? 'animate-pulse' : ''}`}>Primary</span>}
+                      <span className={`text-[8px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-red-900'}`}>{s}</span>
+                      <div className="flex justify-between items-end">
+                        <span className="text-2xl font-bold text-gold">{character.stats[s]}</span>
+                        <span className="text-xs text-red-500 mb-1">{getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}</span>
+                      </div>
+                      {!isMentor && character.asiPoints > 0 && (
+                        <button onClick={() => handleStatUp(s)} className="absolute top-1 right-1 w-5 h-5 bg-gold text-black text-xs font-bold rounded flex items-center justify-center hover:scale-110 transition-transform shadow-[0_0_10px_rgba(161,98,7,0.5)]">+</button>
+                      )}
                     </div>
-                    {!isMentor && character.asiPoints > 0 && (
-                      <button onClick={() => handleStatUp(s)} className="absolute top-1 right-1 w-4 h-4 bg-gold text-black text-[10px] font-bold rounded flex items-center justify-center hover:scale-110 transition-transform">+</button>
-                    )}
-                  </div>
-                </Tooltip>
-              ))}
+                  </Tooltip>
+                );
+              })}
             </div>
 
             {character.maxSpellSlots && (

@@ -10,6 +10,25 @@ interface ArchetypesScreenProps {
 }
 
 const ArchetypesScreen: React.FC<ArchetypesScreenProps> = ({ customArchetypes, onShare, userId }) => {
+  const getPrimaryStat = (a: Archetype | string) => {
+    switch (a) {
+      case Archetype.Archer:
+      case Archetype.Thief:
+        return 'DEX';
+      case Archetype.Warrior:
+      case Archetype.Fighter:
+        return 'STR';
+      case Archetype.DarkKnight:
+        return 'STR / CHA';
+      case Archetype.Mage:
+        return 'WIS';
+      case Archetype.Sorcerer:
+        return 'INT';
+      default:
+        return 'VARIES';
+    }
+  };
+
   return (
     <div className="space-y-8 pb-20">
       <div className="border-b border-red-900 pb-4">
@@ -30,7 +49,7 @@ const ArchetypesScreen: React.FC<ArchetypesScreenProps> = ({ customArchetypes, o
               </div>
               <div className="text-xs font-cinzel text-red-900 mb-4 flex gap-4 uppercase">
                  <span>Hit Die: d{info.hpDie}</span>
-                 <span>Primary: {a === Archetype.Archer || a === Archetype.Thief ? 'DEX' : a === Archetype.Warrior || a === Archetype.Fighter ? 'STR' : 'INT'}</span>
+                 <span>Primary: {getPrimaryStat(a)}</span>
               </div>
               <p className="text-sm text-gray-400 mb-6 leading-relaxed">{info.description}</p>
               
@@ -67,6 +86,7 @@ const ArchetypesScreen: React.FC<ArchetypesScreenProps> = ({ customArchetypes, o
             </div>
             <div className="text-xs font-cinzel text-gold/60 mb-4 flex gap-4 uppercase">
                <span>Hit Die: d{arch.hpDie}</span>
+               <span>Primary: {getPrimaryStat(arch.name)}</span>
             </div>
             <p className="text-sm text-gray-300 mb-6 leading-relaxed italic">{arch.description}</p>
             

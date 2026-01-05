@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo } from '../types';
-import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS } from '../constants';
+import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS, RECOMMENDED_STATS } from '../constants';
 import { generateVisual, generateCustomClass, safeId } from '../geminiService';
 
 interface CharacterCreatorProps {
@@ -157,6 +157,8 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     return [...defaults, ...customs];
   }, [customArchetypes]);
 
+  const recommendedForArch = useMemo(() => RECOMMENDED_STATS[archetype] || [], [archetype]);
+
   return (
     <div className="rune-border p-6 bg-black/60 backdrop-blur max-w-3xl mx-auto space-y-6">
       <div className="flex justify-between items-center border-b border-red-900 pb-2">
@@ -194,7 +196,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
               ))}
               <div className="max-h-40 overflow-y-auto space-y-2 custom-scrollbar">
                 {previewClassData.spells?.map((sp, i) => (
-                  <div key={i} className="bg-blue-900/5 p-2 border-l border-blue-900">
+                  <div key={i} className="bg-blue-900/5 p-2 border-l-2 border-blue-900">
                     <p className="text-[10px] font-bold text-blue-900 uppercase">{sp.name} [Lvl {sp.baseLevel} Spell]</p>
                     <p className="text-[10px] text-gray-500">{sp.description}</p>
                   </div>
@@ -279,19 +281,23 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {(Object.keys(stats) as Array<keyof Stats>).map(s => (
-              <div key={s} className="flex flex-col p-2 bg-black/40 border border-red-900/20">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[10px] font-cinzel text-gold uppercase">{s}</span>
-                  <span className="text-xs text-red-500">+{RACIAL_BONUSES[race][s] || 0}</span>
+            {(Object.keys(stats) as Array<keyof Stats>).map(s => {
+              const isRecommended = recommendedForArch.includes(s);
+              return (
+                <div key={s} className={`flex flex-col p-2 bg-black/40 border transition-all relative ${isRecommended ? 'border-gold shadow-[0_0_10px_rgba(161,98,7,0.2)]' : 'border-red-900/20'}`}>
+                  {isRecommended && <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 bg-gold text-black text-[7px] px-1 font-bold font-cinzel border border-black uppercase">Primary</span>}
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`text-[10px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-gold/60'}`}>{s}</span>
+                    <span className="text-xs text-red-500">+{RACIAL_BONUSES[race][s] || 0}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <button onClick={() => handleStatChange(s, -1)} className="w-6 h-6 border border-red-900 text-red-900">-</button>
+                    <span className="text-xl font-bold">{stats[s]}</span>
+                    <button onClick={() => handleStatChange(s, 1)} className="w-6 h-6 border border-red-900 text-red-900">+</button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <button onClick={() => handleStatChange(s, -1)} className="w-6 h-6 border border-red-900 text-red-900">-</button>
-                  <span className="text-xl font-bold">{stats[s]}</span>
-                  <button onClick={() => handleStatChange(s, 1)} className="w-6 h-6 border border-red-900 text-red-900">+</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex gap-2">

@@ -5,6 +5,16 @@ export const POINT_BUY_COSTS: Record<number, number> = {
   8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
 };
 
+export const RECOMMENDED_STATS: Record<string, (keyof Stats)[]> = {
+  [Archetype.Archer]: ['dex'],
+  [Archetype.Thief]: ['dex'],
+  [Archetype.Warrior]: ['str'],
+  [Archetype.Fighter]: ['str'],
+  [Archetype.DarkKnight]: ['str', 'cha'],
+  [Archetype.Mage]: ['wis'],
+  [Archetype.Sorcerer]: ['int']
+};
+
 export const RACIAL_BONUSES: Record<Race, Partial<Stats>> = {
   [Race.Human]: { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 },
   [Race.Elf]: { dex: 2, int: 1 },
@@ -126,7 +136,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
     ]
   },
   [Archetype.DarkKnight]: {
-    hpDie: 10, description: 'Warriors who walk the edge of the abyss. They siphon vitality and defy death through sheer will.',
+    hpDie: 10, description: 'Warriors who walk the edge of the abyss. Exclusively masters of the heavy two-handed sword, they siphon vitality and defy death through sheer will.',
     coreAbilities: [
       { name: 'Living Dead', description: 'Upon dropping to 0 HP, survive for 1 turn. If healed above 0 before turn end, you remain standing.', type: 'Passive', levelReq: 1 },
       { name: 'Shadow Clone', description: 'Manifest a shadow that distracts foes. Grant Disadvantage to the next attack.', type: 'Active', levelReq: 1 }
@@ -144,14 +154,14 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'start-hammer', name: 'Iron Maul', description: 'A heavy hammer for crushing skulls and shields.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
   
   // Uncommon
-  { id: 'un-rapier', name: 'Duelist\'s Rapier', description: 'A needle-thin blade for precise punctures.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Thief, Archetype.Archer] },
+  { id: 'un-rapier', name: 'Duelist\'S Rapier', description: 'A needle-thin blade for precise punctures.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Thief, Archetype.Archer] },
   { id: 'un-mace', name: 'Heavy Flail', description: 'A spiked iron ball on a chain.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d10+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
-  { id: 'un-wand', name: 'Bone Wand', description: 'A wand carved from a sorcerer\'s femur.', type: 'Weapon', rarity: 'Uncommon', stats: { int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight] },
+  { id: 'un-wand', name: 'Bone Wand', description: 'A wand carved from a sorcerer\'s femur.', type: 'Weapon', rarity: 'Uncommon', stats: { int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
 
   // Rare
   { id: 'rare-obsidian-blade', name: 'Obsidian Fang', description: 'A blade forged from volcanic glass, eternally sharp.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d10+STR', str: 1 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight, Archetype.Fighter] },
   { id: 'rare-wind-bow', name: 'Zephyr Bow', description: 'A bow that whispers as arrows fly true on the wind.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d10+DEX', dex: 1 }, archetypes: [Archetype.Archer] },
-  { id: 'rare-soul-dagger', name: 'Ghost Dirk', description: 'Strikes both the flesh and the spirit.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d6+DEX', cha: 1 }, archetypes: [Archetype.Thief, Archetype.DarkKnight] },
+  { id: 'rare-soul-dagger', name: 'Ghost Dirk', description: 'Strikes both the flesh and the spirit.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d6+DEX', cha: 1 }, archetypes: [Archetype.Thief] },
   
   // Epic
   { id: 'epic-void-reaver', name: 'Void Reaver', description: 'A massive 2H greatsword forged from obsidian, humming with a dark energy.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d10+STR', con: 2 }, archetypes: [Archetype.DarkKnight, Archetype.Warrior] },
@@ -161,6 +171,8 @@ export const INITIAL_ITEMS: Item[] = [
   // Legendary
   { id: 'legendary-star-hammer', name: 'Star-Forged Hammer', description: 'Forged in the heart of a dying star.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d6+STR', str: 3, con: 3 }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
   { id: 'legendary-infinite-string', name: 'Artemis\' Regret', description: 'A bow with a string made of solidified moonlight.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+DEX', dex: 5 }, archetypes: [Archetype.Archer] },
+  { id: 'legendary-void-scepter', name: 'Void-Singer\'s Scepter', description: 'A legendary scepter carved from a frozen nebula. It hums with the sound of collapsing stars.', type: 'Weapon', rarity: 'Legendary', stats: { int: 5, cha: 2 }, archetypes: [Archetype.Sorcerer] },
+  { id: 'legendary-abyssal-greatsword', name: 'Oblivion\'s Edge', description: 'A legendary two-handed greatsword forged from solidified void. Its weight is felt by the souls of those it cleaves.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d10+STR', str: 3, cha: 3 }, archetypes: [Archetype.DarkKnight] },
 
   // --- ARMOR ---
   { id: 'start-robes', name: 'Apprentice Robes', description: 'Simple linen robes that allow for free movement of aether. Cloth armor.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
@@ -177,7 +189,9 @@ export const INITIAL_ITEMS: Item[] = [
   // --- UTILITY ---
   { id: 'un-ring', name: 'Aether Ring', description: 'A ring that hums with low-level magic.', type: 'Utility', rarity: 'Uncommon', stats: { int: 1 } },
   { id: 'rare-amulet', name: 'Locket of Lost Souls', description: 'Provides a small bonus to focus.', type: 'Utility', rarity: 'Rare', stats: { wis: 2 } },
-  { id: 'epic-tome', name: 'Grimoire of the Abyss', description: 'Contains forbidden knowledge of the void.', type: 'Utility', rarity: 'Epic', stats: { int: 4, wis: -1 } }
+  { id: 'epic-tome', name: 'Grimoire of the Abyss', description: 'Contains forbidden knowledge of the void.', type: 'Utility', rarity: 'Epic', stats: { int: 4, wis: -1 } },
+  { id: 'legendary-shadow-mantle', name: 'Mantle of the Unseen God', description: 'A legendary cloak woven from pure darkness and forgotten whispers. The wearer becomes a literal ghost in the world.', type: 'Utility', rarity: 'Legendary', stats: { dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
+  { id: 'legendary-saint-relic', name: 'Glow-Heart of the First Saint', description: 'A legendary pulsating crystal that radiates an eternal, holy light. Darkness cannot exist in its presence.', type: 'Utility', rarity: 'Legendary', stats: { wis: 5, con: 2 }, archetypes: [Archetype.Mage] }
 ];
 
 export const MENTORS: Character[] = [

@@ -118,12 +118,13 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
               {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
                 const isRecommended = recommendedForArch.includes(s);
                 const hasASI = character.asiPoints > 0;
+                const mod = getMod(character.stats[s]);
                 
                 return (
                   <Tooltip 
                     key={s} 
                     title={s.toUpperCase()} 
-                    subTitle={`Mod: ${getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}`}
+                    subTitle={`Mod: ${mod >= 0 ? '+' : ''}${mod}`}
                     content={`Thy ${s} attribute determines thy bonus to relevant checks and saving throws.`}
                   >
                     <div className={`p-2 border relative group cursor-help transition-all ${
@@ -135,7 +136,9 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                       <span className={`text-[8px] font-cinzel uppercase ${isRecommended ? 'text-gold' : 'text-gold/60'}`}>{s}</span>
                       <div className="flex justify-between items-end">
                         <span className="text-2xl font-bold text-gold">{character.stats[s]}</span>
-                        <span className="text-xs text-red-500 mb-1">{getMod(character.stats[s]) >= 0 ? '+' : ''}${getMod(character.stats[s])}</span>
+                        <span className="text-xs text-red-500 mb-1">
+                          ({mod >= 0 ? '+' : ''}{mod})
+                        </span>
                       </div>
                       {!isMentor && character.asiPoints > 0 && (
                         <button onClick={() => handleStatUp(s)} className="absolute top-1 right-1 w-5 h-5 bg-gold text-black text-xs font-bold rounded flex items-center justify-center hover:scale-110 transition-transform shadow-[0_0_10px_rgba(161,98,7,0.5)]">+</button>

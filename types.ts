@@ -131,6 +131,7 @@ export interface Monster {
   type: 'Goblinoid' | 'Beast' | 'Undead' | 'Humanoid' | 'Draconian' | 'Hybrid';
   hp: number;
   ac: number;
+  stats: Stats; // Added for enhanced bestiary
   abilities: Ability[];
   description: string;
   imageUrl?: string;

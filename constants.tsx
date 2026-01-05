@@ -42,7 +42,7 @@ export const SPELL_SLOT_PROGRESSION: Record<number, Record<number, number>> = {
   9: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 1 }, 10: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2 },
   11: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 }, 12: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1 },
   13: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 }, 14: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1 },
-  15: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }, 16: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 },
+  15: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 }, 16: { 1: 4, 2: 3, 3: 4, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1 },
   17: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 2, 6: 1, 7: 1, 8: 1, 9: 1 }, 18: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 1, 7: 1, 8: 1, 9: 1 },
   19: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 1, 8: 1, 9: 1 }, 20: { 1: 4, 2: 3, 3: 3, 4: 3, 5: 3, 6: 2, 7: 2, 8: 1, 9: 1 },
 };
@@ -208,10 +208,10 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'rare-amulet', name: 'Locket of Lost Souls', description: 'Provides a placeholder bonus to focus.', type: 'Utility', rarity: 'Rare', stats: { wis: 2 } },
   { id: 'epic-tome', name: 'Grimoire of the Abyss', description: 'Contains forbidden knowledge of the void.', type: 'Utility', rarity: 'Epic', stats: { int: 4, wis: -1 } },
   { id: 'legendary-shadow-mantle', name: 'Mantle of the Unseen God', description: 'A legendary cloak woven from pure darkness and forgotten whispers. The wearer becomes a literal ghost in the world.', type: 'Utility', rarity: 'Legendary', stats: { dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
+  { id: 'legendary-shadow-mantle', name: 'Mantle of the Unseen God', description: 'A legendary cloak woven from pure darkness and forgotten whispers. The wearer becomes a literal ghost in the world.', type: 'Utility', rarity: 'Legendary', stats: { dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
   { id: 'legendary-saint-relic', name: 'Glow-Heart of the First Saint', description: 'A legendary pulsating crystal that radiates an eternal, holy light. Darkness cannot exist in its presence.', type: 'Utility', rarity: 'Legendary', stats: { wis: 5, con: 2 }, archetypes: [Archetype.Mage] }
 ];
 
-// Added default currency to the createMentor function to satisfy the Character interface requirements.
 const createMentor = (data: Partial<Character>): Character => {
   const inventory = data.inventory || [];
   return {
@@ -226,7 +226,6 @@ const createMentor = (data: Partial<Character>): Character => {
     maxHp: 10,
     currentHp: 10,
     stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    // Default currency added here
     currency: { aurels: 0, shards: 0, ichor: 0 },
     inventory: inventory,
     equippedIds: inventory.map(i => i.id),
@@ -397,7 +396,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Goblinoid',
     hp: 14,
     ac: 13,
-    abilities: [{ name: 'Nimble Escape', description: 'Can disengage or hide as a bonus action.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 },
+    abilities: [
+      { name: 'Serrated Greed', description: 'Deals +2 damage against any target holding an item of Rare rarity or higher.', type: 'Passive', levelReq: 1 },
+      { name: 'Vile Hiss', description: 'Targets within 5ft must make a CHA save or be Frightened until the end of their next turn.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A small, wretched green-skinned pest wearing scrap-metal armor.',
     expReward: 50
   },
@@ -407,7 +410,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Goblinoid',
     hp: 40,
     ac: 17,
-    abilities: [{ name: 'Leadership', description: 'Nearby allies add 1d4 to attack rolls.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 16, dex: 12, con: 14, int: 12, wis: 10, cha: 13 },
+    abilities: [
+      { name: "Legion's Resolve", description: 'Gains +1 AC for every goblinoid ally within 10 feet.', type: 'Passive', levelReq: 1 },
+      { name: 'Iron Command', description: 'Grants one adjacent ally an immediate reaction attack against a target of the Captain\'s choice.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A disciplined commander in sturdy placeholder plate armor.',
     expReward: 450
   },
@@ -419,7 +426,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Beast',
     hp: 20,
     ac: 14,
-    abilities: [{ name: 'Pack Tactics', description: 'Advantage on attacks if an ally is near the target.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 12, dex: 16, con: 12, int: 3, wis: 12, cha: 6 },
+    abilities: [
+      { name: 'Umbral Prowler', description: 'Has Advantage on Stealth checks while in dim light or darkness.', type: 'Passive', levelReq: 1 },
+      { name: 'Terror Snap', description: 'A bite that deals 1d10 damage and forces a WIS save; on fail, the target is Frightened.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A wolf with fur like smoke and eyes like burning coals.',
     expReward: 100
   },
@@ -429,7 +440,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Beast',
     hp: 52,
     ac: 15,
-    abilities: [{ name: 'Petrifying Gaze', description: 'Targets must succeed on a CON save or turn to stone.', type: 'Active', levelReq: 1 }],
+    stats: { str: 16, dex: 8, con: 18, int: 2, wis: 12, cha: 7 },
+    abilities: [
+      { name: 'Heavy Stride', description: 'The earth trembles. Any player starting their turn within 10ft has their movement speed halved.', type: 'Passive', levelReq: 1 },
+      { name: 'Calcifying Breath', description: '15ft cone. Targets must succeed on a CON save or begin turning to stone (Restrained). Success on next turn ends effect; failure results in Petrification.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A multi-legged reptilian horror with a gaze that solidifies the aether.',
     expReward: 700
   },
@@ -441,7 +456,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Undead',
     hp: 45,
     ac: 16,
-    abilities: [{ name: 'Unyielding Malice', description: 'Returns with 5 HP once per battle if killed.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 16, dex: 10, con: 15, int: 6, wis: 10, cha: 5 },
+    abilities: [
+      { name: 'Hollow Vessel', description: 'Immune to Necrotic and Poison damage. Critical hits deal only normal damage.', type: 'Passive', levelReq: 1 },
+      { name: 'Wither-Strike', description: 'Melee strike dealing 2d8 Necrotic. The target cannot regain hit points until the end of their next turn.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A skeletal knight clad in rusted soul-bound placeholder plate mail.',
     expReward: 150
   },
@@ -451,7 +470,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Undead',
     hp: 67,
     ac: 13,
-    abilities: [{ name: 'Life Drain', description: 'Target must succeed on a CON save or its HP maximum is reduced.', type: 'Active', levelReq: 1 }],
+    stats: { str: 6, dex: 16, con: 12, int: 12, wis: 10, cha: 15 },
+    abilities: [
+      { name: 'Phase Shift', description: 'The Wraith can move through solid objects and creatures as if they were difficult terrain.', type: 'Passive', levelReq: 1 },
+      { name: 'Shatter the Mind', description: 'Target takes 3d6 psychic damage and must succeed on an INT save or lose their lowest-level remaining spell slot.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A dark, incorporeal spirit that hungers for life.',
     expReward: 700
   },
@@ -461,7 +484,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Undead',
     hp: 35,
     ac: 12,
-    abilities: [{ name: 'Ray of Sickness', description: 'Target takes 2d8 poison damage and is poisoned.', type: 'Active', levelReq: 1 }],
+    stats: { str: 9, dex: 12, con: 10, int: 16, wis: 14, cha: 13 },
+    abilities: [
+      { name: 'Bone Shield', description: 'Summons a rotating barrier of ribs, granting +4 AC for 2 rounds.', type: 'Active', levelReq: 1 },
+      { name: 'Corpse Explosion', description: 'Detonates a nearby fallen creature. Targets within 10ft take 3d8 necrotic damage.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A hooded figure seeking to master the secrets of the grave.',
     expReward: 400
   },
@@ -473,7 +500,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Humanoid',
     hp: 30,
     ac: 13,
-    abilities: [{ name: 'Aggressive', description: 'Move toward a target as a bonus action.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 18, dex: 12, con: 16, int: 7, wis: 11, cha: 10 },
+    abilities: [
+      { name: 'Berserker Soul', description: 'When current HP is below 50%, the Ravager deals an additional +5 damage on all melee hits.', type: 'Passive', levelReq: 1 },
+      { name: 'Skull-Crusher', description: 'A massive overhand swing. On hit, the target is Stunned until the start of its next turn.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A muscular orc covered in war paint, wielding a heavy axe.',
     expReward: 100
   },
@@ -483,7 +514,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Humanoid',
     hp: 22,
     ac: 11,
-    abilities: [{ name: 'Sacrificial Dagger', description: 'Deals extra damage if target is below half HP.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 10, dex: 10, con: 12, int: 13, wis: 12, cha: 16 },
+    abilities: [
+      { name: "Martyr's Aura", description: 'When the Herald dies, all other non-humanoid monsters within 30ft gain 10 Temporary HP.', type: 'Passive', levelReq: 1 },
+      { name: 'Word of Obsidian', description: 'Target takes 2d10 force damage and must succeed on a STR save or be knocked back 15 feet.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A fanatic who believes the world must be consumed by the Engine.',
     expReward: 150
   },
@@ -495,7 +530,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Draconian',
     hp: 10,
     ac: 12,
-    abilities: [{ name: 'Pack Tactics', description: 'Advantage if allies are near.', type: 'Passive', levelReq: 1 }],
+    stats: { str: 7, dex: 15, con: 10, int: 8, wis: 7, cha: 8 },
+    abilities: [
+      { name: 'Shadow Meld', description: 'Can take the Hide action as a bonus action while in dim light.', type: 'Passive', levelReq: 1 },
+      { name: 'Glass Trap', description: 'Coats the ground in jagged shards. 10ft radius becomes difficult terrain and deals 1d4 damage per 5ft moved.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A small reptilian creature that dwells in the dark.',
     expReward: 25
   },
@@ -505,7 +544,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Draconian',
     hp: 110,
     ac: 18,
-    abilities: [{ name: 'Shadow Breath', description: '30ft cone of necrotic energy.', type: 'Active', levelReq: 1 }],
+    stats: { str: 20, dex: 14, con: 18, int: 13, wis: 14, cha: 15 },
+    abilities: [
+      { name: 'Cloak of Midnight', description: 'Ranged attacks made from more than 30 feet away have Disadvantage against the Drake.', type: 'Passive', levelReq: 1 },
+      { name: 'Singularity Breath', description: '30ft line of void energy. Pulls all hit targets to the center of the line and deals 6d8 necrotic damage.', type: 'Active', levelReq: 1 }
+    ],
     description: 'A flightless dragon made of solidified darkness.',
     expReward: 1800
   },
@@ -517,10 +560,12 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Hybrid',
     hp: 350,
     ac: 18,
+    stats: { str: 22, dex: 15, con: 20, int: 10, wis: 14, cha: 12 },
     abilities: [
-      { name: 'Lion Roar', description: 'A thunderous fear effect.', type: 'Active', levelReq: 1 },
-      { name: 'Goat Pulse', description: 'Heals all heads and allies.', type: 'Active', levelReq: 1 },
-      { name: 'Necrotic Revival', description: 'Revive nearby fallen monsters.', type: 'Active', levelReq: 1 }
+      { name: 'Bestial Synergy', description: 'The Chimera can take 3 Reactions per round and has 3 separate turns in the initiative order.', type: 'Passive', levelReq: 1 },
+      { name: 'Lion: Frost Roar', description: 'AOE 20ft radius. 4d10 Cold damage and targets are Restrained by ice.', type: 'Active', levelReq: 1 },
+      { name: 'Goat: Eldritch Flare', description: 'Restores 40 HP to the Chimera and clears all negative status effects.', type: 'Active', levelReq: 1 },
+      { name: 'Snake: Venom-Spit', description: 'Ranged 60ft. Target is Blinded and takes 2d6 poison damage per turn for 3 rounds.', type: 'Active', levelReq: 1 }
     ],
     description: 'A pallid, terrifying hybrid with heads of a Lion, Goat, and Serpent. The goat head pulses with unholy restoration.',
     expReward: 5000
@@ -531,10 +576,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Undead',
     hp: 420,
     ac: 20,
+    stats: { str: 24, dex: 10, con: 22, int: 18, wis: 18, cha: 20 },
     abilities: [
-      { name: 'Soul Drain', description: 'Melee attack that heals the King for half the damage dealt.', type: 'Active', levelReq: 1 },
-      { name: 'Crown of Sorrows', description: 'AOE blast dealing 4d10 psychic damage and slowing all nearby foes.', type: 'Active', levelReq: 1 },
-      { name: 'Command Shadows', description: 'Summons 1d4 Shadow Wraiths to his side.', type: 'Active', levelReq: 1 }
+      { name: 'Absolute Sovereignty', description: 'The King is immune to the Frightened, Charmed, Stunned, and Paralyzed conditions.', type: 'Passive', levelReq: 1 },
+      { name: 'Crown of Sorrows', description: 'All players within 60ft must roll a d20. On 10 or less, they take 5d10 psychic damage and are Frightened.', type: 'Active', levelReq: 1 },
+      { name: 'Legion Manifest', description: 'Summons 2 Blighted Sentinels into unoccupied spaces within 20 feet.', type: 'Active', levelReq: 1 }
     ],
     description: 'An ancient monarch who refused to pass into the void. He sits upon a throne of obsidian, eyes glowing with a baleful, blue light.',
     expReward: 8000
@@ -545,10 +591,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Hybrid',
     hp: 550,
     ac: 22,
+    stats: { str: 28, dex: 6, con: 26, int: 5, wis: 10, cha: 10 },
     abilities: [
-      { name: 'Seismic Slam', description: 'The Titan strikes the ground, knocking all nearby targets Prone.', type: 'Active', levelReq: 1 },
-      { name: 'Shard Rain', description: 'Erupts shards of glass-like obsidian. 6d8 piercing damage in a 30ft radius.', type: 'Active', levelReq: 1 },
-      { name: 'Reflective Shell', description: 'For one round, all targeted spells are reflected back at the caster.', type: 'Active', levelReq: 1 }
+      { name: 'Living Fortress', description: 'Any creature hitting the Colossus with a melee attack takes 2d6 piercing damage from obsidian shards.', type: 'Passive', levelReq: 1 },
+      { name: 'Eruption', description: 'The Colossus slams the earth. Ground within 30ft explodes: 8d8 Fire damage and targets are launched 20ft into the air.', type: 'Active', levelReq: 1 },
+      { name: 'Geological Gaze', description: 'Target is Restrained as obsidian grows over their limbs. STR save to break free.', type: 'Active', levelReq: 1 }
     ],
     description: 'A monolithic engine of war carved from the very obsidian core of the mountains. It pulses with a raw, geological malice.',
     expReward: 10000
@@ -559,10 +606,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Hybrid',
     hp: 480,
     ac: 16,
+    stats: { str: 24, dex: 14, con: 22, int: 20, wis: 18, cha: 18 },
     abilities: [
-      { name: 'Reality Warp', description: 'Teleports up to 60ft and immediately makes one attack.', type: 'Active', levelReq: 1 },
-      { name: 'Ink of the Abyss', description: 'A cloud of absolute darkness that blinds and poisons those within.', type: 'Active', levelReq: 1 },
-      { name: 'Tentacle Crush', description: 'Grapples up to four targets simultaneously, dealing 2d12 damage per turn.', type: 'Active', levelReq: 1 }
+      { name: 'Event Horizon', description: 'Ranged attacks against the Kraken from more than 15ft away have a 50% chance to be swallowed by the void.', type: 'Passive', levelReq: 1 },
+      { name: 'Memory Devour', description: 'Target must succeed on an INT save or lose access to their highest-level ability for the rest of the encounter.', type: 'Active', levelReq: 1 },
+      { name: 'Constrict the Soul', description: 'Grapples up to four targets. While grappled, players take 4d6 psychic damage at start of turn.', type: 'Active', levelReq: 1 }
     ],
     description: 'A cosmic horror that swims through the aetheric mists. Its skin is a shifting map of dying stars.',
     expReward: 9500
@@ -573,10 +621,11 @@ export const INITIAL_MONSTERS: Monster[] = [
     type: 'Draconian',
     hp: 600,
     ac: 19,
+    stats: { str: 30, dex: 16, con: 28, int: 22, wis: 20, cha: 26 },
     abilities: [
-      { name: 'Breath of Ruin', description: 'A massive cone of necrotic fire. 12d8 damage, half on successful save.', type: 'Active', levelReq: 1 },
-      { name: 'Wing Buffet', description: 'Knocks all targets back 20ft and deals 3d10 bludgeoning damage.', type: 'Active', levelReq: 1 },
-      { name: 'Terrifying Presence', description: 'Frightens all enemies who can see the Dragon for 1 minute.', type: 'Active', levelReq: 1 }
+      { name: 'Aetheric Predator', description: 'Spells cast within 100ft of the Dragon cost an additional spell slot of the same level.', type: 'Passive', levelReq: 1 },
+      { name: 'Oblivion Breath', description: '90ft cone. 15d10 Necrotic damage. Creatures reduced to 0 HP are erased from reality and cannot be Revivified.', type: 'Active', levelReq: 1 },
+      { name: 'World-Shaking Wingbeat', description: 'All players are knocked Prone and take 4d12 bludgeoning damage. The Dragon then teleports up to 100ft.', type: 'Active', levelReq: 1 }
     ],
     description: 'The eldest of the shadow drakes, whose wings can blot out the aetheric sun. Legend says it was born from the first tear shed by the Engine.',
     expReward: 15000
@@ -584,15 +633,21 @@ export const INITIAL_MONSTERS: Monster[] = [
 ];
 
 export const RULES_MANIFEST = `
-1. The Dungeon Master (AI) has final authority on all checks.
-2. Players must roleplay actions; the AI will respond with consequences.
-3. Combat uses a 20x20 grid. Movement costs 1 tile per 5ft.
-4. EXP is awarded for overcoming challenges, not just killing.
-5. Death is permanent unless a placeholder specific "Revify" or "Resurrection" spell is used.
-6. ASI points are granted at levels 4, 8, 12, 16, 19.
-7. Level Up requires EXP = 1000 * current_level.
-8. Consumable items like potions and flasks stack in inventory.
-9. ALCHEMISTS: Can harvest Unique Monster Parts from defeated foes and transmute them into specific Flasks (harm) or Potions (buff) during Short Rests.
+1. **THE AETHERIC VOICE**: The Engine (Gemini AI) is the ultimate arbiter of fate. Its word is law, and its descriptions define reality. Roleplay thy actions; the Engine shall determine the consequences.
+2. **SOUL PROGRESSION**: To ascend, a soul must accumulate Experience (EXP). The threshold for enlightenment is 1,000 EXP multiplied by thy current Level.
+3. **THE TRIAD OF WEALTH**:
+   - **Aurels**: Gold minted in the forge of history. Used for common trade and mundane survival.
+   - **Shards**: Fragments of solidified magic. Required for mystical artifacts and aetheric resonance.
+   - **Ichor**: The life-blood of the Engine. Required for dark rituals, rare manifestations, and binding ancient souls.
+4. **COMBAT & POSITIONING**: Conflicts manifest upon a 20x20 Tactical Grid. Each tile represents 5 feet of physical space. Positioning is shared among all bonded souls in real-time. Use 'Enter Combat' to manifest the grid.
+5. **PERMANENCE OF OBLIVION**: When Vitality (HP) reaches zero, a soul teeters on the edge of the void. Death is permanent unless reversed by high-level magic or aetheric intervention from a primary soul.
+6. **ATTRIBUTE ASCENSION (ASI)**: At Levels 4, 8, 12, 16, and 19, thy vessel gains 2 points to bolster its primary attributes (Strength, Dexterity, etc.).
+7. **THE ALCHEMIST'S BURDEN**: Specialized souls can harvest 'Unique Parts' from non-humanoid foes. These may be transmuted into volatile flasks or potent elixirs during a Short Rest to assist the party.
+8. **SOUL RESONANCE (MULTIPLAYER)**: Multiple souls can bind to a single Engine via Peer-to-Peer resonance IDs. The Host Soul anchor determines the campaign's progression and DM manifestations.
+9. **MIGRATION & PERSISTENCE**: Thy chronicle is stored in the local memory of thy vessel. To transfer thy existence to a new realm, thou must manifest a 'Soul Signature' in the Nexus.
+10. **RESTING RITUALS**:
+    - **Short Rest**: Restores half of missing Vitality and a portion of consumed aether (spell slots).
+    - **Long Rest**: Full restoration of all Vitality and Aetheric reserves. Typically performed at The Hearth.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `

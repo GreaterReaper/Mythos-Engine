@@ -501,12 +501,14 @@ const App: React.FC = () => {
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
       const context = "A new threat emerges.";
       const generated = await generateMonsterDetails(name, context, Math.ceil(avgLevel));
+      // Fixed: Added missing required stats property for Monster object creation
       const newMonster: Monster = {
         id: safeId(),
         name,
         type: (generated.type as any) || 'Humanoid',
         hp: generated.hp || 20,
         ac: generated.ac || 10,
+        stats: generated.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
         expReward: generated.expReward || 100,
         description: generated.description || 'A mysterious horror.',
         abilities: generated.abilities || []

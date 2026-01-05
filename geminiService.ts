@@ -440,6 +440,19 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             expReward: { type: Type.NUMBER },
             description: { type: Type.STRING },
+            // Added stats property to schema to fulfill Monster type requirements
+            stats: {
+              type: Type.OBJECT,
+              properties: {
+                str: { type: Type.NUMBER },
+                dex: { type: Type.NUMBER },
+                con: { type: Type.NUMBER },
+                int: { type: Type.NUMBER },
+                wis: { type: Type.NUMBER },
+                cha: { type: Type.NUMBER }
+              },
+              required: ["str", "dex", "con", "int", "wis", "cha"]
+            },
             abilities: {
               type: Type.ARRAY,
               items: {
@@ -454,7 +467,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
               }
             }
           },
-          required: ["type", "hp", "ac", "expReward", "description", "abilities"]
+          required: ["type", "hp", "ac", "expReward", "description", "abilities", "stats"]
         }
       }
     });

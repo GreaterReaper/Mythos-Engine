@@ -16,7 +16,7 @@ interface DMWindowProps {
   onAwardItem: (name: string, data?: Partial<Item>) => void;
   onShortRest: () => void;
   onLongRest: () => void;
-  onAIRuntimeUseSlot: (level: number, characterName: string) => void;
+  onAIRuntimeUseSlot: (level: number, characterName: string) => boolean;
   isHost: boolean;
 }
 

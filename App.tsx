@@ -193,6 +193,7 @@ const App: React.FC = () => {
     const char = allChars.find(c => c.id === id);
     if (!char) return;
 
+    // Cast level and exp as number to avoid arithmetic errors if TS inferrence fails
     const currentLevel = (char.level as number) || 1;
     const currentExp = (char.exp as number) || 0;
     const nextExp = currentLevel * 1000;
@@ -235,8 +236,9 @@ const App: React.FC = () => {
       const allChars: Character[] = [...state.characters, ...state.mentors];
       const char = allChars.find(c => c.id === id);
       if (char) {
+        // Cast exp as number to avoid arithmetic errors if TS inferrence fails
         const currentExp = (char.exp as number) || 0;
-        const newExp = currentExp + amount;
+        const newExp = currentExp + (amount as number);
         updateCharacter(id, { exp: newExp });
         handleLevelUp(id);
       }
@@ -263,11 +265,14 @@ const App: React.FC = () => {
         const missingHp = char.maxHp - char.currentHp;
         const restoredHp = Math.ceil(missingHp / 2);
         
-        let restoredSlots = { ...char.spellSlots };
+        // Explicitly type restoredSlots to Record<number, number> to prevent 'unknown' or index errors
+        let restoredSlots: Record<number, number> = char.spellSlots ? { ...char.spellSlots } : {};
         if (char.maxSpellSlots) {
-          Object.entries(char.maxSpellSlots).forEach(([lvl, max]) => {
+          // Cast the value from Object.entries to number to prevent 'unknown' arithmetic errors
+          Object.entries(char.maxSpellSlots).forEach(([lvl, maxVal]) => {
             const level = parseInt(lvl);
-            const current = char.spellSlots?.[level] || 0;
+            const max = maxVal as number;
+            const current = (char.spellSlots?.[level] || 0) as number;
             // Restore half of the TOTAL slots (rounded up), but never exceed max
             restoredSlots[level] = Math.min(max, current + Math.ceil(max / 2));
           });

@@ -29,14 +29,16 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare,
         const matchesClass = filterClass === 'All' || 
                            !item.archetypes || 
                            item.archetypes.length === 0 || 
-                           item.archetypes.includes(filterClass);
+                           (item.archetypes as any).includes(filterClass);
                            
         const matchesType = filterType === 'All' || item.type === filterType;
         return matchesClass && matchesType;
       })
       .sort((a, b) => {
+        const aRarity = a.rarity as keyof typeof rarityOrder;
+        const bRarity = b.rarity as keyof typeof rarityOrder;
         if (sortBy === 'rarity') {
-          return rarityOrder[b.rarity] - rarityOrder[a.rarity];
+          return rarityOrder[bRarity] - rarityOrder[aRarity];
         }
         return a.name.localeCompare(b.name);
       });

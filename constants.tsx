@@ -253,6 +253,27 @@ export const MENTORS: Character[] = [
     description: 'A reserved, sharp-eyed elven archer who prefers quiet distance and composure.',
     biography: 'Seris has outlived three generations of her human companions. She speaks rarely, her words as precise and lethal as her arrows. She left the Sylvan Glades when the corruption of the Obsidian Spire began to rot the world-trees. Now, she walks the frontier, a silent sentinel who observes the cycle of life and death with the clinical detachment of a scholar and the lethality of a master hunter. Her eyes are said to see the resonance of a heartbeat from a mile away.',
     asiPoints: 0
+  },
+  {
+    id: 'mentor-kaelen',
+    name: 'Kaelen',
+    age: 34,
+    gender: 'Male',
+    race: Race.Human,
+    archetype: Archetype.DarkKnight,
+    level: 5,
+    exp: 0,
+    maxHp: 74,
+    currentHp: 74,
+    stats: { str: 19, dex: 10, con: 18, int: 10, wis: 10, cha: 14 },
+    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-sword')!, INITIAL_ITEMS.find(i => i.id === 'start-plate')!],
+    spells: SPELL_LIBRARY[Archetype.DarkKnight],
+    abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
+    spellSlots: { 1: 4, 2: 3, 3: 2 },
+    maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
+    description: 'A towering figure in black obsidian plate. His face is a mask of indifference, eyes cold as the void.',
+    biography: 'Kaelen was a commander of the Black Wing Legion before the Engine claimed his emotions as tribute for survival. He walks the fine line between humanity and the abyss, wielding a heavy blade that siphons the very light from the air. He does not seek redemption, only the efficient termination of threats to the balance. His presence is as chilling as a grave-wind, and his silence is more terrifying than any war-cry.',
+    asiPoints: 0
   }
 ];
 

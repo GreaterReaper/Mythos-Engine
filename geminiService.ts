@@ -30,10 +30,13 @@ const stripState = (state: GameState): Partial<GameState> => {
     armory: strippedArmory,
     customArchetypes: state.customArchetypes,
     party: state.party,
-    userAccount: state.userAccount,
+    userAccount: {
+      ...state.userAccount,
+      peerId: undefined // Peer IDs are ephemeral and shouldn't be migrated
+    },
     multiplayer: {
       isHost: state.multiplayer.isHost,
-      connectedPeers: [] // Peers don't persist
+      connectedPeers: []
     }
   };
 };
@@ -125,8 +128,7 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
  */
 const getApiKey = () => {
   try {
-    // @ts-ignore
-    return (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : '';
+    return process.env.API_KEY || '';
   } catch (e) {
     return '';
   }

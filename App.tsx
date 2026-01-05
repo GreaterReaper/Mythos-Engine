@@ -30,65 +30,88 @@ const App: React.FC = () => {
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
 
-  const [state, setState] = useState<GameState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Mentors are always standardized based on current constants
-      parsed.mentors = MENTORS;
-      // Bestiary and Armory are standardized for all users
-      parsed.bestiary = INITIAL_MONSTERS;
-      // Armory is saved but we might want to merge with INITIAL_ITEMS
-      const uniqueInitial = INITIAL_ITEMS.filter(ii => !parsed.armory.some((pa: Item) => pa.id === ii.id));
-      parsed.armory = [...parsed.armory, ...uniqueInitial];
-      return parsed;
+  // Default Initial State
+  const DEFAULT_STATE: GameState = {
+    characters: [],
+    mentors: MENTORS,
+    activeCampaignId: null,
+    campaigns: [],
+    armory: INITIAL_ITEMS,
+    bestiary: INITIAL_MONSTERS,
+    customArchetypes: [],
+    party: [],
+    userAccount: {
+      username: 'Nameless Soul',
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36),
+      friends: [],
+      sharedCreations: [],
+      isLoggedIn: false
+    },
+    multiplayer: {
+      isHost: true,
+      connectedPeers: []
     }
-    return {
-      characters: [],
-      mentors: MENTORS,
-      activeCampaignId: null,
-      campaigns: [],
-      armory: INITIAL_ITEMS,
-      bestiary: INITIAL_MONSTERS,
-      customArchetypes: [],
-      party: [],
-      userAccount: {
-        username: 'Nameless Soul',
-        id: crypto.randomUUID(),
-        friends: [],
-        sharedCreations: [],
-        isLoggedIn: false
-      },
-      multiplayer: {
-        isHost: true,
-        connectedPeers: []
+  };
+
+  const [state, setState] = useState<GameState>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        
+        // Ensure critical arrays exist
+        parsed.characters = Array.isArray(parsed.characters) ? parsed.characters : [];
+        parsed.campaigns = Array.isArray(parsed.campaigns) ? parsed.campaigns : [];
+        parsed.customArchetypes = Array.isArray(parsed.customArchetypes) ? parsed.customArchetypes : [];
+        parsed.party = Array.isArray(parsed.party) ? parsed.party : [];
+        parsed.armory = Array.isArray(parsed.armory) ? parsed.armory : INITIAL_ITEMS;
+
+        // Mentors and Bestiary are always standardized
+        parsed.mentors = MENTORS;
+        parsed.bestiary = INITIAL_MONSTERS;
+        
+        // Merge armory with initial items to ensure new global items are available
+        const currentArmory = parsed.armory;
+        const missingInitial = INITIAL_ITEMS.filter(ii => !currentArmory.some((pa: Item) => pa.id === ii.id));
+        parsed.armory = [...currentArmory, ...missingInitial];
+        
+        return parsed as GameState;
       }
-    };
+    } catch (e) {
+      console.error("Failed to load state from localStorage:", e);
+    }
+    return DEFAULT_STATE;
   });
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error("Failed to save state to localStorage:", e);
+    }
   }, [state]);
 
   useEffect(() => {
-    if (state.userAccount.isLoggedIn && !peerRef.current) {
+    if (state.userAccount.isLoggedIn && !peerRef.current && typeof window !== 'undefined') {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
       script.async = true;
       script.onload = () => {
-        const peer = new Peer();
-        peerRef.current = peer;
+        if (typeof Peer !== 'undefined') {
+          const peer = new Peer();
+          peerRef.current = peer;
 
-        peer.on('open', (id: string) => {
-          setState(prev => ({
-            ...prev,
-            userAccount: { ...prev.userAccount, peerId: id }
-          }));
-        });
+          peer.on('open', (id: string) => {
+            setState(prev => ({
+              ...prev,
+              userAccount: { ...prev.userAccount, peerId: id }
+            }));
+          });
 
-        peer.on('connection', (conn: any) => {
-          handleIncomingConnection(conn);
-        });
+          peer.on('connection', (conn: any) => {
+            handleIncomingConnection(conn);
+          });
+        }
       };
       document.body.appendChild(script);
     }
@@ -250,9 +273,7 @@ const App: React.FC = () => {
 
   const handleAddCustomArchetype = (arch: ArchetypeInfo) => {
     setState(prev => {
-      // Add archetypes to state
       const newArches = [...prev.customArchetypes.filter(a => a.name !== arch.name), arch];
-      // Auto-populate Armory with themed items
       const newItems = arch.themedItems || [];
       const updatedArmory = [...prev.armory];
       newItems.forEach(item => {

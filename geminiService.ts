@@ -128,11 +128,13 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
 
   const ai = getAiClient();
   try {
+    const charName = char.name || 'a nameless soul';
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Weave a dark fantasy biography and visual description for a ${char.race} ${char.archetype}. 
+      contents: `Weave a dark fantasy biography and visual description for a ${char.race} ${char.archetype} named "${charName}". 
       Current World Context: ${campaignContext}. 
       The character is level ${char.level}. 
+      The name "${charName}" MUST be used as their primary identity in the lore.
       Return strictly as JSON with keys "biography" and "description".`,
       config: {
         responseMimeType: "application/json",
@@ -153,7 +155,6 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
   }
 };
 
-// Added missing generateCustomClass function to forge new archetypes using Gemini
 export const generateCustomClass = async (prompt: string): Promise<any> => {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("API Connection Severed.");
@@ -262,31 +263,40 @@ export const generateDMResponse = async (
     Provide a living, breathing world. Your responses must blend evocative narrative prose with immersive dialogue.
 
     DYNAMIC PERSONA PROTOCOL:
-    - Every NPC introduced must have a distinct "Aura" (e.g., arrogant, frantic, ancient, hollow).
+    - Every NPC introduced must have a distinct "Aura".
     - NPCs MUST react to the specific races and archetypes of the party.
     - Format NPC dialogue as: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
-    - NPCs are not static; they have hidden agendas and emotional biases.
+
+    ALCHEMICAL CRAFTING PROTOCOL (NEW):
+    - If a player is an ALCHEMIST:
+        1. After combat with a challenge (Beast, Undead, Hybrid), they can harvest a Unique Monster Part. 
+        2. Command: [ADD MONSTER PART PartName] (e.g., [Salamander Heart]).
+        3. During a Short Rest, they can Transmute a Part into a Unique Flask or Potion.
+        4. Transmutation Example: Salamander Part -> [Flask of Salamander].
+        5. Flask of Salamander effect: Ignite damage (1d6) for 3 rounds. Damage scales with Alchemist level.
+        6. Liquid Fortune effect: Consumer adds 1d4 to their next ability or attack roll.
+    - Track item quantities strictly. Consumables like Potions stack.
 
     DYNAMIC CHALLENGES & BESTIARY:
-    - You can dynamically add new monsters to the world if current ones don't fit the challenge level.
-    - To manifest a new monster in the archives, use: [ADD MONSTER MonsterName].
-    - Always consider the party's level when introducing threats.
+    - You can dynamically add new monsters if needed: [ADD MONSTER MonsterName].
     
     MENTOR PARTICIPATION:
-    - The mentors are active participants. They interject with advice/banter reflecting their established personalities.
+    - Mentors are active participants. Alaric (Alchemist) is obsessed with volatility.
 
     RESOURCE TRACKING:
-    - Monitor spell slots. If a spell is cast: [USE SLOT Level FOR CharacterName].
+    - Monitor spell slots and item quantities. 
+    - Use: [USE SLOT Level FOR CharacterName] or [CONSUME ITEM ItemName FOR CharacterName].
 
     COMMANDS:
     - Grant EXP: +500 EXP
-    - Grant Item: [Item Name]
+    - Grant Item: [Item Name] { "quantity": 3 }
     - Add Monster: [ADD MONSTER MonsterName]
+    - Add Monster Part: [ADD MONSTER PART PartName]
     - Short Rest: [SHORT REST]
     - Long Rest: [LONG REST]
 
     PARTY STATUS: ${JSON.stringify(playerContext.characters.map(c => ({ 
-      name: c.name, race: c.race, class: c.archetype, level: c.level, health: `${c.currentHp}/${c.maxHp}`
+      name: c.name, race: c.race, class: c.archetype, level: c.level, health: `${c.currentHp}/${c.maxHp}`, inventory: c.inventory.map(i => `${i.name} x${i.quantity || 1}`)
     })))}
     
     BESTIARY SNAPSHOT: ${playerContext.existingMonsters.slice(0, 5).map(m => m.name).join(', ')}...
@@ -374,7 +384,8 @@ export const generateItemDetails = async (itemName: string, context: string, par
             rarity: { type: Type.STRING },
             description: { type: Type.STRING },
             stats: { type: Type.OBJECT },
-            archetypes: { type: Type.ARRAY, items: { type: Type.STRING } }
+            archetypes: { type: Type.ARRAY, items: { type: Type.STRING } },
+            quantity: { type: Type.NUMBER }
           },
           required: ["type", "rarity", "description", "stats"]
         }
@@ -391,17 +402,20 @@ export const generateItemDetails = async (itemName: string, context: string, par
 export const parseDMCommand = (text: string) => {
   const expMatch = text.match(/\+(\d+)\s+EXP/);
   
-  // Detect [Item Name]
+  // Detect [Item Name] or [ADD MONSTER PART PartName]
   const itemRegex = /\[([^\]]+)\]\s*({[^}]+})?/g;
   const items: { name: string, data?: Partial<Item> }[] = [];
   const monstersToAdd: string[] = [];
+  const partsToHarvest: string[] = [];
   
   let match;
   while ((match = itemRegex.exec(text)) !== null) {
     const content = match[1];
     if (content.startsWith("ADD MONSTER ")) {
       monstersToAdd.push(content.replace("ADD MONSTER ", "").trim());
-    } else if (content !== "SHORT REST" && content !== "LONG REST" && !content.includes("USE SLOT")) {
+    } else if (content.startsWith("ADD MONSTER PART ")) {
+      partsToHarvest.push(content.replace("ADD MONSTER PART ", "").trim());
+    } else if (content !== "SHORT REST" && content !== "LONG REST" && !content.includes("USE SLOT") && !content.includes("CONSUME ITEM")) {
       let data;
       if (match[2]) {
         try { data = JSON.parse(match[2]); } catch (e) {}
@@ -412,18 +426,27 @@ export const parseDMCommand = (text: string) => {
 
   const shortRest = text.includes("[SHORT REST]");
   const longRest = text.includes("[LONG REST]");
+  
   const slotMatch = text.match(/\[USE SLOT (\d+) FOR ([^\]]+)\]/i);
   const usedSlot = slotMatch ? {
     level: parseInt(slotMatch[1]),
     characterName: slotMatch[2].trim()
+  } : null;
+
+  const consumeMatch = text.match(/\[CONSUME ITEM ([^\]]+) FOR ([^\]]+)\]/i);
+  const consumedItem = consumeMatch ? {
+    itemName: consumeMatch[1].trim(),
+    characterName: consumeMatch[2].trim()
   } : null;
   
   return {
     exp: expMatch ? parseInt(expMatch[1]) : 0,
     items,
     monstersToAdd,
+    partsToHarvest,
     shortRest,
     longRest,
-    usedSlot
+    usedSlot,
+    consumedItem
   };
 };

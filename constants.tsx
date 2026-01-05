@@ -14,7 +14,8 @@ export const RECOMMENDED_STATS: Record<string, (keyof Stats)[]> = {
   [Archetype.Fighter]: ['str'],
   [Archetype.DarkKnight]: ['str', 'cha'],
   [Archetype.Mage]: ['wis'],
-  [Archetype.Sorcerer]: ['int']
+  [Archetype.Sorcerer]: ['int'],
+  [Archetype.Alchemist]: ['int', 'dex']
 };
 
 export const RACIAL_BONUSES: Record<Race, Partial<Stats>> = {
@@ -144,6 +145,15 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
       { name: 'Shadow Clone', description: 'Manifest a shadow that distracts foes. Grant Disadvantage to the next attack.', type: 'Active', levelReq: 1 }
     ],
     spells: SPELL_LIBRARY[Archetype.DarkKnight]
+  },
+  [Archetype.Alchemist]: {
+    hpDie: 8, description: 'Masters of volatile compounds and transformative elixirs. They use intellect to bend the laws of chemistry into weapons of war.',
+    coreAbilities: [
+      { name: 'Monster Part Harvester', description: 'After defeating a non-humanoid challenge, you can harvest 1 Unique Part (e.g., Salamander Heart, Drake Scale).', type: 'Passive', levelReq: 1 },
+      { name: 'Experimental Transmutation', description: 'During a Short Rest, combine 1 Monster Part and a flask to create a Unique Alchemical Item.', type: 'Active', levelReq: 1 },
+      { name: 'Volatile Throw', description: 'Throwable flasks gain range of 30ft. Damage/Duration scales with INT modifier and Level.', type: 'Passive', levelReq: 1 },
+      { name: 'Concoction Mastery', description: 'Consumable buffs grant an extra 1d4 to the next check.', type: 'Passive', levelReq: 1 }
+    ]
   }
 };
 
@@ -178,17 +188,22 @@ export const INITIAL_ITEMS: Item[] = [
 
   // --- ARMOR ---
   { id: 'start-robes', name: 'Apprentice Robes', description: 'Simple linen robes that allow for free movement of aether. Cloth armor.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief] },
+  { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist] },
   { id: 'start-plate', name: 'Rusty Plate', description: 'Old, noisy metal armor.', type: 'Armor', rarity: 'Common', stats: { ac: 15 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'start-shield', name: 'Rusted Aegis', description: 'A battered iron shield.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
-  { id: 'un-studded', name: 'Studded Brigandine', description: 'Reinforced leather for more durability.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 13 }, archetypes: [Archetype.Archer, Archetype.Thief] },
+  { id: 'un-studded', name: 'Studded Brigandine', description: 'Reinforced leather for more durability.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 13 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist] },
   { id: 'rare-aether-robe', name: 'Vestments of the Void', description: 'Cloth robes woven with silk that seems to swallow light.', type: 'Armor', rarity: 'Rare', stats: { ac: 12, int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
   { id: 'rare-shield', name: 'Gilded Aegis', description: 'A shield used by the high guard of Oakhaven.', type: 'Armor', rarity: 'Rare', stats: { ac: 3, wis: 1 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
   { id: 'epic-dread-plate', name: 'Dreadnought Shell', description: 'Armor made from the scales of a shadow drake.', type: 'Armor', rarity: 'Epic', stats: { ac: 19, con: 2 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'legendary-archon-plate', name: 'Celestial Carapace', description: 'Armor said to be worn by the first hero of the Engine.', type: 'Armor', rarity: 'Legendary', stats: { ac: 22, str: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
   { id: 'legendary-mirror-shield', name: 'Mirror-Glass Bulwark', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror. Passive: Reflects gaze attacks back at foes.', type: 'Armor', rarity: 'Legendary', stats: { ac: 4, wis: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
 
-  // --- UTILITY ---
+  // --- UTILITY / CONSUMABLES ---
+  { id: 'potion-heal', name: 'Vitality Elixir', description: 'A glowing red liquid that restores 2d4+2 Hit Points.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'potion-mana', name: 'Aether Draught', description: 'A shimmering blue fluid that restores one Level 1 spell slot.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-acid', name: 'Corrosive Flask', description: 'A volatile green substance that eats through armor and flesh.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d10' }, quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-salamander', name: 'Flask of Salamander', description: 'Crafted from a lizard of fire. Ignites the target, dealing 1d6 fire damage at the start of its turn for 3 rounds.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d6' }, quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'potion-fortune', name: 'Liquid Fortune', description: 'A golden oil. The consumer adds 1d4 to their next attack or ability roll.', type: 'Utility', rarity: 'Uncommon', quantity: 1, archetypes: [Archetype.Alchemist] },
   { id: 'un-ring', name: 'Aether Ring', description: 'A ring that hums with low-level magic.', type: 'Utility', rarity: 'Uncommon', stats: { int: 1 } },
   { id: 'rare-amulet', name: 'Locket of Lost Souls', description: 'Provides a placeholder bonus to focus.', type: 'Utility', rarity: 'Rare', stats: { wis: 2 } },
   { id: 'epic-tome', name: 'Grimoire of the Abyss', description: 'Contains forbidden knowledge of the void.', type: 'Utility', rarity: 'Epic', stats: { int: 4, wis: -1 } },
@@ -346,6 +361,28 @@ export const MENTORS: Character[] = [
     abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
     description: 'A broad-shouldered Orc woman with graying hair, wielding a maul that looks like a fallen monument.',
     biography: 'Brunnhilde is the surviving matriarch of the Iron-Grip Clan. She sees the world through a lens of duty and protective rage. She treats the fellowship like her own wayward cubs, alternating between booming laughter and terrifyingly quiet intensity in the heat of battle. To her, "Steel is the only truth in a world of ghosts," and she ensures that truth is felt by every enemy that dares cross the party\'s path.'
+  }),
+  createMentor({
+    id: 'mentor-alaric',
+    name: 'Alaric',
+    age: 38,
+    gender: 'Male',
+    race: Race.Vesperian,
+    archetype: Archetype.Alchemist,
+    level: 5,
+    maxHp: 60,
+    currentHp: 60,
+    stats: { str: 10, dex: 16, con: 14, int: 20, wis: 14, cha: 12 },
+    inventory: [
+      { ...INITIAL_ITEMS.find(i => i.id === 'start-leather')!, quantity: 1 },
+      { ...INITIAL_ITEMS.find(i => i.id === 'potion-heal')!, quantity: 5 },
+      { ...INITIAL_ITEMS.find(i => i.id === 'flask-salamander')!, quantity: 3 },
+      { ...INITIAL_ITEMS.find(i => i.id === 'potion-fortune')!, quantity: 2 }
+    ],
+    spells: [],
+    abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
+    description: 'A sharp-featured Vesperian with multiple vials strapped to a high-quality leather harness.',
+    biography: 'Alaric was once the chief apothecary for the Vesperian Royal Court. When the shadow fell, he realized that healing alone could not save his people. He combined his knowledge of anatomy with unstable aetheric compounds, creating a style of combat that is as precise as surgery and as loud as an explosion. He sees the Mythos Engine as a grand chemical reaction that must be carefully balanced—or neutralized entirely. He is never seen without a faint scent of sulfur and peppermint.'
   })
 ];
 
@@ -495,6 +532,8 @@ export const RULES_MANIFEST = `
 5. Death is permanent unless a placeholder specific "Revify" or "Resurrection" spell is used.
 6. ASI points are granted at levels 4, 8, 12, 16, 19.
 7. Level Up requires EXP = 1000 * current_level.
+8. Consumable items like potions and flasks stack in inventory.
+9. ALCHEMISTS: Can harvest Unique Monster Parts from defeated foes and transmute them into specific Flasks (harm) or Potions (buff) during Short Rests.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `

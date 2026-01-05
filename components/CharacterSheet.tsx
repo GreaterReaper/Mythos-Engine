@@ -135,6 +135,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     setIsWeaving(true);
     try {
       const lore = await manifestSoulLore({ 
+        name: character.name,
         race: character.race as Race, 
         archetype: character.archetype as Archetype, 
         level: character.level 
@@ -339,7 +340,9 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                       'border-red-900/30 text-red-900'
                     }`}>{item.name[0]}</div>
                     <div className="min-w-0">
-                      <p className="text-[11px] font-cinzel text-gold truncate uppercase font-black">{item.name}</p>
+                      <p className="text-[11px] font-cinzel text-gold truncate uppercase font-black">
+                        {item.name} {item.quantity && item.quantity > 1 ? `(x${item.quantity})` : ''}
+                      </p>
                       <p className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">{item.rarity} • {item.type}</p>
                     </div>
                   </div>

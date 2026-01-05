@@ -52,7 +52,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
   const handleForgeLore = async () => {
     setIsForgingLore(true);
     try {
-      const lore = await manifestSoulLore({ race, archetype, level: 1 });
+      const lore = await manifestSoulLore({ name, race, archetype, level: 1 });
       setBiography(lore.biography);
       setDescription(lore.description);
     } catch (e) {

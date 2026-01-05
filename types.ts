@@ -25,6 +25,7 @@ export enum Archetype {
   Warrior = 'Warrior',
   Fighter = 'Fighter',
   DarkKnight = 'Dark Knight',
+  Alchemist = 'Alchemist',
   Custom = 'Custom'
 }
 
@@ -67,6 +68,7 @@ export interface Item {
   rarity: 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
   archetypes?: Archetype[] | string[];
   authorId?: string;
+  quantity?: number; // Added for stackable items
 }
 
 export interface MapToken {

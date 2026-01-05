@@ -129,12 +129,16 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
   const ai = getAiClient();
   try {
     const charName = char.name || 'a nameless soul';
+    const charGender = char.gender || 'unknown gender';
+    const charAge = char.age || 'unknown age';
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Weave a dark fantasy biography and visual description for a ${char.race} ${char.archetype} named "${charName}". 
+      contents: `Weave a dark fantasy biography and visual description for a ${charAge}-year-old ${charGender} ${char.race} ${char.archetype} named "${charName}". 
       Current World Context: ${campaignContext}. 
       The character is level ${char.level}. 
       The name "${charName}" MUST be used as their primary identity in the lore.
+      Ensure the biography and physical description strictly respect the character's age (${charAge}) and gender (${charGender}).
       Return strictly as JSON with keys "biography" and "description".`,
       config: {
         responseMimeType: "application/json",

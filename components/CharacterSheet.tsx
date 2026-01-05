@@ -138,7 +138,9 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         name: character.name,
         race: character.race as Race, 
         archetype: character.archetype as Archetype, 
-        level: character.level 
+        level: character.level,
+        age: character.age,
+        gender: character.gender
       });
       setEditedBio(lore.biography);
       setEditedDesc(lore.description);

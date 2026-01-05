@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { generateSoulSignature } from '../geminiService';
-import { GameState } from '../types';
+import { GameState, Friend } from '../types';
 
 interface NexusScreenProps {
   peerId: string;
@@ -10,9 +10,12 @@ interface NexusScreenProps {
   onConnect: (id: string) => void;
   username: string;
   gameState: GameState;
+  onClearFriends: () => void;
 }
 
-const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHost, onConnect, username, gameState }) => {
+const NexusScreen: React.FC<NexusScreenProps> = ({ 
+  peerId, connectedPeers, isHost, onConnect, username, gameState, onClearFriends 
+}) => {
   const [targetId, setTargetId] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
   const [migrationSig, setMigrationSig] = useState('');
@@ -156,8 +159,8 @@ const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHos
         {/* Status and Connected Souls */}
         <div className="rune-border p-6 bg-black/40 space-y-4">
           <div className="flex justify-between items-center border-b border-red-900/30 pb-2">
-            <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Bonded Souls</h3>
-            <span className="text-[10px] text-red-900 font-bold">{connectedPeers.length} ACTIVE</span>
+            <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Active Bonds</h3>
+            <span className="text-[10px] text-red-900 font-bold">{connectedPeers.length} BONDED</span>
           </div>
 
           <div className="space-y-2">
@@ -172,11 +175,52 @@ const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHos
             ))}
 
             {connectedPeers.length === 0 && (
-              <div className="py-12 text-center opacity-30">
-                <div className="w-12 h-12 border-2 border-dashed border-red-900 rounded-full mx-auto mb-4 flex items-center justify-center">
-                   <div className="w-1.5 h-1.5 bg-red-900 rounded-full" />
-                </div>
-                <p className="font-cinzel italic text-xs text-gray-500 uppercase">Alone in the void. Manifest a bond.</p>
+              <div className="py-6 text-center opacity-30">
+                <p className="font-cinzel italic text-[10px] text-gray-500 uppercase">Alone in the current session.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Known Souls (Historical) */}
+        <div className="rune-border p-6 bg-black/60 space-y-4">
+          <div className="flex justify-between items-center border-b border-gold/30 pb-2">
+            <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Known Souls (Archives)</h3>
+            <button 
+              onClick={onClearFriends}
+              className="text-[8px] text-red-900 hover:text-red-500 font-bold uppercase transition-colors"
+            >
+              PURGE ARCHIVES
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto custom-scrollbar">
+            {gameState.userAccount.friends.length > 0 ? (
+              gameState.userAccount.friends.map((friend: Friend) => {
+                const isActive = connectedPeers.includes(friend.peerId || '');
+                return (
+                  <div key={friend.id} className={`flex items-center justify-between p-3 bg-black/40 border transition-all ${isActive ? 'border-green-900/50 bg-green-900/5' : 'border-red-900/20 hover:border-gold/30'}`}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-cinzel text-gold uppercase font-bold truncate">{friend.name}</span>
+                        {isActive && <span className="text-[7px] bg-green-900 text-white px-1 rounded animate-pulse">BONDED</span>}
+                      </div>
+                      <span className="text-[8px] text-gray-500 font-mono block truncate opacity-50">{friend.peerId}</span>
+                    </div>
+                    {!isActive && friend.peerId && (
+                      <button 
+                        onClick={() => onConnect(friend.peerId!)}
+                        className="px-3 py-1 bg-red-900/20 border border-red-900/40 text-[9px] font-cinzel text-red-900 hover:bg-red-900 hover:text-white transition-all uppercase tracking-tighter"
+                      >
+                        REBIND
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="py-8 text-center opacity-30">
+                <p className="font-cinzel italic text-[10px] text-gray-500 uppercase">No historical bonds found.</p>
               </div>
             )}
           </div>
@@ -184,7 +228,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({ peerId, connectedPeers, isHos
 
         {/* Multiplayer Info */}
         <div className="p-4 bg-red-900/5 border border-red-900/10 text-[10px] text-gray-500 italic leading-relaxed">
-          Multiplayer syncing uses peer-to-peer soul resonance. The Engine Host controls the Dungeon Master and tactical manifestations. All bonded souls will receive updates in real-time as the Chronicle unfolds.
+          Multiplayer syncing uses peer-to-peer soul resonance. The Engine Host controls the Dungeon Master and tactical manifestations. Once a soul is known, it is archived for faster re-binding in future Chronicles.
         </div>
       </div>
     </div>

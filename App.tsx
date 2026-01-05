@@ -18,7 +18,7 @@ import TutorialScreen from './components/TutorialScreen';
 import AccountPortal from './components/AccountPortal';
 import NexusScreen from './components/NexusScreen';
 import SpellsScreen from './components/SpellsScreen';
-import { generateItemDetails, safeId, parseSoulSignature } from './geminiService';
+import { generateItemDetails, safeId, parseSoulSignature, hydrateState } from './geminiService';
 
 declare var Peer: any;
 
@@ -66,11 +66,9 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setState({
-          ...DEFAULT_STATE,
-          ...parsed,
-          userAccount: { ...parsed.userAccount, isLoggedIn: true }
-        });
+        // Hydrate state to ensure constants like Mentors/Bestiary/Armory are fresh
+        const hydrated = hydrateState(parsed, { ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, username, isLoggedIn: true } });
+        setState(hydrated);
       } catch (e) {
         console.error("Failed to rebind soul from local memory:", e);
         setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } }));
@@ -81,7 +79,7 @@ const App: React.FC = () => {
   };
 
   const handleMigrateSoul = (signature: string) => {
-    const migratedState = parseSoulSignature(signature);
+    const migratedState = parseSoulSignature(signature, DEFAULT_STATE);
     if (migratedState) {
       setState({
         ...migratedState,
@@ -126,6 +124,16 @@ const App: React.FC = () => {
           connectedPeers: [...prev.multiplayer.connectedPeers, conn.peer]
         }
       }));
+
+      // Send our identity immediately on open
+      conn.send({ 
+        type: 'IDENTITY', 
+        payload: { 
+          username: state.userAccount.username,
+          id: state.userAccount.id
+        } 
+      });
+
       if (state.multiplayer.isHost) {
         conn.send({ type: 'SYNC_STATE', payload: state });
       }
@@ -134,6 +142,25 @@ const App: React.FC = () => {
     conn.on('data', (data: any) => {
       if (!data) return;
       switch (data.type) {
+        case 'IDENTITY':
+          setState(prev => {
+            const existingFriend = prev.userAccount.friends.find(f => f.name === data.payload.username);
+            const updatedFriend: Friend = {
+              id: data.payload.id || safeId(),
+              name: data.payload.username,
+              active: true,
+              peerId: conn.peer
+            };
+            const newFriends = existingFriend 
+              ? prev.userAccount.friends.map(f => f.name === data.payload.username ? updatedFriend : f)
+              : [...prev.userAccount.friends, updatedFriend];
+            
+            return {
+              ...prev,
+              userAccount: { ...prev.userAccount, friends: newFriends }
+            };
+          });
+          break;
         case 'SYNC_STATE':
           setState(prev => ({ ...data.payload, userAccount: prev.userAccount }));
           break;
@@ -151,10 +178,21 @@ const App: React.FC = () => {
           break;
       }
     });
+
+    conn.on('close', () => {
+      connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
+      setState(prev => ({
+        ...prev,
+        multiplayer: {
+          ...prev.multiplayer,
+          connectedPeers: prev.multiplayer.connectedPeers.filter(p => p !== conn.peer)
+        }
+      }));
+    });
   };
 
   const connectToSoul = (peerId: string) => {
-    if (!peerRef.current) return;
+    if (!peerRef.current || !peerId) return;
     const conn = peerRef.current.connect(peerId);
     handleIncomingConnection(conn);
     setState(prev => ({ ...prev, multiplayer: { ...prev.multiplayer, isHost: false } }));
@@ -187,13 +225,11 @@ const App: React.FC = () => {
     });
   };
 
-  // Fix: Improved type safety for character property access and arithmetic operations in handleLevelUp
   const handleLevelUp = (id: string) => {
     const allChars: Character[] = [...state.characters, ...state.mentors];
     const char = allChars.find(c => c.id === id);
     if (!char) return;
 
-    // Cast level and exp as number to avoid arithmetic errors if TS inferrence fails
     const currentLevel = (char.level as number) || 1;
     const currentExp = (char.exp as number) || 0;
     const nextExp = currentLevel * 1000;
@@ -230,13 +266,11 @@ const App: React.FC = () => {
     }
   };
 
-  // Fix: Improved character lookup and type safety in addExpToParty
   const addExpToParty = (amount: number) => {
     state.party.forEach(id => {
       const allChars: Character[] = [...state.characters, ...state.mentors];
       const char = allChars.find(c => c.id === id);
       if (char) {
-        // Cast exp as number to avoid arithmetic errors if TS inferrence fails
         const currentExp = (char.exp as number) || 0;
         const newExp = currentExp + (amount as number);
         updateCharacter(id, { exp: newExp });
@@ -247,7 +281,6 @@ const App: React.FC = () => {
 
   const handleAIRuntimeSlotUsage = (level: number, characterName: string) => {
     const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-    // Find character by name (case-insensitive)
     const target = partyChars.find(c => c.name.toLowerCase() === characterName.toLowerCase());
     
     if (target && target.spellSlots && target.spellSlots[level] > 0) {
@@ -265,15 +298,12 @@ const App: React.FC = () => {
         const missingHp = char.maxHp - char.currentHp;
         const restoredHp = Math.ceil(missingHp / 2);
         
-        // Explicitly type restoredSlots to Record<number, number> to prevent 'unknown' or index errors
         let restoredSlots: Record<number, number> = char.spellSlots ? { ...char.spellSlots } : {};
         if (char.maxSpellSlots) {
-          // Cast the value from Object.entries to number to prevent 'unknown' arithmetic errors
           Object.entries(char.maxSpellSlots).forEach(([lvl, maxVal]) => {
             const level = parseInt(lvl);
             const max = maxVal as number;
             const current = (char.spellSlots?.[level] || 0) as number;
-            // Restore half of the TOTAL slots (rounded up), but never exceed max
             restoredSlots[level] = Math.min(max, current + Math.ceil(max / 2));
           });
         }
@@ -422,6 +452,7 @@ const App: React.FC = () => {
               onConnect={connectToSoul}
               username={state.userAccount.username}
               gameState={state}
+              onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))}
             />
           )}
           {activeTab === 'Archetypes' && (

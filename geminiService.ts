@@ -1,6 +1,8 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState } from './types';
+import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
+import * as fflate from 'fflate';
 
 /**
  * Utility to generate an ID even in non-secure or older environments.
@@ -13,13 +15,71 @@ export const safeId = () => {
 };
 
 /**
- * Generates a Base64 encoded string of the current GameState for migration.
+ * Strips a GameState of static constants to reduce serialization size.
+ */
+const stripState = (state: GameState): Partial<GameState> => {
+  // We only want to save things that are NOT in constants.
+  const strippedArmory = state.armory.filter(item => 
+    !INITIAL_ITEMS.some(init => init.id === item.id)
+  );
+
+  return {
+    characters: state.characters,
+    campaigns: state.campaigns,
+    activeCampaignId: state.activeCampaignId,
+    armory: strippedArmory,
+    customArchetypes: state.customArchetypes,
+    party: state.party,
+    userAccount: state.userAccount,
+    multiplayer: {
+      isHost: state.multiplayer.isHost,
+      connectedPeers: [] // Peers don't persist
+    }
+  };
+};
+
+/**
+ * Re-injects constants and ensures state validity.
+ */
+export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => {
+  return {
+    ...defaultState,
+    ...data,
+    mentors: MENTORS, // Always use fresh constants
+    bestiary: INITIAL_MONSTERS, // Always use fresh constants
+    armory: [
+      ...INITIAL_ITEMS, // Start with fresh constants
+      ...(data.armory || []).filter(item => !INITIAL_ITEMS.some(init => init.id === item.id))
+    ],
+    userAccount: {
+      ...defaultState.userAccount,
+      ...(data.userAccount || {}),
+      isLoggedIn: data.userAccount?.isLoggedIn ?? false
+    },
+    multiplayer: {
+      isHost: data.multiplayer?.isHost ?? true,
+      connectedPeers: []
+    }
+  };
+};
+
+/**
+ * Generates a compressed Base64 encoded string of the current GameState for migration.
  */
 export const generateSoulSignature = (state: GameState): string => {
   try {
-    const json = JSON.stringify(state);
-    // Using btoa for basic encoding. In a production env, we'd use a compression lib.
-    return btoa(encodeURIComponent(json));
+    const stripped = stripState(state);
+    const jsonString = JSON.stringify(stripped);
+    const uint8 = fflate.strToU8(jsonString);
+    const compressed = fflate.zlibSync(uint8, { level: 9 });
+    
+    // Convert to base64 safely
+    let binary = '';
+    const len = compressed.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(compressed[i]);
+    }
+    return `v2_${btoa(binary)}`;
   } catch (e) {
     console.error("Failed to manifest Soul Signature", e);
     return "";
@@ -29,13 +89,29 @@ export const generateSoulSignature = (state: GameState): string => {
 /**
  * Parses a Soul Signature back into a GameState object.
  */
-export const parseSoulSignature = (signature: string): GameState | null => {
+export const parseSoulSignature = (signature: string, defaultState: GameState): GameState | null => {
   try {
-    const json = decodeURIComponent(atob(signature));
-    const parsed = JSON.parse(json);
-    // Basic validation: Check for essential keys
-    if (parsed && typeof parsed === 'object' && 'characters' in parsed && 'userAccount' in parsed) {
-      return parsed as GameState;
+    let json: any;
+    
+    if (signature.startsWith('v2_')) {
+      const b64 = signature.substring(3);
+      const binaryString = atob(b64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const decompressed = fflate.unzlibSync(bytes);
+      const jsonString = fflate.strFromU8(decompressed);
+      json = JSON.parse(jsonString);
+    } else {
+      // Legacy uncompressed format
+      const jsonString = decodeURIComponent(atob(signature));
+      json = JSON.parse(jsonString);
+    }
+
+    if (json && typeof json === 'object') {
+      return hydrateState(json, defaultState);
     }
     return null;
   } catch (e) {
@@ -56,7 +132,6 @@ const getApiKey = () => {
   }
 };
 
-// Fix: Removed extra closing parenthesis from getAiClient initialization
 /**
  * Creates a fresh AI instance. 
  */

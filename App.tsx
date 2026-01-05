@@ -16,7 +16,7 @@ import ArmoryScreen from './components/ArmoryScreen';
 import ArchetypesScreen from './components/ArchetypesScreen';
 import TutorialScreen from './components/TutorialScreen';
 import AccountPortal from './components/AccountPortal';
-import MatchmakingModal from './components/MatchmakingModal';
+import NexusScreen from './components/NexusScreen';
 import SpellsScreen from './components/SpellsScreen';
 import { generateItemDetails, safeId } from './geminiService';
 
@@ -26,7 +26,6 @@ const STORAGE_KEY = 'mythos_engine_v3';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
-  const [showMatchmaking, setShowMatchmaking] = useState(false);
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
 
@@ -58,8 +57,6 @@ const App: React.FC = () => {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        
-        // Ensure critical arrays and objects exist to avoid crashes
         return {
           ...DEFAULT_STATE,
           ...parsed,
@@ -68,8 +65,6 @@ const App: React.FC = () => {
           customArchetypes: Array.isArray(parsed.customArchetypes) ? parsed.customArchetypes : [],
           party: Array.isArray(parsed.party) ? parsed.party : [],
           armory: Array.isArray(parsed.armory) ? parsed.armory : INITIAL_ITEMS,
-          mentors: MENTORS, // Always use fresh mentor data
-          bestiary: INITIAL_MONSTERS, // Always use fresh bestiary data
         } as GameState;
       }
     } catch (e) {
@@ -79,11 +74,7 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-      console.error("Failed to save state to localStorage:", e);
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
 
   useEffect(() => {
@@ -95,14 +86,12 @@ const App: React.FC = () => {
         if (typeof Peer !== 'undefined') {
           const peer = new Peer();
           peerRef.current = peer;
-
           peer.on('open', (id: string) => {
             setState(prev => ({
               ...prev,
               userAccount: { ...prev.userAccount, peerId: id }
             }));
           });
-
           peer.on('connection', (conn: any) => {
             handleIncomingConnection(conn);
           });
@@ -176,19 +165,9 @@ const App: React.FC = () => {
   const updateCharacter = (id: string, updates: Partial<Character>) => {
     setState(prev => {
       const char = prev.characters.find(c => c.id === id);
-      if (char) {
-        return {
-          ...prev,
-          characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c)
-        };
-      }
+      if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c) };
       const mentor = prev.mentors.find(m => m.id === id);
-      if (mentor) {
-        return {
-          ...prev,
-          mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
-        };
-      }
+      if (mentor) return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m) };
       return prev;
     });
   };
@@ -206,13 +185,9 @@ const App: React.FC = () => {
       
       let spellSlotsUpdate = {};
       const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archName as Archetype) || (archInfo.spells && archInfo.spells.length > 0);
-      
       if (isCaster) {
         const slots = SPELL_SLOT_PROGRESSION[newLevel] || {};
-        spellSlotsUpdate = {
-          maxSpellSlots: slots,
-          spellSlots: slots
-        };
+        spellSlotsUpdate = { maxSpellSlots: slots, spellSlots: slots };
       }
 
       updateCharacter(id, {
@@ -257,13 +232,10 @@ const App: React.FC = () => {
       };
       setState(prev => ({ ...prev, armory: [...prev.armory, item!] }));
     }
-    
     if (item && state.party.length > 0) {
       const recipientId = state.party[0];
       const recipient = state.characters.find(c => c.id === recipientId) || state.mentors.find(m => m.id === recipientId);
-      if (recipient) {
-        updateCharacter(recipientId, { inventory: [...recipient.inventory, item] });
-      }
+      if (recipient) updateCharacter(recipientId, { inventory: [...recipient.inventory, item] });
     }
   };
 
@@ -272,16 +244,8 @@ const App: React.FC = () => {
       const newArches = [...prev.customArchetypes.filter(a => a.name !== arch.name), arch];
       const newItems = arch.themedItems || [];
       const updatedArmory = [...prev.armory];
-      newItems.forEach(item => {
-        if (!updatedArmory.some(i => i.name === item.name)) {
-          updatedArmory.push(item);
-        }
-      });
-      return {
-        ...prev,
-        customArchetypes: newArches,
-        armory: updatedArmory
-      };
+      newItems.forEach(item => { if (!updatedArmory.some(i => i.name === item.name)) updatedArmory.push(item); });
+      return { ...prev, customArchetypes: newArches, armory: updatedArmory };
     });
     broadcast('SHARE_ARCHETYPE', arch);
   };
@@ -294,17 +258,11 @@ const App: React.FC = () => {
       history: [{ role: 'system', content: `Campaign Started: ${title}. ${prompt}`, timestamp: Date.now() }],
       participants: state.party
     };
-    setState(prev => ({
-      ...prev,
-      campaigns: [...prev.campaigns, newCampaign],
-      activeCampaignId: newCampaign.id
-    }));
+    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: newCampaign.id }));
     setActiveTab('Chronicles');
   };
 
-  const activeCampaign = useMemo(() => 
-    state.campaigns.find(c => c.id === state.activeCampaignId) || null
-  , [state.campaigns, state.activeCampaignId]);
+  const activeCampaign = useMemo(() => state.campaigns.find(c => c.id === state.activeCampaignId) || null, [state.campaigns, state.activeCampaignId]);
 
   if (!state.userAccount.isLoggedIn) {
     return <AccountPortal onLogin={(name) => setState(p => ({...p, userAccount: {...p.userAccount, username: name, isLoggedIn: true}}))} />;
@@ -312,24 +270,33 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden">
+      {/* Mobile Top Header */}
+      <header className="md:hidden flex justify-between items-center px-4 py-3 bg-[#0c0a09] border-b border-red-900/40 z-[90]">
+        <h1 className="text-lg font-cinzel font-bold text-[#a16207]">Mythos Engine</h1>
+        <div 
+          onClick={() => setActiveTab('Nexus')}
+          className={`flex items-center gap-2 px-2 py-1 rounded-full text-[8px] font-bold transition-all cursor-pointer ${
+            state.multiplayer.connectedPeers.length > 0 ? 'bg-green-900/20 text-green-500 border border-green-500/30' : 'bg-red-900/20 text-red-500 border border-red-900/30'
+          }`}
+        >
+          <div className={`w-1.5 h-1.5 rounded-full ${state.multiplayer.connectedPeers.length > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          {state.multiplayer.connectedPeers.length > 0 ? 'SOULS BONDED' : 'ALONE'}
+        </div>
+      </header>
+
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
         userAccount={state.userAccount} 
         multiplayer={state.multiplayer}
-        onMatchmaking={() => setShowMatchmaking(true)}
       />
       
       <main className="flex-1 relative overflow-y-auto bg-leather">
-        {/* pb-20 on mobile to clear the fixed bottom nav */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-full pb-20 md:pb-8">
           {activeTab === 'Fellowship' && (
             <FellowshipScreen 
               characters={state.characters} 
-              onAdd={(c) => {
-                setState(p => ({ ...p, characters: [...p.characters, c] }));
-                broadcast('ADD_CHARACTER', c);
-              }} 
+              onAdd={(c) => { setState(p => ({ ...p, characters: [...p.characters, c] })); broadcast('ADD_CHARACTER', c); }} 
               onDelete={(id) => setState(p => ({...p, characters: p.characters.filter(c => c.id !== id)}))}
               onUpdate={updateCharacter}
               mentors={state.mentors}
@@ -347,12 +314,7 @@ const App: React.FC = () => {
               characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
               onMessage={(msg) => {
                 if (!activeCampaign) return;
-                setState(prev => ({
-                  ...prev,
-                  campaigns: prev.campaigns.map(c => 
-                    c.id === activeCampaign.id ? { ...c, history: [...c.history, msg] } : c
-                  )
-                }));
+                setState(prev => ({ ...prev, campaigns: prev.campaigns.map(c => c.id === activeCampaign.id ? { ...c, history: [...c.history, msg] } : c) }));
                 broadcast('NEW_MESSAGE', msg);
               }}
               onCreateCampaign={createCampaign}
@@ -364,6 +326,15 @@ const App: React.FC = () => {
             />
           )}
           {activeTab === 'Tactics' && <TacticalMap />}
+          {activeTab === 'Nexus' && (
+            <NexusScreen 
+              peerId={state.userAccount.peerId || ''}
+              connectedPeers={state.multiplayer.connectedPeers}
+              isHost={state.multiplayer.isHost}
+              onConnect={connectToSoul}
+              username={state.userAccount.username}
+            />
+          )}
           {activeTab === 'Archetypes' && (
             <ArchetypesScreen 
               customArchetypes={state.customArchetypes} 
@@ -404,15 +375,6 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
-
-      {showMatchmaking && (
-        <MatchmakingModal 
-          onClose={() => setShowMatchmaking(false)} 
-          onConnect={connectToSoul} 
-          peerId={state.userAccount.peerId || 'Aetherizing...'}
-          connectedPeers={state.multiplayer.connectedPeers}
-        />
-      )}
     </div>
   );
 };

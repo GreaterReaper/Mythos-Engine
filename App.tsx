@@ -67,7 +67,7 @@ const App: React.FC = () => {
 
   // Background Pre-fetching for Shop
   useEffect(() => {
-    if (activeTab === 'Tavern' && !(state as any).currentTavernShop && !isShopLoading) {
+    if (activeTab === 'Tavern' && !state.currentTavernShop && !isShopLoading) {
       handleOpenShop(true); // Pre-fetch silently
     }
   }, [activeTab]);
@@ -352,9 +352,8 @@ const App: React.FC = () => {
   };
 
   const handleOpenShop = async (preFetch: boolean = false) => {
-    // If shop already exists and we're not pre-fetching, just open the modal (happens automatically via state)
     const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
-    if (!preFetch && (activeCampaign?.activeShop || (state as any).currentTavernShop)) return;
+    if (!preFetch && (activeCampaign?.activeShop || state.currentTavernShop)) return;
 
     setIsShopLoading(true);
     const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
@@ -384,16 +383,18 @@ const App: React.FC = () => {
     const buyer = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
     if (!buyer) return;
 
+    const itemCost = shopItem.cost || { aurels: 0, shards: 0, ichor: 0 };
+
     // Deduct cost
     const updatedCurrency: Currency = {
-      aurels: buyer.currency.aurels - shopItem.cost.aurels,
-      shards: buyer.currency.shards - shopItem.cost.shards,
-      ichor: buyer.currency.ichor - shopItem.cost.ichor,
+      aurels: (buyer.currency.aurels || 0) - (itemCost.aurels || 0),
+      shards: (buyer.currency.shards || 0) - (itemCost.shards || 0),
+      ichor: (buyer.currency.ichor || 0) - (itemCost.ichor || 0),
     };
 
     // Strip cost for character inventory and global armory
     const { cost, ...standardItem } = shopItem;
-    const newInventory = [...buyer.inventory, standardItem];
+    const newInventory = [...(buyer.inventory || []), standardItem];
 
     // Update character
     updateCharacter(buyerId, { 
@@ -547,7 +548,6 @@ const App: React.FC = () => {
 
   const activeCampaign = useMemo(() => state.campaigns.find(c => c.id === state.activeCampaignId) || null, [state.campaigns, state.activeCampaignId]);
   
-  // Tactical visibility logic: Only show if an active campaign has combat manifested.
   const showTacticsTab = activeCampaign?.isCombatActive || false;
 
   const handleSetCombatActive = (active: boolean) => {
@@ -595,6 +595,8 @@ const App: React.FC = () => {
     return <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />;
   }
 
+  const currentShop = activeCampaign?.activeShop || state.currentTavernShop;
+
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] selection:bg-red-900 overflow-hidden md:flex-row">
       <header className="z-[90] flex items-center justify-between border-b border-red-900/40 bg-[#0c0a09] px-4 py-3 md:hidden">
@@ -620,9 +622,9 @@ const App: React.FC = () => {
       
       <main className="relative flex-1 overflow-y-auto bg-leather">
         <div className="mx-auto min-h-full max-w-7xl p-4 pb-20 md:p-8 md:pb-8">
-          {(activeCampaign?.activeShop || (state as any).currentTavernShop) && (
+          {currentShop && (
             <ShopModal 
-              shop={activeCampaign?.activeShop || (state as any).currentTavernShop}
+              shop={currentShop}
               characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
               onClose={() => {
                 if (activeCampaign) {

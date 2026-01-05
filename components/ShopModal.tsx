@@ -4,23 +4,32 @@ import { Shop, ShopItem, Character, Currency } from '../types';
 import Tooltip from './Tooltip';
 
 interface ShopModalProps {
-  shop: Shop;
+  shop: Shop | null | undefined;
   characters: Character[];
   onClose: () => void;
   onBuy: (item: ShopItem, buyerId: string) => void;
 }
 
 const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy }) => {
+  // Guard against null shop object
+  if (!shop) return null;
+
   // Use the first character as the primary wallet, or a placeholder if empty
   const primaryBuyer = characters.length > 0 ? characters[0] : null;
 
-  const canAfford = (buyer: Character, cost: Currency) => {
-    return (buyer.currency.aurels >= (cost.aurels || 0)) &&
-           (buyer.currency.shards >= (cost.shards || 0)) &&
-           (buyer.currency.ichor >= (cost.ichor || 0));
+  const canAfford = (buyer: Character, cost: Partial<Currency>) => {
+    if (!buyer || !buyer.currency) return false;
+    // Defensive access to cost properties
+    const aurelCost = cost?.aurels || 0;
+    const shardCost = cost?.shards || 0;
+    const ichorCost = cost?.ichor || 0;
+
+    return (buyer.currency.aurels >= aurelCost) &&
+           (buyer.currency.shards >= shardCost) &&
+           (buyer.currency.ichor >= ichorCost);
   };
 
-  const getRarityColor = (rarity: string) => {
+  const getRarityColor = (rarity: string | undefined) => {
     switch (rarity) {
       case 'Legendary': return 'text-orange-500 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]';
       case 'Epic': return 'text-purple-500 border-purple-500';
@@ -41,8 +50,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
         </button>
 
         <div className="border-b border-red-900 pb-4">
-          <h2 className="text-3xl font-cinzel text-gold">{shop.merchantName}</h2>
-          <p className="text-xs text-gray-500 italic mt-1">"{shop.merchantAura}"</p>
+          <h2 className="text-3xl font-cinzel text-gold">{shop.merchantName || "Spectral Merchant"}</h2>
+          <p className="text-xs text-gray-500 italic mt-1">"{shop.merchantAura || "An unsettling presence fills the air."}"</p>
         </div>
 
         {/* Currency Display */}
@@ -55,15 +64,15 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
             <div className="flex gap-6">
               <div className="text-center">
                 <p className="text-[8px] text-gold uppercase font-bold">Aurels</p>
-                <p className="text-sm font-black text-white">{primaryBuyer.currency.aurels || 0}</p>
+                <p className="text-sm font-black text-white">{primaryBuyer.currency?.aurels || 0}</p>
               </div>
               <div className="text-center">
                 <p className="text-[8px] text-purple-400 uppercase font-bold">Shards</p>
-                <p className="text-sm font-black text-white">{primaryBuyer.currency.shards || 0}</p>
+                <p className="text-sm font-black text-white">{primaryBuyer.currency?.shards || 0}</p>
               </div>
               <div className="text-center">
                 <p className="text-[8px] text-red-500 uppercase font-bold">Ichor</p>
-                <p className="text-sm font-black text-white">{primaryBuyer.currency.ichor || 0}</p>
+                <p className="text-sm font-black text-white">{primaryBuyer.currency?.ichor || 0}</p>
               </div>
             </div>
           </div>
@@ -74,8 +83,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {shop.inventory.map((item) => {
-            const affordable = primaryBuyer && canAfford(primaryBuyer, item.cost);
+          {(shop.inventory || []).map((item) => {
+            if (!item) return null;
+            
+            // Safe access to cost
+            const itemCost = item.cost || { aurels: 0, shards: 0, ichor: 0 };
+            const affordable = primaryBuyer && canAfford(primaryBuyer, itemCost);
+            
             const statsString = item.stats ? Object.entries(item.stats)
               .filter(([_, v]) => v !== undefined && v !== null && v !== 0)
               .map(([k, v]) => `${k.toUpperCase()}: ${v}`)
@@ -84,31 +98,32 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
             const isCompatible = primaryBuyer && (
               !item.archetypes || 
               item.archetypes.length === 0 || 
-              item.archetypes.some(a => a.toLowerCase() === (primaryBuyer.archetype as string).toLowerCase())
+              item.archetypes.some(a => a && a.toLowerCase() === (primaryBuyer.archetype as string).toLowerCase())
             );
 
             return (
               <div key={item.id} className="p-4 bg-black/60 border border-red-900/20 group hover:border-gold/50 transition-all flex flex-col justify-between gap-4">
                 <div className="flex gap-4">
                   <div className={`w-12 h-12 border-2 flex items-center justify-center text-lg font-black shrink-0 ${getRarityColor(item.rarity)}`}>
-                    {item.name[0]}
+                    {(item.name || "I")[0]}
                   </div>
                   <div className="min-w-0 flex-1">
                     <Tooltip 
-                      title={item.name} 
-                      subTitle={`${item.rarity} ${item.type}`} 
-                      content={`${item.description}${statsString ? `\n\n${statsString}` : ''}`}
+                      title={item.name || "Nameless Artifact"} 
+                      subTitle={`${item.rarity || 'Common'} ${item.type || 'Utility'}`} 
+                      content={`${item.description || 'A mysterious item found in the void.'}${statsString ? `\n\n${statsString}` : ''}`}
                     >
                       <h4 className="font-cinzel text-gold text-sm truncate cursor-help hover:text-white transition-colors">
-                        {item.name}
+                        {item.name || "Unknown Item"}
                       </h4>
                     </Tooltip>
-                    <p className="text-[10px] text-gray-500 truncate italic">{item.description}</p>
+                    <p className="text-[10px] text-gray-500 truncate italic">{item.description || "No description provided."}</p>
                     
                     {/* Class Compatibility Row */}
                     <div className="mt-2 flex flex-wrap gap-1">
                       {item.archetypes && item.archetypes.length > 0 ? (
                         item.archetypes.map(a => {
+                          if (!a) return null;
                           const resonates = primaryBuyer && (a.toLowerCase() === (primaryBuyer.archetype as string).toLowerCase());
                           return (
                             <span 
@@ -134,9 +149,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
 
                 <div className="flex justify-between items-center pt-2 border-t border-red-900/10">
                   <div className="flex gap-3 items-center">
-                    {(item.cost.aurels || 0) > 0 && <span className="text-[10px] text-gold font-bold">● {item.cost.aurels}</span>}
-                    {(item.cost.shards || 0) > 0 && <span className="text-[10px] text-purple-400 font-bold">◆ {item.cost.shards}</span>}
-                    {(item.cost.ichor || 0) > 0 && <span className="text-[10px] text-red-500 font-bold">▲ {item.cost.ichor}</span>}
+                    {(itemCost.aurels || 0) > 0 && <span className="text-[10px] text-gold font-bold">● {itemCost.aurels}</span>}
+                    {(itemCost.shards || 0) > 0 && <span className="text-[10px] text-purple-400 font-bold">◆ {itemCost.shards}</span>}
+                    {(itemCost.ichor || 0) > 0 && <span className="text-[10px] text-red-500 font-bold">▲ {itemCost.ichor}</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     {affordable && !isCompatible && (

@@ -182,4 +182,5 @@ export interface GameState {
     isHost: boolean;
     connectedPeers: string[];
   };
+  currentTavernShop?: Shop | null; // Added for explicit safety
 }

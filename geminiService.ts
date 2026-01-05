@@ -183,9 +183,14 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
     const parsed = JSON.parse(response.text || '{}');
     return {
       id: safeId(),
-      merchantName: parsed.merchantName,
-      merchantAura: parsed.merchantAura,
-      inventory: parsed.inventory.map((i: any) => ({ ...i, id: safeId() }))
+      merchantName: parsed.merchantName || "Unseen Merchant",
+      merchantAura: parsed.merchantAura || "Cold and distant.",
+      inventory: (parsed.inventory || []).map((i: any) => ({ 
+        ...i, 
+        id: safeId(),
+        cost: i.cost || { aurels: 0, shards: 0, ichor: 0 },
+        stats: i.stats || {}
+      }))
     };
   } catch (error) {
     console.error("Failed to manifest shop:", error);

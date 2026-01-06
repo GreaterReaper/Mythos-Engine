@@ -37,6 +37,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPartySidebar, setShowPartySidebar] = useState(false);
+  const [timeUntilReset, setTimeUntilReset] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [newTitle, setNewTitle] = useState('');
@@ -47,6 +48,28 @@ const DMWindow: React.FC<DMWindowProps> = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [campaign?.history, isLoading]);
+
+  // Server Reset Timer Logic
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      const nextReset = new Date();
+      nextReset.setUTCHours(24, 0, 0, 0); 
+      const diff = nextReset.getTime() - now.getTime();
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    };
+
+    const timer = setInterval(() => {
+      setTimeUntilReset(calculateTimeRemaining());
+    }, 1000);
+
+    setTimeUntilReset(calculateTimeRemaining());
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (campaign && campaign.history.length === 1 && isHost && !isLoading) {
@@ -224,7 +247,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
           <div className="p-4 border-b-2 border-red-900/60 flex justify-between items-center bg-black/40 backdrop-blur shrink-0">
             <div className="flex items-center gap-4 min-w-0">
               <button onClick={onQuitCampaign} className="text-red-700 hover:text-red-500 font-black text-3xl h-10 px-2 flex items-center transition-transform hover:scale-110">×</button>
-              <h3 className="font-cinzel text-gold text-lg truncate font-black tracking-[0.1em]">{campaign.title}</h3>
+              <div className="flex flex-col min-w-0">
+                <h3 className="font-cinzel text-gold text-sm md:text-lg truncate font-black tracking-[0.1em]">{campaign.title}</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                   <div className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                   <span className="text-[8px] font-mono text-amber-600/80 font-bold uppercase tracking-tighter">Cycle Reset: {timeUntilReset}</span>
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-3">
                {campaign.isCombatActive && <span className="hidden sm:inline-block text-[9px] bg-red-900 text-white px-3 py-1 animate-pulse font-black rounded-sm border border-gold/30">WAR IN PROGRESS</span>}
@@ -319,7 +348,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
           )}
         </div>
 
-        {/* Desktop Sidebar (Unchanged but ensuring contrast) */}
+        {/* Desktop Sidebar */}
         <div className="hidden md:flex flex-col w-80 bg-black/80 border-l-2 border-red-900/50 overflow-y-auto custom-scrollbar shrink-0 shadow-2xl">
           <div className="p-6 border-b border-red-900/30 bg-red-900/5">
              <h4 className="text-sm font-cinzel text-gold uppercase font-black tracking-widest">Active Fellowship</h4>

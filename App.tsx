@@ -65,12 +65,76 @@ const App: React.FC = () => {
     }
   }, [state]);
 
-  // Background Pre-fetching for Shop
+  // Dynamic Mentor Scaling Logic (Level & Gear)
   useEffect(() => {
-    if (activeTab === 'Tavern' && !state.currentTavernShop && !isShopLoading) {
-      handleOpenShop(true); // Pre-fetch silently
+    const localChars = state.characters.filter(c => c.ownerName === state.userAccount.username);
+    if (localChars.length === 0) return;
+
+    const avgLevel = Math.max(5, Math.ceil(localChars.reduce((acc, c) => acc + c.level, 0) / localChars.length));
+    
+    const mentorsInParty = state.mentors.filter(m => state.party.includes(m.id));
+    let needsUpdate = false;
+    
+    const updatedMentors = state.mentors.map(m => {
+      if (state.party.includes(m.id) && m.level !== avgLevel) {
+        needsUpdate = true;
+        const archInfo = ARCHETYPE_INFO[m.archetype as Archetype];
+        const hpDie = archInfo?.hpDie || 8;
+        const conMod = Math.floor(((m.stats.con || 10) - 10) / 2);
+        
+        const newMaxHp = hpDie + conMod + ((avgLevel - 1) * (Math.floor(hpDie/2) + 1 + conMod));
+        const slots = SPELL_SLOT_PROGRESSION[avgLevel] || {};
+
+        const gearBonus = Math.floor(avgLevel / 4);
+        const originalMentor = MENTORS.find(init => init.id === m.id);
+        
+        const updatedInventory = (originalMentor?.inventory || m.inventory).map(item => {
+          if (item.type === 'Weapon' || item.type === 'Armor') {
+            const stats = { ...item.stats };
+            let updatedName = item.name.split(' +')[0];
+            
+            if (gearBonus > 0) {
+              updatedName += ` +${gearBonus}`;
+              if (item.type === 'Armor' && stats.ac !== undefined) {
+                stats.ac = (INITIAL_ITEMS.find(i => i.id === item.id.split('-scaled')[0])?.stats?.ac || stats.ac) + gearBonus;
+              }
+              const primaryStat = m.archetype === Archetype.Archer || m.archetype === Archetype.Thief ? 'dex' : 'str';
+              if (item.type === 'Weapon') {
+                 stats[primaryStat as keyof Stats] = (stats[primaryStat as keyof Stats] || 0) + gearBonus;
+              }
+            }
+
+            return { ...item, name: updatedName, stats };
+          }
+          return item;
+        });
+
+        const attributeBonus = Math.floor((avgLevel - 1) / 4);
+        const baseStats = originalMentor?.stats || m.stats;
+        const scaledStats = { ...baseStats };
+        (Object.keys(scaledStats) as Array<keyof Stats>).forEach(key => {
+          scaledStats[key] = (baseStats[key] || 10) + attributeBonus;
+        });
+
+        return {
+          ...m,
+          level: avgLevel,
+          maxHp: newMaxHp,
+          currentHp: newMaxHp,
+          stats: scaledStats,
+          inventory: updatedInventory,
+          equippedIds: updatedInventory.map(i => i.id),
+          spellSlots: slots,
+          maxSpellSlots: slots
+        };
+      }
+      return m;
+    });
+
+    if (needsUpdate) {
+      setState(prev => ({ ...prev, mentors: updatedMentors }));
     }
-  }, [activeTab]);
+  }, [state.party, state.characters]);
 
   // Soul Weaver Logic
   useEffect(() => {
@@ -156,7 +220,6 @@ const App: React.FC = () => {
         }
       }));
 
-      // Send local identity and current characters to ensure global roster sync
       conn.send({ 
         type: 'IDENTITY', 
         payload: { 
@@ -187,7 +250,6 @@ const App: React.FC = () => {
               ? prev.userAccount.friends.map(f => f.name === data.payload.username ? updatedFriend : f)
               : [...prev.userAccount.friends, updatedFriend];
             
-            // Integrate remote characters into local roster
             const remoteChars = (data.payload.characters || []).map((c: Character) => ({
               ...c,
               ownerName: data.payload.username
@@ -285,6 +347,44 @@ const App: React.FC = () => {
     broadcast('UPDATE_CHARACTER', { id, updates });
   };
 
+  const handleUpgradeItem = (characterId: string, itemId: string, cost: Currency) => {
+    const character = [...state.characters, ...state.mentors].find(c => c.id === characterId);
+    if (!character) return;
+
+    const itemIndex = character.inventory.findIndex(i => i.id === itemId);
+    if (itemIndex === -1) return;
+
+    const item = character.inventory[itemIndex];
+    const currentPlus = parseInt(item.name.match(/\+(\d+)/)?.[1] || '0');
+    const newPlus = currentPlus + 1;
+    const cleanName = item.name.split(' +')[0];
+    const newName = `${cleanName} +${newPlus}`;
+
+    const updatedStats = { ...item.stats };
+    if (item.type === 'Armor' && updatedStats.ac !== undefined) {
+      updatedStats.ac += 1;
+    } else if (item.type === 'Weapon') {
+      const primary = character.archetype === Archetype.Archer || character.archetype === Archetype.Thief ? 'dex' : 'str';
+      updatedStats[primary as keyof Stats] = (updatedStats[primary as keyof Stats] || 0) + 1;
+    }
+
+    const updatedItem = { ...item, name: newName, stats: updatedStats };
+    const newInventory = [...character.inventory];
+    newInventory[itemIndex] = updatedItem;
+
+    const currentCurrency = character.currency || { aurels: 0, shards: 0, ichor: 0 };
+    const newCurrency: Currency = {
+      aurels: (currentCurrency.aurels || 0) - (cost.aurels || 0),
+      shards: (currentCurrency.shards || 0) - (cost.shards || 0),
+      ichor: (currentCurrency.ichor || 0) - (cost.ichor || 0)
+    };
+
+    updateCharacter(characterId, { 
+      inventory: newInventory, 
+      currency: newCurrency 
+    });
+  };
+
   const handleLevelUp = (id: string) => {
     const allChars: Character[] = [...state.characters, ...state.mentors];
     const char = allChars.find(c => c.id === id);
@@ -341,10 +441,11 @@ const App: React.FC = () => {
     state.party.forEach(id => {
       const char = [...state.characters, ...state.mentors].find(c => c.id === id);
       if (char) {
+        const charCurr = char.currency || { aurels: 0, shards: 0, ichor: 0 };
         const updatedVault: Currency = {
-          aurels: (char.currency.aurels || 0) + (curr.aurels || 0),
-          shards: (char.currency.shards || 0) + (curr.shards || 0),
-          ichor: (char.currency.ichor || 0) + (curr.ichor || 0),
+          aurels: (charCurr.aurels || 0) + (curr.aurels || 0),
+          shards: (charCurr.shards || 0) + (curr.shards || 0),
+          ichor: (charCurr.ichor || 0) + (curr.ichor || 0),
         };
         updateCharacter(id, { currency: updatedVault });
       }
@@ -384,25 +485,21 @@ const App: React.FC = () => {
     if (!buyer) return;
 
     const itemCost = shopItem.cost || { aurels: 0, shards: 0, ichor: 0 };
-
-    // Deduct cost
+    const buyerCurr = buyer.currency || { aurels: 0, shards: 0, ichor: 0 };
     const updatedCurrency: Currency = {
-      aurels: (buyer.currency.aurels || 0) - (itemCost.aurels || 0),
-      shards: (buyer.currency.shards || 0) - (itemCost.shards || 0),
-      ichor: (buyer.currency.ichor || 0) - (itemCost.ichor || 0),
+      aurels: (buyerCurr.aurels || 0) - (itemCost.aurels || 0),
+      shards: (buyerCurr.shards || 0) - (itemCost.shards || 0),
+      ichor: (buyerCurr.ichor || 0) - (itemCost.ichor || 0),
     };
 
-    // Strip cost for character inventory and global armory
     const { cost, ...standardItem } = shopItem;
     const newInventory = [...(buyer.inventory || []), standardItem];
 
-    // Update character
     updateCharacter(buyerId, { 
       currency: updatedCurrency,
       inventory: newInventory 
     });
 
-    // Populate armory if unique
     setState(prev => {
       const alreadyInArmory = prev.armory.some(i => i.name.toLowerCase() === standardItem.name.toLowerCase());
       if (!alreadyInArmory) {
@@ -501,7 +598,6 @@ const App: React.FC = () => {
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
       const context = "A new threat emerges.";
       const generated = await generateMonsterDetails(name, context, Math.ceil(avgLevel));
-      // Fixed: Added missing required stats property for Monster object creation
       const newMonster: Monster = {
         id: safeId(),
         name,
@@ -645,8 +741,12 @@ const App: React.FC = () => {
           {activeTab === 'Tavern' && (
             <TavernScreen 
               party={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))}
+              mentors={state.mentors}
+              partyIds={state.party}
+              onToggleParty={handleToggleParty}
               onLongRest={handleLongRest}
               onOpenShop={() => handleOpenShop(false)}
+              onUpgradeItem={handleUpgradeItem}
               isHost={state.multiplayer.isHost}
               isShopLoading={isShopLoading}
             />

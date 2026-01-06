@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo, Currency } from '../types';
+import { Character, Race, Archetype, Stats, Ability, Item, ArchetypeInfo, Currency, Role } from '../types';
 import { POINT_BUY_COSTS, RACIAL_BONUSES, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, INITIAL_ITEMS, RECOMMENDED_STATS } from '../constants';
 import { generateCustomClass, safeId, manifestSoulLore } from '../geminiService';
 
@@ -72,6 +72,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
         name: data.name,
         description: data.description,
         hpDie: data.hpDie,
+        role: data.role || 'DPS',
         coreAbilities: data.abilities,
         spells: data.spells,
         themedItems: data.themedItems,
@@ -98,6 +99,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     const conMod = Math.floor((finalStats.con - 10) / 2);
     
     let hpDie = 8;
+    let role: Role = 'DPS';
     let baseAbilities: Ability[] = [];
     let baseSpells: Ability[] = [];
     let inventory: Item[] = [];
@@ -107,6 +109,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
 
     if (customMatch) {
       hpDie = customMatch.hpDie;
+      role = customMatch.role;
       baseAbilities = customMatch.coreAbilities;
       baseSpells = customMatch.spells || [];
       if (customMatch.startingItem) {
@@ -118,6 +121,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       }
     } else if (defaultMatch) {
       hpDie = defaultMatch.hpDie;
+      role = defaultMatch.role;
       baseAbilities = defaultMatch.coreAbilities;
       baseSpells = defaultMatch.spells || [];
       const classGear = INITIAL_ITEMS.filter(i => i.archetypes?.includes(archetype as Archetype));
@@ -135,6 +139,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       gender,
       race,
       archetype,
+      role,
       level: 1,
       exp: 0,
       maxHp: startHp,
@@ -176,7 +181,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
             <p className="text-xs md:text-sm text-gray-400 italic leading-relaxed">{previewClassData.description}</p>
             
             <div className="space-y-6">
-              <h3 className="text-xs font-cinzel text-gold border-b border-gold/20 pb-2 uppercase tracking-widest">Aetheric Manifestations</h3>
+               <div className="flex justify-between items-center border-b border-gold/20 pb-2">
+                 <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Aetheric Manifestations</h3>
+                 <span className="text-[10px] bg-red-900 text-white px-2 py-0.5 rounded-sm font-black uppercase">{previewClassData.role}</span>
+               </div>
               <div className="space-y-3">
                 {previewClassData.coreAbilities.map((ab, i) => (
                   <div key={i} className="bg-red-900/10 p-3 border-l-2 border-red-900">

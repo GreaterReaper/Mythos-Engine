@@ -1,5 +1,5 @@
 
-import { Race, Archetype, Stats, Ability, Character, Monster, Item } from './types';
+import { Race, Archetype, Stats, Ability, Character, Monster, Item, Role } from './types';
 
 export const STORAGE_PREFIX = 'mythos_soul_';
 
@@ -92,17 +92,23 @@ export const SPELL_LIBRARY: Record<string, Ability[]> = {
     { name: 'Power Word Kill', description: 'Compel one creature with 100 HP or less to die instantly.', type: 'Spell', levelReq: 17, baseLevel: 9 }
   ],
   [Archetype.BloodArtist]: [
+    { name: 'Life Tap', description: 'Drain the essence of a foe. Deal 1d10 necrotic damage and gain half as temp HP.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Hemoplague', description: 'Infect a target. They take 2d6 necrotic damage each turn. If they die while infected, you regain 1d10 HP.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Sanguine Shield', description: 'Sacrifice 10 HP to create a barrier that absorbs 30 damage for an ally.', type: 'Spell', levelReq: 3, baseLevel: 2 },
+    { name: 'Coagulate', description: 'Halt the blood flow of a foe. Target must make a CON save or be Paralyzed for 1 round.', type: 'Spell', levelReq: 3, baseLevel: 2 },
+    { name: 'Transfusion', description: 'Transfer thy own vitality to another. Spend up to 20 HP to heal an ally for double.', type: 'Spell', levelReq: 5, baseLevel: 3 },
     { name: 'Boil Blood', description: 'Force a creature to make a CON save or take 8d6 fire damage as their own blood boils.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Heartseeker', description: 'A needle of blood pierces the target. Deals 4d10 piercing damage; crit range 18-20.', type: 'Spell', levelReq: 7, baseLevel: 4 },
     { name: 'Vessel of Agony', description: 'Transfer all status conditions from an ally to yourself, then deal 4d10 damage to a nearby foe.', type: 'Spell', levelReq: 7, baseLevel: 4 },
-    { name: 'Exsanguinate', description: 'Rip the fluid from a creature. Deals 10d10 damage; half as HP to your party.', type: 'Spell', levelReq: 13, baseLevel: 7 }
+    { name: 'Crimson Veil', description: 'Become a mist of blood. Gain resistance to all damage and move through objects for 1 turn.', type: 'Spell', levelReq: 9, baseLevel: 5 },
+    { name: 'Exsanguinate', description: 'Rip the fluid from a creature. Deals 10d10 damage; half as HP to your party.', type: 'Spell', levelReq: 13, baseLevel: 7 },
+    { name: 'Gore Cascade', description: 'The Engine manifests a storm of razor-blood. All foes in 60ft take 20d6 slashing damage.', type: 'Spell', levelReq: 17, baseLevel: 9 }
   ]
 };
 
-export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string; coreAbilities: Ability[]; spells?: Ability[] }> = {
+export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; description: string; coreAbilities: Ability[]; spells?: Ability[] }> = {
   [Archetype.Archer]: {
-    hpDie: 8, description: 'Precision masters who dominate from afar. They excel at grounding flying threats.',
+    hpDie: 8, role: 'DPS', description: 'Precision masters who dominate from afar. They excel at grounding flying threats.',
     coreAbilities: [
       { name: 'Sky-Splitter', description: 'Ignore disadvantage against long-range or flying targets. Deal +1d6 to airborne foes.', type: 'Passive', levelReq: 1 },
       { name: 'Void Mark', description: 'Mark a target within 60ft. Your next attack against them has Advantage and deals +1d8 damage.', type: 'Active', levelReq: 1 },
@@ -110,7 +116,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
     ]
   },
   [Archetype.Thief]: {
-    hpDie: 8, description: 'Agile infiltrators who exploit chaos. They move like liquid and strike where the enemy is most vulnerable.',
+    hpDie: 8, role: 'DPS', description: 'Agile infiltrators who exploit chaos. They move like liquid and strike where the enemy is most vulnerable.',
     coreAbilities: [
       { name: 'Lethal Ambush', description: 'Deal +2d6 damage to targets that are Grappled, Prone, or haven\'t acted yet.', type: 'Passive', levelReq: 1 },
       { name: 'Smoke Veil', description: 'Create a 10ft cloud of shadow. You and allies inside are Heavily Obscured.', type: 'Active', levelReq: 1 },
@@ -118,7 +124,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
     ]
   },
   [Archetype.Sorcerer]: {
-    hpDie: 6, description: 'Conduits of raw aetheric destruction. They sacrifice physical durability for power.',
+    hpDie: 6, role: 'DPS', description: 'Conduits of raw aetheric destruction. They sacrifice physical durability for power.',
     coreAbilities: [
       { name: 'Arcane Memory', description: 'Once per day, cast a known spell without consuming a spell slot.', type: 'Passive', levelReq: 1 },
       { name: 'Aetheric Potency', description: 'Add your INT modifier to the damage of any spell that deals damage.', type: 'Passive', levelReq: 1 }
@@ -126,28 +132,28 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
     spells: SPELL_LIBRARY[Archetype.Sorcerer]
   },
   [Archetype.Mage]: {
-    hpDie: 6, description: 'Keepers of the harmonized weave. They focus on restoration, shielding, and amplifying souls.',
+    hpDie: 6, role: 'Support', description: 'Keepers of the harmonized weave. They focus on restoration, shielding, and amplifying souls.',
     coreAbilities: [
       { name: 'Harmonized Aether', description: 'Your single-target buffs can affect one additional adjacent ally automatically.', type: 'Passive', levelReq: 1 }
     ],
     spells: SPELL_LIBRARY[Archetype.Mage]
   },
   [Archetype.Warrior]: {
-    hpDie: 12, description: 'Relentless titans of the front line. They turn their own pain into a weapon of absolute devastation.',
+    hpDie: 12, role: 'Tank', description: 'Relentless titans of the front line. They turn their own pain into a weapon of absolute devastation.',
     coreAbilities: [
       { name: 'Charged Devastation', description: 'Ready a strike. Damage taken before your next turn is added to your next successful hit.', type: 'Active', levelReq: 1 },
       { name: 'Battle Roar', description: 'Nearby enemies must make a WIS save or be Frightened.', type: 'Active', levelReq: 1 }
     ]
   },
   [Archetype.Fighter]: {
-    hpDie: 10, description: 'Unyielding protectors. A Fighter with a shield is a fortress that denies the enemy ground.',
+    hpDie: 10, role: 'Tank', description: 'Unyielding protectors. A Fighter with a shield is a fortress that denies the enemy ground.',
     coreAbilities: [
       { name: 'Shield Bash', description: 'Strike with your shield. Target must succeed on a STR save or be knocked Prone.', type: 'Active', levelReq: 1 },
       { name: 'Shield Fortress', description: 'While wielding a shield, you and all adjacent allies gain +2 AC.', type: 'Passive', levelReq: 1 }
     ]
   },
   [Archetype.DarkKnight]: {
-    hpDie: 10, description: 'Warriors who walk the edge of the abyss. Exclusively masters of the heavy two-handed sword, they siphon vitality and defy death through sheer will.',
+    hpDie: 10, role: 'Tank', description: 'Warriors who walk the edge of the abyss. Exclusively masters of the heavy two-handed sword, they siphon vitality and defy death through sheer will.',
     coreAbilities: [
       { name: 'Living Dead', description: 'Upon dropping to 0 HP, survive for 1 turn. If healed above 0 before turn end, you remain standing.', type: 'Passive', levelReq: 1 },
       { name: 'Shadow Clone', description: 'Manifest a shadow that distracts foes. Grant Disadvantage to the next attack.', type: 'Active', levelReq: 1 }
@@ -155,7 +161,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
     spells: SPELL_LIBRARY[Archetype.DarkKnight]
   },
   [Archetype.Alchemist]: {
-    hpDie: 8, description: 'Masters of volatile compounds and transformative elixirs. They use intellect to bend the laws of chemistry into weapons of war.',
+    hpDie: 8, role: 'Support', description: 'Masters of volatile compounds and transformative elixirs. They use intellect to bend the laws of chemistry into weapons of war.',
     coreAbilities: [
       { name: 'Monster Part Harvester', description: 'After defeating a non-humanoid challenge, you can harvest 1 Unique Part (e.g., Salamander Heart, Drake Scale).', type: 'Passive', levelReq: 1 },
       { name: 'Experimental Transmutation', description: 'During a Short Rest, combine 1 Monster Part and a flask to create a Unique Alchemical Item.', type: 'Active', levelReq: 1 },
@@ -164,7 +170,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
     ]
   },
   [Archetype.BloodArtist]: {
-    hpDie: 10, description: 'Elegant weavers of the life-stream. They view combat as a canvas and blood as the ink, often sacrificing their own vitality to sculpt victory.',
+    hpDie: 10, role: 'Support', description: 'Elegant weavers of the life-stream. They view combat as a canvas and blood as the ink, often sacrificing their own vitality to sculpt victory.',
     coreAbilities: [
       { name: 'Sanguine Link', description: 'Tether two creatures within 30ft. Damage dealt to one is shared with the other.', type: 'Active', levelReq: 1 },
       { name: 'Iron in the Veins', description: 'Your maximum Vitality increases by 2 for every level. You gain Resistance to Slashing damage.', type: 'Passive', levelReq: 1 },
@@ -183,28 +189,20 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'start-hammer', name: 'Iron Maul', description: 'A heavy hammer for crushing skulls and shields.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
   { id: 'start-quill', name: 'Sanguine Quill', description: 'A sharp metallic stylus that draws from the user\'s own veins to write laws of pain upon the air.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+CHA', cha: 1 }, archetypes: [Archetype.BloodArtist] },
   
-  // Uncommon
-  { id: 'un-rapier', name: 'Duelist\'S Rapier', description: 'A needle-thin blade for precise punctures.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Thief, Archetype.Archer] },
-  { id: 'un-mace', name: 'Heavy Flail', description: 'A spiked iron ball on a chain.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d10+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
-  { id: 'un-wand', name: 'Bone Wand', description: 'A wand carved from a sorcerer\'s femur.', type: 'Weapon', rarity: 'Uncommon', stats: { int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
+  // --- ALCHEMICAL CONSUMABLES ---
+  { id: 'potion-heal', name: 'Vitality Elixir', description: 'A glowing red liquid that restores 2d4+2 Hit Points.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'potion-mana', name: 'Aether Draught', description: 'A shimmering blue fluid that restores one Level 1 spell slot.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-acid', name: 'Corrosive Flask', description: 'A volatile green substance that eats through armor and flesh.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d10' }, quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-salamander', name: 'Flask of Salamander', description: 'Crafted from a lizard of fire. Ignites the target, dealing 1d6 fire damage at start of turn for 3 rounds.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d6' }, quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-obsidian', name: 'Obsidian Coating', description: 'Brushed onto armor. Grants +2 AC for 1 hour.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-numbing', name: 'Numbing Solvent', description: 'Inhaled vapor. Grants resistance to bludgeoning/slashing for 3 rounds.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-quicksilver', name: 'Quicksilver Draught', description: 'Doubles movement speed and grants Advantage on DEX saves for 1 minute.', type: 'Utility', rarity: 'Uncommon', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-frostfire', name: 'Frost-Fire Brew', description: 'Deals 2d6 cold and 2d6 fire damage. Target is slowed until next turn.', type: 'Weapon', rarity: 'Rare', stats: { damage: '4d6' }, quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-void', name: 'Void-Mist Bottle', description: 'Creates a 20ft sphere of absolute darkness for 1 minute.', type: 'Utility', rarity: 'Uncommon', quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'flask-dragon', name: 'Dragon-Breath Tincture', description: 'Consumer can breathe a 30ft cone of fire (6d6) as an action once.', type: 'Weapon', rarity: 'Epic', stats: { damage: '6d6' }, quantity: 1, archetypes: [Archetype.Alchemist] },
+  { id: 'potion-fortune', name: 'Liquid Fortune', description: 'A golden oil. The consumer adds 1d4 to their next attack or ability roll.', type: 'Utility', rarity: 'Uncommon', quantity: 1, archetypes: [Archetype.Alchemist] },
 
-  // Rare
-  { id: 'rare-obsidian-blade', name: 'Obsidian Fang', description: 'A blade forged from volcanic glass, eternally sharp.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d10+STR', str: 1 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight, Archetype.Fighter] },
-  { id: 'rare-wind-bow', name: 'Zephyr Bow', description: 'A bow that whispers as arrows fly true on the wind.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d10+DEX', dex: 1 }, archetypes: [Archetype.Archer] },
-  { id: 'rare-soul-dagger', name: 'Ghost Dirk', description: 'Strikes both the flesh and the spirit.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d6+DEX', cha: 1 }, archetypes: [Archetype.Thief] },
-  
-  // Epic
-  { id: 'epic-void-reaver', name: 'Void Reaver', description: 'A massive 2H greatsword forged from obsidian, humming with a dark energy.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d10+STR', con: 2 }, archetypes: [Archetype.DarkKnight, Archetype.Warrior] },
-  { id: 'epic-sun-staff', name: 'Solar Focus', description: 'A staff tipped with a fragment of a placeholder star.', type: 'Weapon', rarity: 'Epic', stats: { wis: 3, cha: 1 }, archetypes: [Archetype.Mage, Archetype.Sorcerer] },
-  { id: 'epic-shadow-claws', name: 'Umbral Talons', description: 'Set of obsidian claws that extend from the user\'s shadows.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d6+DEX', dex: 2 }, archetypes: [Archetype.Thief] },
-
-  // Legendary
-  { id: 'legendary-star-hammer', name: 'Star-Forged Hammer', description: 'Forged in the heart of a dying star.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d6+STR', str: 3, con: 3 }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
-  { id: 'legendary-infinite-string', name: 'Artemis\' Regret', description: 'A bow with a string made of solidified moonlight.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+DEX', dex: 5 }, archetypes: [Archetype.Archer] },
-  { id: 'legendary-void-scepter', name: 'Void-Singer\'s Scepter', description: 'A legendary scepter carved from a frozen nebula. It hums with the sound of collapsing stars.', type: 'Weapon', rarity: 'Legendary', stats: { int: 5, cha: 2 }, archetypes: [Archetype.Sorcerer] },
-  { id: 'legendary-abyssal-greatsword', name: 'Oblivion\'S Edge', description: 'A legendary two-handed greatsword forged from solidified void. Its weight is felt by the souls of those it cleaves.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d10+STR', str: 3, cha: 3 }, archetypes: [Archetype.DarkKnight] },
-
-  // --- ARMOR ---
+  // --- ARMOR & GEAR ---
   { id: 'start-robes', name: 'Apprentice Robes', description: 'Simple linen robes that allow for free movement of aether. Cloth armor.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
   { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist, Archetype.BloodArtist] },
   { id: 'start-plate', name: 'Rusty Plate', description: 'Old, noisy metal armor.', type: 'Armor', rarity: 'Common', stats: { ac: 15 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
@@ -215,19 +213,14 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'rare-shield', name: 'Gilded Aegis', description: 'A shield used by the high guard of Oakhaven.', type: 'Armor', rarity: 'Rare', stats: { ac: 3, wis: 1 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
   { id: 'epic-dread-plate', name: 'Dreadnought Shell', description: 'Armor made from the scales of a shadow drake.', type: 'Armor', rarity: 'Epic', stats: { ac: 19, con: 2 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'legendary-archon-plate', name: 'Celestial Carapace', description: 'Armor said to be worn by the first hero of the Engine.', type: 'Armor', rarity: 'Legendary', stats: { ac: 22, str: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
-  { id: 'legendary-mirror-shield', name: 'Mirror-Glass Bulwark', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror. Passive: Reflects gaze attacks back at foes.', type: 'Armor', rarity: 'Legendary', stats: { ac: 4, wis: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
+  { id: 'legendary-mirror-shield', name: 'Mirror-Glass Bulwark', description: 'A shield polished to a mirror sheen. Passive: Reflects gaze attacks back at foes.', type: 'Armor', rarity: 'Legendary', stats: { ac: 4, wis: 2, cha: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
 
-  // --- UTILITY / CONSUMABLES ---
-  { id: 'potion-heal', name: 'Vitality Elixir', description: 'A glowing red liquid that restores 2d4+2 Hit Points.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
-  { id: 'potion-mana', name: 'Aether Draught', description: 'A shimmering blue fluid that restores one Level 1 spell slot.', type: 'Utility', rarity: 'Common', quantity: 1, archetypes: [Archetype.Alchemist] },
-  { id: 'flask-acid', name: 'Corrosive Flask', description: 'A volatile green substance that eats through armor and flesh.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d10' }, quantity: 1, archetypes: [Archetype.Alchemist] },
-  { id: 'flask-salamander', name: 'Flask of Salamander', description: 'Crafted from a lizard of fire. Ignites the target, dealing 1d6 fire damage at the start of its turn for 3 rounds.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d6' }, quantity: 1, archetypes: [Archetype.Alchemist] },
-  { id: 'potion-fortune', name: 'Liquid Fortune', description: 'A golden oil. The consumer adds 1d4 to their next attack or ability roll.', type: 'Utility', rarity: 'Uncommon', quantity: 1, archetypes: [Archetype.Alchemist] },
+  // --- TRINKETS ---
   { id: 'un-ring', name: 'Aether Ring', description: 'A ring that hums with low-level magic.', type: 'Utility', rarity: 'Uncommon', stats: { int: 1 } },
   { id: 'rare-amulet', name: 'Locket of Lost Souls', description: 'Provides a placeholder bonus to focus.', type: 'Utility', rarity: 'Rare', stats: { wis: 2 } },
   { id: 'epic-tome', name: 'Grimoire of the Abyss', description: 'Contains forbidden knowledge of the void.', type: 'Utility', rarity: 'Epic', stats: { int: 4, wis: -1 } },
-  { id: 'legendary-shadow-mantle', name: 'Mantle of the Unseen God', description: 'A legendary cloak woven from pure darkness and forgotten whispers. The wearer becomes a literal ghost in the world.', type: 'Utility', rarity: 'Legendary', stats: { dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
-  { id: 'legendary-saint-relic', name: 'Glow-Heart of the First Saint', description: 'A legendary pulsating crystal that radiates an eternal, holy light. Darkness cannot exist in its presence.', type: 'Utility', rarity: 'Legendary', stats: { wis: 5, con: 2 }, archetypes: [Archetype.Mage] }
+  { id: 'legendary-shadow-mantle', name: 'Mantle of the Unseen God', description: 'A legendary cloak woven from pure darkness. Wearer becomes a ghost.', type: 'Utility', rarity: 'Legendary', stats: { dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
+  { id: 'legendary-saint-relic', name: 'Glow-Heart of the First Saint', description: 'A legendary crystal that radiates eternal, holy light.', type: 'Utility', rarity: 'Legendary', stats: { wis: 5, con: 2 }, archetypes: [Archetype.Mage] }
 ];
 
 const createMentor = (data: Partial<Character>): Character => {
@@ -239,6 +232,7 @@ const createMentor = (data: Partial<Character>): Character => {
     gender: 'N/A',
     race: Race.Human,
     archetype: Archetype.Warrior,
+    role: 'Tank',
     level: 1,
     exp: 0,
     maxHp: 10,
@@ -264,6 +258,7 @@ export const MENTORS: Character[] = [
     gender: 'Female',
     race: Race.Human,
     archetype: Archetype.Mage,
+    role: 'Support',
     level: 5,
     maxHp: 52,
     currentHp: 52,
@@ -283,6 +278,7 @@ export const MENTORS: Character[] = [
     gender: 'Female',
     race: Race.Human,
     archetype: Archetype.Fighter,
+    role: 'Tank',
     level: 5,
     maxHp: 68,
     currentHp: 68,
@@ -300,6 +296,7 @@ export const MENTORS: Character[] = [
     gender: 'Female',
     race: Race.Elf,
     archetype: Archetype.Archer,
+    role: 'DPS',
     level: 5,
     maxHp: 54,
     currentHp: 54,
@@ -317,6 +314,7 @@ export const MENTORS: Character[] = [
     gender: 'Male',
     race: Race.Human,
     archetype: Archetype.DarkKnight,
+    role: 'Tank',
     level: 5,
     maxHp: 74,
     currentHp: 74,
@@ -336,6 +334,7 @@ export const MENTORS: Character[] = [
     gender: 'Male',
     race: Race.Tiefling,
     archetype: Archetype.BloodArtist,
+    role: 'Support',
     level: 5,
     maxHp: 72,
     currentHp: 72,
@@ -355,6 +354,7 @@ export const MENTORS: Character[] = [
     gender: 'Male',
     race: Race.Leonin,
     archetype: Archetype.Thief,
+    role: 'DPS',
     level: 5,
     maxHp: 58,
     currentHp: 58,
@@ -372,6 +372,7 @@ export const MENTORS: Character[] = [
     gender: 'Male',
     race: Race.Dragonborn,
     archetype: Archetype.Sorcerer,
+    role: 'DPS',
     level: 5,
     maxHp: 48,
     currentHp: 48,
@@ -391,6 +392,7 @@ export const MENTORS: Character[] = [
     gender: 'Female',
     race: Race.Orc,
     archetype: Archetype.Warrior,
+    role: 'Tank',
     level: 5,
     maxHp: 82,
     currentHp: 82,
@@ -408,6 +410,7 @@ export const MENTORS: Character[] = [
     gender: 'Male',
     race: Race.Vesperian,
     archetype: Archetype.Alchemist,
+    role: 'Support',
     level: 5,
     maxHp: 60,
     currentHp: 60,
@@ -670,21 +673,21 @@ export const INITIAL_MONSTERS: Monster[] = [
 ];
 
 export const RULES_MANIFEST = `
-1. **THE AETHERIC VOICE**: The Engine (Gemini AI) is the ultimate arbiter of fate. Its word is law, and its descriptions define reality. Roleplay thy actions; the Engine shall determine the consequences.
-2. **SOUL PROGRESSION**: To ascend, a soul must accumulate Experience (EXP). The threshold for enlightenment is 1,000 EXP multiplied by thy current Level. The Absolute Zenith is **Level 20**.
+1. **THE AETHERIC VOICE**: The Engine (Gemini AI) is the ultimate arbiter of fate. Its word is law. Roleplay thy actions; the Engine shall determine the consequences.
+2. **SOUL PROGRESSION**: To ascend, a soul must accumulate Experience (EXP). Threshold is 1,000 EXP multiplied by Level. Max Level: 20.
 3. **THE TRIAD OF WEALTH**:
-   - **Aurels**: Gold minted in the forge of history. Used for common trade and mundane survival.
-   - **Shards**: Fragments of solidified magic. Required for mystical artifacts and aetheric resonance.
-   - **Ichor**: The life-blood of the Engine. Required for dark rituals, rare manifestations, and binding ancient souls.
-4. **COMBAT & POSITIONING**: Conflicts manifest upon a 20x20 Tactical Grid. Each tile represents 5 feet of physical space. Positioning is shared among all bonded souls in real-time. Use 'Enter Combat' to manifest the grid.
-5. **PERMANENCE OF OBLIVION**: When Vitality (HP) reaches zero, a soul teeters on the edge of the void. Death is permanent unless reversed by high-level magic or aetheric intervention from a primary soul.
-6. **ATTRIBUTE ASCENSION (ASI)**: At Levels 4, 8, 12, 16, and 19, thy vessel gains 2 points to bolster its primary attributes (Strength, Dexterity, etc.).
-7. **THE ALCHEMIST'S BURDEN**: Specialized souls can harvest 'Unique Parts' from non-humanoid foes. These may be transmuted into volatile flasks or potent elixirs during a Short Rest to assist the party.
-8. **SOUL RESONANCE (MULTIPLAYER)**: Multiple souls can bind to a single Engine via Peer-to-Peer resonance IDs. The Host Soul anchor determines the campaign's progression and DM manifestations.
-9. **MIGRATION & PERSISTENCE**: Thy chronicle is stored in the local memory of thy vessel. To transfer thy existence to a new realm, thou must manifest a 'Soul Signature' in the Nexus.
+   - **Aurels**: Common gold.
+   - **Shards**: Magical fragments.
+   - **Ichor**: Life-blood of the Engine for rare manifestations.
+4. **COMBAT & POSITIONING**: Conflicts manifest upon a 20x20 Tactical Grid. Each tile = 5 feet.
+5. **PERMANENCE OF OBLIVION**: Death is permanent unless reversed by high-level magic.
+6. **ATTRIBUTE ASCENSION (ASI)**: At Levels 4, 8, 12, 16, and 19, gain 2 attribute points.
+7. **THE ALCHEMIST'S BURDEN**: Specialized souls can harvest 'Unique Parts' from non-humanoid foes. These may be transmuted into volatile flasks during a Short Rest.
+8. **SACRED CASTING**: Any class gifted with magic (Sorcerer, Mage, Dark Knight, Blood Artist) shall possess at least 10 recorded spells in their grimoire.
+9. **MIGRATION & PERSISTENCE**: Thy chronicle is stored locally. Use 'Soul Signature' in the Nexus to transfer.
 10. **RESTING RITUALS**:
-    - **Short Rest**: Restores half of missing Vitality and a portion of consumed aether (spell slots).
-    - **Long Rest**: Full restoration of all Vitality and Aetheric reserves. Typically performed at The Hearth.
+    - **Short Rest**: Restores half of missing Vitality and a portion of spell slots.
+    - **Long Rest**: Full restoration of all Vitality and Aetheric reserves.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `
@@ -703,15 +706,14 @@ export const TUTORIAL_SCENARIO = {
     Goal: Guide the fellowship through a long-form narrative that culminates in reaching Level 5.
     
     THE ARCH:
-    1. **STAGE 1: THE BREACH (Lv 1-2)**. The fellowship stands at the threshold of the Obsidian Gate. Encounter 'Shadow Wolves'. Learn basic movement and HP.
-    2. **STAGE 2: THE SUNKEN CRYPT (Lv 2-3)**. Descend into the catacombs. Face 'Blighted Sentinels'. Learn about AC, Resistance, and Spell Slots.
-    3. **STAGE 3: THE OBSIDIAN SPIRE (Lv 3-4)**. Scale the peaks of the Engine. Face 'Shadow Drakes'. Learn about Verticality, Advantage, and Buffs.
-    4. **STAGE 4: THE HEART OF THE ENGINE (Lv 5)**. Climax at the Core. Face the 'The Hollow King'. 
+    1. **STAGE 1: THE BREACH (Lv 1-2)**. Face 'Shadow Wolves'. Learn basic movement.
+    2. **STAGE 2: THE SUNKEN CRYPT (Lv 2-3)**. Face 'Blighted Sentinels'. Learn about AC and Resistance.
+    3. **STAGE 3: THE OBSIDIAN SPIRE (Lv 3-4)**. Face 'Shadow Drakes'. Learn about Advantage and Buffs.
+    4. **STAGE 4: THE HEART OF THE ENGINE (Lv 5)**. Climax at the Core. Face 'The Hollow King'. 
     
     DM DIRECTIVE: 
-    - Provide deep narrative descriptions of surroundings and atmosphere.
-    - Award +1000 EXP or more at each stage completion to ensure party reaches Lv 5 by the climax.
-    - Balance every encounter specifically for the party's current archetypes and total level.
-    - Always begin by describing the immediate surroundings with evocative prose.
+    - Provide deep narrative descriptions.
+    - Award +1000 EXP or more at each stage completion.
+    - Balance encounters for the party composition.
   `
 };

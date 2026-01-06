@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem } from './types';
+import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
 import * as fflate from 'fflate';
 
@@ -130,6 +130,9 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
       model: 'gemini-3-flash-preview',
       contents: `Generate a Dark Fantasy Shop. Context: ${context}. Level: ${avgPartyLevel}.
       Items (Limit 5): Include name, desc, type(Weapon/Armor/Utility), rarity(Common to Legendary), archetypes(Array of classes like Warrior, Mage, etc), stats(str/dex/con/int/wis/cha/ac/damage), cost(aurels, shards, ichor).
+      
+      CRITICAL DIRECTIVE: ALWAYS include at least TWO (2) "Flask" or "Elixir" items. These specific items MUST be priced affordably (under 50 Aurels) to support Alchemical warfare.
+      
       Output JSON strictly.`,
       config: {
         responseMimeType: "application/json",
@@ -242,9 +245,11 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Forge a new dark fantasy TTRPG character class (archetype) based on this concept: "${prompt}".
+      Determine its Role: "Tank", "DPS", or "Support".
       Return strictly as JSON with the following structure:
       {
         "name": "Class Name",
+        "role": "Tank" | "DPS" | "Support",
         "description": "Short flavor description",
         "hpDie": 6, 8, 10, or 12,
         "abilities": [
@@ -263,6 +268,7 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
           type: Type.OBJECT,
           properties: {
             name: { type: Type.STRING },
+            role: { type: Type.STRING },
             description: { type: Type.STRING },
             hpDie: { type: Type.NUMBER },
             abilities: {
@@ -319,7 +325,7 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
               }
             }
           },
-          required: ["name", "description", "hpDie", "abilities", "spells", "themedItems"]
+          required: ["name", "role", "description", "hpDie", "abilities", "spells", "themedItems"]
         }
       }
     });
@@ -350,7 +356,12 @@ export const generateDMResponse = async (
   const avgLevel = playerContext.characters.length > 0 
     ? Math.ceil(playerContext.characters.reduce((acc, c) => acc + c.level, 0) / playerContext.characters.length) 
     : 1;
-  const partyComposition = playerContext.characters.map(c => `${c.name} (${c.level} ${c.archetype})`).join(', ');
+  const partyComposition = playerContext.characters.map(c => `${c.name} (${c.level} ${c.archetype} - ${c.role})`).join(', ');
+
+  // Extract Mentor Personas
+  const mentorPersonas = playerContext.mentors.map(m => 
+    `- ${m.name} (${m.archetype} - ${m.role}): ${m.description} BIOGRAPHY: ${m.biography}`
+  ).join('\n');
 
   const systemInstruction = `
     You are the "Mythos Engine" Dungeon Master. 
@@ -363,13 +374,29 @@ export const generateDMResponse = async (
     THE USER IDENTITY:
     The primary character representing the player is ${primaryChar ? `"${primaryChar.name}" (${primaryChar.race} ${primaryChar.archetype})` : 'yet to be defined'}. 
 
+    MENTOR PERSONA DIRECTIVES:
+    The following Mentors may be present or encountered. You must roleplay them with distinct voices and consistent personalities:
+    ${mentorPersonas}
+
+    ROLEPLAYING STYLES:
+    - Lina: Shy priestess, speaks of light-bringing and ancient chants.
+    - Miri: Energetic, impulsive, optimistic, ribbons and trinkets on armor.
+    - Seris: Reserved, clinical elven detachment, lethal precision in words.
+    - Kaelen: Cold, commanding, mask of indifference, command of shadows.
+    - Valerius: Elegant noble, blood-art obsessions, copper-scented wine.
+    - Jax: Predatory grace, intimidating silence, rival-predator respect.
+    - Xylar: Prideful academic, lectures on mathematical aether and geometry.
+    - Brunnhilde: Matriarchal, protective rage, "Steel is the truth."
+    - Alaric: Precise apothecary, smells of sulfur/peppermint, chemical war.
+
+    MENTORS MUST REACT DYNAMICALLY to player actions, successes, and failures in their own unique voices.
+
     ENCOUNTER BALANCING:
     The current party consists of: ${partyComposition}. Average Level: ${avgLevel}.
     Scale all monster encounters, trap DCs, and challenges specifically for this group. 
-    If the party is Level 1, do not overwhelm them; if they are Level 5, provide complex, multi-stage threats.
     Maintain "Hard but Fair" dark fantasy difficulty.
 
-    NPC dialogue: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
+    NPC dialogue format: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
 
     CURRENCY & REWARDS:
     You are the SOLE authority on currency. Award Gold (Aurels), Shards (Magic), and Ichor (Blood).
@@ -380,7 +407,7 @@ export const generateDMResponse = async (
     - Shops: [OPEN SHOP]
     - Combat: [ENTER COMBAT], [EXIT COMBAT]
     - Items: [Item Name]
-    - Loot Chance: [LOOT DROP Chance% ItemName] (e.g. [LOOT DROP 50% Obsidian Fang]). 
+    - Loot Chance: [LOOT DROP Chance% ItemName]
   `;
 
   try {
@@ -411,7 +438,7 @@ export const generateInnkeeperResponse = async (history: Message[], characters: 
     You are Barnaby, the Innkeeper of 'The Broken Cask'. 
     Aesthetics: Warm hearth, amber light.
     Tone: Friendly, slightly weary.
-    PARTY: ${JSON.stringify(characters.map(c => ({ name: c.name, class: c.archetype, level: c.level, isPlayer: c.isPrimarySoul })))}
+    PARTY: ${JSON.stringify(characters.map(c => ({ name: c.name, class: c.archetype, level: c.level, role: c.role, isPlayer: c.isPrimarySoul })))}
   `;
 
   try {

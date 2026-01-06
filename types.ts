@@ -30,6 +30,8 @@ export enum Archetype {
   Custom = 'Custom'
 }
 
+export type Role = 'Tank' | 'DPS' | 'Support';
+
 export interface Stats {
   str: number;
   dex: number;
@@ -58,6 +60,7 @@ export interface ArchetypeInfo {
   name: string;
   description: string;
   hpDie: number;
+  role: Role;
   coreAbilities: Ability[];
   spells?: Ability[];
   startingItem?: Partial<Item>;
@@ -105,6 +108,7 @@ export interface Character {
   gender: string;
   race: Race;
   archetype: Archetype | string;
+  role: Role;
   level: number;
   exp: number;
   maxHp: number;

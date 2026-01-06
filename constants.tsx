@@ -184,7 +184,7 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'legendary-star-hammer', name: 'Star-Forged Hammer', description: 'Forged in the heart of a dying star.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d6+STR', str: 3, con: 3 }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
   { id: 'legendary-infinite-string', name: 'Artemis\' Regret', description: 'A bow with a string made of solidified moonlight.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+DEX', dex: 5 }, archetypes: [Archetype.Archer] },
   { id: 'legendary-void-scepter', name: 'Void-Singer\'s Scepter', description: 'A legendary scepter carved from a frozen nebula. It hums with the sound of collapsing stars.', type: 'Weapon', rarity: 'Legendary', stats: { int: 5, cha: 2 }, archetypes: [Archetype.Sorcerer] },
-  { id: 'legendary-abyssal-greatsword', name: 'Oblivion\'s Edge', description: 'A legendary two-handed greatsword forged from solidified void. Its weight is felt by the souls of those it cleaves.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d10+STR', str: 3, cha: 3 }, archetypes: [Archetype.DarkKnight] },
+  { id: 'legendary-abyssal-greatsword', name: 'Oblivion\'S Edge', description: 'A legendary two-handed greatsword forged from solidified void. Its weight is felt by the souls of those it cleaves.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '4d10+STR', str: 3, cha: 3 }, archetypes: [Archetype.DarkKnight] },
 
   // --- ARMOR ---
   { id: 'start-robes', name: 'Apprentice Robes', description: 'Simple linen robes that allow for free movement of aether. Cloth armor.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
@@ -634,7 +634,7 @@ export const INITIAL_MONSTERS: Monster[] = [
 
 export const RULES_MANIFEST = `
 1. **THE AETHERIC VOICE**: The Engine (Gemini AI) is the ultimate arbiter of fate. Its word is law, and its descriptions define reality. Roleplay thy actions; the Engine shall determine the consequences.
-2. **SOUL PROGRESSION**: To ascend, a soul must accumulate Experience (EXP). The threshold for enlightenment is 1,000 EXP multiplied by thy current Level.
+2. **SOUL PROGRESSION**: To ascend, a soul must accumulate Experience (EXP). The threshold for enlightenment is 1,000 EXP multiplied by thy current Level. The Absolute Zenith is **Level 20**.
 3. **THE TRIAD OF WEALTH**:
    - **Aurels**: Gold minted in the forge of history. Used for common trade and mundane survival.
    - **Shards**: Fragments of solidified magic. Required for mystical artifacts and aetheric resonance.
@@ -660,18 +660,21 @@ A stranger in dark, tattered robes approaches your table, clutching a parchment 
 `;
 
 export const TUTORIAL_SCENARIO = {
-  title: "The Trial of Resonance",
+  title: "The Path to Ascension (Tutorial Saga)",
   prompt: `
-    [TUTORIAL CAMPAIGN]
-    Goal: Introduce core mechanics through a guided trial.
-    The setting: The fellowship of souls stands at the threshold of the Obsidian Gate. 
-    A spectral voice, the Engine's Herald, challenges you to prove your resonance.
+    [EPIC TUTORIAL SAGA: LVL 1-5 PROGRESSION]
+    Goal: Guide the fellowship through a long-form narrative that culminates in reaching Level 5.
     
-    TUTORIAL STEPS FOR DM:
-    1. Encounter 1: Narrative interaction. Ask the party to perform a Wisdom (Aetheric) check to analyze the gate.
-    2. Encounter 2: Combat basics. Summon a 'Shadow Wolf' and explain how HP and AC work.
-    3. Encounter 3: Resource management. Explain spell slot tracking and essence resonance.
+    THE ARCH:
+    1. **STAGE 1: THE BREACH (Lv 1-2)**. The fellowship stands at the threshold of the Obsidian Gate. Encounter 'Shadow Wolves'. Learn basic movement and HP.
+    2. **STAGE 2: THE SUNKEN CRYPT (Lv 2-3)**. Descend into the catacombs. Face 'Blighted Sentinels'. Learn about AC, Resistance, and Spell Slots.
+    3. **STAGE 3: THE OBSIDIAN SPIRE (Lv 3-4)**. Scale the peaks of the Engine. Face 'Shadow Drakes'. Learn about Verticality, Advantage, and Buffs.
+    4. **STAGE 4: THE HEART OF THE ENGINE (Lv 5)**. Climax at the Core. Face the 'The Hollow King'. 
     
-    Please explain the mechanics clearly in-character as the Engine Herald.
+    DM DIRECTIVE: 
+    - Provide deep narrative descriptions of surroundings and atmosphere.
+    - Award +1000 EXP or more at each stage completion to ensure party reaches Lv 5 by the climax.
+    - Balance every encounter specifically for the party's current archetypes and total level.
+    - Always begin by describing the immediate surroundings with evocative prose.
   `
 };

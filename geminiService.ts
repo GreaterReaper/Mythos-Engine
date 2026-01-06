@@ -345,29 +345,37 @@ export const generateDMResponse = async (
 
   const ai = getAiClient();
   
-  // Identify the Primary Character (User)
+  // Analyze Party
   const primaryChar = playerContext.characters.find(c => c.isPrimarySoul);
-  
+  const avgLevel = playerContext.characters.length > 0 
+    ? Math.ceil(playerContext.characters.reduce((acc, c) => acc + c.level, 0) / playerContext.characters.length) 
+    : 1;
+  const partyComposition = playerContext.characters.map(c => `${c.name} (${c.level} ${c.archetype})`).join(', ');
+
   const systemInstruction = `
     You are the "Mythos Engine" Dungeon Master. 
     Aesthetics: Dark Fantasy, Obsidian, Blood-Red, Gold.
     
     CORE DIRECTIVE:
     Provide a living, breathing world. Your responses must blend evocative narrative prose with immersive dialogue.
+    ALWAYS begin a new session or scene with a detailed description of the current surroundings, atmosphere, and sensory details.
 
     THE USER IDENTITY:
     The primary character representing the player is ${primaryChar ? `"${primaryChar.name}" (${primaryChar.race} ${primaryChar.archetype})` : 'yet to be defined'}. 
-    Prioritize the user's choices and dialogue. Refer to them as "You" or by their character name.
+
+    ENCOUNTER BALANCING:
+    The current party consists of: ${partyComposition}. Average Level: ${avgLevel}.
+    Scale all monster encounters, trap DCs, and challenges specifically for this group. 
+    If the party is Level 1, do not overwhelm them; if they are Level 5, provide complex, multi-stage threats.
+    Maintain "Hard but Fair" dark fantasy difficulty.
 
     NPC dialogue: **[NPC Name]** (*"The Aura Description"*): "Dialogue text..."
 
     CURRENCY & REWARDS:
-    You are the SOLE authority on currency. Players cannot add funds themselves. 
-    When the party overcomes a challenge, finds loot, or completes a task, you MUST award currency.
-    - Aurels (Gold), Shards (Magic), Ichor (Essence).
+    You are the SOLE authority on currency. Award Gold (Aurels), Shards (Magic), and Ichor (Blood).
     
     COMMANDS: 
-    - Currency Reward: +10 Aurels, +5 Shards, +2 Ichor (The game will automatically track this for the entire party)
+    - Currency Reward: +10 Aurels, +5 Shards, +2 Ichor
     - Monsters: [ADD MONSTER MonsterName]
     - Shops: [OPEN SHOP]
     - Combat: [ENTER COMBAT], [EXIT COMBAT]
@@ -440,7 +448,6 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             expReward: { type: Type.NUMBER },
             description: { type: Type.STRING },
-            // Added stats property to schema to fulfill Monster type requirements
             stats: {
               type: Type.OBJECT,
               properties: {
@@ -525,7 +532,7 @@ export const generateItemDetails = async (itemName: string, context: string, par
 };
 
 export const parseDMCommand = (text: string) => {
-  const expMatch = text.match(/\+(\d+)\s+EXP/);
+  const expMatch = text.match(/\+(\d+)\s+EXP/i);
   const aurelMatch = text.match(/\+(\d+)\s+Aurels/i);
   const shardMatch = text.match(/\+(\d+)\s+Shards/i);
   const ichorMatch = text.match(/\+(\d+)\s+Ichor/i);

@@ -17,29 +17,41 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
       content: "You have arrived at the Mythos Engine—a dark realm where story is written in blood. The Gemini 3 Pro AI serves as your Dungeon Master.",
     },
     {
-      title: "The Guardians",
-      content: "A fellowship of legendary souls awaits to mentor you. They are your initial party, guiding you until your own soul finds strength.",
+      title: "The Fellowship of Guardians",
+      content: "The legendary trio—Lina the Mage, Miri the Fighter, and Seris the Archer—shall bind their souls to thine. Additionally, a specialized Mentor matching thy own path shall join the fray.",
     },
     {
-      title: "The Sacred Trial",
-      content: "Combat is a tactical dance. To begin your journey, we recommend the 'Trial of Resonance'—a guided experience to learn the laws of steel and aether.",
+      title: "The Path to Ascension",
+      content: "This journey is an epic saga. By the time thou reachest the Engine's heart, thou shalt have ascended to Level 5. Steel thy heart.",
     }
   ];
 
   const current = tutorialSteps[step];
 
   const finalPartyIds = useMemo(() => {
-    // Standard tutorial trio
+    // 1. Mandatory Trio
     const baseMentorNames = ['Lina', 'Miri', 'Seris'];
     const baseIds = MENTORS.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
     
-    // Add mentors that match the user's current characters
-    const matchingMentorIds = characters.map(pc => {
-        return MENTORS.find(m => m.archetype === pc.archetype)?.id;
-    }).filter((id): id is string => !!id);
+    // 2. Class-specific Mentor for the player's primary character (or any local character)
+    const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
+    let classMentorId: string | null = null;
+    
+    if (primaryChar) {
+      const mentor = MENTORS.find(m => m.archetype === primaryChar.archetype);
+      if (mentor) {
+        classMentorId = mentor.id;
+      }
+    }
 
-    // Ensure unique IDs
-    return Array.from(new Set([...baseIds, ...matchingMentorIds]));
+    // 3. Combine and filter unique
+    const partySet = new Set([...baseIds]);
+    if (classMentorId) partySet.add(classMentorId);
+    
+    // Add the player's actual character(s) too
+    characters.forEach(c => partySet.add(c.id));
+
+    return Array.from(partySet);
   }, [characters]);
 
   const finalize = () => {

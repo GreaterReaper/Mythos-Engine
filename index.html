@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>Mythos Engine - Dark Fantasy TTRPG</title>
     
     <!-- PWA & Mobile Meta -->
@@ -16,32 +16,39 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --obsidian: #0c0a09;
+            --blood: #991b1b;
+            --gold: #d4af37; /* Brighter gold for visibility */
+            --parchment: #e7e5e4;
+        }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0c0a09; /* Obsidian */
-            color: #d6d3d1;
+            background-color: var(--obsidian);
+            color: var(--parchment);
             overflow: hidden;
-            /* Support for notched devices */
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
+            -webkit-tap-highlight-color: transparent;
         }
         h1, h2, h3, h4, .font-cinzel {
             font-family: 'Cinzel', serif;
+            letter-spacing: 0.05em;
         }
         ::-webkit-scrollbar {
             width: 4px;
         }
         ::-webkit-scrollbar-track {
-            background: #0c0a09;
+            background: var(--obsidian);
         }
         ::-webkit-scrollbar-thumb {
-            background: #7f1d1d; /* Blood red */
+            background: var(--blood);
             border-radius: 10px;
         }
         .rune-border {
-            border: 2px solid #7f1d1d;
+            border: 2px solid var(--blood);
             position: relative;
         }
         .rune-border::before {
@@ -50,19 +57,39 @@
             top: -12px;
             left: 50%;
             transform: translateX(-50%);
-            background: #0c0a09;
-            padding: 0 8px;
-            color: #a16207; /* Gold */
+            background: var(--obsidian);
+            padding: 0 10px;
+            color: var(--gold);
             font-size: 0.75rem;
-            letter-spacing: 0.2rem;
+            letter-spacing: 0.3rem;
+            font-weight: 900;
         }
         .bg-leather {
             background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png');
         }
         
-        /* Smooth transitions for mobile nav */
         .mobile-nav-active {
-            filter: drop-shadow(0 0 8px rgba(161, 98, 7, 0.4));
+            filter: drop-shadow(0 0 12px var(--gold));
+            color: var(--gold) !important;
+        }
+
+        /* Improved touch targets for mobile */
+        @media (max-width: 768px) {
+            button, select, input {
+                min-height: 44px;
+            }
+            .text-xs { font-size: 0.85rem; }
+            .text-[10px] { font-size: 0.75rem; }
+            .text-[8px] { font-size: 0.65rem; }
+        }
+
+        /* Smooth UI entry */
+        .fade-up {
+            animation: fadeUp 0.5s ease-out forwards;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 <script type="importmap">

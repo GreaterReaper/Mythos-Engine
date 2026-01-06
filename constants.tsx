@@ -16,8 +16,7 @@ export const RECOMMENDED_STATS: Record<string, (keyof Stats)[]> = {
   [Archetype.Mage]: ['wis'],
   [Archetype.Sorcerer]: ['int'],
   [Archetype.Alchemist]: ['int', 'dex'],
-  [Archetype.BloodArtist]: ['con', 'cha'],
-  [Archetype.Oracle]: ['wis', 'cha']
+  [Archetype.BloodArtist]: ['con', 'cha']
 };
 
 export const RACIAL_BONUSES: Record<Race, Partial<Stats>> = {
@@ -98,13 +97,6 @@ export const SPELL_LIBRARY: Record<string, Ability[]> = {
     { name: 'Boil Blood', description: 'Force a creature to make a CON save or take 8d6 fire damage as their own blood boils.', type: 'Spell', levelReq: 5, baseLevel: 3 },
     { name: 'Vessel of Agony', description: 'Transfer all status conditions from an ally to yourself, then deal 4d10 damage to a nearby foe.', type: 'Spell', levelReq: 7, baseLevel: 4 },
     { name: 'Exsanguinate', description: 'Rip the fluid from a creature. Deals 10d10 damage; half as HP to your party.', type: 'Spell', levelReq: 13, baseLevel: 7 }
-  ],
-  [Archetype.Oracle]: [
-    { name: 'Vision of Doom', description: 'Target must succeed on a WIS save or take 3d6 psychic damage and have Disadvantage on their next roll.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Precognition', description: 'Grant an ally a 1d6 that can be added to any roll within the next minute.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Threads of Fate', description: 'Link two allies. When one is healed, the other regains 1d4 HP.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Prophetic Guidance', description: 'Automatically grant a critical success on the next non-combat ability check.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Foresight', description: 'Target creature cannot be surprised and has Advantage on attack rolls, ability checks, and saving throws for 8 hours.', type: 'Spell', levelReq: 17, baseLevel: 9 }
   ]
 };
 
@@ -179,14 +171,6 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; description: string
       { name: 'Masterpiece of Gore', description: 'When an enemy dies within 10ft, you can use a reaction to explode the corpse, dealing 2d10 necrotic damage to adjacent foes.', type: 'Active', levelReq: 1 }
     ],
     spells: SPELL_LIBRARY[Archetype.BloodArtist]
-  },
-  [Archetype.Oracle]: {
-    hpDie: 8, description: 'Seers who pierce the veil of time. They do not merely react to fate; they rewrite the causality of the Engine to favor their fellowship.',
-    coreAbilities: [
-      { name: 'Third Eye', description: 'You cannot be surprised. You have Advantage on Initiative rolls.', type: 'Passive', levelReq: 1 },
-      { name: 'Portent', description: 'Roll two d20s after a long rest and record the results. You can replace any attack, saving throw, or ability check made by you or a creature you can see with one of these rolls.', type: 'Passive', levelReq: 1 }
-    ],
-    spells: SPELL_LIBRARY[Archetype.Oracle]
   }
 };
 
@@ -198,7 +182,6 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'start-sword', name: 'Soldier\'S Blade', description: 'A reliable iron longsword.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'start-hammer', name: 'Iron Maul', description: 'A heavy hammer for crushing skulls and shields.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.Fighter] },
   { id: 'start-quill', name: 'Sanguine Quill', description: 'A sharp metallic stylus that draws from the user\'s own veins to write laws of pain upon the air.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+CHA', cha: 1 }, archetypes: [Archetype.BloodArtist] },
-  { id: 'start-lens', name: 'Obsidian Monocle', description: 'A dark lens that reveals the resonance of the next heartbeat.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+WIS', wis: 1 }, archetypes: [Archetype.Oracle] },
   
   // Uncommon
   { id: 'un-rapier', name: 'Duelist\'S Rapier', description: 'A needle-thin blade for precise punctures.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Thief, Archetype.Archer] },
@@ -223,7 +206,7 @@ export const INITIAL_ITEMS: Item[] = [
 
   // --- ARMOR ---
   { id: 'start-robes', name: 'Apprentice Robes', description: 'Simple linen robes that allow for free movement of aether. Cloth armor.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist, Archetype.BloodArtist, Archetype.Oracle] },
+  { id: 'start-leather', name: 'Scout\'s Leather', description: 'Boiled leather armor that permits easy movement.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist, Archetype.BloodArtist] },
   { id: 'start-plate', name: 'Rusty Plate', description: 'Old, noisy metal armor.', type: 'Armor', rarity: 'Common', stats: { ac: 15 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'start-shield', name: 'Rusted Aegis', description: 'A battered iron shield.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter, Archetype.Warrior] },
   { id: 'start-tunic', name: 'Vein-Stitcher\'s Tunic', description: 'A dark red tunic embroidered with living channels for blood flow.', type: 'Armor', rarity: 'Common', stats: { ac: 11, con: 1 }, archetypes: [Archetype.BloodArtist] },
@@ -364,25 +347,6 @@ export const MENTORS: Character[] = [
     maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
     description: 'An elegant noble with pale skin and obsidian horns. He wears fine velvet robes stained with a lifetime of "art".',
     biography: 'Valerius was the court painter for a dynasty that no longer exists. He discovered that by mixing his own blood with aetheric salts, he could tether the souls of his subjects to his canvas. When the Engine arrived, he didn\'t flee—he viewed it as the ultimate masterpiece. He now teaches the "Sanguine Path" to those willing to pay the price in blood. He is often found drinking deep-red wine that smells suspiciously of copper.'
-  }),
-  createMentor({
-    id: 'mentor-zosimos',
-    name: 'Zosimos',
-    age: 65,
-    gender: 'Male',
-    race: Race.Gnome,
-    archetype: Archetype.Oracle,
-    level: 5,
-    maxHp: 44,
-    currentHp: 44,
-    stats: { str: 8, dex: 12, con: 14, int: 18, wis: 20, cha: 16 },
-    inventory: [INITIAL_ITEMS.find(i => i.id === 'start-lens')!, INITIAL_ITEMS.find(i => i.id === 'start-leather')!],
-    spells: SPELL_LIBRARY[Archetype.Oracle],
-    abilities: ARCHETYPE_INFO[Archetype.Oracle].coreAbilities,
-    spellSlots: { 1: 4, 2: 3, 3: 2 },
-    maxSpellSlots: { 1: 4, 2: 3, 3: 2 },
-    description: 'A tiny, ancient gnome with eyes like swirling nebulas. He floats slightly off the ground, clutching an obsidian monocle.',
-    biography: 'Zosimos was the first to hear the Engine\'s heartbeat. He spent decades blind until the aetheric mists granted him a sight beyond the material plane. He claims to have seen every possible ending to this Chronicle, yet he remains in Oakhaven to ensure the fellowship chooses the one that isn\'t an absolute void. He smells faintly of ozone and old parchment.'
   }),
   createMentor({
     id: 'mentor-jax',

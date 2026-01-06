@@ -27,7 +27,6 @@ export enum Archetype {
   DarkKnight = 'Dark Knight',
   Alchemist = 'Alchemist',
   BloodArtist = 'Blood Artist',
-  Oracle = 'Oracle',
   Custom = 'Custom'
 }
 

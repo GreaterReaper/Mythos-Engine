@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
@@ -222,6 +223,7 @@ const App: React.FC = () => {
         case 'SYNC_STATE': setState(prev => ({ ...data.payload, userAccount: prev.userAccount })); break;
         case 'ADD_CHARACTER': setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] })); break;
         case 'UPDATE_CHARACTER':
+          // Fix: Extract updates from data.payload to resolve the "Cannot find name 'updates'" error
           setState(prev => ({
             ...prev,
             characters: prev.characters.map(c => c.id === data.payload.id ? { ...c, ...data.payload.updates } : c),
@@ -409,7 +411,16 @@ const App: React.FC = () => {
   };
 
   const createCampaign = (title: string, prompt: string) => {
-    const c: Campaign = { id: safeId(), title, prompt, history: [{ role: 'system', content: `Started: ${title}`, timestamp: Date.now() }], participants: state.party };
+    const c: Campaign = { 
+      id: safeId(), 
+      title, 
+      prompt, 
+      history: [
+        { role: 'system', content: `Chronicle Initialized: ${title}`, timestamp: Date.now() },
+        { role: 'model', content: prompt, timestamp: Date.now() + 10 }
+      ], 
+      participants: state.party 
+    };
     setState(prev => ({ ...prev, campaigns: [...prev.campaigns, c], activeCampaignId: c.id }));
     setActiveTab('Chronicles');
   };
@@ -438,7 +449,7 @@ const App: React.FC = () => {
             updateCharacter(buyerId, { currency: { aurels: buyerCurr.aurels - cost.aurels, shards: buyerCurr.shards - cost.shards, ichor: buyerCurr.ichor - cost.ichor }, inventory: [...buyer.inventory, item] });
           }} />}
           {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={handleLongRest} onOpenShop={handleOpenShop} onUpgradeItem={(cid, iid, cost) => {
-            const char = [...state.characters, ...state.mentors].find(c => c.id === cid);
+            const char = [...state.characters, ...state.mentors].find(c => cid === c.id);
             if (!char) return;
             const item = char.inventory.find(i => i.id === iid);
             if (!item) return;

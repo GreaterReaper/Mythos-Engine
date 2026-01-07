@@ -457,5 +457,5 @@ export const STARTER_CAMPAIGN_PROMPT = `The air is thick with the scent of ozone
 
 export const TUTORIAL_SCENARIO = {
   title: "The Path to Ascension",
-  prompt: "[Tutorial Lv 1-5] Face Shadow Wolves, Sentinels, and the Hollow King."
+  prompt: `You awaken on the cold, obsidian floor of the Outer Rim. The sky above is a void, save for the rhythmic, golden pulse of the Engine at the world's center. The air tastes of copper and ozone. To your left, a pack of Shadow Wolves snarls in the dim light of a dying sun, their eyes glowing like embers. To your right, a jagged trail leads upward toward the shimmering, logic-defying gates of the First Citadel. Your journey to Ascension begins now. What do you do?`
 };

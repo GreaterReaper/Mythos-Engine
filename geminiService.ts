@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
@@ -304,6 +305,9 @@ export const generateDMResponse = async (
     You are the "Mythos Engine" Dungeon Master. 
     Aesthetics: Dark Fantasy, Obsidian, Blood-Red, Gold.
     
+    LAWS OF REALITY:
+    ${playerContext.activeRules}
+
     STARTING A CAMPAIGN:
     - Provide a rich, multi-sensory description of the immediate environment.
     - Include lighting, weather, scents, and at least two distinct points of interest (one near, one far).

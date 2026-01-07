@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
   const [isShopLoading, setIsShopLoading] = useState(false);
   const [isRumorLoading, setIsRumorLoading] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
 
@@ -70,18 +71,15 @@ const App: React.FC = () => {
     }
   }, [state]);
 
-  // Global Mentor Scaling Logic (Level & Unique Scaling Gear)
+  // Global Mentor Scaling Logic
   useEffect(() => {
-    // Calculate average level of current ACTIVE party (local + remote)
     const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-    // If party is empty, scale with local user's highest or default to 5
     const baselineChars = state.characters.filter(c => c.ownerName === state.userAccount.username);
     const avgLevel = partyChars.length > 0 
       ? Math.max(5, Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length))
       : (baselineChars.length > 0 ? Math.max(5, Math.ceil(baselineChars.reduce((acc, c) => acc + c.level, 0) / baselineChars.length)) : 5);
     
     const updatedMentors = state.mentors.map(m => {
-      // Force scaling if level is mismatch or gear is missing
       const needsScaling = (m.level !== avgLevel || m.inventory.length === 0);
       
       if (needsScaling) {
@@ -91,7 +89,6 @@ const App: React.FC = () => {
         const newMaxHp = hpDie + conMod + ((avgLevel - 1) * (Math.floor(hpDie/2) + 1 + conMod));
         const slots = SPELL_SLOT_PROGRESSION[avgLevel] || {};
         
-        // Auto-populate or Update Gear with Unique scaling templates
         let scaledInventory: Item[] = [];
         const uniqueTemplates = MENTOR_UNIQUE_GEAR[m.id] || [];
         
@@ -101,7 +98,6 @@ const App: React.FC = () => {
             const stats = { ...t.stats };
             if (t.type === 'Armor' && stats.ac !== undefined) stats.ac += gearBonus;
             if (t.type === 'Weapon') {
-               // Primary stat scaling for mentors based on archetype
                const arch = m.archetype as Archetype;
                const primary = [Archetype.Archer, Archetype.Thief, Archetype.Alchemist].includes(arch) ? 'dex' : 
                                [Archetype.Mage, Archetype.Sorcerer, Archetype.BloodArtist].includes(arch) ? 'int' : 'str';
@@ -119,7 +115,6 @@ const App: React.FC = () => {
             } as Item;
           });
         } else {
-          // Fallback to standard gear if no unique template
           const templates = INITIAL_ITEMS.filter(i => 
             i.archetypes?.includes(m.archetype as Archetype) && i.rarity === 'Common'
           );
@@ -223,7 +218,6 @@ const App: React.FC = () => {
         case 'SYNC_STATE': setState(prev => ({ ...data.payload, userAccount: prev.userAccount })); break;
         case 'ADD_CHARACTER': setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] })); break;
         case 'UPDATE_CHARACTER':
-          // Fix: Extract updates from data.payload to resolve the "Cannot find name 'updates'" error
           setState(prev => ({
             ...prev,
             characters: prev.characters.map(c => c.id === data.payload.id ? { ...c, ...data.payload.updates } : c),
@@ -423,11 +417,19 @@ const App: React.FC = () => {
     };
     setState(prev => ({ ...prev, campaigns: [...prev.campaigns, c], activeCampaignId: c.id }));
     setActiveTab('Chronicles');
+    setShowTutorial(false);
   };
 
   const handleAddCharacter = (c: Character) => {
     const newChar = { ...c, ownerName: state.userAccount.username, isPrimarySoul: state.characters.length === 0 };
-    setState(p => ({ ...p, characters: [...p.characters, newChar], party: newChar.isPrimarySoul ? [...p.party, newChar.id] : p.party }));
+    setState(p => ({ 
+      ...p, 
+      characters: [...p.characters, newChar], 
+      party: newChar.isPrimarySoul ? [...p.party, newChar.id] : p.party 
+    }));
+    if (state.campaigns.length === 0) {
+      setShowTutorial(true);
+    }
   };
 
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
@@ -437,6 +439,12 @@ const App: React.FC = () => {
     <div className="flex flex-col h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row">
       {!state.userAccount.isLoggedIn && (
         <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />
+      )}
+      {showTutorial && (
+        <TutorialScreen characters={state.characters} onComplete={(ids, title, prompt) => {
+          setState(prev => ({ ...prev, party: ids }));
+          createCampaign(title, prompt);
+        }} />
       )}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={!!state.campaigns.find(c => c.id === state.activeCampaignId)?.isCombatActive} />
       <main className="relative flex-1 overflow-y-auto bg-leather">

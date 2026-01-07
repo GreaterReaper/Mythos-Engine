@@ -1,3 +1,4 @@
+
 export enum Race {
   Human = 'Human',
   Elf = 'Elf',
@@ -176,6 +177,11 @@ export interface Rumor {
   rewardTier: number; // Scale of 1-5 influencing multipliers
 }
 
+export interface ApiUsage {
+  count: number;
+  lastReset: number;
+}
+
 export interface GameState {
   characters: Character[];
   mentors: Character[];
@@ -201,4 +207,5 @@ export interface GameState {
   currentTavernShop?: Shop | null;
   slainMonsterTypes: string[]; // Tracks defeated types for Apothecary
   activeRumors: Rumor[]; // Hooks gathered from the Innkeeper
+  apiUsage?: ApiUsage;
 }

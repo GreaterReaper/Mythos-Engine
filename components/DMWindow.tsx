@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Campaign, Message, Character, Item, MapToken, Monster, Currency, Rumor } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
@@ -39,7 +40,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [speakCooldown, setSpeakCooldown] = useState(0);
   const [showPartySidebar, setShowPartySidebar] = useState(false);
-  const [timeUntilReset, setTimeUntilReset] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [newTitle, setNewTitle] = useState('');
@@ -58,23 +58,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
     }
     return () => clearInterval(timer);
   }, [speakCooldown]);
-
-  useEffect(() => {
-    const calculateTimeRemaining = () => {
-      const now = new Date();
-      const nextReset = new Date();
-      nextReset.setUTCHours(24, 0, 0, 0); 
-      const diff = nextReset.getTime() - now.getTime();
-      const h = Math.floor(diff / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${pad(h)}:${pad(m)}:${pad(s)}`;
-    };
-    const timer = setInterval(() => setTimeUntilReset(calculateTimeRemaining()), 1000);
-    setTimeUntilReset(calculateTimeRemaining());
-    return () => clearInterval(timer);
-  }, []);
 
   const handleSend = async () => {
     if (!campaign || !input.trim() || isLoading || speakCooldown > 0) return;
@@ -222,13 +205,12 @@ const DMWindow: React.FC<DMWindowProps> = ({
     <div className="flex flex-col h-[calc(100vh-100px)] md:h-[calc(100vh-60px)] w-full overflow-hidden bg-[#0c0a09]">
       <div className="flex flex-1 min-h-0 relative">
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Header - Compact & Focused */}
           <div className="px-4 py-2 border-b-2 border-red-900/60 flex justify-between items-center bg-black/80 backdrop-blur shrink-0 z-20">
             <div className="flex items-center gap-3 min-w-0">
               <button onClick={onQuitCampaign} title="Return to scrolls" className="text-red-900 hover:text-red-500 font-black text-2xl px-1 transition-colors">×</button>
               <div className="flex flex-col min-w-0">
                 <h3 className="font-cinzel text-gold text-xs md:text-sm truncate font-black tracking-[0.1em]">{campaign.title}</h3>
-                <span className="text-[7px] font-mono text-amber-600/60 font-bold uppercase tracking-tighter">Cycle: {timeUntilReset}</span>
+                <span className="text-[7px] font-mono text-amber-600/60 font-bold uppercase tracking-tighter italic">Engine Connected</span>
               </div>
             </div>
             
@@ -248,7 +230,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
             </div>
           </div>
 
-          {/* Dialogue Area - Enhanced readability */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar bg-[#0c0a09] relative">
             <div className="absolute inset-0 opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/black-paper.png')]" />
             {campaign.history.map((msg, idx) => (
@@ -279,7 +260,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
             )}
           </div>
 
-          {/* Footer - Optimized for Dialogue Entry */}
           <div className="shrink-0 z-10 bg-black border-t-2 border-red-900/40">
             <DiceTray onRoll={handleRoll} username={username} />
             <div className="p-3 md:p-5 flex gap-3 items-end max-w-5xl mx-auto w-full">
@@ -316,7 +296,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
           </div>
         </div>
 
-        {/* Mobile Party Overlay */}
         {showPartySidebar && (
           <div className="md:hidden absolute inset-0 z-50 bg-black/95 animate-in slide-in-from-right duration-300 overflow-y-auto p-6">
             <div className="flex justify-between items-center border-b border-red-900 pb-4 mb-6">
@@ -337,7 +316,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
           </div>
         )}
 
-        {/* Desktop Sidebar - Streamlined */}
         <div className="hidden md:flex flex-col w-72 bg-[#0c0a09] border-l-2 border-red-900/30 overflow-y-auto custom-scrollbar shrink-0 shadow-2xl">
           <div className="p-4 border-b border-red-900/20 bg-red-900/5">
              <h4 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest">Active Fellowship</h4>
@@ -359,7 +337,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
   );
 };
 
-// Helper component for character status
 const CharacterStatusItem: React.FC<{ char: Character }> = ({ char }) => (
   <div className="space-y-2.5 group">
     <div className="flex justify-between items-baseline">

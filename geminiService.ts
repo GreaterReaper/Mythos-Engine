@@ -13,6 +13,10 @@ export const safeId = () => {
   return Math.random().toString(36).substring(2, 15);
 };
 
+const trackUsage = () => {
+  window.dispatchEvent(new CustomEvent('mythos_api_call'));
+};
+
 const stripState = (state: GameState): Partial<GameState> => {
   const strippedArmory = state.armory.filter(item => 
     !INITIAL_ITEMS.some(init => init.id === item.id)
@@ -27,6 +31,7 @@ const stripState = (state: GameState): Partial<GameState> => {
     party: state.party,
     slainMonsterTypes: state.slainMonsterTypes,
     activeRumors: state.activeRumors,
+    apiUsage: state.apiUsage,
     userAccount: {
       ...state.userAccount,
       peerId: undefined
@@ -45,6 +50,7 @@ export const hydrateState = (data: Partial<GameState>, defaultState: GameState):
     mentors: MENTORS,
     slainMonsterTypes: data.slainMonsterTypes || [],
     activeRumors: data.activeRumors || [],
+    apiUsage: data.apiUsage || { count: 0, lastReset: Date.now() },
     bestiary: [
       ...INITIAL_MONSTERS,
       ...(data.bestiary || []).filter(m => !INITIAL_MONSTERS.some(init => init.id === m.id))
@@ -122,6 +128,7 @@ export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export const generateShopInventory = async (context: string, avgPartyLevel: number): Promise<Shop> => {
   const ai = getAiClient();
+  trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -197,6 +204,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
 
 export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A generic dark fantasy world of obsidian and blood."): Promise<{ biography: string, description: string }> => {
   const ai = getAiClient();
+  trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -224,6 +232,7 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
 
 export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
   const ai = getAiClient();
+  trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -257,6 +266,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
 
 export const generateCustomClass = async (prompt: string): Promise<any> => {
   const ai = getAiClient();
+  trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -295,6 +305,7 @@ export const generateDMResponse = async (
   }
 ) => {
   const ai = getAiClient();
+  trackUsage();
   
   const partySize = playerContext.characters.length;
   const totalLevels = playerContext.characters.reduce((acc, c) => acc + c.level, 0);
@@ -347,6 +358,7 @@ export const generateDMResponse = async (
 
 export const generateMonsterDetails = async (monsterName: string, context: string, avgPartyLevel: number): Promise<Partial<Monster>> => {
   const ai = getAiClient();
+  trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -379,6 +391,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
 
 export const generateItemDetails = async (itemName: string, context: string, avgPartyLevel: number): Promise<Partial<Item>> => {
   const ai = getAiClient();
+  trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -456,6 +469,7 @@ export const parseDMCommand = (text: string) => {
 
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]): Promise<string> => {
   const ai = getAiClient();
+  trackUsage();
   const partyComp = party.map(c => `${c.name} (${c.archetype})`).join(', ');
   const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. The party is: ${partyComp}. Speak archaically. Keep under 3 paragraphs.`;
 

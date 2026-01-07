@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 
 interface SidebarProps {
   activeTab: string;
@@ -16,25 +17,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount, multiplayer, showTactics }) => {
   const [collapsed, setCollapsed] = React.useState(false);
-  const [timeUntilReset, setTimeUntilReset] = useState('--:--');
-
-  const ROTATION_INTERVAL = 5 * 60 * 1000;
-
-  useEffect(() => {
-    const calculateTimeRemaining = () => {
-      const now = Date.now();
-      const nextReset = Math.ceil(now / ROTATION_INTERVAL) * ROTATION_INTERVAL;
-      const diff = nextReset - now;
-      const m = Math.floor(diff / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${pad(m)}:${pad(s)}`;
-    };
-
-    const timer = setInterval(() => setTimeUntilReset(calculateTimeRemaining()), 1000);
-    setTimeUntilReset(calculateTimeRemaining());
-    return () => clearInterval(timer);
-  }, []);
 
   const tabs = [
     { id: 'Tavern', label: 'Hearth', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -44,7 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
     { id: 'Archetypes', label: 'Paths', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { id: 'Bestiary', label: 'Bestiary', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
     { id: 'Armory', label: 'Armory', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-    { id: 'Alchemy', label: 'Alchemy', icon: 'M19.423 15.641a7 7 0 00-2.344-2.344V4.005c0-1.1-.9-2-2-2H8.923c-1.1 0-2 .9-2 2v9.292a7 7 0 00-2.344 2.344 7 7 0 1014.844 0zM12.923 4.005v3h-2v-3h2z' },
+    { id: 'Alchemy', label: 'Alchemy', icon: 'M19.423 15.641a7 7 0 00-2.344-2.344V4.005c0-1.1-.9-2-2-2H8.923c-1.1 0-2 .9-2 2v9.292a7 7 0 00-2.344 2.344 7 7 1014.844 0zM12.923 4.005v3h-2v-3h2z' },
     { id: 'Spells', label: 'Grimoire', icon: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
     { id: 'Nexus', label: 'Nexus', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
     { id: 'Rules', label: 'Laws', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }
@@ -52,7 +34,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
 
   return (
     <>
-      {/* Mobile Navigation - Scrollable Bottom Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0c0a09]/98 backdrop-blur-xl border-t-2 border-red-900/60 flex justify-start items-center px-2 py-2 pb-safe z-[100] shadow-[0_-10px_30px_rgba(0,0,0,0.8)] overflow-x-auto no-scrollbar">
         {tabs.filter(t => !t.hidden).map(tab => {
           const isActive = activeTab === tab.id;
@@ -77,7 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
         })}
       </nav>
 
-      {/* Desktop Sidebar */}
       <nav className={`hidden md:flex ${collapsed ? 'w-18' : 'w-72'} transition-all duration-500 bg-[#0c0a09] border-r-2 border-red-900/40 flex flex-col z-50 shrink-0 shadow-2xl`}>
         <div className="p-6 border-b border-red-900/30 flex items-center justify-between bg-black/20">
           {!collapsed && <h1 className="text-2xl font-cinzel font-black text-gold drop-shadow-lg tracking-widest truncate">MYTHOS</h1>}
@@ -87,15 +67,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 custom-scrollbar bg-black/10">
-          {!collapsed && (
-            <div className="px-5 mb-6">
-              <div className="bg-amber-900/10 p-3 border border-amber-600/30 rounded shadow-inner flex flex-col items-center">
-                 <span className="text-[8px] font-black text-amber-700 uppercase tracking-widest mb-1">Aether Cycle</span>
-                 <span className="text-sm font-mono font-bold text-amber-500 tabular-nums">{timeUntilReset}</span>
-              </div>
-            </div>
-          )}
-
           <div className="px-3 space-y-2">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id;
@@ -111,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
                   }`}
                 >
                   <svg className={`w-6 h-6 shrink-0 ${isActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="tab.icon" />
                   </svg>
                   {!collapsed && <span className="ml-5 font-cinzel text-xs font-bold tracking-[0.2em] truncate uppercase">{tab.label}</span>}
                 </button>

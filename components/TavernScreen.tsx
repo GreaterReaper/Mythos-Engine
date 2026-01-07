@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Character, Message, Item, Currency, Role, Archetype, Rumor } from '../types';
 import { generateInnkeeperResponse } from '../geminiService';
@@ -37,12 +38,10 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [timeUntilReset, setTimeUntilReset] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const primarySoul = useMemo(() => party.find(c => c.isPrimarySoul), [party]);
 
-  // Explicitly type the useMemo return value to ensure partyRoles.Tank and others are correctly typed
   const partyRoles = useMemo<Record<Role, { count: number; playerContribution: number }>>(() => {
     const roles: Record<Role, { count: number; playerContribution: number }> = { 
       Tank: { count: 0, playerContribution: 0 }, 
@@ -71,7 +70,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
        if (playerRoleCount === 1) score += 15;
        else if (playerRoleCount === 2) score += 5;
     }
-    // Object.values often returns unknown[] in strict TypeScript; cast it to the expected type
     (Object.values(partyRoles) as { count: number; playerContribution: number }[]).forEach(roleData => {
       if (roleData.count > 2) score -= 10;
     });
@@ -99,20 +97,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isLoading]);
-
-  useEffect(() => {
-    const calculateTimeRemaining = () => {
-      const now = Date.now();
-      const nextReset = Math.ceil(now / ROTATION_INTERVAL) * ROTATION_INTERVAL;
-      const diff = nextReset - now;
-      const m = Math.floor(diff / (1000 * 60));
-      const s = Math.floor((diff % (1000 * 60)) / 1000);
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    };
-    const timer = setInterval(() => setTimeUntilReset(calculateTimeRemaining()), 1000);
-    setTimeUntilReset(calculateTimeRemaining());
-    return () => clearInterval(timer);
-  }, []);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -146,8 +130,8 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
           <div className="flex items-baseline gap-3">
             <h2 className="text-5xl font-cinzel text-amber-600 font-black tracking-tighter">The Broken Cask</h2>
             <div className="bg-amber-900/20 px-3 py-1 border border-amber-600/30 rounded flex items-center gap-3 shadow-inner">
-               <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest animate-pulse">Aether Cycle</span>
-               <span className="text-sm font-mono font-bold text-amber-500 tabular-nums">{timeUntilReset || '--:--'}</span>
+               <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Hearth Active</span>
+               <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse" />
             </div>
           </div>
           <p className="text-gray-500 italic text-sm font-medium">"A sanctuary of warmth in a world of biting obsidian."</p>
@@ -247,16 +231,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                     </div>
                   </div>
                 )}
-
-                <div className="space-y-2">
-                   <p className="text-[9px] text-gray-500 uppercase font-black">Lone Wolf Insights</p>
-                   <div className="grid grid-cols-1 gap-2">
-                      <div className="p-3 bg-black/40 border border-amber-900/20 rounded flex items-center gap-3">
-                         <div className="w-6 h-6 border border-gold/40 flex items-center justify-center text-[10px] text-gold font-black">!</div>
-                         <p className="text-[10px] text-gray-400 italic leading-tight">Classes like <span className="text-gold">Warrior</span> or <span className="text-gold">Dark Knight</span> possess higher survival for solo ventures.</p>
-                      </div>
-                   </div>
-                </div>
              </div>
           </div>
 
@@ -299,7 +273,7 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                     : 'text-gray-600 hover:text-amber-700'
                 }`}
               >
-                {tab === 'Rest' ? 'The Hearth' : tab === 'Mentors' ? `Wandering Souls (${timeUntilReset})` : tab === 'Apothecary' ? 'The Alchemical Ward' : 'The Obsidian Forge'}
+                {tab === 'Rest' ? 'The Hearth' : tab === 'Mentors' ? 'Wandering Souls' : tab === 'Apothecary' ? 'The Alchemical Ward' : 'The Obsidian Forge'}
               </button>
             ))}
           </div>
@@ -357,7 +331,7 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                <div className="bg-amber-900/10 p-5 border border-amber-600/30 flex flex-col md:flex-row justify-between items-center rounded-sm gap-4 shadow-inner">
                  <div className="space-y-1">
                    <p className="text-[10px] font-cinzel text-amber-500 font-black uppercase tracking-widest">Aetheric Alignment</p>
-                   <p className="text-[9px] text-gray-500 italic uppercase">Rotation Cycles In: <span className="text-amber-500 font-bold">{timeUntilReset}</span></p>
+                   <p className="text-[9px] text-gray-500 italic uppercase">Thy mentors rotate as the cycle turns.</p>
                  </div>
                  <div className="flex gap-3">
                     {recommendedRoles.map(role => (

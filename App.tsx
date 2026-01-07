@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
-  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, MapToken, Currency, Shop, ShopItem
+  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, MapToken, Currency, Shop, ShopItem, ApiUsage
 } from './types';
 import { 
   MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STORAGE_PREFIX, MENTOR_UNIQUE_GEAR
@@ -22,6 +22,7 @@ import SpellsScreen from './components/SpellsScreen';
 import RulesScreen from './components/RulesScreen';
 import ShopModal from './components/ShopModal';
 import TavernScreen from './components/TavernScreen';
+import QuotaBanner from './components/QuotaBanner';
 import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, parseSoulSignature, hydrateState, manifestSoulLore, generateRumors } from './geminiService';
 
 declare var Peer: any;
@@ -49,6 +50,7 @@ const App: React.FC = () => {
     party: [],
     slainMonsterTypes: [],
     activeRumors: [],
+    apiUsage: { count: 0, lastReset: Date.now() },
     userAccount: {
       username: 'Nameless Soul',
       id: safeId(),
@@ -63,6 +65,30 @@ const App: React.FC = () => {
   };
 
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
+
+  // Daily Quota Tracking and Auto-Reset
+  useEffect(() => {
+    const handleApiCall = () => {
+      setState(prev => {
+        const now = Date.now();
+        const usage = prev.apiUsage || { count: 0, lastReset: now };
+        
+        // Reset if it's been more than 24h OR if we passed UTC midnight since lastReset
+        const lastDate = new Date(usage.lastReset).getUTCDate();
+        const currentDate = new Date(now).getUTCDate();
+        const isNewDay = lastDate !== currentDate;
+
+        const updatedUsage = isNewDay 
+          ? { count: 1, lastReset: now } 
+          : { ...usage, count: usage.count + 1 };
+
+        return { ...prev, apiUsage: updatedUsage };
+      });
+    };
+
+    window.addEventListener('mythos_api_call', handleApiCall);
+    return () => window.removeEventListener('mythos_api_call', handleApiCall);
+  }, []);
 
   useEffect(() => {
     if (state.userAccount.isLoggedIn) {
@@ -436,50 +462,55 @@ const App: React.FC = () => {
   const currentShop = (state.campaigns.find(c => c.id === state.activeCampaignId)?.activeShop) || state.currentTavernShop;
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row">
-      {!state.userAccount.isLoggedIn && (
-        <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />
-      )}
-      {showTutorial && (
-        <TutorialScreen characters={state.characters} onComplete={(ids, title, prompt) => {
-          setState(prev => ({ ...prev, party: ids }));
-          createCampaign(title, prompt);
-        }} />
-      )}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={!!state.campaigns.find(c => c.id === state.activeCampaignId)?.isCombatActive} />
-      <main className="relative flex-1 overflow-y-auto bg-leather">
-        <div className="mx-auto max-w-7xl p-4 md:p-8">
-          {currentShop && <ShopModal shop={currentShop} characters={activePartyObjects} onClose={() => setState(prev => ({ ...prev, currentTavernShop: null, campaigns: prev.campaigns.map(c => ({...c, activeShop: null})) }))} onBuy={(item, buyerId) => {
-            const buyer = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
-            if (!buyer) return;
-            const cost = item.cost;
-            const buyerCurr = buyer.currency || { aurels: 0, shards: 0, ichor: 0 };
-            updateCharacter(buyerId, { currency: { aurels: buyerCurr.aurels - cost.aurels, shards: buyerCurr.shards - cost.shards, ichor: buyerCurr.ichor - cost.ichor }, inventory: [...buyer.inventory, item] });
-          }} />}
-          {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={handleLongRest} onOpenShop={handleOpenShop} onUpgradeItem={(cid, iid, cost) => {
-            const char = [...state.characters, ...state.mentors].find(c => cid === c.id);
-            if (!char) return;
-            const item = char.inventory.find(i => i.id === iid);
-            if (!item) return;
-            const currentPlus = parseInt(item.name.match(/\+(\d+)/)?.[1] || '0');
-            const newName = `${item.name.split(' +')[0]} +${currentPlus + 1}`;
-            const updatedStats = { ...item.stats };
-            if (item.type === 'Armor' && updatedStats.ac !== undefined) updatedStats.ac += 1;
-            const updatedInventory = char.inventory.map(i => i.id === iid ? { ...i, name: newName, stats: updatedStats } : i);
-            updateCharacter(cid, { inventory: updatedInventory, currency: { aurels: char.currency.aurels - cost.aurels, shards: char.currency.shards - cost.shards, ichor: char.currency.ichor - cost.ichor } });
-          }} isHost={state.multiplayer.isHost} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} slainMonsterTypes={state.slainMonsterTypes} />}
-          {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} onUpdateMentor={updateCharacter} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
-          {activeTab === 'Chronicles' && <DMWindow campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} mapTokens={state.mapTokens} activeRumors={state.activeRumors} onUpdateMap={m => setState(p => ({ ...p, mapTokens: m }))} onMessage={m => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c) }))} onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onAwardExp={addExpToParty} onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} onShortRest={handleShortRest} onLongRest={handleLongRest} onAIRuntimeUseSlot={(l, n) => { const t = [...state.characters, ...state.mentors].find(x => x.name.toLowerCase() === n.toLowerCase()); if (t && t.spellSlots?.[l]) { updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); return true; } return false; }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} isHost={state.multiplayer.isHost} username={state.userAccount.username} onOpenCombatMap={() => setActiveTab('Tactics')} />}
-          {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={m => setState(p => ({ ...p, mapTokens: m }))} characters={[...state.characters, ...state.mentors]} monsters={state.bestiary} />}
-          {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}
-          {activeTab === 'Spells' && <SpellsScreen mentors={state.mentors} playerCharacters={state.characters} customArchetypes={state.customArchetypes} />}
-          {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={() => {}} />}
-          {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} />}
-          {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} party={activePartyObjects} />}
-          {activeTab === 'Rules' && <RulesScreen />}
-          {activeTab === 'Nexus' && <NexusScreen peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} isHost={state.multiplayer.isHost} onConnect={connectToSoul} username={state.userAccount.username} gameState={state} onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))} onDeleteAccount={handleDeleteAccount} />}
+    <div className="flex flex-col h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
+      <div className="flex flex-col w-full min-h-0">
+        <QuotaBanner usage={state.apiUsage} />
+        <div className="flex flex-col flex-1 min-h-0 md:flex-row overflow-hidden">
+          {!state.userAccount.isLoggedIn && (
+            <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />
+          )}
+          {showTutorial && (
+            <TutorialScreen characters={state.characters} onComplete={(ids, title, prompt) => {
+              setState(prev => ({ ...prev, party: ids }));
+              createCampaign(title, prompt);
+            }} />
+          )}
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={!!state.campaigns.find(c => c.id === state.activeCampaignId)?.isCombatActive} />
+          <main className="relative flex-1 overflow-y-auto bg-leather">
+            <div className="mx-auto max-w-7xl p-4 md:p-8">
+              {currentShop && <ShopModal shop={currentShop} characters={activePartyObjects} onClose={() => setState(prev => ({ ...prev, currentTavernShop: null, campaigns: prev.campaigns.map(c => ({...c, activeShop: null})) }))} onBuy={(item, buyerId) => {
+                const buyer = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
+                if (!buyer) return;
+                const cost = item.cost;
+                const buyerCurr = buyer.currency || { aurels: 0, shards: 0, ichor: 0 };
+                updateCharacter(buyerId, { currency: { aurels: buyerCurr.aurels - cost.aurels, shards: buyerCurr.shards - cost.shards, ichor: buyerCurr.ichor - cost.ichor }, inventory: [...buyer.inventory, item] });
+              }} />}
+              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={handleLongRest} onOpenShop={handleOpenShop} onUpgradeItem={(cid, iid, cost) => {
+                const char = [...state.characters, ...state.mentors].find(c => cid === c.id);
+                if (!char) return;
+                const item = char.inventory.find(i => i.id === iid);
+                if (!item) return;
+                const currentPlus = parseInt(item.name.match(/\+(\d+)/)?.[1] || '0');
+                const newName = `${item.name.split(' +')[0]} +${currentPlus + 1}`;
+                const updatedStats = { ...item.stats };
+                if (item.type === 'Armor' && updatedStats.ac !== undefined) updatedStats.ac += 1;
+                const updatedInventory = char.inventory.map(i => i.id === iid ? { ...i, name: newName, stats: updatedStats } : i);
+                updateCharacter(cid, { inventory: updatedInventory, currency: { aurels: char.currency.aurels - cost.aurels, shards: char.currency.shards - cost.shards, ichor: char.currency.ichor - cost.ichor } });
+              }} isHost={state.multiplayer.isHost} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} slainMonsterTypes={state.slainMonsterTypes} />}
+              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} onUpdateMentor={updateCharacter} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
+              {activeTab === 'Chronicles' && <DMWindow campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} mapTokens={state.mapTokens} activeRumors={state.activeRumors} onUpdateMap={m => setState(p => ({ ...p, mapTokens: m }))} onMessage={m => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c) }))} onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onAwardExp={addExpToParty} onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} onShortRest={handleShortRest} onLongRest={handleLongRest} onAIRuntimeUseSlot={(l, n) => { const t = [...state.characters, ...state.mentors].find(x => x.name.toLowerCase() === n.toLowerCase()); if (t && t.spellSlots?.[l]) { updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); return true; } return false; }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} isHost={state.multiplayer.isHost} username={state.userAccount.username} onOpenCombatMap={() => setActiveTab('Tactics')} />}
+              {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={m => setState(p => ({ ...p, mapTokens: m }))} characters={[...state.characters, ...state.mentors]} monsters={state.bestiary} />}
+              {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}
+              {activeTab === 'Spells' && <SpellsScreen mentors={state.mentors} playerCharacters={state.characters} customArchetypes={state.customArchetypes} />}
+              {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={() => {}} />}
+              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} />}
+              {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} party={activePartyObjects} />}
+              {activeTab === 'Rules' && <RulesScreen />}
+              {activeTab === 'Nexus' && <NexusScreen peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} isHost={state.multiplayer.isHost} onConnect={connectToSoul} username={state.userAccount.username} gameState={state} onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))} onDeleteAccount={handleDeleteAccount} />}
+            </div>
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 };

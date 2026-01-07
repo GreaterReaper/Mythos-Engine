@@ -49,20 +49,20 @@ export const SPELL_SLOT_PROGRESSION: Record<number, Record<number, number>> = {
 
 export const SPELL_LIBRARY: Record<string, Ability[]> = {
   [Archetype.Sorcerer]: [
-    { name: 'Chaos Bolt', description: 'Fire a bolt of unpredictable energy. Deals 2d8 damage of a random aetheric type.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Chaos Bolt', description: 'Fire a bolt of unpredictable energy. Deals 2d8 damage of a random aetheric type.', type: 'Spell', levelReq: 1, baseLevel: 1, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
     { name: 'Shield of Aether', description: 'An invisible barrier of force appears to protect you. +5 AC.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Aether Shards', description: 'Create three shards of glowing energy that strike targets. Deals 1d4+1 force damage each.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Burning Hands', description: 'A thin sheet of flames shoots from your fingertips. 3d6 fire damage in a 15ft cone.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Aether Shards', description: 'Create three shards of glowing energy that strike targets. Deals 1d4+1 force damage each.', type: 'Spell', levelReq: 1, baseLevel: 1, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
+    { name: 'Burning Hands', description: 'A thin sheet of flames shoots from your fingertips. 3d6 fire damage in a 15ft cone.', type: 'Spell', levelReq: 1, baseLevel: 1, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
     { name: 'Misty Step', description: 'Teleport up to 30 feet to an unoccupied space you can see.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Shatter', description: 'A sudden loud ringing noise deals 3d8 thunder damage in a 10ft radius.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Scorching Ray', description: 'Hurl three streaks of fire. Each deals 2d6 fire damage on hit.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Fireball', description: 'A bright streak blossoms into an explosion. 8d6 fire damage in a 20ft radius.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Shatter', description: 'A sudden loud ringing noise deals 3d8 thunder damage in a 10ft radius.', type: 'Spell', levelReq: 3, baseLevel: 2, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
+    { name: 'Scorching Ray', description: 'Hurl three streaks of fire. Each deals 2d6 fire damage on hit.', type: 'Spell', levelReq: 3, baseLevel: 2, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
+    { name: 'Fireball', description: 'A bright streak blossoms into an explosion. 8d6 fire damage in a 20ft radius.', type: 'Spell', levelReq: 5, baseLevel: 3, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
     { name: 'Counterspell', description: 'Attempt to interrupt a creature in the process of casting a spell.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Lightning Bolt', description: 'A stroke of lightning 100 feet long blasts out. Deals 8d6 lightning damage.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Lightning Bolt', description: 'A stroke of lightning 100 feet long blasts out. Deals 8d6 lightning damage.', type: 'Spell', levelReq: 5, baseLevel: 3, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
     { name: 'Polymorph', description: 'Transform a creature you can see into a beast of a CR equal to or less than its own.', type: 'Spell', levelReq: 7, baseLevel: 4 },
-    { name: 'Cone of Cold', description: 'A blast of cold air erupts. 8d8 cold damage in a 60ft cone.', type: 'Spell', levelReq: 9, baseLevel: 5 },
-    { name: 'Disintegrate', description: 'A thin green ray dealing 10d6 + 40 force damage.', type: 'Spell', levelReq: 11, baseLevel: 6 },
-    { name: 'Meteor Swarm', description: 'Call down four meteors dealing 20d6 fire and 20d6 bludgeoning damage.', type: 'Spell', levelReq: 17, baseLevel: 9 },
+    { name: 'Cone of Cold', description: 'A blast of cold air erupts. 8d8 cold damage in a 60ft cone.', type: 'Spell', levelReq: 9, baseLevel: 5, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
+    { name: 'Disintegrate', description: 'A thin green ray dealing 10d6 + 40 force damage.', type: 'Spell', levelReq: 11, baseLevel: 6, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
+    { name: 'Meteor Swarm', description: 'Call down four meteors dealing 20d6 fire and 20d6 bludgeoning damage.', type: 'Spell', levelReq: 17, baseLevel: 9, scaling: 'Deals an extra 1d6 damage for each slot level above 3rd.' },
     { name: 'Wish', description: 'The mightiest spell a mortal creature can cast. Alter the foundations of reality.', type: 'Spell', levelReq: 17, baseLevel: 9 },
     { name: 'Exequy', description: 'The ultimate song of the end. Consumes ALL thy remaining spell slots. On a successful manifestation, the target dies instantly. Arcane Memory cannot bypass this requirement.', type: 'Spell', levelReq: 17, baseLevel: 9 }
   ],
@@ -195,6 +195,7 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'f-c-shield', name: 'Iron Heater Shield', description: 'Solid protection for the shield-arm.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
   { id: 'f-u-sword', name: 'Captain\'s Broadsword', description: 'A perfectly balanced military blade.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+STR', dex: 1 }, archetypes: [Archetype.Fighter] },
   { id: 'f-r-shield', name: 'Mirror-Finished Buckler', description: 'Reflects minor spells back at the source.', type: 'Armor', rarity: 'Rare', stats: { ac: 3, wis: 1 }, archetypes: [Archetype.Fighter] },
+  { id: 'f-e-sword', name: 'Dragon-Tooth Falchion', description: 'Curved blade that burns with ancient heat.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d8+STR', str: 3 }, archetypes: [Archetype.Fighter] },
   { id: 'f-l-sword', name: 'Excalibur Reforged', description: 'The absolute pinnacle of the one-handed path.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+STR', str: 5, cha: 3 }, archetypes: [Archetype.Fighter] },
   { id: 'f-l-shield', name: 'Daughter of the Evening', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror.', type: 'Armor', rarity: 'Legendary', stats: { ac: 6, wis: 3, cha: 3 }, archetypes: [Archetype.Fighter] },
 

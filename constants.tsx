@@ -186,9 +186,7 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'w-c-sword', name: 'Iron Zweihander', description: 'A massive, two-handed iron blade.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-c-plate', name: 'Soldier\'s Plate', description: 'Durable iron plating. Requires heavy training.', type: 'Armor', rarity: 'Common', stats: { ac: 16 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'w-u-sword', name: 'Aether-Tempered Zweihander', description: 'Infused with blue fire for increased durability.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '2d6+STR', str: 1 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
-  { id: 'w-u-plate', name: 'Obsidian Reinforced Plate', description: 'Darkened metal that absorbs light.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 17, con: 1 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'w-r-sword', name: 'Ebon-Glass Claymore', description: 'Forged from the core of an obsidian mountain.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d12+STR', str: 2 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
-  { id: 'w-e-sword', name: 'Soul-Reaver Greatsword', description: 'Strikes draw out the essence of the fallen.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d10+STR', str: 3, cha: 1 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-l-sword', name: 'World-Ender Zweihander', description: 'The legendary blade that split the first obsidian peak.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '3d10+STR', str: 5, con: 3 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-l-plate', name: 'Plate of the Void Lord', description: 'Manifested from absolute nothingness.', type: 'Armor', rarity: 'Legendary', stats: { ac: 22, str: 2, cha: 2 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
 
@@ -197,51 +195,35 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'f-c-shield', name: 'Iron Heater Shield', description: 'Solid protection for the shield-arm.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
   { id: 'f-u-sword', name: 'Captain\'s Broadsword', description: 'A perfectly balanced military blade.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+STR', dex: 1 }, archetypes: [Archetype.Fighter] },
   { id: 'f-r-shield', name: 'Mirror-Finished Buckler', description: 'Reflects minor spells back at the source.', type: 'Armor', rarity: 'Rare', stats: { ac: 3, wis: 1 }, archetypes: [Archetype.Fighter] },
-  { id: 'f-e-sword', name: 'Dragon-Tooth Falchion', description: 'Curved blade that burns with ancient heat.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d8+STR', str: 3 }, archetypes: [Archetype.Fighter] },
   { id: 'f-l-sword', name: 'Excalibur Reforged', description: 'The absolute pinnacle of the one-handed path.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+STR', str: 5, cha: 3 }, archetypes: [Archetype.Fighter] },
-  { id: 'f-l-shield', name: 'Daughter of the Evening', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror.', type: 'Armor', rarity: 'Legendary', stats: { ac: 5, wis: 2, cha: 2 }, archetypes: [Archetype.Fighter] },
+  { id: 'f-l-shield', name: 'Daughter of the Evening', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror.', type: 'Armor', rarity: 'Legendary', stats: { ac: 6, wis: 3, cha: 3 }, archetypes: [Archetype.Fighter] },
 
   // --- THIEF (Short Swords/Daggers & Leather) ---
   { id: 't-c-dagger', name: 'Flint Stiletto', description: 'Jagged edge for deep wounds.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief] },
   { id: 't-c-short', name: 'Rogue\'s Shortsword', description: 'Quick and easy to conceal.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+DEX' }, archetypes: [Archetype.Thief, Archetype.Alchemist] },
   { id: 't-c-leather', name: 'Scout\'s Leather Tunic', description: 'Supple and silent.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
-  { id: 't-u-dagger', name: 'Shadow-Threaded Dirk', description: 'Flickers in and out of reality.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d4+DEX', dex: 1 }, archetypes: [Archetype.Thief] },
   { id: 't-u-leather', name: 'Stalker\'s Garb', description: 'Treated with void-oil for silence.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 12, dex: 1 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
-  { id: 't-r-dagger', name: 'Venom-Coated Fang', description: 'Injects obsidian wasp toxin on strike.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d6+DEX', con: 2 }, archetypes: [Archetype.Thief] },
-  { id: 't-e-short', name: 'Ghost-Blade of the Unseen', description: 'Allows the user to strike from the aether.', type: 'Weapon', rarity: 'Epic', stats: { damage: '1d10+DEX', dex: 3 }, archetypes: [Archetype.Thief] },
   { id: 't-l-short', name: 'The Night\'s Edge', description: 'Manifested darkness. Absolute silence.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '1d12+DEX', dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
 
   // --- ARCHER (Bows/Crossbows & Leather) ---
   { id: 'a-c-bow', name: 'Frontier Longbow', description: 'Sturdy yew with a heavy draw.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Archer] },
   { id: 'a-u-bow', name: 'Composite Recurve', description: 'Aether-reinforced limbs.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+DEX', dex: 1 }, archetypes: [Archetype.Archer] },
-  { id: 'a-r-bow', name: 'Wind-Singer Longbow', description: 'Whistles as it fires, slicing air resistance.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d10+DEX', dex: 2 }, archetypes: [Archetype.Archer] },
-  { id: 'a-e-crossbow', name: 'Heavy Siege Crossbow', description: 'Bolts that can punch through plate.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d8+DEX', str: 2 }, archetypes: [Archetype.Archer] },
   { id: 'a-l-bow', name: 'Artemis\'s Final Breath', description: 'Legendary relic. Arrows track soul resonance.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d10+DEX', dex: 5, wis: 2 }, archetypes: [Archetype.Archer] },
 
   // --- BLOOD ARTIST (Scythes/Sickles & Robes) ---
   { id: 'b-c-sickle', name: 'Ritual Sickle', description: 'Used for precise bloodletting.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+CHA' }, archetypes: [Archetype.BloodArtist] },
   { id: 'b-c-robes', name: 'Vein-Stitched Robes', description: 'Fine silks that never seem to dry.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
   { id: 'b-u-scythe', name: 'Sanguine Harvester', description: 'A large harvesting blade that hums when near blood.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d10+CHA', con: 1 }, archetypes: [Archetype.BloodArtist] },
-  { id: 'b-u-robes', name: 'Noble\'s Crimson Silks', description: 'Increases authority over the life-stream.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 11, cha: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
-  { id: 'b-r-scythe', name: 'Heart-Striker Scythe', description: 'Strikes pierce directly to the essence.', type: 'Weapon', rarity: 'Rare', stats: { damage: '2d6+CHA', cha: 2 }, archetypes: [Archetype.BloodArtist] },
-  { id: 'b-e-scythe', name: 'Ichor-Drenched Harvester', description: 'This blade can sweep through multiple souls.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d10+CHA', con: 3 }, archetypes: [Archetype.BloodArtist] },
   { id: 'b-l-scythe', name: 'Life-Drinker Scythe', description: 'Legendary reaper weapon. Slain foes restore slots.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '3d10+CHA', cha: 5, con: 5 }, archetypes: [Archetype.BloodArtist] },
 
   // --- ALCHEMIST (Short Swords & Vials & Leather) ---
   { id: 'al-c-short', name: 'Chemist\'s Shortsword', description: 'Balanced for use with an offhand vial.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+INT' }, archetypes: [Archetype.Alchemist] },
   { id: 'al-c-vial', name: 'Minor Volatile Flask', description: 'An offhand vial containing explosive liquids.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d10' }, archetypes: [Archetype.Alchemist] },
-  { id: 'al-u-vial', name: 'Acid-Etched Draught', description: 'Melts armor on impact.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '2d6', int: 1 }, archetypes: [Archetype.Alchemist] },
-  { id: 'al-r-vial', name: 'Dragon-Breath Concoction', description: 'A vial of extremely volatile liquid fire.', type: 'Weapon', rarity: 'Rare', stats: { damage: '4d6', int: 2 }, archetypes: [Archetype.Alchemist] },
-  { id: 'al-e-vial', name: 'Soul-Dissolving Essence', description: 'Dissolves the target\'s very aetheric bond.', type: 'Weapon', rarity: 'Epic', stats: { damage: '6d6', int: 3 }, archetypes: [Archetype.Alchemist] },
   { id: 'al-l-vial', name: 'The Magnum Opus Flask', description: 'Legendary. Creates a constant storm of chemical ruin.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '10d6', int: 5 }, archetypes: [Archetype.Alchemist] },
 
   // --- SORCERER & MAGE (Staves & Robes) ---
   { id: 's-c-staff', name: 'Ashwood Conduit', description: 'A simple staff to focus energy.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 's-u-staff', name: 'Crystal-Tipped Scepter', description: 'Pulsing gem increases mental clarity.', type: 'Weapon', rarity: 'Uncommon', stats: { int: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 's-r-staff', name: 'Orb of Eternal Aether', description: 'A floating focus that grants infinite minor mana.', type: 'Weapon', rarity: 'Rare', stats: { wis: 3, int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 's-e-staff', name: 'Archmagi\'s Pillar', description: 'Stores a single high-level manifestation.', type: 'Weapon', rarity: 'Epic', stats: { int: 4, wis: 2 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
   { id: 's-l-staff', name: 'Staff of the First Weaver', description: 'Legendary relic. Can re-write reality.', type: 'Weapon', rarity: 'Legendary', stats: { int: 6, wis: 6 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 's-l-robes', name: 'Robes of the Cosmic Core', description: 'Donned by the weaver of the Great Compilation.', type: 'Armor', rarity: 'Legendary', stats: { ac: 15, int: 3, wis: 3 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
 
   // --- UTILITY ---
   { id: 'start-hp-pot', name: 'Minor Vitality Potion', description: 'Restores 10 HP.', type: 'Utility', rarity: 'Common', stats: {}, archetypes: [] },
@@ -470,7 +452,7 @@ export const RULES_MANIFEST = `
 10. **FIDELITY OF ARMS**: Warrior/Dark Knight: 2H Swords. Fighter: 1H Weapons & Shields. Thief: Short Swords/Daggers. Archer: Bows/Crossbows. Blood Artist: Scythes/Sickles. Alchemist: Short Swords & Offhand Vials.
 `;
 
-export const STARTER_CAMPAIGN_PROMPT = `The fellowship huddles in 'The Broken Cask'. Outside, the obsidian mountains loom...`;
+export const STARTER_CAMPAIGN_PROMPT = `The air is thick with the scent of ozone and ancient rot. Your party stands before the heavy, iron-bound doors of 'The Broken Cask', a flickering lantern casting long, jagged shadows against the obsidian walls of the valley. To the North, the Whispering Woods moan under a blood-red moon. To the East, the Maw of the Engine hums with a low, bone-shaking frequency. What is your first move in this dying world?`;
 
 export const TUTORIAL_SCENARIO = {
   title: "The Path to Ascension",

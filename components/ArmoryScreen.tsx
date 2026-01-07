@@ -26,6 +26,9 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare,
   const filteredAndSortedItems = useMemo(() => {
     return armory
       .filter(item => {
+        // FILTER OUT UTILITY ITEMS and UNIQUE MENTOR GEAR
+        if (item.type === 'Utility' || item.isUnique) return false;
+
         const matchesClass = filterClass === 'All' || 
                            !item.archetypes || 
                            item.archetypes.length === 0 || 
@@ -87,7 +90,6 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare,
             <option value="All">All Types</option>
             <option value="Weapon">Weapons</option>
             <option value="Armor">Armor</option>
-            <option value="Utility">Utility</option>
           </select>
         </div>
 

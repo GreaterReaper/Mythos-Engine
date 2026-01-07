@@ -1,4 +1,3 @@
-
 export enum Race {
   Human = 'Human',
   Elf = 'Elf',
@@ -79,6 +78,7 @@ export interface Item {
   archetypes?: Archetype[] | string[];
   authorId?: string;
   quantity?: number; // Added for stackable items
+  isUnique?: boolean; // If true, hidden from global armory
 }
 
 export interface ShopItem extends Item {
@@ -136,11 +136,13 @@ export interface Monster {
   type: 'Goblinoid' | 'Beast' | 'Undead' | 'Humanoid' | 'Draconian' | 'Hybrid';
   hp: number;
   ac: number;
-  stats: Stats; // Added for enhanced bestiary
+  stats: Stats; 
+  cr: number; // Challenge Rating: 0.25, 0.5, 1, 2, etc.
   abilities: Ability[];
   description: string;
   imageUrl?: string;
-  expReward: number;
+  resistances?: string[];
+  vulnerabilities?: string[];
 }
 
 export interface Message {
@@ -166,6 +168,14 @@ export interface Friend {
   peerId?: string;
 }
 
+export interface Rumor {
+  id: string;
+  hook: string;
+  length: 'Short' | 'Medium' | 'Long' | 'Epic';
+  danger: 'Trivial' | 'Perilous' | 'Mortal' | 'Cataclysmic';
+  rewardTier: number; // Scale of 1-5 influencing multipliers
+}
+
 export interface GameState {
   characters: Character[];
   mentors: Character[];
@@ -188,5 +198,7 @@ export interface GameState {
     isHost: boolean;
     connectedPeers: string[];
   };
-  currentTavernShop?: Shop | null; // Added for explicit safety
+  currentTavernShop?: Shop | null;
+  slainMonsterTypes: string[]; // Tracks defeated types for Apothecary
+  activeRumors: Rumor[]; // Hooks gathered from the Innkeeper
 }

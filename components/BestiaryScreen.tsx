@@ -1,18 +1,16 @@
-
 import React, { useState, useMemo } from 'react';
 import { Monster, Stats } from '../types';
-import Tooltip from './Tooltip';
 
 interface BestiaryScreenProps {
   monsters: Monster[];
   onUpdateMonster: (id: string, updates: Partial<Monster>) => void;
 }
 
-type SortCriteria = 'expReward' | 'hp' | 'ac' | 'name';
+type SortCriteria = 'cr' | 'hp' | 'ac' | 'name';
 type SortOrder = 'asc' | 'desc';
 
 const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
-  const [sortBy, setSortBy] = useState<SortCriteria>('expReward');
+  const [sortBy, setSortBy] = useState<SortCriteria>('cr');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -45,7 +43,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
     <div className="space-y-8 pb-20 max-w-6xl mx-auto px-2">
       <div className="border-b border-red-900/50 pb-6">
         <h2 className="text-4xl md:text-5xl font-cinzel text-gold tracking-tighter">Ancient Bestiary</h2>
-        <p className="text-gray-500 italic mt-2 opacity-70">"Know thy enemy, for their hunger is eternal and their soul-worth high."</p>
+        <p className="text-gray-500 italic mt-2 opacity-70">"Challenge thy limits, but heed the Rating of the soul's threat."</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 p-5 bg-black/40 rune-border items-end shadow-2xl">
@@ -67,7 +65,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
             onChange={(e) => setSortBy(e.target.value as SortCriteria)}
             className="w-full h-[46px] bg-[#0c0a09] border border-red-900/50 px-3 text-xs text-gold outline-none cursor-pointer font-cinzel hover:border-gold transition-colors"
           >
-            <option value="expReward">Soul Value (EXP)</option>
+            <option value="cr">Challenge (CR)</option>
             <option value="hp">Vitality (HP)</option>
             <option value="ac">Defense (AC)</option>
             <option value="name">Alphabetical</option>
@@ -84,7 +82,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
 
       <div className="flex flex-col gap-6">
         {sortedMonsters.map(monster => {
-          const isBoss = monster.expReward >= 3000;
+          const isBoss = monster.cr >= 10;
           const isExpanded = expandedIds.has(monster.id);
           
           return (
@@ -120,9 +118,9 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
 
                 <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                   <div className="text-right shrink-0">
-                    <span className="block text-[8px] text-gold font-black uppercase opacity-60 tracking-widest">Soul Value</span>
+                    <span className="block text-[8px] text-gold font-black uppercase opacity-60 tracking-widest">Challenge Rating</span>
                     <span className={`font-cinzel leading-none block ${isBoss ? 'text-2xl text-red-600 font-black drop-shadow-sm' : 'text-lg text-gold font-bold'}`}>
-                      {monster.expReward}<span className="text-[9px] ml-1 opacity-50 uppercase">EXP</span>
+                      {monster.cr}
                     </span>
                   </div>
                   <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
@@ -157,6 +155,29 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
                           );
                         })}
                       </div>
+                      
+                      {/* NEW: Resistances & Vulnerabilities */}
+                      {(monster.resistances && monster.resistances.length > 0) && (
+                        <div className="space-y-1">
+                          <h4 className="text-[9px] font-cinzel text-blue-500 uppercase font-black tracking-widest">Resistances</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {monster.resistances.map((r, i) => (
+                              <span key={i} className="text-[8px] bg-blue-900/20 border border-blue-900/40 text-blue-300 px-1.5 py-0.5 rounded-sm italic">{r}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {(monster.vulnerabilities && monster.vulnerabilities.length > 0) && (
+                        <div className="space-y-1">
+                          <h4 className="text-[9px] font-cinzel text-red-500 uppercase font-black tracking-widest">Vulnerabilities</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {monster.vulnerabilities.map((v, i) => (
+                              <span key={i} className="text-[8px] bg-red-900/20 border border-red-900/40 text-red-300 px-1.5 py-0.5 rounded-sm italic">{v}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Right: Abilities (spanning 2 columns on large screens) */}
@@ -172,9 +193,6 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
                             <p className="text-[10px] text-gray-400 leading-relaxed">{a.description}</p>
                           </div>
                         ))}
-                        {monster.abilities.length === 0 && (
-                          <p className="text-[10px] text-gray-600 italic">This creature relies solely on primitive instinct.</p>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -183,12 +201,6 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
             </div>
           );
         })}
-
-        {sortedMonsters.length === 0 && (
-          <div className="col-span-full py-32 text-center border-2 border-dashed border-red-900/20 rounded-sm opacity-50">
-            <p className="text-gray-500 font-cinzel italic uppercase text-lg tracking-widest">The shadows are empty. No monsters match thy vision.</p>
-          </div>
-        )}
       </div>
     </div>
   );

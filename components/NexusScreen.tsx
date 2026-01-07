@@ -11,10 +11,11 @@ interface NexusScreenProps {
   username: string;
   gameState: GameState;
   onClearFriends: () => void;
+  onDeleteAccount: () => void;
 }
 
 const NexusScreen: React.FC<NexusScreenProps> = ({ 
-  peerId, connectedPeers, isHost, onConnect, username, gameState, onClearFriends 
+  peerId, connectedPeers, isHost, onConnect, username, gameState, onClearFriends, onDeleteAccount 
 }) => {
   const [targetId, setTargetId] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
@@ -180,6 +181,18 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Account Deletion Ritual */}
+        <div className="rune-border p-6 bg-black/60 border-red-900/40 space-y-4">
+           <h3 className="text-xs font-cinzel text-red-700 uppercase tracking-widest">Ritual of Severance</h3>
+           <p className="text-[10px] text-gray-500 leading-relaxed italic">"Abandon thy vessel and let thy fragments return to the void."</p>
+           <button 
+             onClick={onDeleteAccount}
+             className="w-full py-3 border border-red-900/50 text-red-900 hover:bg-red-900 hover:text-white transition-all font-cinzel text-[10px] font-black uppercase tracking-widest"
+           >
+             SEVER ALL BONDS (DELETE ACCOUNT)
+           </button>
         </div>
 
         {/* Known Souls (Archives) */}

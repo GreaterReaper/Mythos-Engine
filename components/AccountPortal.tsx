@@ -35,7 +35,7 @@ const AccountPortal: React.FC<AccountPortalProps> = ({ onLogin, onMigrate }) => 
 
   return (
     <div className="fixed inset-0 z-[200] bg-black flex items-center justify-center p-4">
-      <div className="max-w-md w-full rune-border p-8 bg-black/80 space-y-8 text-center">
+      <div className="max-w-md w-full rune-border p-8 bg-black/80 space-y-8 text-center shadow-2xl shadow-red-900/20">
         <div className="space-y-2">
           <h1 className="text-4xl font-cinzel text-gold animate-pulse">Mythos Engine</h1>
           <p className="text-[10px] text-red-900 font-cinzel tracking-[0.3em] uppercase">Soul Gateway</p>

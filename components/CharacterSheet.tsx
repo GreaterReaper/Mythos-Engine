@@ -18,11 +18,17 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const [editedBio, setEditedBio] = useState(character.biography || '');
   const [editedDesc, setEditedDesc] = useState(character.description || '');
   const [isWeaving, setIsWeaving] = useState(false);
+  const [arcaneMemoryActive, setArcaneMemoryActive] = useState(false);
+  const [arcaneMemoryUsed, setArcaneMemoryUsed] = useState(false);
+  const [comparingItemId, setComparingItemId] = useState<string | null>(null);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
 
   const dexMod = getMod(character.stats.dex);
   const strMod = getMod(character.stats.str);
+
+  const nextLevelExp = character.level * 1000;
+  const expProgress = (character.exp / nextLevelExp) * 100;
 
   const equippedItems = useMemo(() => 
     character.inventory.filter(i => character.equippedIds?.includes(i.id)),
@@ -65,24 +71,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     });
   }, [equippedItems, dexMod, strMod, character.level]);
 
-  const skills = useMemo(() => [
-    { name: 'Acrobatics', stat: 'dex' },
-    { name: 'Athletics', stat: 'str' },
-    { name: 'Arcana', stat: 'int' },
-    { name: 'Deception', stat: 'cha' },
-    { name: 'History', stat: 'int' },
-    { name: 'Insight', stat: 'wis' },
-    { name: 'Intimidation', stat: 'cha' },
-    { name: 'Medicine', stat: 'wis' },
-    { name: 'Nature', stat: 'int' },
-    { name: 'Perception', stat: 'wis' },
-    { name: 'Persuasion', stat: 'cha' },
-    { name: 'Religion', stat: 'int' },
-    { name: 'Sleight of Hand', stat: 'dex' },
-    { name: 'Stealth', stat: 'dex' },
-    { name: 'Survival', stat: 'wis' },
-  ], []);
-
   const handleStatUp = (stat: keyof Stats) => {
     if (!onUpdate || character.asiPoints <= 0) return;
     const newStats = { ...character.stats, [stat]: character.stats[stat] + 1 };
@@ -106,6 +94,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
       ? currentEquipped.filter(id => id !== itemId)
       : [...currentEquipped, itemId];
     onUpdate(character.id, { equippedIds: newEquipped });
+    setComparingItemId(null);
   };
 
   const handleAutoEquip = () => {
@@ -122,7 +111,59 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   const handleRestoreSlots = () => {
     if (!onUpdate || !character.maxSpellSlots) return;
+    setArcaneMemoryUsed(false);
     onUpdate(character.id, { spellSlots: { ...character.maxSpellSlots } });
+  };
+
+  const handleManifestSpell = (spell: Ability) => {
+    if (!onUpdate || !character.spellSlots || spell.type !== 'Spell' || isMentor) return;
+    
+    const baseLevel = spell.baseLevel || 1;
+    
+    if (spell.name === 'Exequy') {
+      if ((character.spellSlots[9] || 0) <= 0) {
+        alert("Thy 9th level wells are dry. Exequy requires a fragment of ultimate power to ignite.");
+        return;
+      }
+      
+      if (!confirm("MANIFESTING EXEQUY SHALL VOID ALL THY AETHERIC RESERVES. EVERY SLOT SHALL BE CONSUMED TO FUEL THE END. PROCEED?")) return;
+
+      const drainedSlots = { ...character.spellSlots };
+      Object.keys(drainedSlots).forEach(lvl => {
+        drainedSlots[Number(lvl)] = 0;
+      });
+      
+      setArcaneMemoryActive(false);
+      
+      onUpdate(character.id, { spellSlots: drainedSlots });
+      alert("THE END IS NIGH. Thy soul is hollowed as Exequy deletes the target from existence.");
+      return;
+    }
+
+    if (arcaneMemoryActive) {
+      if (arcaneMemoryUsed) {
+        alert("Thy Arcane Memory is spent for this cycle.");
+        return;
+      }
+      setArcaneMemoryUsed(true);
+      setArcaneMemoryActive(false);
+      alert(`Manifested ${spell.name} through the sheer force of thy memory.`);
+      return;
+    }
+
+    const availableLevels = Object.keys(character.spellSlots)
+      .map(Number)
+      .filter(lvl => lvl >= baseLevel && character.spellSlots![lvl] > 0)
+      .sort((a, b) => a - b);
+    
+    if (availableLevels.length === 0) {
+      alert(`Thy wells of level ${baseLevel} or higher are dry.`);
+      return;
+    }
+    
+    const consumeLevel = availableLevels[0];
+    const newSlots = { ...character.spellSlots, [consumeLevel]: character.spellSlots[consumeLevel] - 1 };
+    onUpdate(character.id, { spellSlots: newSlots });
   };
 
   const saveLore = () => {
@@ -152,6 +193,39 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   };
 
   const recommendedForArch = useMemo(() => RECOMMENDED_STATS[character.archetype] || [], [character.archetype]);
+
+  const isCaster = !!(character.maxSpellSlots && Object.keys(character.maxSpellSlots).length > 0);
+  const hasArcaneMemory = character.abilities.some(a => a.name === 'Arcane Memory');
+
+  // ITEM COMPARISON LOGIC
+  const comparisonData = useMemo(() => {
+    if (!comparingItemId) return null;
+    const newItem = character.inventory.find(i => i.id === comparingItemId);
+    if (!newItem || newItem.type === 'Utility' || newItem.type === 'Quest') return null;
+
+    // Find equipped item of the same type
+    const equipped = equippedItems.find(i => i.type === newItem.type);
+    if (!equipped) return { newItem, equipped: null, deltas: newItem.stats || {} };
+
+    const deltas: Record<string, number | string> = {};
+    const allKeys = new Set([
+      ...Object.keys(newItem.stats || {}),
+      ...Object.keys(equipped.stats || {})
+    ]);
+
+    allKeys.forEach(key => {
+      const newVal = newItem.stats?.[key as keyof Stats] || 0;
+      const oldVal = equipped.stats?.[key as keyof Stats] || 0;
+      
+      if (typeof newVal === 'number' && typeof oldVal === 'number') {
+        deltas[key] = newVal - oldVal;
+      } else if (key === 'damage') {
+        deltas[key] = `${equipped.stats?.[key as keyof Stats]} → ${newItem.stats?.[key as keyof Stats]}`;
+      }
+    });
+
+    return { newItem, equipped, deltas };
+  }, [comparingItemId, character.inventory, equippedItems]);
 
   return (
     <div className="rune-border bg-black/90 backdrop-blur-xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl">
@@ -190,13 +264,21 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           </div>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-5 space-y-3">
           <div className="flex items-center gap-3">
-            <span className="text-[10px] font-cinzel text-red-900 w-6 font-black">HP</span>
+            <span className="text-[10px] font-cinzel text-red-900 w-8 font-black uppercase">HP</span>
             <div className="flex-1 h-2 bg-gray-950 rounded-full overflow-hidden border border-red-900/20">
               <div className="h-full bg-red-900 transition-all duration-700 shadow-[0_0_10px_rgba(127,29,29,0.5)]" style={{ width: `${(character.currentHp / character.maxHp) * 100}%` }} />
             </div>
             <span className="text-[10px] font-cinzel text-white min-w-[50px] text-right font-black">{character.currentHp}/{character.maxHp}</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-cinzel text-gold w-8 font-black uppercase">XP</span>
+            <div className="flex-1 h-1.5 bg-gray-950 rounded-full overflow-hidden border border-gold/10">
+              <div className="h-full bg-gold transition-all duration-1000 shadow-[0_0_8px_rgba(212,175,55,0.4)]" style={{ width: `${expProgress}%` }} />
+            </div>
+            <span className="text-[10px] font-cinzel text-gray-400 min-w-[50px] text-right font-black">{character.exp}/{nextLevelExp}</span>
           </div>
         </div>
       </div>
@@ -218,7 +300,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
       <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar bg-black/20">
         {activeTab === 'Stats' && (
           <div className="space-y-8 pb-4">
-            {/* Vault (Currency) - NOW READ ONLY */}
+            {/* Vault (Currency) */}
             <div className="space-y-3">
                <h3 className="text-[10px] font-cinzel text-gold uppercase border-b border-gold/20 pb-2 font-black tracking-[0.2em]">The Vault (DM Tracked)</h3>
                <div className="grid grid-cols-3 gap-3">
@@ -236,6 +318,31 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                   </div>
                </div>
             </div>
+
+            {/* Spell Slots - Dedicated Caster UI Section */}
+            {isCaster && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="flex justify-between items-center border-b border-gold/20 pb-2">
+                   <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-[0.2em]">Aetheric Weaving</h3>
+                   {hasArcaneMemory && !isMentor && (
+                     <button 
+                       onClick={() => !arcaneMemoryUsed && setArcaneMemoryActive(!arcaneMemoryActive)}
+                       disabled={arcaneMemoryUsed}
+                       className={`px-3 py-1 text-[8px] font-black uppercase border rounded transition-all ${arcaneMemoryUsed ? 'border-red-900/20 text-gray-700' : arcaneMemoryActive ? 'bg-amber-600 text-black border-gold shadow-[0_0_10px_#d4af37]' : 'border-amber-600 text-amber-600 hover:bg-amber-900/20'}`}
+                     >
+                       {arcaneMemoryUsed ? 'Arcane Memory Spent' : arcaneMemoryActive ? 'Bypassing Slot Cost' : 'Use Arcane Memory'}
+                     </button>
+                   )}
+                </div>
+                <SpellSlotManager 
+                  maxSlots={character.maxSpellSlots!}
+                  currentSlots={character.spellSlots || {}}
+                  onUseSlot={handleUseSlot}
+                  onRestoreAll={handleRestoreSlots}
+                  isReadOnly={!!isMentor}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
@@ -283,18 +390,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                  )}
                </div>
             </div>
-
-            {character.maxSpellSlots && (
-              <div className="mt-4">
-                <SpellSlotManager 
-                  maxSlots={character.maxSpellSlots}
-                  currentSlots={character.spellSlots || {}}
-                  onUseSlot={handleUseSlot}
-                  onRestoreAll={handleRestoreSlots}
-                  isReadOnly={!!isMentor}
-                />
-              </div>
-            )}
           </div>
         )}
 
@@ -304,7 +399,21 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
               <div key={i} className="p-4 bg-red-900/5 border-l-2 border-red-900 group hover:bg-red-900/10 transition-all rounded-r-sm">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-[11px] font-cinzel text-gold uppercase font-black tracking-widest">{a.name}</span>
-                  <span className="text-[9px] text-red-900 uppercase italic font-bold">{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] text-red-900 uppercase italic font-bold">{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>
+                    {a.type === 'Spell' && !isMentor && (
+                      <button 
+                        onClick={() => handleManifestSpell(a)}
+                        className={`mt-2 px-3 py-1 text-[8px] font-black uppercase tracking-widest transition-all rounded-sm border ${
+                          a.name === 'Exequy' 
+                            ? 'bg-red-950 text-red-500 border-red-800 hover:bg-red-900 shadow-[0_0_10px_#991b1b]' 
+                            : 'bg-gold/10 text-gold border-gold/40 hover:bg-gold hover:text-black'
+                        }`}
+                      >
+                        Manifest {a.name === 'Exequy' ? 'Oblivion' : (arcaneMemoryActive ? 'via Memory' : 'Aether')}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-[11px] text-gray-400 leading-relaxed font-medium">{a.description}</p>
               </div>
@@ -313,9 +422,10 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         )}
 
         {activeTab === 'Inventory' && (
-          <div className="space-y-3">
+          <div className="space-y-6">
             {!isMentor && (
-              <div className="flex justify-end mb-2">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-[10px] font-cinzel text-red-900 uppercase font-black tracking-widest">Soul Satchel</h3>
                 <button 
                   onClick={handleAutoEquip}
                   className="text-[10px] font-cinzel text-gold bg-gold/10 border border-gold/40 px-3 py-1.5 hover:bg-gold/20 transition-all flex items-center gap-2"
@@ -323,38 +433,103 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                    <svg className="w-3 h-3 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
                      <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM15 10a5 5 0 11-10 0 5 5 0 0110 0z" />
                    </svg>
-                   Manifest Best Gear
+                   Equip All
                 </button>
               </div>
             )}
-            {character.inventory.map((item) => {
-              const isEquipped = character.equippedIds?.includes(item.id);
-              return (
-                <div key={item.id} className={`p-3 border transition-all flex justify-between items-center group rounded-sm ${isEquipped ? 'border-gold bg-gold/5' : 'border-red-900/10 bg-black/40'}`}>
-                  <div className="flex gap-3 items-center min-w-0">
-                    <div className={`w-10 h-10 border-2 flex items-center justify-center text-sm font-black shrink-0 rounded-sm ${
-                      item.rarity === 'Legendary' ? 'border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 
-                      item.rarity === 'Epic' ? 'border-purple-500 text-purple-500' : 
-                      item.rarity === 'Rare' ? 'border-blue-500 text-blue-500' :
-                      'border-red-900/30 text-red-900'
-                    }`}>{item.name[0]}</div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-cinzel text-gold truncate uppercase font-black">
-                        {item.name} {item.quantity && item.quantity > 1 ? `(x${item.quantity})` : ''}
-                      </p>
-                      <p className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">{item.rarity} • {item.type}</p>
+
+            {/* COMPARISON PANEL */}
+            {comparisonData && (
+              <div className="rune-border p-4 bg-amber-900/10 border-gold/40 animate-in slide-in-from-top-4 duration-500 space-y-4">
+                 <div className="flex justify-between items-center border-b border-gold/20 pb-2">
+                    <h4 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest">Soul Resonance Comparison</h4>
+                    <button onClick={() => setComparingItemId(null)} className="text-gold/40 hover:text-white text-xs">×</button>
+                 </div>
+                 <div className="flex gap-4">
+                    <div className="flex-1 space-y-2">
+                       <p className="text-[9px] text-gray-500 uppercase font-black">Equipped: {comparisonData.equipped?.name || 'Nothing'}</p>
+                       <div className="grid grid-cols-1 gap-1">
+                          {Object.entries(comparisonData.deltas).map(([key, delta]) => {
+                            if (key === 'damage') return (
+                              <div key={key} className="flex justify-between text-[10px] py-1 border-b border-white/5">
+                                 <span className="uppercase text-gray-400">{key}</span>
+                                 <span className="text-white font-mono">{delta}</span>
+                              </div>
+                            );
+                            const val = delta as number;
+                            return (
+                              <div key={key} className="flex justify-between text-[10px] py-1 border-b border-white/5">
+                                 <span className="uppercase text-gray-400">{key}</span>
+                                 <span className={`font-black font-mono ${val > 0 ? 'text-green-500' : val < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                                    {val > 0 ? `+${val}` : val}
+                                 </span>
+                              </div>
+                            );
+                          })}
+                       </div>
+                    </div>
+                    <div className="w-1/3 flex flex-col justify-center items-center bg-black/40 border border-gold/20 p-4 rounded-sm">
+                        <div className={`w-12 h-12 border-2 ${
+                          comparisonData.newItem.rarity === 'Legendary' ? 'border-orange-500' : 
+                          comparisonData.newItem.rarity === 'Epic' ? 'border-purple-500' : 'border-gold/40'
+                        } bg-black flex items-center justify-center font-cinzel text-xl font-black text-white mb-2 shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
+                          {comparisonData.newItem.name[0]}
+                        </div>
+                        <button 
+                          onClick={() => toggleEquip(comparisonData.newItem.id)}
+                          className="w-full py-2 bg-gold text-black font-cinzel text-[10px] font-black uppercase tracking-tighter hover:bg-white transition-all shadow-lg"
+                        >
+                          Bind Now
+                        </button>
+                    </div>
+                 </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {character.inventory.map((item) => {
+                const isEquipped = character.equippedIds?.includes(item.id);
+                const isComparing = comparingItemId === item.id;
+                const canCompare = !isEquipped && (item.type === 'Weapon' || item.type === 'Armor');
+
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => canCompare && setComparingItemId(item.id)}
+                    className={`p-3 border transition-all flex justify-between items-center group rounded-sm relative ${
+                      isEquipped ? 'border-gold bg-gold/5' : 
+                      isComparing ? 'border-gold shadow-[0_0_10px_#d4af37]' : 
+                      'border-red-900/10 bg-black/40 hover:border-gold/20 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex gap-3 items-center min-w-0">
+                      <div className={`w-10 h-10 border-2 flex items-center justify-center text-sm font-black shrink-0 rounded-sm ${
+                        item.rarity === 'Legendary' ? 'border-orange-500 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 
+                        item.rarity === 'Epic' ? 'border-purple-500 text-purple-500' : 
+                        item.rarity === 'Rare' ? 'border-blue-500 text-blue-500' :
+                        'border-red-900/30 text-red-900'
+                      }`}>{item.name[0]}</div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-cinzel text-gold truncate uppercase font-black">{item.name}</p>
+                        <p className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">{item.rarity} • {item.type}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                       {canCompare && !isComparing && (
+                         <span className="text-[8px] text-gold/40 uppercase font-black group-hover:text-gold transition-colors">Compare</span>
+                       )}
+                       <button 
+                        onClick={(e) => { e.stopPropagation(); toggleEquip(item.id); }}
+                        disabled={isMentor}
+                        className={`px-4 py-1.5 text-[10px] font-cinzel uppercase border-2 transition-all font-black ${isEquipped ? 'bg-gold text-black border-gold shadow-lg' : 'border-red-900 text-red-900 hover:border-gold hover:text-gold'} ${isMentor ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        {isEquipped ? 'Equipped' : 'Equip'}
+                      </button>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => toggleEquip(item.id)}
-                    disabled={isMentor}
-                    className={`px-4 py-1.5 text-[10px] font-cinzel uppercase border-2 transition-all shrink-0 rounded-sm font-black ${isEquipped ? 'bg-gold text-black border-gold shadow-lg' : 'border-red-900 text-red-900 hover:border-gold hover:text-gold'} ${isMentor ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {isEquipped ? 'Equipped' : 'Equip'}
-                  </button>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 

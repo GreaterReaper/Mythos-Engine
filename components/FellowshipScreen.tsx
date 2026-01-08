@@ -125,7 +125,7 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
       {isCreating ? (
         <CharacterCreator 
           customArchetypes={customArchetypes}
-          onSaveCustomArchetype={onAddCustomArchetype}
+          onAddCustomArchetype={onAddCustomArchetype}
           onCancel={() => setIsCreating(false)} 
           onCreate={(c) => { onAdd(c); setIsCreating(false); }} 
         />

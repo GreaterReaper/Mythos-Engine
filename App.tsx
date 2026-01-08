@@ -309,7 +309,7 @@ const App: React.FC = () => {
           Object.keys(c.maxSpellSlots).forEach(lvlStr => {
             const lvl = Number(lvlStr);
             const max = c.maxSpellSlots![lvl];
-            newSlots[lvl] = Math.min(max, newSlots[lvl] + Math.ceil(max / 2));
+            newSlots[lvl] = Math.min(max, (newSlots[lvl] || 0) + Math.ceil(max / 2));
           });
         }
         return { ...c, currentHp: Math.min(c.maxHp, c.currentHp + Math.floor(c.maxHp * 0.25)), spellSlots: newSlots };
@@ -480,7 +480,10 @@ const App: React.FC = () => {
                 onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} 
                 onShortRest={handleShortRest} onLongRest={handleLongRest} onAIRuntimeUseSlot={(l, n) => { 
                   const t = [...state.characters, ...state.mentors].find(x => x.name.toLowerCase() === n.toLowerCase()); 
-                  if (t && t.spellSlots?.[l]) { updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); return true; } 
+                  if (t && t.spellSlots && t.spellSlots[l] !== undefined && t.spellSlots[l] > 0) { 
+                    updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); 
+                    return true; 
+                  } 
                   return false; 
                 }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} 
                 isHost={state.multiplayer.isHost} username={state.userAccount.username} onOpenCombatMap={() => setActiveTab('Tactics')} 

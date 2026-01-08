@@ -82,7 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
                   }`}
                 >
                   <svg className={`w-6 h-6 shrink-0 ${isActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="tab.icon" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
                   </svg>
                   {!collapsed && <span className="ml-5 font-cinzel text-xs font-bold tracking-[0.2em] truncate uppercase">{tab.label}</span>}
                 </button>

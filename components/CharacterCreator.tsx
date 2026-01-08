@@ -8,10 +8,10 @@ interface CharacterCreatorProps {
   onCancel: () => void;
   onCreate: (char: Character) => void;
   customArchetypes: ArchetypeInfo[];
-  onSaveCustomArchetype: (arch: ArchetypeInfo) => void;
+  onAddCustomArchetype: (arch: ArchetypeInfo) => void;
 }
 
-const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate, customArchetypes, onSaveCustomArchetype }) => {
+const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate, customArchetypes, onAddCustomArchetype }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState('');
   const [age, setAge] = useState(21);
@@ -132,6 +132,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     const initialSlots = SPELL_SLOT_PROGRESSION[1];
     const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archetype as Archetype) || baseSpells.length > 0;
 
+    // Fixed: Added missing required property 'activeStatuses' which is mandatory for the Character type.
     const newChar: Character = {
       id: safeId(),
       name,
@@ -150,6 +151,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
       equippedIds: inventory.map(i => i.id),
       spells: baseSpells,
       abilities: baseAbilities,
+      activeStatuses: [],
       spellSlots: isCaster ? initialSlots : undefined,
       maxSpellSlots: isCaster ? initialSlots : undefined,
       description,

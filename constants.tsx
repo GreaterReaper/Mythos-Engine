@@ -1,3 +1,4 @@
+
 import { Race, Archetype, Stats, Ability, Character, Monster, Item, Role, Currency } from './types';
 
 export const STORAGE_PREFIX = 'mythos_soul_';
@@ -34,6 +35,17 @@ export const RACIAL_BONUSES: Record<Race, Partial<Stats>> = {
   [Race.Goliath]: { str: 2, con: 1 },
   [Race.Aasimar]: { cha: 2, wis: 1 },
   [Race.Shifter]: { dex: 2, con: 1 }
+};
+
+export const STATUS_EFFECT_GUIDE = {
+  Poisoned: "Disadvantage on attack rolls and ability checks. Deals periodic damage if stated by Engine.",
+  Blinded: "Automatically fail checks relying on sight. Attack rolls have disadvantage. Attacks against have advantage.",
+  Stunned: "Incapacitated. Cannot move or take actions. Auto-fail STR and DEX saves.",
+  Frightened: "Disadvantage on checks/attacks while source is visible. Cannot move closer to source.",
+  Paralyzed: "Incapacitated. Cannot move or speak. Auto-fail STR/DEX saves. Attacks within 5ft are auto-crits.",
+  Charmed: "Cannot attack the charmer or target them with harmful abilities. Charmer has advantage on social checks.",
+  Bleeding: "Takes 1d4 damage at the start of each turn until treated or cured.",
+  Exhausted: "Decreased movement and disadvantage on all checks."
 };
 
 export const SPELL_SLOT_PROGRESSION: Record<number, Record<number, number>> = {
@@ -182,15 +194,12 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
 };
 
 export const INITIAL_ITEMS: Item[] = [
-  // --- WARRIOR & DARK KNIGHT (2H Swords & Plate) ---
   { id: 'w-c-sword', name: 'Iron Zweihander', description: 'A massive, two-handed iron blade.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-c-plate', name: 'Soldier\'s Plate', description: 'Durable iron plating. Requires heavy training.', type: 'Armor', rarity: 'Common', stats: { ac: 16 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   { id: 'w-u-sword', name: 'Aether-Tempered Zweihander', description: 'Infused with blue fire for increased durability.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '2d6+STR', str: 1 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-r-sword', name: 'Ebon-Glass Claymore', description: 'Forged from the core of an obsidian mountain.', type: 'Weapon', rarity: 'Rare', stats: { damage: '1d12+STR', str: 2 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-l-sword', name: 'World-Ender Zweihander', description: 'The legendary blade that split the first obsidian peak.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '3d10+STR', str: 5, con: 3 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
   { id: 'w-l-plate', name: 'Plate of the Void Lord', description: 'Manifested from absolute nothingness.', type: 'Armor', rarity: 'Legendary', stats: { ac: 22, str: 2, cha: 2 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
-
-  // --- FIGHTER (1H Weapons & Plate & Shields) ---
   { id: 'f-c-sword', name: 'Steel Gladius', description: 'Reliable short broadsword for one hand.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Fighter] },
   { id: 'f-c-shield', name: 'Iron Heater Shield', description: 'Solid protection for the shield-arm.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
   { id: 'f-u-sword', name: 'Captain\'s Broadsword', description: 'A perfectly balanced military blade.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+STR', dex: 1 }, archetypes: [Archetype.Fighter] },
@@ -198,41 +207,28 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'f-e-sword', name: 'Dragon-Tooth Falchion', description: 'Curved blade that burns with ancient heat.', type: 'Weapon', rarity: 'Epic', stats: { damage: '2d8+STR', str: 3 }, archetypes: [Archetype.Fighter] },
   { id: 'f-l-sword', name: 'Excalibur Reforged', description: 'The absolute pinnacle of the one-handed path.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d12+STR', str: 5, cha: 3 }, archetypes: [Archetype.Fighter] },
   { id: 'f-l-shield', name: 'Daughter of the Evening', description: 'A shield polished to a mirror sheen. Reflects the faces and baleful powers of foes back upon them, that they might know their own horror.', type: 'Armor', rarity: 'Legendary', stats: { ac: 6, wis: 3, cha: 3 }, archetypes: [Archetype.Fighter] },
-
-  // --- THIEF (Short Swords/Daggers & Leather) ---
   { id: 't-c-dagger', name: 'Flint Stiletto', description: 'Jagged edge for deep wounds.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief] },
   { id: 't-c-short', name: 'Rogue\'s Shortsword', description: 'Quick and easy to conceal.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+DEX' }, archetypes: [Archetype.Thief, Archetype.Alchemist] },
   { id: 't-c-leather', name: 'Scout\'s Leather Tunic', description: 'Supple and silent.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
   { id: 't-u-leather', name: 'Stalker\'s Garb', description: 'Treated with void-oil for silence.', type: 'Armor', rarity: 'Uncommon', stats: { ac: 12, dex: 1 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
   { id: 't-l-short', name: 'The Night\'s Edge', description: 'Manifested darkness. Absolute silence.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '1d12+DEX', dex: 5, cha: 2 }, archetypes: [Archetype.Thief] },
-
-  // --- ARCHER (Bows/Crossbows & Leather) ---
   { id: 'a-c-bow', name: 'Frontier Longbow', description: 'Sturdy yew with a heavy draw.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Archer] },
   { id: 'a-u-bow', name: 'Composite Recurve', description: 'Aether-reinforced limbs.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d8+DEX', dex: 1 }, archetypes: [Archetype.Archer] },
   { id: 'a-l-bow', name: 'Artemis\'s Final Breath', description: 'Legendary relic. Arrows track soul resonance.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '2d10+DEX', dex: 5, wis: 2 }, archetypes: [Archetype.Archer] },
-
-  // --- BLOOD ARTIST (Scythes/Sickles & Robes) ---
   { id: 'b-c-sickle', name: 'Ritual Sickle', description: 'Used for precise bloodletting.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+CHA' }, archetypes: [Archetype.BloodArtist] },
   { id: 'b-c-robes', name: 'Vein-Stitched Robes', description: 'Fine silks that never seem to dry.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
   { id: 'b-u-scythe', name: 'Sanguine Harvester', description: 'A large harvesting blade that hums when near blood.', type: 'Weapon', rarity: 'Uncommon', stats: { damage: '1d10+CHA', con: 1 }, archetypes: [Archetype.BloodArtist] },
   { id: 'b-l-scythe', name: 'Life-Drinker Scythe', description: 'Legendary reaper weapon. Slain foes restore slots.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '3d10+CHA', cha: 5, con: 5 }, archetypes: [Archetype.BloodArtist] },
-
-  // --- ALCHEMIST (Short Swords & Vials & Leather) ---
   { id: 'al-c-short', name: 'Chemist\'s Shortsword', description: 'Balanced for use with an offhand vial.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+INT' }, archetypes: [Archetype.Alchemist] },
   { id: 'al-c-vial', name: 'Minor Volatile Flask', description: 'An offhand vial containing explosive liquids.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d10' }, archetypes: [Archetype.Alchemist] },
   { id: 'al-l-vial', name: 'The Magnum Opus Flask', description: 'Legendary. Creates a constant storm of chemical ruin.', type: 'Weapon', rarity: 'Legendary', stats: { damage: '10d6', int: 5 }, archetypes: [Archetype.Alchemist] },
-
-  // --- SORCERER & MAGE (Staves & Robes) ---
   { id: 's-c-staff', name: 'Ashwood Conduit', description: 'A simple staff to focus energy.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
   { id: 's-l-staff', name: 'Staff of the First Weaver', description: 'Legendary relic. Can re-write reality.', type: 'Weapon', rarity: 'Legendary', stats: { int: 6, wis: 6 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-
-  // --- UTILITY ---
   { id: 'start-hp-pot', name: 'Minor Vitality Potion', description: 'Restores 10 HP.', type: 'Utility', rarity: 'Common', stats: {}, archetypes: [] },
   { id: 'rare-potion', name: 'Ghost-Mist Elixir', description: 'Turn translucent for 1 minute.', type: 'Utility', rarity: 'Rare', stats: {}, archetypes: [] },
-  { id: 'start-aether-pot', name: 'Aether Draught', description: 'Restores 1 Level 1 spell slot.', type: 'Utility', rarity: 'Uncommon', stats: {}, archetypes: [] }
+  { id: 'start-aether-pot', name: 'Aether Draught', description: 'Restores one Level 1 spell slot.', type: 'Utility', rarity: 'Uncommon', stats: {}, archetypes: [] }
 ];
 
-// Unique scaling templates for Mentors
 export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {
   'mentor-lina': [
     { name: 'Ivory Arcanum', description: 'Lina\'s personal conduit. Scales with her WIS.', type: 'Weapon', rarity: 'Epic', stats: { wis: 2 }, isUnique: true },
@@ -276,143 +272,65 @@ export const MENTORS: Character[] = [
   {
     id: 'mentor-lina', name: 'Lina', age: 24, gender: 'Female', race: Race.Human, archetype: Archetype.Mage, role: 'Support', level: 5, exp: 0, maxHp: 35, currentHp: 35, stats: { str: 8, dex: 12, con: 12, int: 14, wis: 18, cha: 14 },
     currency: { aurels: 100, shards: 50, ichor: 5 }, inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
-    description: 'Serene priestess in gold and ivory.', biography: 'Guardian of the Sunken Sanctuary.', asiPoints: 0
+    description: 'Serene priestess in gold and ivory.', biography: 'Guardian of the Sunken Sanctuary.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
     currency: { aurels: 50, shards: 10, ichor: 2 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
-    description: 'Energetic warrior with ribbons on her plate.', biography: 'Frontier protector.', asiPoints: 0
+    description: 'Energetic warrior with ribbons on her plate.', biography: 'Frontier protector.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
     currency: { aurels: 150, shards: 30, ichor: 0 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
-    description: 'Reserved elf with eyes like obsidian.', biography: 'Master of precision.', asiPoints: 0
+    description: 'Reserved elf with eyes like obsidian.', biography: 'Master of precision.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-kaelen', name: 'Kaelen', age: 31, gender: 'Male', race: Race.Tiefling, archetype: Archetype.DarkKnight, role: 'Tank', level: 5, exp: 0, maxHp: 48, currentHp: 48, stats: { str: 17, dex: 10, con: 15, int: 12, wis: 10, cha: 16 },
     currency: { aurels: 80, shards: 25, ichor: 4 }, inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
-    description: 'Cold commander wearing a mask of indifference.', biography: 'Exiled prince of a shadow realm.', asiPoints: 0
+    description: 'Cold commander wearing a mask of indifference.', biography: 'Exiled prince of a shadow realm.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-valerius', name: 'Valerius', age: 29, gender: 'Male', race: Race.Vesperian, archetype: Archetype.BloodArtist, role: 'Support', level: 5, exp: 0, maxHp: 45, currentHp: 45, stats: { str: 10, dex: 14, con: 16, int: 12, wis: 12, cha: 18 },
     currency: { aurels: 200, shards: 40, ichor: 6 }, inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.BloodArtist] || [], abilities: ARCHETYPE_INFO[Archetype.BloodArtist].coreAbilities,
-    description: 'Elegant noble with copper-scented wine.', biography: 'Artist who paints in the life-stream.', asiPoints: 0
+    description: 'Artist who paints in the life-stream.', biography: 'Noble artist.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-jax', name: 'Jax', age: 26, gender: 'Male', race: Race.Tabaxi, archetype: Archetype.Thief, role: 'DPS', level: 5, exp: 0, maxHp: 40, currentHp: 40, stats: { str: 12, dex: 20, con: 12, int: 10, wis: 14, cha: 12 },
     currency: { aurels: 300, shards: 15, ichor: 2 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
-    description: 'Predatory grace and intimidating silence.', biography: 'Rival-predator who respects only skill.', asiPoints: 0
+    description: 'Predatory grace and intimidating silence.', biography: 'Predator-rival.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-xylar', name: 'Xylar', age: 45, gender: 'Male', race: Race.Dwarf, archetype: Archetype.Sorcerer, role: 'DPS', level: 5, exp: 0, maxHp: 32, currentHp: 32, stats: { str: 10, dex: 10, con: 14, int: 18, wis: 14, cha: 12 },
     currency: { aurels: 120, shards: 100, ichor: 8 }, inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.Sorcerer] || [], abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
-    description: 'Prideful academic lecturing on aetheric geometry.', biography: 'Disgraced professor of the Arcanum.', asiPoints: 0
+    description: 'Academic of aetheric geometry.', biography: 'Prideful professor.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-brunnhilde', name: 'Brunnhilde', age: 52, gender: 'Female', race: Race.Goliath, archetype: Archetype.Warrior, role: 'Tank', level: 5, exp: 0, maxHp: 65, currentHp: 65, stats: { str: 20, dex: 10, con: 18, int: 8, wis: 12, cha: 10 },
     currency: { aurels: 40, shards: 5, ichor: 3 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
-    description: 'Matriarchal giant with protective rage.', biography: '"Steel is the only truth."', asiPoints: 0
+    description: 'Giant with protective rage.', biography: 'Steel matriarch.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-alaric', name: 'Alaric', age: 38, gender: 'Male', race: Race.Human, archetype: Archetype.Alchemist, role: 'Support', level: 5, exp: 0, maxHp: 42, currentHp: 42, stats: { str: 10, dex: 14, con: 14, int: 18, wis: 14, cha: 10 },
     currency: { aurels: 90, shards: 60, ichor: 10 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
-    description: 'Precise apothecary smelling of sulfur.', biography: 'Chemical warfare specialist.', asiPoints: 0
+    description: 'Apothecary smelling of sulfur.', biography: 'Chemical specialist.', asiPoints: 0, activeStatuses: []
   }
 ];
 
 export const INITIAL_MONSTERS: Monster[] = [
-  // --- CR 0-1 ---
-  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [{ name: 'Naw', description: '1 damage.', type: 'Active', levelReq: 1 }], description: 'Scurrying shadows with teeth like glass.', cr: 0.125 },
-  { id: 'mon-skel', name: 'Restless Bones', type: 'Undead', hp: 13, ac: 13, stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }, abilities: [{ name: 'Rusted Blade', description: '1d6+2 damage.', type: 'Active', levelReq: 1 }], description: 'Necrotic clatter.', cr: 0.25 },
-  { id: 'mon-imp', name: 'Aether Imp', type: 'Goblinoid', hp: 10, ac: 13, stats: { str: 6, dex: 17, con: 13, int: 11, wis: 12, cha: 14 }, abilities: [{ name: 'Sting', description: '1d4+3 piercing.', type: 'Active', levelReq: 1 }], description: 'A minor nuisance from the breach.', cr: 1 },
-  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [{ name: 'Bite', description: '1d6+2 damage.', type: 'Active', levelReq: 1 }], description: 'Solidified hunger.', cr: 1 },
-
-  // --- CR 2-5 ---
-  { id: 'mon-ghoul', name: 'Vesperian Ghoul', type: 'Undead', hp: 22, ac: 12, stats: { str: 13, dex: 15, con: 10, int: 7, wis: 10, cha: 6 }, abilities: [{ name: 'Claw', description: '2d4+2 slashing.', type: 'Active', levelReq: 1 }], description: 'Lithe and starving.', cr: 2 },
-  { id: 'mon-sentinel', name: 'Blighted Sentinel', type: 'Humanoid', hp: 45, ac: 16, stats: { str: 16, dex: 10, con: 16, int: 10, wis: 10, cha: 10 }, abilities: [{ name: 'Heavy Strike', description: '2d8+3 damage.', type: 'Active', levelReq: 1 }], description: 'Corrupted guardian.', cr: 3 },
-  { id: 'mon-horror', name: 'Void Horror', type: 'Hybrid', hp: 60, ac: 14, stats: { str: 18, dex: 14, con: 16, int: 6, wis: 12, cha: 6 }, abilities: [{ name: 'Tentacle', description: '2d6+4 bludgeoning.', type: 'Active', levelReq: 1 }], description: 'Too many eyes, too few limbs.', cr: 5 },
-
-  // --- Bosses CR 6-15 ---
-  { id: 'mon-chimera', name: 'Chimera', type: 'Hybrid', hp: 114, ac: 14, stats: { str: 19, dex: 11, con: 19, int: 3, wis: 12, cha: 10 }, abilities: [
-    { name: 'Multiattack', description: 'The chimera makes three attacks: one with its bite, one with its horns, and one with its claws.', type: 'Active', levelReq: 1 },
-    { name: 'Fire Breath', description: 'Exhales fire in a 15-foot cone. 7d8 fire damage.', type: 'Active', levelReq: 1 }
-  ], description: 'A horrific fusion of lion, goat, and dragon. Its heads snap with shared hunger.', cr: 6 },
-  { id: 'mon-drake', name: 'Shadow Drake', type: 'Draconian', hp: 85, ac: 18, stats: { str: 18, dex: 16, con: 16, int: 12, wis: 14, cha: 14 }, abilities: [{ name: 'Breath of Ruin', description: '5d6 fire.', type: 'Active', levelReq: 1 }], description: 'Scaled terror.', cr: 8 },
-  { 
-    id: 'mon-knight', 
-    name: 'Fallen Paladin', 
-    type: 'Undead', 
-    hp: 110, 
-    ac: 20, 
-    stats: { str: 20, dex: 10, con: 18, int: 12, wis: 16, cha: 18 }, 
-    resistances: ["Necrotic", "Poison", "Bludgeoning, Piercing, and Slashing from non-magical attacks"],
-    vulnerabilities: ["Radiant"],
-    abilities: [{ name: 'Unholy Smite', description: '3d8 necrotic extra.', type: 'Active', levelReq: 1 }], 
-    description: 'A beacon of dark faith.', 
-    cr: 12 
-  },
-  { 
-    id: 'mon-gorechimera', 
-    name: 'Gorechimera', 
-    type: 'Hybrid', 
-    hp: 180, 
-    ac: 17, 
-    stats: { str: 21, dex: 12, con: 21, int: 8, wis: 16, cha: 14 }, 
-    resistances: ["Poison", "Fire", "Bludgeoning, Piercing, and Slashing from non-magical attacks"],
-    abilities: [
-      { name: 'Venomous Serpent Tail', description: 'Bites with its serpent tail. Deals 2d6 piercing plus 4d6 poison damage.', type: 'Active', levelReq: 1 },
-      { name: 'Goat Head: Rejuvenation', description: 'The goat head chants, restoring 30 HP to the Gorechimera or a nearby monster.', type: 'Active', levelReq: 1 },
-      { name: 'Goat Head: Abyssal Resurrection', description: 'Restores a slain ally or a severed head to life with half its maximum HP.', type: 'Active', levelReq: 1 },
-      { name: 'Lion head: Roar of Despair', description: 'Frightens all enemies within 30 feet.', type: 'Active', levelReq: 1 }
-    ], 
-    description: 'A pallid, necrotic monstrosity with a lion\'s head, a goat\'s body, and a venom-spewing serpent tail. Its goat head mends flesh with forbidden rites.', 
-    cr: 14 
-  },
-  { 
-    id: 'mon-lich', 
-    name: 'Arch-Necromancer', 
-    type: 'Undead', 
-    hp: 135, 
-    ac: 17, 
-    stats: { str: 11, dex: 16, con: 16, int: 20, wis: 14, cha: 16 }, 
-    resistances: ["Necrotic", "Poison", "Cold", "Bludgeoning, Piercing, and Slashing from non-magical attacks"],
-    vulnerabilities: ["Radiant"],
-    abilities: [{ name: 'Power Word Stun', description: 'Stuns below 150hp.', type: 'Active', levelReq: 1 }], 
-    description: 'Studying the Engine forever.', 
-    cr: 15 
-  },
-
-  // --- CR 20-30 ---
-  { 
-    id: 'mon-king', 
-    name: 'The Hollow King', 
-    type: 'Undead', 
-    hp: 250, 
-    ac: 20, 
-    stats: { str: 22, dex: 14, con: 20, int: 18, wis: 18, cha: 20 }, 
-    resistances: ["Necrotic", "Poison", "Cold", "Psychic", "Bludgeoning, Piercing, and Slashing from non-magical attacks"],
-    vulnerabilities: ["Radiant", "Force"],
-    abilities: [{ name: 'Soul Tear', description: '10d10 necrotic.', type: 'Active', levelReq: 1 }], 
-    description: 'Lord of the Void.', 
-    cr: 20 
-  },
-  { 
-    id: 'mon-engine', 
-    name: 'Fragment of the Engine', 
-    type: 'Hybrid', 
-    hp: 500, 
-    ac: 25, 
-    stats: { str: 30, dex: 10, con: 30, int: 30, wis: 30, cha: 30 }, 
-    resistances: ["Necrotic", "Poison", "Psychic", "Acid", "Lightning", "Bludgeoning, Piercing, and Slashing from non-magical attacks"],
-    vulnerabilities: ["Force (disrupts geometric patterns)", "Radiant"],
-    abilities: [
-      { name: 'Rewrite Reality', description: 'Force restart of current round. All cooldowns reset except this one.', type: 'Active', levelReq: 1 },
-      { name: 'System Crash', description: 'Target creature must make a DC 25 INT save or be stunned indefinitely until another creature uses an action to "reboot" them.', type: 'Active', levelReq: 1 },
-      { name: 'Entropy Pulse', description: 'Release a wave of code-decay. Deals 15d10 force damage to all enemies within 60ft. Slain creatures are deleted from existence (cannot be resurrected).', type: 'Active', levelReq: 1 }
-    ], 
-    description: 'Origin: Born from a catastrophic runtime exception during the Great Weaver\'s initial compilation of reality. Purpose: It acts as the universe\'s Garbage Collector, seeking out sentient anomalies to reclaim their memory space for the void. A shifting geometric mass of obsidian glass and pulsing gold light.', 
-    cr: 30 
-  }
+  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [{ name: 'Naw', description: '1 damage.', type: 'Active', levelReq: 1 }], description: 'Scurrying shadows with teeth like glass.', cr: 0.125, activeStatuses: [] },
+  { id: 'mon-skel', name: 'Restless Bones', type: 'Undead', hp: 13, ac: 13, stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }, abilities: [{ name: 'Rusted Blade', description: '1d6+2 damage.', type: 'Active', levelReq: 1 }], description: 'Necrotic clatter.', cr: 0.25, activeStatuses: [] },
+  { id: 'mon-imp', name: 'Aether Imp', type: 'Goblinoid', hp: 10, ac: 13, stats: { str: 6, dex: 17, con: 13, int: 11, wis: 12, cha: 14 }, abilities: [{ name: 'Sting', description: '1d4+3 piercing.', type: 'Active', levelReq: 1 }], description: 'A minor nuisance from the breach.', cr: 1, activeStatuses: [] },
+  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [{ name: 'Bite', description: '1d6+2 damage.', type: 'Active', levelReq: 1 }], description: 'Solidified hunger.', cr: 1, activeStatuses: [] },
+  { id: 'mon-ghoul', name: 'Vesperian Ghoul', type: 'Undead', hp: 22, ac: 12, stats: { str: 13, dex: 15, con: 10, int: 7, wis: 10, cha: 6 }, abilities: [{ name: 'Claw', description: '2d4+2 slashing.', type: 'Active', levelReq: 1 }], description: 'Lithe and starving.', cr: 2, activeStatuses: [] },
+  { id: 'mon-sentinel', name: 'Blighted Sentinel', type: 'Humanoid', hp: 45, ac: 16, stats: { str: 16, dex: 10, con: 16, int: 10, wis: 10, cha: 10 }, abilities: [{ name: 'Heavy Strike', description: '2d8+3 damage.', type: 'Active', levelReq: 1 }], description: 'Corrupted guardian.', cr: 3, activeStatuses: [] },
+  { id: 'mon-horror', name: 'Void Horror', type: 'Hybrid', hp: 60, ac: 14, stats: { str: 18, dex: 14, con: 16, int: 6, wis: 12, cha: 6 }, abilities: [{ name: 'Tentacle', description: '2d6+4 bludgeoning.', type: 'Active', levelReq: 1 }], description: 'Too many eyes.', cr: 5, activeStatuses: [] },
+  { id: 'mon-chimera', name: 'Chimera', type: 'Hybrid', hp: 114, ac: 14, stats: { str: 19, dex: 11, con: 19, int: 3, wis: 12, cha: 10 }, abilities: [{ name: 'Multiattack', description: 'Three attacks.', type: 'Active', levelReq: 1 }, { name: 'Fire Breath', description: '7d8 fire damage.', type: 'Active', levelReq: 1 }], description: 'Fusion of ion, goat, and dragon.', cr: 6, activeStatuses: [] },
+  { id: 'mon-drake', name: 'Shadow Drake', type: 'Draconian', hp: 85, ac: 18, stats: { str: 18, dex: 16, con: 16, int: 12, wis: 14, cha: 14 }, abilities: [{ name: 'Breath of Ruin', description: '5d6 fire.', type: 'Active', levelReq: 1 }], description: 'Scaled terror.', cr: 8, activeStatuses: [] },
+  { id: 'mon-knight', name: 'Fallen Paladin', type: 'Undead', hp: 110, ac: 20, stats: { str: 20, dex: 10, con: 18, int: 12, wis: 16, cha: 18 }, resistances: ["Necrotic", "Poison"], vulnerabilities: ["Radiant"], abilities: [{ name: 'Unholy Smite', description: '3d8 necrotic extra.', type: 'Active', levelReq: 1 }], description: 'Beacon of dark faith.', cr: 12, activeStatuses: [] },
+  { id: 'mon-gorechimera', name: 'Gorechimera', type: 'Hybrid', hp: 180, ac: 17, stats: { str: 21, dex: 12, con: 21, int: 8, wis: 16, cha: 14 }, resistances: ["Poison", "Fire"], abilities: [{ name: 'Venomous Serpent Tail', description: '2d6 piercing plus 4d6 poison.', type: 'Active', levelReq: 1 }, { name: 'Goat Head: Rejuvenation', description: 'Restores 30 HP.', type: 'Active', levelReq: 1 }], description: 'Necrotic monstrosity.', cr: 14, activeStatuses: [] },
+  { id: 'mon-lich', name: 'Arch-Necromancer', type: 'Undead', hp: 135, ac: 17, stats: { str: 11, dex: 16, con: 16, int: 20, wis: 14, cha: 16 }, resistances: ["Necrotic", "Poison"], vulnerabilities: ["Radiant"], abilities: [{ name: 'Power Word Stun', description: 'Stuns below 150hp.', type: 'Active', levelReq: 1 }], description: 'Studying the Engine.', cr: 15, activeStatuses: [] },
+  { id: 'mon-king', name: 'The Hollow King', type: 'Undead', hp: 250, ac: 20, stats: { str: 22, dex: 14, con: 20, int: 18, wis: 18, cha: 20 }, resistances: ["Necrotic", "Poison", "Cold"], vulnerabilities: ["Radiant", "Force"], abilities: [{ name: 'Soul Tear', description: '10d10 necrotic.', type: 'Active', levelReq: 1 }], description: 'Lord of the Void.', cr: 20, activeStatuses: [] },
+  { id: 'mon-engine', name: 'Fragment of the Engine', type: 'Hybrid', hp: 500, ac: 25, stats: { str: 30, dex: 10, con: 30, int: 30, wis: 30, cha: 30 }, resistances: ["Necrotic", "Poison", "Psychic"], vulnerabilities: ["Force", "Radiant"], abilities: [{ name: 'Rewrite Reality', description: 'Reset round.', type: 'Active', levelReq: 1 }, { name: 'System Crash', description: 'DC 25 INT save or stunned.', type: 'Active', levelReq: 1 }], description: 'Garbage Collector of the universe.', cr: 30, activeStatuses: [] }
 ];
 
 export const APOTHECARY_TIERS = {

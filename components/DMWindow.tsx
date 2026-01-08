@@ -61,7 +61,10 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   const handleSend = async () => {
     if (!campaign || !input.trim() || isLoading || speakCooldown > 0) return;
+    
     const userMsg: Message = { role: 'user', content: input, timestamp: Date.now() };
+    const nextHistory = [...campaign.history, userMsg];
+    
     onMessage(userMsg);
     setInput('');
     setSpeakCooldown(12);
@@ -72,7 +75,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
     try {
       const responseText = await generateDMResponse(
-        [...campaign.history, userMsg],
+        nextHistory, // Use nextHistory directly to avoid state lag/duplication issues
         { characters, mentors: MENTORS, activeRules: RULES_MANIFEST, existingItems: [], existingMonsters: bestiary }
       );
       
@@ -116,6 +119,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
       }
     } catch (err) {
       console.error(err);
+      onMessage({ role: 'system', content: `[CRITICAL ERROR] The Engine's resonance was rejected. Check thy logs or Aetheric Reservoir.`, timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }

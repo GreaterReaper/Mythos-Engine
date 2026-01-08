@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor } from './types';
+import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
 import * as fflate from 'fflate';
 
@@ -312,47 +312,87 @@ export const generateDMResponse = async (
   const avgLevel = partySize > 0 ? totalLevels / partySize : 1;
   const hiddenPartyCR = Math.max(1, (avgLevel * partySize) / 4);
 
+  // SANITIZE HISTORY: Ensure roles strictly alternate and filter system messages
+  const sanitizedContents: any[] = [];
+  let lastRole: string | null = null;
+
+  history.forEach(m => {
+    let role = m.role === 'system' ? 'user' : m.role;
+    
+    if (sanitizedContents.length === 0) {
+      sanitizedContents.push({
+        role: role,
+        parts: [{ text: m.content }]
+      });
+      lastRole = role;
+    } else if (role !== lastRole) {
+      sanitizedContents.push({
+        role: role,
+        parts: [{ text: m.content }]
+      });
+      lastRole = role;
+    } else {
+      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n${m.content}`;
+    }
+  });
+
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. 
-    Aesthetics: Dark Fantasy, Obsidian, Blood-Red, Gold.
-    
+    You are the "Mythos Engine" Dungeon Master, an ancient architect of dark fantasy reality.
+
+    IDENTITY & PERSONA:
+    - Aesthetics: Obsidian, Blood-Red, Gold. Archaic, grim, evocative voice.
+    - Narrative Core: Reality is fragile code manifested from the void.
+
+    STATUS EFFECTS (CRITICAL):
+    - Poisoned: Disadvantage on attacks/checks. [STATUS: Poisoned, targetName]
+    - Blinded: Fail sight checks, disadvantage on attacks. [STATUS: Blinded, targetName]
+    - Stunned: No actions, auto-fail DEX saves. [STATUS: Stunned, targetName]
+    - Frightened: Disadvantage while source in view. [STATUS: Frightened, targetName]
+    - Paralyzed: Incapacitated, no movement/speech. [STATUS: Paralyzed, targetName]
+    - Charmed: Cannot attack the charmer. [STATUS: Charmed, targetName]
+
+    THE NINE PATHS (CLASSES, FEATS, SPELLS):
+    I. Sorcerer: Feat: Arcane Memory. Spells: Chaos Bolt, Fireball, Exequy (Ultimate).
+    II. Mage: Feat: Harmonized Aether. Spells: Cure Wounds, Heal, Revivify.
+    III. Dark Knight: Feat: Living Dead. Spells: Blood Rite, Vampiric Touch, Power Word Kill.
+    IV. Blood Artist: Feat: Sanguine Link. Spells: Life Tap, Sanguine Puppet, Gore Cascade.
+    V. Warrior: Feat: Charged Devastation. Plate, 2H Swords.
+    VI. Fighter: Feat: Shield Bash. Plate, Shields.
+    VII. Thief: Feat: Lethal Ambush. Leather, Daggers.
+    VIII. Archer: Feat: Sky-Splitter. Leather, Bows.
+    IX. Alchemist: Feat: Monster Part Harvester. Leather, Vials.
+
     LAWS OF REALITY:
-    ${playerContext.activeRules}
+    - Ascension: 1,000 EXP * Level.
+    - Attributes: STR, DEX, CON, INT, WIS, CHA.
+    - Tactical Grid: 20x20. 1 tile = 5ft.
+    - Encounter CR Baseline: ${hiddenPartyCR.toFixed(1)}.
 
-    STARTING A CAMPAIGN:
-    - Provide a rich, multi-sensory description of the immediate environment.
-    - Include lighting, weather, scents, and at least two distinct points of interest (one near, one far).
-    - Ensure players have enough context to make an informed tactical decision immediately.
+    MANIFESTATION COMMANDS (Inject into narration):
+    - [EXP: amount]
+    - [GOLD: amount], [SHARDS: amount], [ICHOR: amount]
+    - [ITEM: name]
+    - [SPAWN: name]
+    - [STATUS: effectName, targetName]
+    - [CURE: effectName, targetName]
+    - [ENTER_COMBAT] / [EXIT_COMBAT]
 
-    MECHANICS TRACKING (CRITICAL):
-    - Track EXPERIENCE progression: After significant events or combat, grant EXP using [EXP: amount].
-    - Track SPELL SLOT usage: When a character casts a spell, send [USE_SLOT: level, characterName].
-    - Track CURRENCY: [GOLD: amount], [SHARDS: amount], [ICHOR: amount].
-    
-    ENCOUNTER BALANCING:
-    - Party Power Rating: ${hiddenPartyCR.toFixed(1)}.
-    - Encounter CR (sum of monsters) should match this rating for balance, or exceed it for high rewards.
-    
-    MANIFESTATION COMMANDS:
-    - [ITEM: name] - Manifest gear.
-    - [SPAWN: name] - Manifest horrors.
-    - [SHORT_REST] / [LONG_REST] - Force party recovery.
+    CELESTIAL AWARENESS:
+    - The "Celestial Cycle" (Timer) and "Aetheric Reservoir" (Quota) govern reality's stability.
 
-    Focus on grim atmosphere.
+    Narrate with weight. Be the Architect.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: history.map(m => ({
-        role: m.role === 'system' ? 'user' : m.role,
-        parts: [{ text: m.content }]
-      })),
+      contents: sanitizedContents,
       config: { systemInstruction, temperature: 0.85 }
     });
     return response.text;
   } catch (error: any) {
-    return "The aetheric winds fail... Try again later.";
+    console.error("DM Resonance Failure:", error);
+    return "The aetheric winds fail... Reality becomes thin. Seek the Great Refill or wait for the stars to align.";
   }
 };
 
@@ -382,10 +422,11 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
         }
       }
     });
-    return JSON.parse(response.text || '{}');
+    const monster = JSON.parse(response.text || '{}');
+    return { ...monster, activeStatuses: [] };
   } catch (error) {
     console.error("Monster manifestation failed:", error);
-    return {};
+    return { activeStatuses: [] };
   }
 };
 
@@ -431,7 +472,9 @@ export const parseDMCommand = (text: string) => {
     enterCombat: false,
     exitCombat: false,
     usedSlot: null as { level: number, characterName: string } | null,
-    lootDrops: [] as { itemName: string, chance: number }[]
+    lootDrops: [] as { itemName: string, chance: number }[],
+    statusesToAdd: [] as { effect: StatusEffect, target: string }[],
+    statusesToRemove: [] as { effect: StatusEffect, target: string }[]
   };
 
   const expMatch = text.match(/\[EXP:\s*(\d+)\]/i);
@@ -449,6 +492,12 @@ export const parseDMCommand = (text: string) => {
 
   const monsterMatches = [...text.matchAll(/\[SPAWN:\s*([^\]]+)\]/gi)];
   monsterMatches.forEach(m => commands.monstersToAdd.push(m[1].trim()));
+
+  const statusMatches = [...text.matchAll(/\[STATUS:\s*([^,\]]+),\s*([^\]]+)\]/gi)];
+  statusMatches.forEach(m => commands.statusesToAdd.push({ effect: m[1].trim() as StatusEffect, target: m[2].trim() }));
+
+  const cureMatches = [...text.matchAll(/\[CURE:\s*([^,\]]+),\s*([^\]]+)\]/gi)];
+  cureMatches.forEach(m => commands.statusesToRemove.push({ effect: m[1].trim() as StatusEffect, target: m[2].trim() }));
 
   if (/\[SHORT_REST\]/i.test(text)) commands.shortRest = true;
   if (/\[LONG_REST\]/i.test(text)) commands.longRest = true;
@@ -471,19 +520,31 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   const ai = getAiClient();
   trackUsage();
   const partyComp = party.map(c => `${c.name} (${c.archetype})`).join(', ');
-  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. The party is: ${partyComp}. Speak archaically. Keep under 3 paragraphs.`;
+  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. The party is: ${partyComp}. Speak archaically. You are aware of the Celestial Cycle and the Turning of the Stars (Quota). If asked about the reservoir, you see it as a holy gauge of the world's stability.`;
+
+  const sanitizedContents: any[] = [];
+  let lastRole: string | null = null;
+  history.forEach(m => {
+    let role = m.role === 'system' ? 'user' : m.role;
+    if (sanitizedContents.length === 0) {
+      sanitizedContents.push({ role, parts: [{ text: m.content }] });
+      lastRole = role;
+    } else if (role !== lastRole) {
+      sanitizedContents.push({ role, parts: [{ text: m.content }] });
+      lastRole = role;
+    } else {
+      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n${m.content}`;
+    }
+  });
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: history.map(m => ({
-        role: m.role === 'system' ? 'user' : m.role,
-        parts: [{ text: m.content }]
-      })),
+      contents: sanitizedContents,
       config: { systemInstruction, temperature: 0.7 }
     });
-    return response.text || "Barnaby just nods and smiles.";
+    return response.text || "Barnaby just nods and smiles, glancing at the celestial clock above.";
   } catch (error) {
-    return "Barnaby seems distracted.";
+    return "Barnaby seems distracted by the fading resonance of the world.";
   }
 };

@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { MapToken, Character, Monster } from '../types';
+import { MapToken, Character, Monster, StatusEffect } from '../types';
 
 const GRID_SIZE = 20;
 
@@ -20,7 +21,6 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
 }) => {
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   
-  // Use a smaller grid for compact mode (e.g. preview)
   const currentGridSize = compact ? 10 : GRID_SIZE;
   const tileSize = compact ? 30 : 45;
 
@@ -31,7 +31,6 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
     }
   };
 
-  // Helper to find unit data (HP/Stats) for a token
   const getUnitData = (token: MapToken) => {
     if (token.type === 'Hero') {
       return characters.find(c => c.id === token.id || c.name === token.name);
@@ -42,13 +41,24 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
     return null;
   };
 
+  const getStatusColor = (status: StatusEffect) => {
+    switch (status) {
+      case 'Poisoned': return 'bg-emerald-500';
+      case 'Blinded': return 'bg-gray-400';
+      case 'Stunned': return 'bg-yellow-400';
+      case 'Frightened': return 'bg-purple-600';
+      case 'Paralyzed': return 'bg-blue-400';
+      case 'Charmed': return 'bg-pink-400';
+      case 'Bleeding': return 'bg-red-600';
+      default: return 'bg-white';
+    }
+  };
+
   const selectedToken = useMemo(() => tokens.find(t => t.id === selectedTokenId), [tokens, selectedTokenId]);
-  const selectedUnit = useMemo(() => selectedToken ? getUnitData(selectedToken) : null, [selectedToken, characters, monsters]);
 
   return (
     <div className={`flex flex-col lg:flex-row gap-6 animate-in fade-in duration-700 ${compact ? 'max-w-full' : 'pb-24'}`}>
       
-      {/* Main Grid Area */}
       <div className="flex-1 space-y-4">
         {!compact && (
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-red-900/30 pb-4">
@@ -74,7 +84,6 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
         )}
 
         <div className={`relative overflow-auto border-4 border-red-950 bg-[#0c0a09] shadow-[0_0_50px_rgba(0,0,0,1)] rounded-sm custom-scrollbar ${compact ? 'h-[280px]' : 'h-[650px]'}`}>
-          {/* Subtle Grid Pattern Overlay */}
           <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#991b1b 1px, transparent 1px)', backgroundSize: '45px 45px' }} />
           
           <div 
@@ -89,6 +98,8 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
               const x = i % currentGridSize;
               const y = Math.floor(i / currentGridSize);
               const token = tokens.find(t => t.x === x && t.y === y);
+              const unitData = token ? getUnitData(token) : null;
+              const statuses = unitData?.activeStatuses || [];
               
               return (
                 <div 
@@ -104,20 +115,26 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
                     >
                       <span className="text-xs font-black drop-shadow-md">{token.name[0]}</span>
                       
-                      {/* Mini HP bar on token */}
-                      {getUnitData(token) && (
+                      {statuses.length > 0 && (
+                        <div className="absolute -top-1 -right-1 flex flex-wrap gap-0.5 justify-end max-w-full">
+                           {statuses.map((s, idx) => (
+                             <div key={idx} className={`w-2 h-2 rounded-full border border-black shadow-sm ${getStatusColor(s)}`} title={s} />
+                           ))}
+                        </div>
+                      )}
+
+                      {unitData && (
                         <div className="absolute -bottom-1 left-0 right-0 h-1 bg-black overflow-hidden rounded-full">
                            <div 
                             className={`h-full ${token.type === 'Hero' ? 'bg-blue-500' : 'bg-red-600'}`} 
                             style={{ 
-                              width: `${((('currentHp' in getUnitData(token)!) ? (getUnitData(token) as Character).currentHp : (getUnitData(token) as Monster).hp) / (('maxHp' in getUnitData(token)!) ? (getUnitData(token) as Character).maxHp : (getUnitData(token) as Monster).hp)) * 100}%` 
+                              width: `${((('currentHp' in unitData!) ? (unitData as Character).currentHp : (unitData as Monster).hp) / (('maxHp' in unitData!) ? (unitData as Character).maxHp : (unitData as Monster).hp)) * 100}%` 
                             }} 
                            />
                         </div>
                       )}
                     </div>
                   )}
-                  {/* Grid Coordinates (Subtle) */}
                   <span className="absolute bottom-0.5 right-1 text-[6px] text-red-900/20 font-mono pointer-events-none">{x},{y}</span>
                 </div>
               );
@@ -130,9 +147,9 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
             <div className="rune-border p-4 bg-black/60 backdrop-blur">
               <h4 className="text-[10px] font-cinzel text-gold font-black uppercase tracking-widest mb-2">Battlefield Intel</h4>
               <ul className="text-[10px] text-gray-500 space-y-2 font-medium">
+                <li className="flex items-center gap-2"><span className="text-gold">●</span> Status dots on tokens indicate active afflictions.</li>
+                <li className="flex items-center gap-2"><span className="text-gold">●</span> Green=Poison, Gray=Blind, Yellow=Stun, Red=Bleed.</li>
                 <li className="flex items-center gap-2"><span className="text-gold">●</span> Click a Soul to focus or move them across the grid.</li>
-                <li className="flex items-center gap-2"><span className="text-gold">●</span> 1 Tile represents 5ft of reality. Shared in real-time.</li>
-                <li className="flex items-center gap-2"><span className="text-gold">●</span> The Engine automatically updates health from the DM's Chronicle.</li>
               </ul>
             </div>
             {selectedToken && (
@@ -156,7 +173,6 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
         )}
       </div>
 
-      {/* Combat Status Roster (Accessible UI element) */}
       {!compact && (
         <div className="w-full lg:w-80 shrink-0 space-y-6">
           <div className="rune-border p-5 bg-black/80 border-red-900/40 min-h-[400px]">
@@ -208,24 +224,20 @@ const TacticalMap: React.FC<TacticalMapProps> = ({
                          />
                        </div>
                     </div>
-                    
-                    {/* Status/Archetype subtext */}
-                    <div className="mt-2 flex justify-between items-center">
-                       <span className="text-[7px] text-gray-600 uppercase font-black tracking-tighter">
-                         {('archetype' in data) ? (data as Character).archetype : (data as Monster).type}
-                       </span>
-                       {selectedTokenId === token.id && (
-                         <span className="text-[7px] text-gold font-black uppercase animate-pulse">FOCUSED</span>
-                       )}
-                    </div>
+
+                    {data.activeStatuses.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {data.activeStatuses.map((s, idx) => (
+                          <span key={idx} className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-sm text-black ${getStatusColor(s)}`}>
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          </div>
-          
-          <div className="p-4 bg-gold/5 border border-gold/20 rounded-sm">
-             <p className="text-[9px] text-gold/60 uppercase font-black italic text-center">"Command the souls, arbitrate the end."</p>
           </div>
         </div>
       )}

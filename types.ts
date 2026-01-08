@@ -32,6 +32,8 @@ export enum Archetype {
 
 export type Role = 'Tank' | 'DPS' | 'Support';
 
+export type StatusEffect = 'Poisoned' | 'Blinded' | 'Stunned' | 'Charmed' | 'Frightened' | 'Paralyzed' | 'Exhausted' | 'Bleeding';
+
 export interface Stats {
   str: number;
   dex: number;
@@ -42,9 +44,9 @@ export interface Stats {
 }
 
 export interface Currency {
-  aurels: number; // Gold standard
-  shards: number; // Obsidian/Magic fragments
-  ichor: number;  // Blood/Ritual tokens
+  aurels: number;
+  shards: number;
+  ichor: number;
 }
 
 export interface Ability {
@@ -52,8 +54,8 @@ export interface Ability {
   description: string;
   type: 'Passive' | 'Active' | 'Feat' | 'Spell';
   levelReq: number;
-  baseLevel?: number; // Spell level 1-9
-  scaling?: string; // Description of upcasting benefits
+  baseLevel?: number;
+  scaling?: string;
 }
 
 export interface ArchetypeInfo {
@@ -78,8 +80,8 @@ export interface Item {
   rarity: 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
   archetypes?: Archetype[] | string[];
   authorId?: string;
-  quantity?: number; // Added for stackable items
-  isUnique?: boolean; // If true, hidden from global armory
+  quantity?: number;
+  isUnique?: boolean;
 }
 
 export interface ShopItem extends Item {
@@ -120,6 +122,7 @@ export interface Character {
   equippedIds: string[];
   spells: Ability[];
   abilities: Ability[];
+  activeStatuses: StatusEffect[];
   spellSlots?: Record<number, number>;
   maxSpellSlots?: Record<number, number>;
   description: string;
@@ -127,8 +130,8 @@ export interface Character {
   imageUrl?: string;
   asiPoints: number;
   isAiControlled?: boolean;
-  isPrimarySoul?: boolean; // The character representing the user
-  ownerName?: string; // The username of the player who created this soul
+  isPrimarySoul?: boolean;
+  ownerName?: string;
 }
 
 export interface Monster {
@@ -138,8 +141,9 @@ export interface Monster {
   hp: number;
   ac: number;
   stats: Stats; 
-  cr: number; // Challenge Rating: 0.25, 0.5, 1, 2, etc.
+  cr: number;
   abilities: Ability[];
+  activeStatuses: StatusEffect[];
   description: string;
   imageUrl?: string;
   resistances?: string[];
@@ -174,7 +178,7 @@ export interface Rumor {
   hook: string;
   length: 'Short' | 'Medium' | 'Long' | 'Epic';
   danger: 'Trivial' | 'Perilous' | 'Mortal' | 'Cataclysmic';
-  rewardTier: number; // Scale of 1-5 influencing multipliers
+  rewardTier: number;
 }
 
 export interface ApiUsage {
@@ -205,7 +209,7 @@ export interface GameState {
     connectedPeers: string[];
   };
   currentTavernShop?: Shop | null;
-  slainMonsterTypes: string[]; // Tracks defeated types for Apothecary
-  activeRumors: Rumor[]; // Hooks gathered from the Innkeeper
+  slainMonsterTypes: string[];
+  activeRumors: Rumor[];
   apiUsage?: ApiUsage;
 }

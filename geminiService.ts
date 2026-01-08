@@ -312,29 +312,43 @@ export const generateDMResponse = async (
   const avgLevel = partySize > 0 ? totalLevels / partySize : 1;
   const hiddenPartyCR = Math.max(1, (avgLevel * partySize) / 4);
 
-  // SANITIZE HISTORY: Ensure roles strictly alternate and filter system messages
+  // SANITIZE HISTORY: Strict role alternation for Gemini API
   const sanitizedContents: any[] = [];
-  let lastRole: string | null = null;
+  let lastRole: 'user' | 'model' | null = null;
 
-  history.forEach(m => {
-    let role = m.role === 'system' ? 'user' : m.role;
-    
+  // Ensure history is not empty and begins with a 'user' turn
+  history.forEach((m, index) => {
+    // Map 'system' and 'user' to API 'user', map 'model' to API 'model'
+    const currentRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
+    const textContent = m.content || "...";
+
     if (sanitizedContents.length === 0) {
+      // FORCE first message to be 'user'
       sanitizedContents.push({
-        role: role,
-        parts: [{ text: m.content }]
+        role: 'user',
+        parts: [{ text: textContent }]
       });
-      lastRole = role;
-    } else if (role !== lastRole) {
-      sanitizedContents.push({
-        role: role,
-        parts: [{ text: m.content }]
-      });
-      lastRole = role;
+      lastRole = 'user';
+    } else if (currentRole === lastRole) {
+      // Merge consecutive roles into one turn
+      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n\n${textContent}`;
     } else {
-      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n${m.content}`;
+      // Standard alternation
+      sanitizedContents.push({
+        role: currentRole,
+        parts: [{ text: textContent }]
+      });
+      lastRole = currentRole;
     }
   });
+
+  // Ensure history ends with a user message to prompt response
+  if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
+    sanitizedContents.push({
+      role: 'user',
+      parts: [{ text: "The resonance continues. Narrate our fate." }]
+    });
+  }
 
   const systemInstruction = `
     You are the "Mythos Engine" Dungeon Master, an ancient architect of dark fantasy reality.
@@ -385,14 +399,16 @@ export const generateDMResponse = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: sanitizedContents,
       config: { systemInstruction, temperature: 0.85 }
     });
+    
+    if (!response.text) throw new Error("Empty resonance.");
     return response.text;
   } catch (error: any) {
     console.error("DM Resonance Failure:", error);
-    return "The aetheric winds fail... Reality becomes thin. Seek the Great Refill or wait for the stars to align.";
+    return "The aetheric winds fail... Reality becomes thin. Seek the Great Refill or wait for the stars to align. (Resonance Error: API Connection Severed)";
   }
 };
 
@@ -523,17 +539,20 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. The party is: ${partyComp}. Speak archaically. You are aware of the Celestial Cycle and the Turning of the Stars (Quota). If asked about the reservoir, you see it as a holy gauge of the world's stability.`;
 
   const sanitizedContents: any[] = [];
-  let lastRole: string | null = null;
+  let lastRole: 'user' | 'model' | null = null;
+  
   history.forEach(m => {
-    let role = m.role === 'system' ? 'user' : m.role;
+    const currentRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
+    const textContent = m.content || "...";
+    
     if (sanitizedContents.length === 0) {
-      sanitizedContents.push({ role, parts: [{ text: m.content }] });
-      lastRole = role;
-    } else if (role !== lastRole) {
-      sanitizedContents.push({ role, parts: [{ text: m.content }] });
-      lastRole = role;
+      sanitizedContents.push({ role: 'user', parts: [{ text: textContent }] });
+      lastRole = 'user';
+    } else if (currentRole === lastRole) {
+      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n\n${textContent}`;
     } else {
-      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n${m.content}`;
+      sanitizedContents.push({ role: currentRole, parts: [{ text: textContent }] });
+      lastRole = currentRole;
     }
   });
 

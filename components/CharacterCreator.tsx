@@ -86,9 +86,10 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     }
   };
 
+  // Fixed error: onSaveCustomArchetype was used instead of the prop onAddCustomArchetype
   const acceptForgedPath = () => {
     if (previewClassData) {
-      onSaveCustomArchetype(previewClassData);
+      onAddCustomArchetype(previewClassData);
       setArchetype(previewClassData.name);
       setPreviewClassData(null);
       setCustomPrompt('');
@@ -213,7 +214,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
                 value={name} 
                 onChange={e => setName(e.target.value)} 
                 placeholder="Nameless Soul..."
-                className="w-full bg-black/40 border border-red-900/30 p-3 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all" 
+                className="w-full bg-black/40 border border-red-900/30 p-3 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all placeholder:text-red-900/30" 
               />
             </div>
             

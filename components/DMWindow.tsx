@@ -67,7 +67,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
     
     onMessage(userMsg);
     setInput('');
-    setSpeakCooldown(12);
+    setSpeakCooldown(8); // Reduced cooldown for smoother play
     
     if (!isHost) return;
 
@@ -75,11 +75,11 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
     try {
       const responseText = await generateDMResponse(
-        nextHistory, // Use nextHistory directly to avoid state lag/duplication issues
+        nextHistory,
         { characters, mentors: MENTORS, activeRules: RULES_MANIFEST, existingItems: [], existingMonsters: bestiary }
       );
       
-      const dmMsg: Message = { role: 'model', content: responseText || "...", timestamp: Date.now() };
+      const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums silently...", timestamp: Date.now() };
       onMessage(dmMsg);
       
       if (responseText) {
@@ -117,9 +117,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
         if (enterCombat) onSetCombatActive(true);
         if (exitCombat) onSetCombatActive(false);
       }
-    } catch (err) {
-      console.error(err);
-      onMessage({ role: 'system', content: `[CRITICAL ERROR] The Engine's resonance was rejected. Check thy logs or Aetheric Reservoir.`, timestamp: Date.now() });
+    } catch (err: any) {
+      console.error("Gemini Error:", err);
+      onMessage({ role: 'system', content: `[CRITICAL ERROR] The Engine's resonance was rejected. Check thy Aetheric Reservoir or wait for the stars to align.`, timestamp: Date.now() });
     } finally {
       setIsLoading(false);
     }

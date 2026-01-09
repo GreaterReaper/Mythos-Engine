@@ -44,8 +44,14 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   }, [equippedItems, dexMod]);
 
   const toggleStatus = (effect: StatusEffect) => {
-    if (!onUpdate) return;
-    const nextStatuses = character.activeStatuses.includes(effect) ? character.activeStatuses.filter(s => s !== effect) : [...character.activeStatuses, effect];
+    if (!onUpdate || isMentor) return;
+    const isActive = character.activeStatuses.includes(effect);
+    if (isActive) {
+      // THOU SHALT NOT REMOVE THY OWN BLIGHTS.
+      // Reagents or Spells are required for purification.
+      return;
+    }
+    const nextStatuses = [...character.activeStatuses, effect];
     onUpdate(character.id, { activeStatuses: nextStatuses });
   };
 
@@ -59,7 +65,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   const handleManifestSpell = (spell: Ability) => {
     if (!onUpdate || !character.spellSlots || spell.type !== 'Spell' || isMentor) return;
-    if (spell.levelReq > character.level) return; // Hard level requirement check
+    if (spell.levelReq > character.level) return; 
 
     const baseLevel = spell.baseLevel || 1;
     if (spell.name === 'Exequy') {
@@ -75,6 +81,12 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const consumeLevel = availableLevels[0];
     const newSlots = { ...character.spellSlots, [consumeLevel]: character.spellSlots[consumeLevel] - 1 };
     onUpdate(character.id, { spellSlots: newSlots });
+  };
+
+  const isInnateSoulAbility = (ability: Ability) => {
+    const innateNames = ['Living Dead', 'Sanguine Link', 'Life Tap', 'Gore Cascade'];
+    // These are functionally Level 1 unlocks but visually distinct in the UI.
+    return innateNames.includes(ability.name) || character.archetype === Archetype.BloodArtist;
   };
 
   return (
@@ -129,7 +141,13 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                  {(['Poisoned', 'Blinded', 'Stunned', 'Frightened', 'Paralyzed', 'Charmed', 'Bleeding'] as StatusEffect[]).map(status => {
                    const isActive = character.activeStatuses.includes(status);
                    return (
-                     <button key={status} onClick={() => toggleStatus(status)} disabled={isMentor} className={`px-3 py-1.5 rounded-sm border text-[8px] font-black uppercase tracking-widest transition-all ${isActive ? 'text-emerald-500 border-emerald-900/40 bg-emerald-900/10 shadow-[0_0_10px_currentColor]' : 'border-white/10 text-white/20 hover:text-white/40'}`}>
+                     <button 
+                       key={status} 
+                       onClick={() => toggleStatus(status)} 
+                       disabled={isMentor} 
+                       className={`px-3 py-1.5 rounded-sm border text-[8px] font-black uppercase tracking-widest transition-all ${isActive ? 'text-red-500 border-red-900/60 bg-red-900/10 shadow-[0_0_10px_currentColor] cursor-not-allowed' : 'border-white/10 text-white/20 hover:text-white/40'}`}
+                       title={isActive ? "This blight is locked. Reagents or Aetheric Spells are required to purge it." : "Mark this soul with a blight."}
+                     >
                        {status}
                      </button>
                    );
@@ -154,12 +172,17 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           <div className="space-y-4">
             {[...character.abilities, ...character.spells].map((a, i) => {
               const isUsable = a.levelReq <= character.level;
+              const isInnate = isInnateSoulAbility(a);
+              
               return (
                 <div key={i} className={`p-4 border-l-2 rounded-r-sm transition-all ${isUsable ? 'bg-emerald-900/5 border-emerald-900 group hover:bg-emerald-900/10' : 'bg-black/40 border-gray-800 opacity-50 grayscale'}`}>
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col">
-                      <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUsable ? 'text-gold' : 'text-gray-500'}`}>{a.name}</span>
+                      <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUsable ? (isInnate ? (character.archetype === Archetype.BloodArtist ? 'text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]') : 'text-gold') : 'text-gray-500'}`}>
+                        {a.name} {isInnate && '†'}
+                      </span>
                       {!isUsable && <span className="text-[8px] text-red-900 uppercase font-black tracking-tighter">Requires Level {a.levelReq}</span>}
+                      {isInnate && isUsable && <span className="text-[8px] text-emerald-800 uppercase font-black tracking-tighter">Soul-Innate Manifestation</span>}
                     </div>
                     <div className="flex flex-col items-end">
                       <span className={`text-[9px] uppercase italic font-bold ${isUsable ? 'text-emerald-500' : 'text-gray-600'}`}>{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>

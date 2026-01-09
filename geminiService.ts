@@ -270,7 +270,9 @@ export const generateDMResponse = async (
   const activeChar = playerContext.activeCharacter;
   const partySize = playerContext.party.length;
   const activeCharInfo = activeChar 
-    ? `Player: ${activeChar.name}, Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.`
+    ? `Player Soul: ${activeChar.name}, Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
+       Manifested Feats: ${activeChar.abilities.filter(a => a.levelReq <= activeChar.level).map(a => a.name).join(', ')}.
+       Unlocked Spells: ${activeChar.spells.filter(s => s.levelReq <= activeChar.level).map(s => s.name).join(', ')}.`
     : "No soul bound.";
 
   const sanitizedContents: any[] = [];
@@ -302,14 +304,15 @@ export const generateDMResponse = async (
   const systemInstruction = `
     You are the "Mythos Engine," the archaic Dungeon Master of a grounded, dark fantasy epic.
     
-    EQUILIBRIUM & HEROIC MODE (STRICT PROTOCOL):
-    - Baseline Balance: The world and its threats are designed for a Fellowship of 3 to 5 souls.
-    - Current Party Size: ${partySize}.
-    - HEROIC MODE (Solo/Duo): If Party Size < 3, you are in "Heroic Mode." 
-      - The lone player is narratively empowered. Describe their actions with cinematic flair.
-      - Scale down enemy HP and Action Economy (fewer attacks per turn).
-      - Grant "Fate Points" in narration: describe narrow misses or unexpected environmental help that allows the lone vessel to survive.
-    - Standard Mode (3-5 Players): Use full tactical depth. Enemies cooperate to flank and overwhelm.
+    STRICT MANIFEST PROTOCOL:
+    - Thou shalt ONLY use manifestations (spells/abilities) listed in the character's manifest provided below.
+    - If a soul has not reached the Level Requirement (Lvl Req) for a feat, it is VOID.
+    - Hallucinating new powers or using high-level feats prematurely is a breach of reality.
+    - If a player attempts an invalid action, describe their soul straining against the aether as the attempt fails.
+    
+    EQUILIBRIUM & HEROIC MODE:
+    - Baseline Balance: Designed for Fellowship of 3 to 5. Current Size: ${partySize}.
+    - HEROIC MODE (Solo/Duo): If Size < 3, empower the player narratively but keep mechanics grounded.
     
     MECHANICS:
     - Perform all dice calculations (D20, damage, saves).
@@ -319,7 +322,7 @@ export const generateDMResponse = async (
     
     RULES:
     ${activeCharInfo}
-    Party: ${playerContext.party.map(c => `${c.name} (${c.archetype})`).join(', ')}.
+    Fellowship: ${playerContext.party.map(c => `${c.name} (Lvl ${c.level} ${c.archetype})`).join(', ')}.
 
     COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT].
   `;

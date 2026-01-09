@@ -67,8 +67,13 @@ const SpellsScreen: React.FC<SpellsScreenProps> = ({ playerCharacters, customArc
                 <div className="flex justify-between items-start border-b border-emerald-900/30 pb-3">
                   <div>
                     <h4 className="font-cinzel text-xl text-gold group-hover:text-emerald-400 transition-colors font-bold">{spell.name}</h4>
-                    <div className="flex gap-2 mt-2">
-                      <span className="text-[8px] bg-emerald-900/20 px-2 py-0.5 border border-emerald-900/40 text-emerald-400 uppercase font-black tracking-tighter">Level {spell.baseLevel} Spell</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="text-[8px] bg-emerald-900/20 px-2 py-0.5 border border-emerald-900/40 text-emerald-400 uppercase font-black tracking-tighter">
+                        Tier {spell.baseLevel} Aether
+                      </span>
+                      <span className="text-[8px] bg-gold/10 px-2 py-0.5 border border-gold/30 text-gold uppercase font-black tracking-tighter shadow-[0_0_5px_rgba(212,175,55,0.2)]">
+                        Unlocks at Level {spell.levelReq}
+                      </span>
                     </div>
                   </div>
                   <span className="text-[10px] text-emerald-700 font-cinzel uppercase italic tracking-widest font-black">{spell.type}</span>
@@ -78,7 +83,7 @@ const SpellsScreen: React.FC<SpellsScreenProps> = ({ playerCharacters, customArc
                 </p>
                 {spell.scaling && (
                   <div className="text-[9px] text-emerald-500/60 font-mono mt-auto pt-2 border-t border-emerald-900/10">
-                    UPCASTING: {spell.scaling}
+                    RESONANCE: {spell.scaling}
                   </div>
                 )}
               </div>

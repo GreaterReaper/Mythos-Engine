@@ -10,7 +10,7 @@ export const POINT_BUY_COSTS: Record<number, number> = {
 export const SYNERGY_MAP: Record<string, { bestMatches: string[]; reason: string }> = {
   [Archetype.DarkKnight]: {
     bestMatches: [Archetype.Mage, Archetype.BloodArtist, Archetype.Archer],
-    reason: "The Dark Knight sacrifices vitality for power; the Mage mends the self-inflicted wounds, while the Blood Artist shares the toll. The Archer provides the necessary range to finish foes while the Knight holds the line."
+    reason: "The Dark Knight sacrifices vitality for power; the Mage mends the self-inflicted wounds, while the Blood Artist feeds on the chaos. The Archer provides the necessary range to finish foes while the Knight holds the line."
   },
   [Archetype.Warrior]: {
     bestMatches: [Archetype.Sorcerer, Archetype.Alchemist, Archetype.Thief],
@@ -42,7 +42,7 @@ export const SYNERGY_MAP: Record<string, { bestMatches: string[]; reason: string
   },
   [Archetype.BloodArtist]: {
     bestMatches: [Archetype.DarkKnight, Archetype.Warrior, Archetype.Sorcerer],
-    reason: "Blood Artists manipulate the life-stream. They excel alongside those who dwell on the edge of death or those who need a constant supply of aetheric energy."
+    reason: "Blood Artists manipulate the life-stream of the dying. They excel alongside those who dwell on the edge of death, turning carnage into fuel for the party."
   }
 };
 
@@ -108,6 +108,7 @@ export const SPELL_LIBRARY: Record<string, Ability[]> = {
   [Archetype.Mage]: [
     { name: 'Cure Wounds', description: 'Seal wounds and restore vitality.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Bless', description: 'Fortify the spirits of allies. Add 1d4 to attack rolls and saves.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Lesser Restoration', description: 'Cleanse a single aetheric or physical blight (Poison, Blind, Bleed) from a soul.', type: 'Spell', levelReq: 3, baseLevel: 2 },
     { name: 'Heal', description: 'A flood of vitality restores health.', type: 'Spell', levelReq: 11, baseLevel: 6 }
   ],
   [Archetype.DarkKnight]: [
@@ -125,58 +126,93 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     hpDie: 8, role: 'DPS', description: 'Lithe hunters who strike from the shadows.',
     coreAbilities: [
       { name: 'Sky-Splitter', description: 'Precision that ignores the blur of distance.', type: 'Passive', levelReq: 1 },
-      { name: 'Void Mark', description: 'Target a weak point for increased lethality.', type: 'Active', levelReq: 1 }
+      { name: 'Void Mark', description: 'Target a weak point for increased lethality.', type: 'Active', levelReq: 3 },
+      { name: 'Shadow Step', description: 'Teleport to a nearby patch of darkness.', type: 'Active', levelReq: 7 },
+      { name: 'Rain of Thorns', description: 'Volley of arrows that entangle the target.', type: 'Active', levelReq: 11 },
+      { name: 'Perfect Execution', description: 'Thy shots never miss and ignore resistances.', type: 'Passive', levelReq: 15 }
     ]
   },
   [Archetype.Thief]: {
     hpDie: 8, role: 'DPS', description: 'Masters of the quick blade and the unseen step.',
     coreAbilities: [
-      { name: 'Lethal Ambush', description: 'Strike with devastating force when unseen.', type: 'Passive', levelReq: 1 }
+      { name: 'Lethal Ambush', description: 'Strike with devastating force when unseen.', type: 'Passive', levelReq: 1 },
+      { name: 'Cunning Action', description: 'Dash or Disengage as a minor movement.', type: 'Active', levelReq: 3 },
+      { name: 'Evasion', description: 'Dodge area effects with preternatural grace.', type: 'Passive', levelReq: 7 },
+      { name: 'Vanish', description: 'Become truly invisible for a brief moment.', type: 'Active', levelReq: 11 },
+      { name: 'Death Strike', description: 'A single blow that can end any mortal life.', type: 'Active', levelReq: 15 }
     ]
   },
   [Archetype.Sorcerer]: {
     hpDie: 6, role: 'DPS', description: 'Conduits of raw, dangerous power.',
     coreAbilities: [
-      { name: 'Arcane Memory', description: 'Recall a manifestation once per day.', type: 'Passive', levelReq: 1 }
+      { name: 'Arcane Memory', description: 'Recall a manifestation once per day.', type: 'Passive', levelReq: 1 },
+      { name: 'Metamagic', description: 'Twist thy spells to reach further or hit harder.', type: 'Active', levelReq: 3 },
+      { name: 'Elemental Shift', description: 'Change the energy type of thy next manifestation.', type: 'Active', levelReq: 7 },
+      { name: 'Aetheric Reservoir', description: 'Restore spell slots in the heat of battle.', type: 'Active', levelReq: 11 },
+      { name: 'Planar Breach', description: 'Summon energy directly from the void.', type: 'Active', levelReq: 15 }
     ],
     spells: SPELL_LIBRARY[Archetype.Sorcerer]
   },
   [Archetype.Mage]: {
     hpDie: 6, role: 'Support', description: 'Healers and weavers of protective energy.',
     coreAbilities: [
-      { name: 'Harmonized Aether', description: 'Thy blessings reach more allies.', type: 'Passive', levelReq: 1 }
+      { name: 'Harmonized Aether', description: 'Thy blessings reach more allies.', type: 'Passive', levelReq: 1 },
+      { name: 'Warding Halo', description: 'Create a static zone of protection.', type: 'Active', levelReq: 3 },
+      { name: 'Beacon of Hope', description: 'Allies within range cannot be frightened.', type: 'Passive', levelReq: 7 },
+      { name: 'Mending Presence', description: 'Automatically heal nearby allies for a small amount.', type: 'Passive', levelReq: 11 },
+      { name: 'Divine Intervention', description: 'Call upon the higher realms for a miracle.', type: 'Active', levelReq: 15 }
     ],
     spells: SPELL_LIBRARY[Archetype.Mage]
   },
   [Archetype.Warrior]: {
     hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts of the front line.',
     coreAbilities: [
-      { name: 'Charged Devastation', description: 'Put every ounce of strength into thy next swing.', type: 'Active', levelReq: 1 }
+      { name: 'Charged Devastation', description: 'Put every ounce of strength into thy next swing.', type: 'Active', levelReq: 1 },
+      { name: 'Reckless Attack', description: 'Gain advantage at the cost of thy own defense.', type: 'Active', levelReq: 3 },
+      { name: 'Brutal Critical', description: 'Roll extra damage on critical strikes.', type: 'Passive', levelReq: 7 },
+      { name: 'Unyielding Rage', description: 'Thy HP cannot drop below 1 while active.', type: 'Active', levelReq: 11 },
+      { name: 'Titan’s Grip', description: 'Wield massive weapons with one hand.', type: 'Passive', levelReq: 15 }
     ]
   },
   [Archetype.Fighter]: {
     hpDie: 10, role: 'Tank', description: 'Unyielding guardians with blade and bulwark.',
     coreAbilities: [
-      { name: 'Shield Bash', description: 'Shatter the stance of thy enemy.', type: 'Active', levelReq: 1 }
+      { name: 'Shield Bash', description: 'Shatter the stance of thy enemy.', type: 'Active', levelReq: 1 },
+      { name: 'Defender’s Stance', description: 'Take hits meant for nearby allies.', type: 'Active', levelReq: 3 },
+      { name: 'Indomitable', description: 'Reroll a failed saving throw.', type: 'Active', levelReq: 7 },
+      { name: 'Improved Critical', description: 'Critical strike on rolls of 19 or 20.', type: 'Passive', levelReq: 11 },
+      { name: 'Master of Arms', description: 'Four attacks in a single turn.', type: 'Passive', levelReq: 15 }
     ]
   },
   [Archetype.DarkKnight]: {
     hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain as a weapon.',
     coreAbilities: [
-      { name: 'Living Dead', description: 'Sheer will keeps thy heart beating at 0 HP for a time.', type: 'Passive', levelReq: 1 }
+      { name: 'Living Dead', description: 'Sheer will keeps thy heart beating at 0 HP for a time.', type: 'Passive', levelReq: 1 },
+      { name: 'Soul Rend', description: 'Heal for a portion of necrotic damage dealt.', type: 'Passive', levelReq: 3 },
+      { name: 'Abyssal Grasp', description: 'Pull all nearby enemies toward thee.', type: 'Active', levelReq: 7 },
+      { name: 'Dread Aura', description: 'Enemies near thee are permanently frightened.', type: 'Passive', levelReq: 11 },
+      { name: 'Reaper’s Toll', description: 'A strike that consumes all remaining necrotic energy to execute.', type: 'Active', levelReq: 15 }
     ],
     spells: SPELL_LIBRARY[Archetype.DarkKnight]
   },
   [Archetype.Alchemist]: {
     hpDie: 8, role: 'Support', description: 'Brewers of tonics and volatile acids.',
     coreAbilities: [
-      { name: 'Harvester', description: 'Carve reagents from the remains of thy foes.', type: 'Passive', levelReq: 1 }
+      { name: 'Harvester', description: 'Carve reagents from the remains of thy foes.', type: 'Passive', levelReq: 1 },
+      { name: 'Experimental Brew', description: 'Create a random powerful potion each morning, including anti-toxins and mental stimulants.', type: 'Passive', levelReq: 3 },
+      { name: 'Volatile Reaction', description: 'Thy explosions deal double damage to armor.', type: 'Passive', levelReq: 7 },
+      { name: 'Toxic Catalyst', description: 'Apply multiple poisons with a single strike.', type: 'Active', levelReq: 11 },
+      { name: 'Philosopher’s Stone', description: 'Transmute base metals or restore a fallen soul.', type: 'Active', levelReq: 15 }
     ]
   },
   [Archetype.BloodArtist]: {
-    hpDie: 10, role: 'Support', description: 'Elegant collectors of life-force.',
+    hpDie: 10, role: 'DPS', description: 'Elegant collectors of life-force and weavers of carnage.',
     coreAbilities: [
-      { name: 'Sanguine Link', description: 'Bind two hearts together to share the toll.', type: 'Active', levelReq: 1 }
+      { name: 'Sanguine Link', description: 'Bind two hearts together to share the toll.', type: 'Active', levelReq: 1 },
+      { name: 'Hemorrhage', description: 'Every strike inflicts persistent bleeding.', type: 'Passive', levelReq: 3 },
+      { name: 'Vitae Infusion', description: 'Consume blood to enhance thy physical attributes.', type: 'Active', levelReq: 7 },
+      { name: 'Crimson Dance', description: 'Gain speed and extra attacks for every bleeding foe.', type: 'Passive', levelReq: 11 },
+      { name: 'Heart-Stopper', description: 'Directly manipulate the pulse of a target to end it.', type: 'Active', levelReq: 15 }
     ],
     spells: SPELL_LIBRARY[Archetype.BloodArtist]
   }
@@ -250,5 +286,9 @@ export const TUTORIAL_SCENARIO = {
 export const APOTHECARY_TIERS = {
   HEALTH: [{ name: 'Minor Vitality Potion', desc: 'Seal shallow wounds.', cost: 50, lvl: 1 }],
   AETHER: [{ name: 'Aetheric Tincture', desc: 'Restores a minor amount of magical reserve.', cost: 75, lvl: 1 }],
-  DAMAGE: [{ name: 'Volatile Acid', desc: 'Deals 2d6 acid damage on impact.', cost: 100, lvl: 3 }]
+  DAMAGE: [{ name: 'Volatile Acid', desc: 'Deals 2d6 acid damage on impact.', cost: 100, lvl: 3 }],
+  PURITY: [
+    { name: 'Cinder-Draft', desc: 'A volatile tonic that burns away toxins (Cleanses Poisoned and Bleeding).', cost: 120, lvl: 1 },
+    { name: 'Purifying Salts', desc: 'Aromatic salts that clear the mind (Cleanses Stunned and Frightened).', cost: 150, lvl: 3 }
+  ]
 };

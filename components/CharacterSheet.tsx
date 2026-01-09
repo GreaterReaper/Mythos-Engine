@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Character, Stats, Ability, Item, Archetype, Race, Currency, StatusEffect, ArchetypeInfo } from '../types';
 import { ARCHETYPE_INFO, SPELL_LIBRARY } from '../constants';
 import Tooltip from './Tooltip';
@@ -10,29 +10,63 @@ interface CharacterSheetProps {
   customArchetypes?: ArchetypeInfo[];
 }
 
+interface HpChange {
+  id: number;
+  amount: number;
+  type: 'damage' | 'heal';
+}
+
 const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, isMentor, customArchetypes = [] }) => {
   const [activeTab, setActiveTab] = useState<'Stats' | 'Soul Path' | 'Inventory' | 'Lore'>('Stats');
   const [inventoryFilter, setInventoryFilter] = useState<'Gear' | 'Mundane'>('Gear');
   const [lastDeathRoll, setLastDeathRoll] = useState<number | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  
+  // Health Change Visuals
+  const [hpChanges, setHpChanges] = useState<HpChange[]>([]);
+  const [displayHp, setDisplayHp] = useState(character.currentHp);
+  const prevHpRef = useRef(character.currentHp);
+  const changeIdCounter = useRef(0);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
   const dexMod = getMod(character.stats.dex);
 
-  // Filter items for tabs
-  const filteredInventory = useMemo(() => {
-    if (inventoryFilter === 'Gear') {
-      return character.inventory.filter(i => i.type === 'Weapon' || i.type === 'Armor');
-    }
-    return character.inventory.filter(i => i.type === 'Utility' || i.type === 'Quest');
-  }, [character.inventory, inventoryFilter]);
+  // Detect HP Changes for animations
+  useEffect(() => {
+    if (prevHpRef.current !== character.currentHp) {
+      const diff = character.currentHp - prevHpRef.current;
+      const type = diff < 0 ? 'damage' : 'heal';
+      
+      const newChange: HpChange = {
+        id: ++changeIdCounter.current,
+        amount: Math.abs(diff),
+        type
+      };
 
-  // Aggregate all possible abilities/spells for this archetype to show progression
+      setHpChanges(prev => [...prev, newChange]);
+      
+      // Cleanup floating text after animation
+      setTimeout(() => {
+        setHpChanges(prev => prev.filter(c => c.id !== newChange.id));
+      }, 1500);
+
+      // Lag display HP for the "ghost bar" effect
+      const timer = setTimeout(() => {
+        setDisplayHp(character.currentHp);
+      }, 500);
+
+      prevHpRef.current = character.currentHp;
+      return () => clearTimeout(timer);
+    }
+  }, [character.currentHp]);
+
+  // Sync displayHp if it gets stuck or on initial mount
+  useEffect(() => {
+    setDisplayHp(character.currentHp);
+  }, []);
+
   const fullSoulPath = useMemo(() => {
-    // Try standard lookup first
     let info = ARCHETYPE_INFO[character.archetype as Archetype];
-    
-    // If not found, check custom archetypes
     if (!info) {
       const customMatch = customArchetypes.find(a => a.name === character.archetype);
       if (customMatch) {
@@ -51,7 +85,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const allAbilities = [...info.coreAbilities];
     if (info.spells) allAbilities.push(...info.spells);
     
-    // Deduplicate by name and sort by level
     const uniqueMap = new Map<string, Ability>();
     allAbilities.forEach(a => uniqueMap.set(a.name, a));
     
@@ -77,6 +110,16 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     });
     return baseAc + shieldBonus;
   }, [equippedItems, dexMod]);
+
+  // FIX: Define filteredInventory to resolve "Cannot find name 'filteredInventory'" errors
+  const filteredInventory = useMemo(() => {
+    return character.inventory.filter(item => {
+      if (inventoryFilter === 'Gear') {
+        return item.type === 'Weapon' || item.type === 'Armor';
+      }
+      return item.type === 'Utility' || item.type === 'Quest';
+    });
+  }, [character.inventory, inventoryFilter]);
 
   const toggleStatus = (effect: StatusEffect) => {
     if (!onUpdate || isMentor) return;
@@ -116,8 +159,35 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const expThreshold = character.level * 1000;
   const expPercentage = Math.min(100, (character.exp / expThreshold) * 100);
 
+  const hpPercentage = (character.currentHp / character.maxHp) * 100;
+  const displayHpPercentage = (displayHp / character.maxHp) * 100;
+
   return (
-    <div className="rune-border bg-black/90 backdrop-blur-xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl border-emerald-900/60">
+    <div className="rune-border bg-black/90 backdrop-blur-xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl border-emerald-900/60 relative">
+      {/* Floating combat text layer */}
+      <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center gap-2">
+        {hpChanges.map(change => (
+          <div 
+            key={change.id}
+            className={`font-cinzel font-black text-2xl animate-bounce-up ${change.type === 'damage' ? 'text-red-500' : 'text-emerald-400'}`}
+          >
+            {change.type === 'damage' ? '-' : '+'}{change.amount}
+          </div>
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes bounce-up {
+          0% { transform: translateY(20px); opacity: 0; scale: 0.5; }
+          20% { transform: translateY(0); opacity: 1; scale: 1.2; }
+          80% { transform: translateY(-40px); opacity: 1; scale: 1; }
+          100% { transform: translateY(-60px); opacity: 0; }
+        }
+        .animate-bounce-up {
+          animation: bounce-up 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+      `}</style>
+
       <div className="p-4 border-b border-emerald-900/40 bg-emerald-900/10">
         <div className="flex justify-between items-start gap-4">
           <div className="min-w-0 flex-1">
@@ -156,8 +226,17 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             <div className="mt-5 space-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-cinzel text-emerald-500 w-12 font-black uppercase shrink-0">Vitality</span>
-                <div className="flex-1 h-2 bg-gray-950 rounded-full overflow-hidden border border-emerald-900/20">
-                  <div className="h-full bg-emerald-700 transition-all duration-700 shadow-[0_0_10px_#10b981]" style={{ width: `${(character.currentHp / character.maxHp) * 100}%` }} />
+                <div className="flex-1 h-3 bg-gray-950 rounded-full overflow-hidden border border-emerald-900/20 relative">
+                  {/* Ghost Bar (Drains slower than HP bar on damage) */}
+                  <div 
+                    className="absolute inset-0 bg-red-900/40 transition-all duration-700 ease-out"
+                    style={{ width: `${displayHpPercentage}%` }} 
+                  />
+                  {/* Main HP Bar */}
+                  <div 
+                    className={`absolute inset-0 transition-all duration-500 shadow-[0_0_10px_#10b981] ${character.currentHp < character.maxHp * 0.25 ? 'bg-red-600 animate-pulse' : 'bg-emerald-700'}`} 
+                    style={{ width: `${hpPercentage}%` }} 
+                  />
                 </div>
                 <span className="text-[10px] font-cinzel text-white min-w-[50px] text-right font-black">{character.currentHp}/{character.maxHp}</span>
               </div>
@@ -291,7 +370,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             <h4 className="text-[10px] font-cinzel text-emerald-800 uppercase tracking-[0.4em] font-black border-b border-emerald-900/20 pb-2">The Soul's Echo</h4>
             <p className="text-xs text-gray-200 leading-relaxed italic font-medium whitespace-pre-wrap">{character.biography || "No woven history remains. The Great Well is silent."}</p>
             <div className="pt-4 flex justify-center opacity-10">
-               <span className="text-[8px] tracking-[1em] font-black uppercase">ᛟ ᚱ ᛞ ᛖ ᚱ</span>
+               <span className="text-sm text-emerald-900 tracking-[1em] font-black uppercase">ᛟ ᚱ ᛞ ᛖ ᚱ</span>
             </div>
           </div>
         )}

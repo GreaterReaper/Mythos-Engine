@@ -118,7 +118,6 @@ const App: React.FC = () => {
       if (msg.role === 'model') {
         const commands = parseDMCommand(msg.content);
 
-        // Spell Slot Deduction
         if (commands.usedSlot) {
           const { level, characterName } = commands.usedSlot;
           const applySlotUsage = (c: Character) => {
@@ -133,7 +132,6 @@ const App: React.FC = () => {
           newState.mentors = newState.mentors.map(applySlotUsage);
         }
 
-        // Rests
         if (commands.shortRest || commands.longRest) {
           const applyRest = (c: Character) => {
             if (!newState.party.includes(c.id)) return c;
@@ -156,14 +154,12 @@ const App: React.FC = () => {
           newState.mentors = newState.mentors.map(applyRest);
         }
 
-        // Hard HP Resync
         commands.setHp.forEach(sync => {
           const applySet = (c: Character) => c.name.toLowerCase() === sync.targetName.toLowerCase() ? { ...c, currentHp: sync.amount } : c;
           newState.characters = newState.characters.map(applySet);
           newState.mentors = newState.mentors.map(applySet);
         });
 
-        // Damage & Mortality
         commands.takeDamage.forEach(dmg => {
           const applyDmg = (c: Character) => {
             if (c.name.toLowerCase() === dmg.targetName.toLowerCase()) {
@@ -180,13 +176,11 @@ const App: React.FC = () => {
           newState.mentors = newState.mentors.map(applyDmg);
         });
 
-        // Healing
         commands.heals.forEach(h => {
           const applyHeal = (c: Character) => {
             if (c.name.toLowerCase() === h.targetName.toLowerCase()) {
                const nextHp = Math.min(c.maxHp, c.currentHp + h.amount);
                const updates: Partial<Character> = { currentHp: nextHp };
-               // Clear death saves if brought back to life
                if (nextHp > 0) updates.deathSaves = { successes: 0, failures: 0 };
                return { ...c, ...updates };
             }
@@ -196,7 +190,6 @@ const App: React.FC = () => {
           newState.mentors = newState.mentors.map(applyHeal);
         });
 
-        // Currency Rewards
         commands.currencyRewards.forEach(reward => {
           if (reward.target.toLowerCase() === 'party') {
             const activeVesselsCount = newState.party.length || 1;
@@ -210,7 +203,6 @@ const App: React.FC = () => {
           }
         });
 
-        // EXP Distribution
         if (commands.exp > 0) {
           const activeVesselsCount = newState.party.length || 1;
           const perPerson = Math.floor(commands.exp / activeVesselsCount);
@@ -281,6 +273,9 @@ const App: React.FC = () => {
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
   const currentShop = (state.campaigns.find(c => c.id === state.activeCampaignId)?.activeShop) || state.currentTavernShop;
 
+  // Chronicles mode needs a lock-height layout to keep sidebar visible
+  const isChronicles = activeTab === 'Chronicles';
+
   return (
     <div className="flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
       <div className="flex flex-col w-full min-h-0">
@@ -295,8 +290,9 @@ const App: React.FC = () => {
           )}
 
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
-          <main className="relative flex-1 overflow-y-auto bg-leather">
-            <div className="mx-auto max-w-7xl p-4 md:p-8">
+          
+          <main className={`relative flex-1 bg-leather ${isChronicles ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
+            <div className={`mx-auto ${isChronicles ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
               {currentShop && <ShopModal shop={currentShop} characters={activePartyObjects} onClose={() => setState(p => ({ ...p, currentTavernShop: null }))} onBuy={(item, buyerId) => {
                 const buyer = activePartyObjects.find(c => c.id === buyerId);
                 if (!buyer || buyer.currency.aurels < item.cost.aurels) return;
@@ -305,6 +301,7 @@ const App: React.FC = () => {
                   inventory: [...buyer.inventory, item] 
                 });
               }} />}
+              
               {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={handleOpenShop} onUpgradeItem={(cid, iid, cost) => {
                 const char = activePartyObjects.find(c => c.id === cid);
                 if (!char || char.currency.aurels < cost.aurels) return;
@@ -316,6 +313,7 @@ const App: React.FC = () => {
                 const b = activePartyObjects.find(c => c.id === bid);
                 if (b && b.currency.aurels >= cost.aurels) updateCharacter(bid, { currency: { aurels: b.currency.aurels - cost.aurels }, inventory: [...b.inventory, item] });
               }} isHost={true} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} />}
+              
               {activeTab === 'Fellowship' && <FellowshipScreen 
                 characters={state.characters} 
                 onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} 
@@ -330,6 +328,7 @@ const App: React.FC = () => {
                 onStartTutorial={() => setShowTutorial(true)}
                 hasCampaigns={state.campaigns.length > 0}
               />}
+              
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
                 allCampaigns={state.campaigns} 
@@ -353,7 +352,9 @@ const App: React.FC = () => {
                 onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} 
                 onShortRest={() => {}} 
                 isHost={true} 
+                isKeyboardOpen={isKeyboardOpen}
               />}
+              
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={t => setState(p => ({ ...p, mapTokens: t }))} characters={state.characters} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={() => {}} userId={state.userAccount.id} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={(id, updates) => setState(prev => ({ ...prev, bestiary: prev.bestiary.map(m => m.id === id ? { ...m, ...updates } : m) }))} />}

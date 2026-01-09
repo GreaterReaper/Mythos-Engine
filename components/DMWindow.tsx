@@ -1,6 +1,3 @@
-// @google/genai Senior Frontend Engineer: Implemented History Reconciliation Ritual.
-// This allows players to retroactively manifest items/gold found in previous messages.
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
 import { generateDMResponse } from '../geminiService';
@@ -26,6 +23,59 @@ interface DMWindowProps {
   isKeyboardOpen?: boolean;
 }
 
+// Sub-component for individual party HP bar with reaction animations
+const VitalityMonitor: React.FC<{ character: Character, isActive: boolean, onClick: () => void }> = ({ character, isActive, onClick }) => {
+  const [lastHp, setLastHp] = useState(character.currentHp);
+  const [hpChange, setHpChange] = useState<{ amount: number, type: 'damage' | 'heal', id: number } | null>(null);
+  
+  useEffect(() => {
+    if (character.currentHp !== lastHp) {
+      const diff = character.currentHp - lastHp;
+      setHpChange({ amount: Math.abs(diff), type: diff < 0 ? 'damage' : 'heal', id: Date.now() });
+      setLastHp(character.currentHp);
+      const timer = setTimeout(() => setHpChange(null), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [character.currentHp]);
+
+  const percent = (character.currentHp / character.maxHp) * 100;
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`p-2.5 rounded transition-all cursor-pointer relative overflow-hidden ${isActive ? 'bg-gold/10 border border-gold/40' : 'hover:bg-emerald-900/5 border border-transparent'}`}
+    >
+      <div className="flex justify-between items-center mb-1.5 relative z-10">
+        <p className={`text-[10px] font-cinzel font-black uppercase tracking-tighter transition-colors ${isActive ? 'text-gold' : 'text-white/80'}`}>{character.name}</p>
+        <span className={`text-[9px] font-mono font-black ${character.currentHp <= 0 ? 'text-red-500 animate-pulse' : 'text-white/60'}`}>{character.currentHp}/{character.maxHp}</span>
+      </div>
+      
+      <div className="h-1.5 w-full bg-black rounded-full overflow-hidden border border-white/5 relative z-10">
+        <div 
+          className={`h-full transition-all duration-700 ${character.currentHp <= 0 ? 'bg-red-900' : 'bg-emerald-600'}`} 
+          style={{ width: `${percent}%` }} 
+        />
+      </div>
+
+      {/* Mini Floating Combat Text inside the bar container */}
+      {hpChange && (
+        <div key={hpChange.id} className={`absolute right-2 top-0 text-[10px] font-black animate-float-up-fast z-20 pointer-events-none ${hpChange.type === 'damage' ? 'text-red-500' : 'text-emerald-400'}`}>
+          {hpChange.type === 'damage' ? '-' : '+'}{hpChange.amount}
+        </div>
+      )}
+
+      <style>{`
+        @keyframes float-up-fast {
+          0% { transform: translateY(5px); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: translateY(-15px); opacity: 0; }
+        }
+        .animate-float-up-fast { animation: float-up-fast 1.5s ease-out forwards; }
+      `}</style>
+    </div>
+  );
+};
+
 const DMWindow: React.FC<DMWindowProps> = ({ 
   campaign, 
   allCampaigns, 
@@ -40,15 +90,12 @@ const DMWindow: React.FC<DMWindowProps> = ({
   onQuitCampaign, 
   onShortRest, 
   onSyncHistory,
-  updateCharacter,
   isHost, 
   isKeyboardOpen
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lastError, setLastError] = useState(false);
   const [speakCooldown, setSpeakCooldown] = useState(0);
-  const [showMobileGrimoire, setShowMobileGrimoire] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
@@ -74,12 +121,11 @@ const DMWindow: React.FC<DMWindowProps> = ({
     const messageContent = retryContent || input;
     if (!campaign || !messageContent.trim() || isLoading || speakCooldown > 0 || !activeCharacter) return;
     
-    setLastError(false);
     if (!retryContent) {
       const userMsg: Message = { role: 'user', content: messageContent, timestamp: Date.now() };
       onMessage(userMsg);
       setInput('');
-      setSpeakCooldown(5);
+      setSpeakCooldown(3);
     }
     
     if (!isHost) return;
@@ -104,8 +150,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
       onMessage(dmMsg);
       setIsLoading(false);
     } catch (error: any) { 
-      console.error(error); 
-      setLastError(true);
       setIsLoading(false);
     }
   };
@@ -118,32 +162,34 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   if (!campaign) {
     return (
-      <div className="space-y-12 max-w-4xl mx-auto animate-in fade-in px-4 py-8">
-        <h2 className="text-5xl font-cinzel text-gold font-black text-center">The Chronicles</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-             <h3 className="text-sm font-cinzel text-gold uppercase tracking-widest font-black border-b border-emerald-900/30 pb-2">Manifest Reality</h3>
-             {isHost ? (
-               <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-5">
-                 <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-emerald-900/50 p-4 text-gold font-cinzel text-base" placeholder="CHRONICLE TITLE..." />
-                 <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-emerald-900/50 p-4 text-gray-200 text-sm h-32" placeholder="PREMISE..." />
-                 <button onClick={() => onCreateCampaign(newTitle, newPrompt)} className="w-full py-5 bg-emerald-900 text-white font-cinzel font-black border border-gold">BEND REALITY</button>
-               </div>
-             ) : <div className="text-center py-20 text-gray-500 font-cinzel">Waiting for Host...</div>}
-          </div>
-          <div className="space-y-6">
-             <h3 className="text-sm font-cinzel text-gold uppercase tracking-widest font-black border-b border-emerald-900/30 pb-2">Ancient Scrolls</h3>
-             <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-               {allCampaigns.slice().reverse().map(c => (
-                 <div key={c.id} className="p-5 bg-black/40 border border-emerald-900/20 hover:border-gold flex justify-between items-center transition-all">
-                   <h4 className="font-cinzel text-lg text-gold font-bold">{c.title}</h4>
-                   <div className="flex gap-2">
-                     <button onClick={() => onSelectCampaign(c.id)} className="px-4 py-2 border border-gold/40 text-[10px] font-cinzel text-gold hover:bg-gold hover:text-black">REBIND</button>
-                     {isHost && <button onClick={() => onDeleteCampaign(c.id)} className="w-10 h-10 border border-red-900/40 text-red-500 hover:bg-red-950 transition-all">×</button>}
-                   </div>
+      <div className="h-full overflow-y-auto custom-scrollbar px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-12">
+          <h2 className="text-5xl font-cinzel text-gold font-black text-center">The Chronicles</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+               <h3 className="text-sm font-cinzel text-gold uppercase tracking-widest font-black border-b border-emerald-900/30 pb-2">Manifest Reality</h3>
+               {isHost ? (
+                 <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-5">
+                   <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-emerald-900/50 p-4 text-gold font-cinzel text-base outline-none focus:border-gold" placeholder="CHRONICLE TITLE..." />
+                   <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-emerald-900/50 p-4 text-gray-200 text-sm h-32 outline-none focus:border-gold resize-none" placeholder="PREMISE..." />
+                   <button onClick={() => onCreateCampaign(newTitle, newPrompt)} className="w-full py-5 bg-emerald-900 text-white font-cinzel font-black border border-gold hover:bg-emerald-800 transition-all">BEND REALITY</button>
                  </div>
-               ))}
-             </div>
+               ) : <div className="text-center py-20 text-gray-500 font-cinzel">Waiting for Host...</div>}
+            </div>
+            <div className="space-y-6">
+               <h3 className="text-sm font-cinzel text-gold uppercase tracking-widest font-black border-b border-emerald-900/30 pb-2">Ancient Scrolls</h3>
+               <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                 {allCampaigns.slice().reverse().map(c => (
+                   <div key={c.id} className="p-5 bg-black/40 border border-emerald-900/20 hover:border-gold flex justify-between items-center transition-all group">
+                     <h4 className="font-cinzel text-lg text-gold font-bold group-hover:text-white">{c.title}</h4>
+                     <div className="flex gap-2">
+                       <button onClick={() => onSelectCampaign(c.id)} className="px-4 py-2 border border-gold/40 text-[10px] font-cinzel text-gold hover:bg-gold hover:text-black">REBIND</button>
+                       {isHost && <button onClick={() => onDeleteCampaign(c.id)} className="w-10 h-10 border border-red-900/40 text-red-500 hover:bg-red-950 transition-all">×</button>}
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            </div>
           </div>
         </div>
       </div>
@@ -152,12 +198,31 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
+      {/* Mobile Top HUD - Locked */}
+      <div className="md:hidden flex overflow-x-auto no-scrollbar gap-2 p-2 bg-black border-b border-emerald-900/40 shrink-0 z-30 shadow-lg">
+         {characters.map(char => (
+           <div 
+             key={char.id} 
+             onClick={() => onSelectActiveCharacter(char.id)}
+             className={`min-w-[100px] p-2 rounded border transition-all ${char.id === activeCharacter?.id ? 'bg-gold/10 border-gold/60' : 'bg-black border-emerald-900/20'}`}
+           >
+              <p className={`text-[8px] font-black uppercase truncate mb-1 ${char.id === activeCharacter?.id ? 'text-gold' : 'text-gray-500'}`}>{char.name}</p>
+              <div className="h-1 w-full bg-gray-950 rounded-full overflow-hidden">
+                 <div className={`h-full ${char.currentHp <= 0 ? 'bg-red-600' : 'bg-emerald-600'}`} style={{ width: `${(char.currentHp / char.maxHp) * 100}%` }} />
+              </div>
+           </div>
+         ))}
+      </div>
+
       <div className="flex flex-1 min-h-0 relative">
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="px-4 py-2 border-b-2 border-emerald-900/60 flex justify-between items-center bg-black/80 backdrop-blur shrink-0 z-20">
+          <div className="px-4 py-3 border-b-2 border-emerald-900/60 flex justify-between items-center bg-black/80 backdrop-blur shrink-0 z-20">
             <div className="flex items-center gap-3">
-              <button onClick={onQuitCampaign} className="text-emerald-900 hover:text-emerald-500 font-black text-2xl">×</button>
-              <h3 className="font-cinzel text-gold text-xs md:text-sm font-black tracking-[0.1em]">{campaign.title}</h3>
+              <button onClick={onQuitCampaign} className="text-emerald-900 hover:text-emerald-500 font-black text-2xl" title="Return to Grimoire">×</button>
+              <div className="min-w-0">
+                <h3 className="font-cinzel text-gold text-[10px] md:text-sm font-black tracking-[0.1em] truncate">{campaign.title}</h3>
+                <p className="text-[8px] text-emerald-500/60 font-black uppercase tracking-tighter">Active Arbitration</p>
+              </div>
             </div>
             <div className="flex gap-2">
               {onSyncHistory && isHost && (
@@ -166,20 +231,22 @@ const DMWindow: React.FC<DMWindowProps> = ({
             </div>
           </div>
           
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar bg-[#0c0a09]">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar bg-[#0c0a09] relative">
+            <div className="absolute inset-0 bg-leather opacity-20 pointer-events-none" />
+            
             {campaign.history.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
-                <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl'}`}>
+              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in relative z-10`}>
+                <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl rounded-tr-xl' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl rounded-r-xl'}`}>
                   {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase">The Engine Speaks</p>}
-                  <div className="leading-relaxed whitespace-pre-wrap font-medium">
+                  <div className="leading-relaxed whitespace-pre-wrap font-medium text-sm md:text-base">
                     {renderContentWithRewards(msg.content)}
                   </div>
                 </div>
               </div>
             ))}
             {isLoading && (
-              <div className="flex justify-start animate-in fade-in">
-                 <div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl max-w-[85%]">
+              <div className="flex justify-start animate-in fade-in relative z-10">
+                 <div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl max-w-[85%] rounded-r-xl">
                     <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase">Weaving Fate...</p>
                     <div className="flex gap-2">
                        <div className="w-2 h-2 bg-emerald-900 rounded-full animate-bounce" />
@@ -191,7 +258,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
             )}
           </div>
 
-          <div className="shrink-0 bg-black border-t-2 border-emerald-900/40 p-4 pb-20 md:pb-4">
+          <div className="shrink-0 bg-black border-t-2 border-emerald-900/40 p-4 pb-20 md:pb-4 z-20">
             <div className="flex gap-3 items-end max-w-5xl mx-auto w-full">
               <textarea 
                 value={input} 
@@ -199,38 +266,38 @@ const DMWindow: React.FC<DMWindowProps> = ({
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
                 placeholder={isDying ? "THOU ART UNCONSCIOUS..." : "VOICE THY WILL..."}
                 disabled={isDying || isLoading}
-                className="w-full bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm md:text-base h-24 focus:border-gold outline-none resize-none rounded-lg" 
+                className="flex-1 bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm md:text-base h-24 md:h-20 focus:border-gold outline-none resize-none rounded-lg transition-all" 
               />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isLoading || !activeCharacter || isDying} className="w-24 font-cinzel font-black border-2 h-24 bg-emerald-900 text-white border-gold/60 shadow-xl hover:bg-emerald-800 disabled:opacity-50">SPEAK</button>
+              <button onClick={() => handleSend()} disabled={!input.trim() || isLoading || !activeCharacter || isDying} className="w-20 md:w-28 font-cinzel font-black border-2 h-24 md:h-20 bg-emerald-900 text-white border-gold/60 shadow-xl hover:bg-emerald-800 disabled:opacity-50 transition-all">SPEAK</button>
             </div>
           </div>
         </div>
         
+        {/* Desktop Sidebar - Locked & Segmented */}
         <div className="hidden md:flex flex-col w-80 bg-[#0c0a09] border-l-2 border-emerald-900/30 overflow-hidden shrink-0 shadow-2xl">
+          {/* TOP SEGMENT: Party Health - Locked */}
           <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5 shrink-0">
-             <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase tracking-widest mb-4">Fellowship Resonance</h4>
-             <div className="space-y-4">
+             <div className="flex justify-between items-center mb-4">
+                <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase tracking-widest">Fellowship Monitor</h4>
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+             </div>
+             <div className="space-y-2">
               {characters.map(char => (
-                  <div key={char.id} className={`p-2 rounded cursor-pointer ${char.id === activeCharacter?.id ? 'bg-gold/10 border border-gold/40' : 'hover:bg-emerald-900/5'}`} onClick={() => onSelectActiveCharacter(char.id)}>
-                    <div className="flex justify-between items-center mb-1">
-                      <p className={`text-[11px] font-cinzel font-black uppercase ${char.id === activeCharacter?.id ? 'text-gold' : 'text-white'}`}>{char.name}</p>
-                      <div className="flex items-center gap-1">
-                        <span className="text-gold text-[8px]">●</span>
-                        <span className="text-white/60 font-mono text-[8px] font-black">{char.currency?.aurels || 0}</span>
-                      </div>
-                    </div>
-                    <div className="h-1 w-full bg-gray-950 rounded-full overflow-hidden">
-                      <div className={`h-full ${char.currentHp <= 0 ? 'bg-red-600' : 'bg-emerald-600'}`} style={{ width: `${(char.currentHp / char.maxHp) * 100}%` }} />
-                    </div>
-                  </div>
+                  <VitalityMonitor 
+                    key={char.id} 
+                    character={char} 
+                    isActive={char.id === activeCharacter?.id} 
+                    onClick={() => onSelectActiveCharacter(char.id)} 
+                  />
               ))}
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8">
+          {/* BOTTOM SEGMENT: Spells & Resources - Scrollable internally */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8 bg-black/20">
              {activeCharacter?.spellSlots && activeCharacter.maxSpellSlots && (
                <div>
-                  <h4 className="text-[10px] font-cinzel text-amber-500 font-black uppercase mb-4 tracking-widest">Spectral Reservoir</h4>
+                  <h4 className="text-[10px] font-cinzel text-amber-500 font-black uppercase mb-4 tracking-widest border-b border-amber-900/20 pb-1">Aetheric Wells</h4>
                   <SpellSlotManager 
                     currentSlots={activeCharacter.spellSlots} 
                     maxSlots={activeCharacter.maxSpellSlots} 
@@ -242,14 +309,18 @@ const DMWindow: React.FC<DMWindowProps> = ({
              )}
 
              <div>
-                <h4 className="text-[10px] font-cinzel text-gold font-black uppercase mb-4 tracking-widest">Manifestations</h4>
+                <h4 className="text-[10px] font-cinzel text-gold font-black uppercase mb-4 tracking-widest border-b border-gold/20 pb-1">Manifestations</h4>
                 <div className="space-y-3">
-                  {usableManifestations.map((spell, i) => (
-                    <div key={i} className="p-3 bg-black/40 border border-emerald-900/20 hover:border-gold transition-all">
-                        <p className="text-[10px] font-cinzel text-gold font-bold">{spell.name}</p>
-                        <p className="text-[9px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{spell.description}"</p>
-                    </div>
-                  ))}
+                  {usableManifestations.length > 0 ? (
+                    usableManifestations.map((spell, i) => (
+                      <div key={i} className="p-3 bg-black/40 border border-emerald-900/20 hover:border-gold transition-all group rounded-sm shadow-inner">
+                          <p className="text-[10px] font-cinzel text-gold font-bold group-hover:text-white">{spell.name}</p>
+                          <p className="text-[9px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{spell.description}"</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-[9px] text-gray-700 italic text-center py-4">No spells manifested for this vessel.</p>
+                  )}
                 </div>
              </div>
           </div>

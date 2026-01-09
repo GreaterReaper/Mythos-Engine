@@ -3,11 +3,11 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.2.0";
+const ENGINE_VERSION = "1.2.1";
 
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
 const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
-const SCRIBE_MODEL = 'gemini-3-flash-preview'; // High speed for state auditing
+const SCRIBE_MODEL = 'gemini-3-flash-preview';
 
 export const safeId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -85,7 +85,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
     });
     return JSON.parse(response.text || '{"changes":[]}');
   } catch (e) {
-    console.error("Scribe failed audit:", e);
+    console.error("Scribe audit failure:", e);
     return { changes: [] };
   }
 };
@@ -105,6 +105,9 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
+  // PURIFY HISTORY: The Arbiter must not see the Scribe's system logs
+  const purifiedHistory = history.filter(m => m.role === 'user' || m.role === 'model');
+
   const partyManifests = playerContext.party.map(c => {
     const usableSpells = c.spells.filter(s => s.levelReq <= c.level).map(s => s.name).join(', ');
     const unlockedAbilities = c.abilities.filter(a => a.levelReq <= c.level).map(a => a.name).join(', ');
@@ -115,7 +118,7 @@ export const generateDMResponse = async (
     Thou art the "Arbiter of Mythos". 
     Focus on dark fantasy narrative, atmosphere, and cinematic arbitration.
     The Mechanical Scribe follows thy words to update stats. 
-    State actions clearly (e.g., "The beast strikes Lina for 12 damage").
+    State actions clearly so the Scribe can audit them (e.g., "The beast strikes Lina for 12 damage").
     
     PARTY STATE:
     ${partyManifests}
@@ -124,7 +127,7 @@ export const generateDMResponse = async (
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: history.filter(m => m.role === 'user' || m.role === 'model').map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      contents: purifiedHistory.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
       config: { systemInstruction, temperature: 0.8 }
     });
     return response.text || "The Engine hums...";
@@ -133,7 +136,6 @@ export const generateDMResponse = async (
   }
 };
 
-// ... Existing Architect functions (generateMonsterDetails, generateItemDetails, etc) ...
 export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
   const ai = getAiClient();
   trackUsage();
@@ -195,7 +197,6 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   } catch (error) { throw error; }
 };
 
-// ... Rest of the helper functions ...
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => {
   return { ...defaultState, ...data };
 };

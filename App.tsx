@@ -84,7 +84,7 @@ const App: React.FC = () => {
   };
 
   const handleMessage = async (msg: Message) => {
-    // 1. Add Message to History
+    // 1. Add Narrative Message to History
     setState(prev => {
       if (!prev.activeCampaignId) return prev;
       return {
@@ -98,70 +98,77 @@ const App: React.FC = () => {
     if (msg.role === 'model') {
       const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       
-      // 2. RUN THE SCRIBE (Mechanical Audit)
-      const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
-      
-      // 3. Apply Changes from Audit
-      if (audit.changes) {
-        audit.changes.forEach((change: any) => {
-          const target = activePartyObjects.find(c => c.name.toLowerCase() === change.target.toLowerCase());
-          if (!target) return;
+      // 2. PARALLEL: Trigger the Scribe and Architect
+      // We don't await this immediately to keep the Arbiter's text visible
+      const processMechanicalAudit = async () => {
+        const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
+        
+        if (audit.changes) {
+          audit.changes.forEach((change: any) => {
+            const target = activePartyObjects.find(c => c.name.toLowerCase() === change.target.toLowerCase());
+            if (!target) return;
 
-          const updates: Partial<Character> = {};
-          if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
-          if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
-          if (change.type === 'exp') updates.exp = target.exp + change.value;
-          
-          if (Object.keys(updates).length > 0) {
-            updateCharacter(target.id, updates);
-            // Log to scribe ledger
-            const logMsg: Message = { role: 'system', content: `SCRIBE_LOG: ${target.name} ${change.type === 'damage' ? '-' : '+'}${change.value} ${change.type.toUpperCase()}`, timestamp: Date.now() };
+            const updates: Partial<Character> = {};
+            if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
+            if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
+            if (change.type === 'exp') updates.exp = target.exp + change.value;
+            
+            if (Object.keys(updates).length > 0) {
+              updateCharacter(target.id, updates);
+              // System message for Ledger only
+              const logMsg: Message = { 
+                role: 'system', 
+                content: `SCRIBE_LOG: ${target.name} ${change.type === 'damage' ? '-' : '+'}${change.value} ${change.type.toUpperCase()}`, 
+                timestamp: Date.now() 
+              };
+              setState(prev => ({
+                ...prev,
+                campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+              }));
+            }
+          });
+        }
+
+        if (audit.newEntities) {
+          for (const entity of audit.newEntities) {
+            const logMsg: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
             setState(prev => ({
               ...prev,
               campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
             }));
-          }
-        });
-      }
 
-      // 4. RUN THE ARCHITECT (Entity Forging)
-      if (audit.newEntities) {
-        for (const entity of audit.newEntities) {
-          const logMsg: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
-          setState(prev => ({
-            ...prev,
-            campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
-          }));
-
-          if (entity.category === 'item') {
-            const itemData = await generateItemDetails(entity.name, msg.content);
-            const newItem: Item = {
-              id: safeId(),
-              name: itemData.name || entity.name,
-              description: itemData.description || "A mysterious object.",
-              type: (itemData.type as any) || 'Quest',
-              rarity: (itemData.rarity as any) || 'Common',
-              stats: itemData.stats
-            };
-            setState(prev => ({ ...prev, armory: [...prev.armory, newItem] }));
-          } else if (entity.category === 'monster') {
-            const monData = await generateMonsterDetails(entity.name, msg.content);
-            const newMon: Monster = {
-              id: safeId(),
-              name: monData.name || entity.name,
-              description: monData.description || "A threat manifests.",
-              hp: monData.hp || 20,
-              ac: monData.ac || 10,
-              cr: monData.cr || 1,
-              stats: monData.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-              type: 'Hybrid',
-              abilities: monData.abilities || [],
-              activeStatuses: []
-            };
-            setState(prev => ({ ...prev, bestiary: [...prev.bestiary, newMon] }));
+            if (entity.category === 'item') {
+              const itemData = await generateItemDetails(entity.name, msg.content);
+              const newItem: Item = {
+                id: safeId(),
+                name: itemData.name || entity.name,
+                description: itemData.description || "A mysterious object.",
+                type: (itemData.type as any) || 'Quest',
+                rarity: (itemData.rarity as any) || 'Common',
+                stats: itemData.stats
+              };
+              setState(prev => ({ ...prev, armory: [...prev.armory, newItem] }));
+            } else if (entity.category === 'monster') {
+              const monData = await generateMonsterDetails(entity.name, msg.content);
+              const newMon: Monster = {
+                id: safeId(),
+                name: monData.name || entity.name,
+                description: monData.description || "A threat manifests.",
+                hp: monData.hp || 20,
+                ac: monData.ac || 10,
+                cr: monData.cr || 1,
+                stats: monData.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+                type: 'Hybrid',
+                abilities: monData.abilities || [],
+                activeStatuses: []
+              };
+              setState(prev => ({ ...prev, bestiary: [...prev.bestiary, newMon] }));
+            }
           }
         }
-      }
+      };
+
+      processMechanicalAudit();
     }
   };
 
@@ -188,7 +195,7 @@ const App: React.FC = () => {
     setShowTutorial(false);
     setActiveTab('Chronicles');
 
-    // Manually trigger the scribe for the tutorial prompt
+    // Trigger initial audit
     const initialMsg: Message = { role: 'model', content: campaignPrompt, timestamp: Date.now() };
     handleMessage(initialMsg);
   };
@@ -241,18 +248,11 @@ const App: React.FC = () => {
               />}
               
               {activeTab === 'Fellowship' && <FellowshipScreen 
-                characters={state.characters} 
-                onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} 
+                characters={state.characters} onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} 
                 onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
-                onUpdate={updateCharacter} 
-                mentors={state.mentors} 
-                party={state.party} 
-                setParty={p => setState(s => ({ ...s, party: p }))} 
-                customArchetypes={state.customArchetypes} 
-                onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
-                username={state.userAccount.username}
-                onStartTutorial={() => setShowTutorial(true)}
-                hasCampaigns={state.campaigns.length > 0}
+                onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
+                customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
+                username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0}
               />}
               
               {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} onBuyItem={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} />}

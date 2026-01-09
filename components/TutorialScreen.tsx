@@ -22,7 +22,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
     },
     {
       title: "The Fellowship of Five",
-      content: "The world is balanced for a complete party. You shall be bound to the legendary Trio—Lina, Miri, and Seris—alongside a specialized Path-Mentor. Together, you form the Fellowship of Five.",
+      content: "The world is balanced for a complete party. You shall be bound to the legendary Trio—Lina, Miri, and Seris—alongside a specialized Path-Mentor matching thy vocation. Together, you form the Fellowship of Five.",
     },
     {
       title: "The Lone Vessel",
@@ -51,7 +51,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
       if (mentor) {
         classMentorId = mentor.id;
       } else {
-        // Fallback: Pick any mentor not in the core trio if no direct archetype match
+        // Fallback: Pick a Dark Knight or Warrior if no direct class match, as they are iconic
         const fallback = MENTORS.find(m => !baseMentorNames.includes(m.name));
         if (fallback) classMentorId = fallback.id;
       }
@@ -62,7 +62,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
     if (classMentorId) partySet.add(classMentorId);
     if (primaryChar) partySet.add(primaryChar.id);
 
-    // Ensure we return exactly what we found, limited to 5
+    // Filter out duplicates and limit to 5
     return Array.from(partySet).slice(0, 5);
   }, [characters]);
 

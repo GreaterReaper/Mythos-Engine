@@ -247,30 +247,34 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
 };
 
 export const INITIAL_ITEMS: Item[] = [
-  // WARRIOR / DARK KNIGHT
-  { id: 'w-c-sword', name: 'Iron Zweihander', description: 'A massive iron blade meant for heavy strokes.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
-  { id: 'w-c-chain', name: 'Rugged Chain Mail', description: 'Linked rings of iron.', type: 'Armor', rarity: 'Common', stats: { ac: 13 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
+  // WARRIOR
+  { id: 'w-c-axe', name: 'Iron Battleaxe', description: 'A heavy axe meant for devastating heavy armor.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d12+STR' }, archetypes: [Archetype.Warrior] },
+  { id: 'w-c-plate', name: 'Heavy Chain Mail', description: 'Interlocking rings of heavy iron.', type: 'Armor', rarity: 'Common', stats: { ac: 16 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
   
   // FIGHTER
-  { id: 'f-c-sword', name: 'Standard Broadsword', description: 'A versatile blade of military grade.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Fighter] },
-  { id: 'f-c-shield', name: 'Iron-Bound Shield', description: 'A sturdy kite shield.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
-  { id: 'f-c-plate', name: 'Half-Plate Suit', description: 'Plates protecting vital areas.', type: 'Armor', rarity: 'Common', stats: { ac: 15 }, archetypes: [Archetype.Fighter] },
+  { id: 'f-c-sword', name: 'Steel Longsword', description: 'A balanced blade for the disciplined.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Fighter] },
+  { id: 'f-c-shield', name: 'Heater Shield', description: 'A sturdy shield for the front line.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
 
-  // ARCHER / THIEF
-  { id: 'a-c-bow', name: 'Yew Shortbow', description: 'Lithe and silent.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+DEX' }, archetypes: [Archetype.Archer, Archetype.Thief] },
-  { id: 't-c-leather', name: 'Scout\'s Leather Tunic', description: 'Flexible leather for the unseen.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
-  { id: 't-c-dagger', name: 'Serrated Dirk', description: 'A jagged blade meant for the kidney.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief] },
+  // DARK KNIGHT
+  { id: 'dk-c-greatsword', name: 'Sorrow Zweihander', description: 'A massive blade that resonates with despair.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.DarkKnight] },
 
-  // SORCERER / MAGE
-  { id: 's-c-staff', name: 'Ashwood Conduit', description: 'A simple staff to channel aether.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
-  { id: 's-c-robes', name: 'Aetheric Silk Robes', description: 'Light robes infused with silver thread.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
+  // ARCHER
+  { id: 'a-c-bow', name: 'Yew Longbow', description: 'Lithe and powerful.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Archer] },
+  { id: 'a-c-leather', name: 'Hardened Leather', description: 'Durable and flexible.', type: 'Armor', rarity: 'Common', stats: { ac: 12 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist] },
+
+  // THIEF
+  { id: 't-c-dagger', name: 'Stiletto Dagger', description: 'Meant for the soft spots.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief] },
+  { id: 't-c-shortsword', name: 'Cutpurse Shortsword', description: 'Quick and reliable.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+DEX' }, archetypes: [Archetype.Thief, Archetype.Alchemist] },
+
+  // CASTERS (SORCERER / MAGE)
+  { id: 's-c-staff', name: 'Ebony Conduit Staff', description: 'A staff to focus the mind.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
+  { id: 's-c-robes', name: 'Practitioner Robes', description: 'Light silk infused with aether.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
 
   // ALCHEMIST
-  { id: 'al-c-dagger', name: 'Catalytic Dagger', description: 'A glass-embedded blade for poison delivery.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+INT' }, archetypes: [Archetype.Alchemist] },
-  { id: 'al-c-apron', name: 'Reinforced Chemist Apron', description: 'Acid-resistant leather.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Alchemist] },
+  { id: 'al-c-vial', name: 'Reactionary Offhand Vial', description: 'An offhand catalyst for reactions.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Alchemist] },
 
   // BLOOD ARTIST
-  { id: 'ba-c-lancet', name: 'Ritual Lancet', description: 'An elegant blade meant for controlled bleeding.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+CHA' }, archetypes: [Archetype.BloodArtist] },
+  { id: 'ba-c-sickle', name: 'Crimson Sickle', description: 'A tool for the harvest of life.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+CHA' }, archetypes: [Archetype.BloodArtist] },
 
   // POTIONS
   { id: 'util-hp-minor', name: 'Minor Vitality Potion', description: 'A bitter draft that seals surface wounds.', type: 'Utility', rarity: 'Common', stats: {} },
@@ -281,45 +285,54 @@ export const MENTORS: Character[] = [
   {
     id: 'mentor-lina', name: 'Lina', age: 24, gender: 'Female', race: Race.Human, archetype: Archetype.Mage, role: 'Support', level: 5, exp: 0, maxHp: 35, currentHp: 35, stats: { str: 8, dex: 12, con: 12, int: 14, wis: 18, cha: 14 },
     currency: { aurels: 100, shards: 50, ichor: 5 }, 
-    personality: 'A timid mage that tries her best to support her allies.',
+    personality: 'A timid mage that tries her best to support her allies, often whispering prayers under her breath.',
     inventory: [
       { id: 'l-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'l-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'l-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'l-gear-staff', name: 'Radiant Dawn Ebony Staff', type: 'Weapon', stats: { wis: 2 }, rarity: 'Rare', description: 'A staff that glows with inner light.', archetypes: [Archetype.Mage] },
+      { id: 'l-gear-robes', name: 'Vestments of the Weave Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare', description: 'Robes that ripple with mana.', archetypes: [Archetype.Mage] }
     ], 
-    equippedIds: [], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
+    equippedIds: ['l-gear-staff', 'l-gear-robes'], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
     description: 'Serene priestess in gold and ivory.', biography: 'Guardian of the Sunken Sanctuary.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
     currency: { aurels: 50, shards: 10, ichor: 2 }, 
-    personality: 'An energetic fighter.',
+    personality: 'An energetic fighter who finds thrill in the dance of blades and the roar of the crowd.',
     inventory: [
       { id: 'm-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'm-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'm-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'm-gear-sword', name: 'Frontier Steel Broadsword', type: 'Weapon', stats: { damage: '1d8+STR' }, rarity: 'Rare', description: 'A notched but sharp one-handed blade.', archetypes: [Archetype.Fighter] },
+      { id: 'm-gear-shield', name: 'Battered Heater Shield', type: 'Armor', stats: { ac: 2 }, rarity: 'Rare', description: 'A shield that has seen a hundred sieges.', archetypes: [Archetype.Fighter] },
+      { id: 'm-gear-plate', name: 'Gilded Heavy Full Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Ornate heavy plate for a champion.', archetypes: [Archetype.Fighter] }
     ], 
-    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
+    equippedIds: ['m-gear-sword', 'm-gear-shield', 'm-gear-plate'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
     description: 'Energetic warrior.', biography: 'Frontier protector.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
     currency: { aurels: 150, shards: 30, ichor: 0 }, 
-    personality: 'A cool aloof archer.',
+    personality: 'A cool, aloof archer who prefers the company of shadows to that of men.',
     inventory: [
       { id: 's-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 's-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 's-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 's-gear-bow', name: 'Void-Piercer Yew Longbow', type: 'Weapon', stats: { damage: '1d10+DEX' }, rarity: 'Rare', description: 'An obsidian-limbed ranged weapon.', archetypes: [Archetype.Archer] },
+      { id: 's-gear-leather', name: 'Shadow-Thread Leather Armor', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare', description: 'Leather that blends into moonlight.', archetypes: [Archetype.Archer] }
     ], 
-    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
+    equippedIds: ['s-gear-bow', 's-gear-leather'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
     description: 'Reserved elf.', biography: 'Master of precision.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-kaelen', name: 'Kaelen', age: 31, gender: 'Male', race: Race.Tiefling, archetype: Archetype.DarkKnight, role: 'Tank', level: 5, exp: 0, maxHp: 48, currentHp: 48, stats: { str: 17, dex: 10, con: 15, int: 12, wis: 10, cha: 16 },
     currency: { aurels: 80, shards: 25, ichor: 4 }, 
-    personality: 'A cold stoic dark knight that respects strength in all forms while condemning evil.',
+    personality: 'A cold stoic dark knight that respects strength in all forms while condemning evil. He speaks only when necessary.',
     inventory: [
       { id: 'k-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'k-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'k-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'k-gear-sword', name: 'Abyssal Two-Handed Sorrow-Blade', type: 'Weapon', stats: { damage: '2d6+STR' }, rarity: 'Rare', description: 'A massive blade that screams when swung.', archetypes: [Archetype.DarkKnight] },
+      { id: 'k-gear-plate', name: 'Sorrow-Forged Heavy Obsidian Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Black plate that absorbs light.', archetypes: [Archetype.DarkKnight] }
     ], 
-    equippedIds: [], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
+    equippedIds: ['k-gear-sword', 'k-gear-plate'], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
     description: 'Cold commander wearing a mask of indifference.', biography: 'Exiled prince.', asiPoints: 0, activeStatuses: []
   },
   {
@@ -328,9 +341,11 @@ export const MENTORS: Character[] = [
     personality: 'Boisterous and jovial, Thorin finds joy in the choir of clashing steel and a well-cooked haunch.',
     inventory: [
       { id: 'th-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'th-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'th-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'th-gear-axe', name: 'Mountain Breaker Two-Handed Axe', type: 'Weapon', stats: { damage: '1d12+STR' }, rarity: 'Rare', description: 'A heavy dwarf-forged heavy weapon.', archetypes: [Archetype.Warrior] },
+      { id: 'th-gear-plate', name: 'Deep-Iron Heavy Mountain Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Durable heavy dwarven plate.', archetypes: [Archetype.Warrior] }
     ], 
-    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
+    equippedIds: ['th-gear-axe', 'th-gear-plate'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
     description: 'A mountain of a dwarf with a beard braided in iron rings.', biography: 'Last of the Iron-Grip clan.', asiPoints: 0, activeStatuses: []
   },
   {
@@ -339,9 +354,11 @@ export const MENTORS: Character[] = [
     personality: 'Proud and volatile, Ignis views aether as a tool of absolute dominance over the lesser fragments.',
     inventory: [
       { id: 'ig-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'ig-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'ig-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'ig-gear-staff', name: 'Dragon-Heart Ebony Staff', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare', description: 'A staff tipped with a glowing ruby.', archetypes: [Archetype.Sorcerer] },
+      { id: 'ig-gear-robes', name: 'Cinder-Woven Aetheric Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare', description: 'Robes that never feel the cold.', archetypes: [Archetype.Sorcerer] }
     ], 
-    equippedIds: [], spells: SPELL_LIBRARY[Archetype.Sorcerer] || [], abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
+    equippedIds: ['ig-gear-staff', 'ig-gear-robes'], spells: SPELL_LIBRARY[Archetype.Sorcerer] || [], abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
     description: 'Gold-scaled dragonborn whose eyes glow with aetheric embers.', biography: 'Exiled High-Caster.', asiPoints: 0, activeStatuses: []
   },
   {
@@ -350,9 +367,12 @@ export const MENTORS: Character[] = [
     personality: 'Pragmatic and dry-witted, Vesper values silence and survival over the vanity of heroics.',
     inventory: [
       { id: 've-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 've-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 've-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 've-gear-dagger', name: 'Shadow-Bite Stiletto Dagger', type: 'Weapon', stats: { damage: '1d4+DEX' }, rarity: 'Rare', description: 'First part of a dual-wield set.', archetypes: [Archetype.Thief] },
+      { id: 've-gear-shortsword', name: 'Obsidian Shortsword', type: 'Weapon', stats: { damage: '1d6+DEX' }, rarity: 'Rare', description: 'Second part of a dual-wield set.', archetypes: [Archetype.Thief] },
+      { id: 've-gear-leather', name: 'Whisper-Soft Silent Leathers', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare', description: 'Armor that makes no sound.', archetypes: [Archetype.Thief] }
     ], 
-    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
+    equippedIds: ['ve-gear-dagger', 've-gear-shortsword', 've-gear-leather'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
     description: 'Shadow-touched vesperian with silent boots and quick eyes.', biography: 'Guild-Shadow of the Obsidian Reach.', asiPoints: 0, activeStatuses: []
   },
   {
@@ -361,9 +381,12 @@ export const MENTORS: Character[] = [
     personality: 'Analytical and obsessive, Zora treats every combat as a chemical equation waiting to be balanced.',
     inventory: [
       { id: 'zo-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'zo-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'zo-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'zo-gear-sword', name: 'Reactionary Steel Shortsword', type: 'Weapon', stats: { damage: '1d6+INT' }, rarity: 'Rare', description: 'Used to stir and strike.', archetypes: [Archetype.Alchemist] },
+      { id: 'zo-gear-vial', name: 'Offhand Volatile Catalyst Vial', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare', description: 'An offhand tool for transmutation.', archetypes: [Archetype.Alchemist] },
+      { id: 'zo-gear-leather', name: 'Reinforced Chemist Leathers', type: 'Armor', stats: { ac: 12 }, rarity: 'Rare', description: 'Acid-resistant protection.', archetypes: [Archetype.Alchemist] }
     ], 
-    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
+    equippedIds: ['zo-gear-sword', 'zo-gear-vial', 'zo-gear-leather'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
     description: 'Gnome covered in soot and goggles, smelling of sulfur.', biography: 'Archivist of the Volatile Arts.', asiPoints: 0, activeStatuses: []
   },
   {
@@ -372,51 +395,16 @@ export const MENTORS: Character[] = [
     personality: 'Macabre and poetic, Elias sees the flow of life-essence as a symphony that must be carefully conducted.',
     inventory: [
       { id: 'el-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'el-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+      { id: 'el-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'el-gear-scythe', name: 'Soul-Harvest Blood Scythe', type: 'Weapon', stats: { damage: '1d10+CHA' }, rarity: 'Rare', description: 'A weapon of grim beauty.', archetypes: [Archetype.BloodArtist] },
+      { id: 'el-gear-robes', name: 'Sanguine Silk Aetheric Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare', description: 'Robes that drink spilled blood.', archetypes: [Archetype.BloodArtist] }
     ], 
-    equippedIds: [], spells: SPELL_LIBRARY[Archetype.BloodArtist] || [], abilities: ARCHETYPE_INFO[Archetype.BloodArtist].coreAbilities,
+    equippedIds: ['el-gear-scythe', 'el-gear-robes'], spells: SPELL_LIBRARY[Archetype.BloodArtist] || [], abilities: ARCHETYPE_INFO[Archetype.BloodArtist].coreAbilities,
     description: 'Pale, elegant vessel wearing robes of deep crimson.', biography: 'Collector of the Forbidden Vitae.', asiPoints: 0, activeStatuses: []
   }
 ];
 
-export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {
-  'mentor-lina': [
-    { name: 'Sun-Blessed Vestments', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare' },
-    { name: 'Radiant Dawn Conduit', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-miri': [
-    { name: 'Frontier Bulwark', type: 'Armor', stats: { ac: 15 }, rarity: 'Rare' },
-    { name: 'Veteran\'s Claymore', type: 'Weapon', stats: { str: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-seris': [
-    { name: 'Shadow-Thread Cloak', type: 'Armor', stats: { ac: 12 }, rarity: 'Rare' },
-    { name: 'Void-Piercer Bow', type: 'Weapon', stats: { dex: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-kaelen': [
-    { name: 'Grave-Iron Plate', type: 'Armor', stats: { ac: 17 }, rarity: 'Rare' },
-    { name: 'Sorrow-Edge Zweihander', type: 'Weapon', stats: { str: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-thorin': [
-    { name: 'Obsidian Mountain Mail', type: 'Armor', stats: { ac: 16 }, rarity: 'Rare' },
-    { name: 'Iron-Grip Waraxe', type: 'Weapon', stats: { str: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-ignis': [
-    { name: 'Cinder-Dragon Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare' },
-    { name: 'Heart-Stone Staff', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-vesper': [
-    { name: 'Night-Stalker Leathers', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare' },
-    { name: 'Twin-Fang Daggers', type: 'Weapon', stats: { dex: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-zora': [
-    { name: 'Acid-Proof Chemist Cloak', type: 'Armor', stats: { ac: 12 }, rarity: 'Rare' },
-    { name: 'Catalyst Infuser', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare' }
-  ],
-  'mentor-elias': [
-    { name: 'Sanguine Silk Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare' },
-    { name: 'Vitae-Draining Lancet', type: 'Weapon', stats: { cha: 2 }, rarity: 'Rare' }
-  ]
-};
+export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {}; // Kept for logic compatibility but pre-populated above
 
 export const INITIAL_MONSTERS: Monster[] = [
   { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [], description: 'Shadows with teeth. They feast on the low-resonance fragments of the world.', cr: 0.125, activeStatuses: [] },

@@ -61,7 +61,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  // Strictly filter usable manifestations based on the Soul's current level
+  // Strictly filter manifestations by the Soul's current Level Ascension
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
     return (activeCharacter.spells || []).filter(s => s.levelReq <= activeCharacter.level);

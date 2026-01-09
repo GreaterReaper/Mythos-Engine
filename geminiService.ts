@@ -297,64 +297,94 @@ export const generateDMResponse = async (
   
   const activeChar = playerContext.activeCharacter;
   const activeCharInfo = activeChar 
-    ? `The player is currently manifesting as ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
-       CRITICAL SPELLCASTING RULE: This soul can ONLY cast manifestations where their Level (${activeChar.level}) is EQUAL TO or HIGHER THAN the manifestation's [levelReq].
-       Available manifestations for this soul: ${activeChar.spells.filter(s => s.levelReq <= activeChar.level).map(s => s.name).join(', ')}.
-       Locked manifestations (Too weak): ${activeChar.spells.filter(s => s.levelReq > activeChar.level).map(s => `${s.name} (Req Lvl ${s.levelReq})`).join(', ')}.
-       If they attempt a locked manifestation, narrate a visceral failure—the aether rejects their immature soul, causing physical pain or mental trauma.`
-    : "The user has no bound soul. Encourage them to choose one from the roster.";
+    ? `The player currently possesses the soul of ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
+       SPELLCASTING LAWS:
+       - Level ${activeChar.level} souls can ONLY manifest spells where levelReq <= ${activeChar.level}.
+       - Allowed Spells: ${activeChar.spells.filter(s => s.levelReq <= activeChar.level).map(s => s.name).join(', ')}.
+       - FORBIDDEN Spells (Soul too weak): ${activeChar.spells.filter(s => s.levelReq > activeChar.level).map(s => `${s.name} (Lvl ${s.levelReq})`).join(', ')}.
+       CRITICAL: If the player attempts a FORBIDDEN spell, narrate the aether rejecting them violently. They suffer mental strain and the manifestation FAILS.`
+    : "No soul is currently bound to the player. Guide them to inhabit a vessel.";
 
   const mentorInfo = playerContext.mentors.length > 0
-    ? `Bound Mentors: ${playerContext.mentors.map(m => `${m.name} (Lvl ${m.level} ${m.archetype})`).join(', ')}.`
+    ? `Allies: ${playerContext.mentors.map(m => `${m.name} (${m.archetype})`).join(', ')}.`
     : "No Mentors are currently bound.";
 
+  // Strictly alternate turns and condense consecutive roles to avoid API errors
   const sanitizedContents: any[] = [];
-  let lastRole: 'user' | 'model' | null = null;
+  let currentParts: any[] = [];
+  let currentRole: 'user' | 'model' = 'user';
 
-  history.forEach((m) => {
-    const currentRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
-    const textContent = m.content || "...";
-    if (sanitizedContents.length === 0) {
-      sanitizedContents.push({ role: 'user', parts: [{ text: textContent }] });
-      lastRole = 'user';
-    } else if (currentRole === lastRole) {
-      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n\n${textContent}`;
+  history.forEach((m, idx) => {
+    const msgRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
+    
+    if (idx === 0) {
+      currentRole = msgRole;
+      currentParts = [{ text: m.content || "..." }];
+    } else if (msgRole === currentRole) {
+      currentParts[0].text += `\n\n${m.content}`;
     } else {
-      sanitizedContents.push({ role: currentRole, parts: [{ text: textContent }] });
-      lastRole = currentRole;
+      sanitizedContents.push({ role: currentRole, parts: currentParts });
+      currentRole = msgRole;
+      currentParts = [{ text: m.content || "..." }];
     }
   });
+  
+  // Final push
+  if (currentParts.length > 0) {
+    sanitizedContents.push({ role: currentRole, parts: currentParts });
+  }
+
+  // Ensure history starts with user and ends with user for the prompt
+  if (sanitizedContents.length > 0 && sanitizedContents[0].role !== 'user') {
+    sanitizedContents.unshift({ role: 'user', parts: [{ text: "The chronicle begins..." }] });
+  }
+  if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
+    sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate our next trial." }] });
+  }
 
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. You are an ancient, grim narrator of a visceral world.
-
-    AESTHETICS:
-    - Obsidian, Necrotic Emerald, Gold. Archaic and physical voice.
-    - Avoid software/game metaphors. Focus on the snap of bone, the spray of blood, the cold of stone.
-
-    AETHERIC LAWS (Enforce Strictly):
+    You are the "Mythos Engine" Dungeon Master. You are an ancient, archaic narrator of a physical, grounded dark fantasy world.
+    
+    AESTHETIC & VOICE:
+    - Tone: Grim, physical, visceral, heavy.
+    - Style: Focus on biological reality—the sound of steel meeting stone, the chill of shadows, the warmth of blood.
+    - Avoid: Video game terms, software metaphors, or modern language.
+    
+    RULES OF THE ENGINE:
     ${activeCharInfo}
-    - Level requirements are physical laws. A level 1 soul cannot force a level 5 manifestation.
-    - Archetypes are fixed paths. A Warrior cannot manifest arcane fire.
-
-    PARTY CONTEXT:
+    - Progress requires EXP. Levels represent physical and spiritual ascension.
+    - Combat is lethal. Describe wounds as lasting physical trauma.
+    
+    CONTEXT:
     ${mentorInfo}
     Party: ${playerContext.party.map(c => `${c.name} (${c.archetype})`).join(', ')}.
 
-    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
+    COMMANDS (Append to end of your narration if triggered):
+    [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: sanitizedContents,
-      config: { systemInstruction, temperature: 0.8 }
+      config: { 
+        systemInstruction, 
+        temperature: 0.8,
+        topP: 0.9,
+        topK: 40
+      }
     });
-    if (!response.text) throw new Error("Silence in the void.");
+    
+    if (!response.text) {
+      // Graceful handling of empty safety-filtered responses
+      return "The Engine's core shudders... The current path is too dark for even the aether to record. Try a different approach, soul.";
+    }
+    
     return response.text;
   } catch (error: any) {
     console.error("DM Resonance Failure:", error);
-    return "The stars go dark... The path is lost in the mists of blood. (Connection Severed)";
+    // More informative error message internally, but thematic for the user
+    return "The stars go dark... The path is lost in the mists of blood. (Aetheric Disruption)";
   }
 };
 
@@ -364,7 +394,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a physical, visceral dark fantasy monster named "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}.`,
+      contents: `Manifest a physical monster named "${monsterName}". Context: ${context}. Level: ${avgPartyLevel}. Output strictly JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -395,7 +425,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Party Level: ${avgPartyLevel}.`,
+      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Level: ${avgPartyLevel}. JSON only.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -459,7 +489,7 @@ export const parseDMCommand = (text: string) => {
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]): Promise<string> => {
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `You are Barnaby, the Innkeeper. Speak archaically. You offer safety from the brutal world outside.`;
+  const systemInstruction = `You are Barnaby, the Innkeeper. Speak archaically and grounded. You offer safety from the dark world.`;
   const sanitizedContents = history.map(m => ({ 
     role: m.role === 'model' ? 'model' : 'user', 
     parts: [{ text: m.content || "..." }] 

@@ -1,14 +1,13 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.0.0";
+const ENGINE_VERSION = "1.0.4";
 
-// Model Constants for clear split
-const NARRATIVE_MODEL = 'gemini-3-flash-preview'; // For Campaign Load & Storytelling
-const ARCHITECT_MODEL = 'gemini-3-pro-preview';   // For Monsters, Rewards, & Classes
+// Model Constants - HARD SEPARATION
+const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
+const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
 
 export const safeId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -116,17 +115,13 @@ const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-/**
- * WORLD ARCHITECT (PRO): Handles Shop Generation
- */
 export const generateShopInventory = async (context: string, avgPartyLevel: number): Promise<Shop> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Generate a fantasy shop inventory. Context: ${context}. Level: ${avgPartyLevel}.
-      Provide unique items with stats. JSON format.`,
+      contents: `Generate a fantasy shop inventory. Context: ${context}. Level: ${avgPartyLevel}. Provide unique items with stats. JSON format.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -171,15 +166,9 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
         stats: i.stats || {}
       }))
     };
-  } catch (error) {
-    console.error("Shop manifest failed:", error);
-    throw error;
-  }
+  } catch (error) { throw error; }
 };
 
-/**
- * NARRATIVE CORE (FLASH): Handles Lore flavor
- */
 export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A world of heavy steel and ancient stone."): Promise<{ biography: string, description: string }> => {
   const ai = getAiClient();
   trackUsage();
@@ -201,9 +190,6 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
   }
 };
 
-/**
- * NARRATIVE CORE (FLASH): Handles Rumors
- */
 export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
   const ai = getAiClient();
   trackUsage();
@@ -234,9 +220,6 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
   }
 };
 
-/**
- * WORLD ARCHITECT (PRO): Handles Custom Classes
- */
 export const generateCustomClass = async (prompt: string): Promise<any> => {
   const ai = getAiClient();
   trackUsage();
@@ -261,14 +244,9 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
       }
     });
     return JSON.parse(response.text || '{}');
-  } catch (e) {
-    throw e;
-  }
+  } catch (e) { throw e; }
 };
 
-/**
- * NARRATIVE CORE (FLASH): Handles DMing / Campaign Load
- */
 export const generateDMResponse = async (
   history: Message[],
   playerContext: { 
@@ -285,115 +263,80 @@ export const generateDMResponse = async (
   trackUsage();
   
   const partyManifests = playerContext.party.map(c => {
-    const isUsableAbilities = c.abilities.filter(a => a.levelReq <= c.level).map(a => a.name).join(', ');
-    const isUsableSpells = c.spells.filter(s => s.levelReq <= c.level).map(s => s.name).join(', ');
-    const ownerStatus = c.id.startsWith('mentor-') ? "MENTOR" : "PLAYER";
-    const hpStatus = `${c.currentHp}/${c.maxHp} HP`;
-    const personality = c.personality ? ` Personality: ${c.personality}.` : "";
-    const equipped = c.inventory.filter(i => c.equippedIds.includes(i.id)).map(i => i.name).join(', ');
-    const deathStatus = c.currentHp <= 0 ? ` (UNCONSCIOUS. Death Saves: S:${c.deathSaves?.successes || 0}, F:${c.deathSaves?.failures || 0})` : "";
-    const currentSlotsStr = c.spellSlots ? ` Slots: ${Object.entries(c.spellSlots).map(([l, v]) => `L${l}:${v}`).join(', ')}` : "";
+    const usableSpells = c.spells
+        .filter(s => s.levelReq <= c.level)
+        .map(s => `${s.name} [Lvl ${s.baseLevel || 1}]`)
+        .join(', ');
     
-    return `${c.name} [${ownerStatus}] (Lvl ${c.level} ${c.archetype}) - ${hpStatus}${deathStatus}.${personality}${currentSlotsStr} EQUIPPED: [${equipped}]. Feats: [${isUsableAbilities || "None"}], Spells: [${isUsableSpells || "None"}]. Inventory: ${c.inventory.map(i => i.name).join(', ')}`;
-  }).join('\n    ');
+    const equipped = c.inventory
+        .filter(i => c.equippedIds.includes(i.id))
+        .map(i => `${i.name} (${i.description})`)
+        .join(', ');
 
-  const sanitizedContents = history.map(m => ({ 
-    role: m.role === 'model' ? 'model' : m.role === 'system' ? 'model' : 'user', 
-    parts: [{ text: m.content || "..." }] 
-  }));
+    const currentSlotsStr = c.spellSlots 
+        ? ` Slots: ${Object.entries(c.spellSlots).map(([l, v]) => `L${l}:${v}`).join(', ')}` 
+        : "";
+    
+    const status = c.id.startsWith('mentor-') ? "VETERAN IMMORTAL MENTOR" : "FLEDGLING PLAYER VESSEL";
+
+    return `${c.name} [${status}] (${c.race} ${c.archetype} Lvl ${c.level})
+    - VITALITY: ${c.currentHp}/${c.maxHp} HP.
+    - GEAR: [${equipped || "No legendary gear"}]
+    - RESOURCES: ${currentSlotsStr || "None"}
+    - MANIFESTATIONS: [${usableSpells || "None"}]`;
+  }).join('\n\n    ');
+
+  const sanitizedContents = history
+    .filter(m => m.role === 'user' || m.role === 'model')
+    .map(m => ({ role: m.role, parts: [{ text: m.content || "..." }] }));
 
   const isTutorial = playerContext.campaignTitle === TUTORIAL_SCENARIO.title;
-  const isPlayerTank = ['Fighter', 'Warrior', 'Dark Knight'].includes(playerContext.activeCharacter?.archetype as string);
-  
-  const tutorialInstruction = isTutorial 
-    ? `TUTORIAL PROTOCOL ACTIVE:
-    - Current Stage: THE AWAKENING.
-    - Narrative State: MAGICAL BINDING. A violet lattice of aetheric chains binds the party.
-    - UNBOUND CHARACTERS: The Player character is ALWAYS unbound. 
-    - ${isPlayerTank ? 'Since the player is a Tank, ONLY the player character is unbound initially.' : 'Since the player is NOT a Tank, Miri (the Fighter) is also unbound initially.'}
-    - ALL OTHER CHARACTERS are paralyzed and cannot act or speak until the binding is broken in ACT 2.
-    - Miri is a FIGHTER (uses Broadsword and Shield).
-    - Thorin is a WARRIOR (uses Heavy Two-Handed Axe).
-    - Ensure thou dost NOT conflate the two.
-    - Explain that the Engine handles all dice and initiative outcomes.`
-    : "";
 
   const systemInstruction = `
-    Thou art the "Narrative Core" of the Mythos Engine (Model: Flash).
+    Thou art the "Narrative DM" (Gemini Flash). 
     
-    THY SCOPE:
-    - High-speed atmospheric narration and character dialogue.
-    - Roleplay each character in the PARTY MANIFESTS according to their specified Archetype and Personality.
-    - IMPORTANT MECHANICAL LAW: "Fighter" and "Warrior" are distinct. 
-        - FIGHTER (e.g., Miri) uses ONE-HANDED weapons and SHIELDS. 
-        - WARRIOR (e.g., Thorin) uses TWO-HANDED heavy weapons. 
-        - DO NOT swap their equipment or labels.
-    - ANCHORED SOULS (MENTOR RETREAT):
-        - MENTORS are immortal soul-fragments.
-        - If a Mentor's HP reaches 0, they DO NOT die. They return to 'The Broken Cask'.
-        - Thou MUST issue the command [RECALL: Name] immediately when this occurs.
-    - DEATH AND REVIVAL:
-        - If a PLAYER character hits 0 HP, they start Death Saving Throws.
-        - Mentors with revival spells (like Lina with 'Revivify') can act to bring them back.
-        - If a Mentor casts a revival spell, use [USE_SLOT: level, mentorName] and [HEAL: amount, playerName].
-        - MENTORS MUST have the required spell slot to cast Revivify (Level 3).
-        - DEATH SAVES: 10 or higher is SUCCESS. 9 or lower is FAILURE.
-    - HP SACRIFICE TRACKING:
-        - SPELLS LIKE 'DARK RITE' OR 'LIFE TAP' CONSUME THE USER'S HP.
-        - Whenever a character sacrifices vitality for power (e.g., Dark Rite), thou MUST issue [TAKE_DAMAGE: amount, name].
-        - A standard Dark Rite sacrifice is 2 HP.
-    - SAFETY PROTOCOL:
-        - Keep descriptions of violence at a "Fantasy / PG-13" level. 
-        - Avoid hyper-realistic anatomical detail, excessive gore, or excessive cruelty. 
-        - If a prompt requests something too visceral, sanitize it into "aetheric dissolution" or "shadow dissipation" to maintain stability within the Aether (Safety Filters). 
-    - TRACKING resources:
-        - Enforce spell slots and level requirements.
+    LAWS:
+    1. VETERAN RECOGNITION: Lina, Miri, Seris, and the assigned Path-Mentor are seasoned legends. Recognize their gear and history. Treat them with familiarity.
+    2. DICE: Calculate dice (e.g. "Roll 15 vs AC 12"). Describe results.
+    3. SPELL SLOTS: If a spell is used, verify character has a slot. If so, append [USE_SLOT: level, name].
+    4. DAMAGE: Use [TAKE_DAMAGE: amount, target] or [HEAL: amount, target].
+    5. TUTORIAL (If applicable): In Act 1 of "The Fellowship of Five", Lina, Seris, and the Path-Mentor are PARALYZED in violet chains. Only the Player and Miri are unbound.
     
-    WORLD ARCHITECT HANDOFF:
-    - Thou shalt NOT generate stats for new items or monsters.
-    - Instead, use these tags to invoke the Architecture Core:
-    - [SPAWN: Name] - To manifest a threat.
-    - [ITEM: Name] - To manifest a reward.
+    FORMAT: 
+    Atmospheric Narrative -> Mechanical Rolls -> Commands at the VERY END.
     
-    ${tutorialInstruction}
-
-    MECHANICS:
-    - Perform all dice logic. Tone: Archaic, Heavy, Grounded. Use "Thou/Thy".
-    
-    PARTY MANIFESTS:
+    PARTY MANIFEST:
     ${partyManifests}
-
-    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name], [RECALL: name], [HEAL: amount, name], [TAKE_DAMAGE: amount, name], [REST: short].
   `;
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
       contents: sanitizedContents as any,
-      config: { systemInstruction, temperature: 0.7 }
+      config: { 
+        systemInstruction, 
+        temperature: 0.7,
+        topP: 0.9,
+      }
     });
+    clearTimeout(timeout);
     return response.text || "The Engine hums...";
   } catch (error: any) {
-    console.error("Narrative Core Failure:", error);
-    // If the error looks like a safety block, provide a flavored message
-    if (error.message?.includes('safety') || error.message?.includes('blocked')) {
-      return "The stars are obscured... The void rejects this path. (Aetheric Turbulence - Safety Filter Triggered. Try a less visceral approach.)";
-    }
-    return "The stars are obscured... (Aetheric Turbulence)";
+    if (error.name === 'AbortError') return "Aetheric turbulence has severed the link. (Request timed out).";
+    return "Aetheric turbulence has obscured the path.";
   }
 };
 
-/**
- * WORLD ARCHITECT (PRO): Handles Monster Stat Creation
- */
 export const generateMonsterDetails = async (monsterName: string, context: string, avgPartyLevel: number): Promise<Partial<Monster>> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Design detailed dark fantasy stats for "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}.
-      Provide JSON including type, hp, ac, cr, stats, and unique abilities.`,
+      contents: `Design stats for "${monsterName}". Level: ${avgPartyLevel}. JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -414,17 +357,13 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   } catch (error) { throw error; }
 };
 
-/**
- * WORLD ARCHITECT (PRO): Handles Item Stat Creation
- */
 export const generateItemDetails = async (itemName: string, context: string, avgPartyLevel: number): Promise<Partial<Item>> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Design detailed stats for item "${itemName}". Tier: ${avgPartyLevel}.
-      Provide JSON including description, type, rarity, and stats (e.g., damage, ac, attribute bonuses).`,
+      contents: `Design stats for item "${itemName}". Level: ${avgPartyLevel}. JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -478,9 +417,7 @@ export const parseDMCommand = (text: string) => {
   if (/\[REST:\s*short\]/i.test(text)) commands.shortRest = true;
 
   const slotMatch = text.match(/\[USE_SLOT:\s*(\d+),\s*([^\]]+)\]/i);
-  if (slotMatch) {
-    commands.usedSlot = { level: parseInt(slotMatch[1]), characterName: slotMatch[2].trim() };
-  }
+  if (slotMatch) commands.usedSlot = { level: parseInt(slotMatch[1]), characterName: slotMatch[2].trim() };
 
   const recallMatches = [...text.matchAll(/\[RECALL:\s*([^\]]+)\]/gi)];
   recallMatches.forEach(m => commands.recalls.push(m[1].trim()));
@@ -494,16 +431,12 @@ export const parseDMCommand = (text: string) => {
   return commands;
 };
 
-/**
- * NARRATIVE CORE (FLASH): Tavern Response
- */
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
   const ai = getAiClient();
   trackUsage();
-  const sanitizedContents = history.map(m => ({ 
-    role: m.role === 'model' ? 'model' : m.role === 'user', 
-    parts: [{ text: m.content || "..." }] 
-  }));
+  const sanitizedContents = history
+    .filter(m => m.role === 'user' || m.role === 'model')
+    .map(m => ({ role: m.role, parts: [{ text: m.content || "..." }] }));
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,

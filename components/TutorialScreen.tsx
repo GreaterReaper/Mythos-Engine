@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { MENTORS, TUTORIAL_SCENARIO } from '../constants';
 import { Character } from '../types';
@@ -32,42 +31,48 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
 
   const current = tutorialSteps[step];
 
-  const finalPartyIds = useMemo(() => {
-    // 1. Mandatory Trio (Lina, Miri, Seris)
-    const baseMentorNames = ['Lina', 'Miri', 'Seris'];
-    const baseIds = MENTORS.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
-    
-    // 2. Class-specific Mentor for the player's primary character
+  const pathMentor = useMemo(() => {
     const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
-    let classMentorId: string | null = null;
+    const baseMentorNames = ['Lina', 'Miri', 'Seris'];
     
-    if (primaryChar) {
-      // Find a mentor that matches the player's archetype but isn't part of the core trio
-      const mentor = MENTORS.find(m => 
-        m.archetype === primaryChar.archetype && 
-        !baseMentorNames.includes(m.name)
-      );
-      
-      if (mentor) {
-        classMentorId = mentor.id;
-      } else {
-        // Fallback: Pick a Dark Knight or Warrior if no direct class match, as they are iconic
-        const fallback = MENTORS.find(m => !baseMentorNames.includes(m.name));
-        if (fallback) classMentorId = fallback.id;
-      }
-    }
-
-    // 3. Combine to form the Fellowship of Five (3 Trio + 1 Path-Mentor + 1 Player)
-    const partySet = new Set([...baseIds]);
-    if (classMentorId) partySet.add(classMentorId);
-    if (primaryChar) partySet.add(primaryChar.id);
-
-    // Filter out duplicates and limit to 5
-    return Array.from(partySet).slice(0, 5);
+    if (!primaryChar) return MENTORS.find(m => !baseMentorNames.includes(m.name)) || MENTORS[0];
+    
+    return MENTORS.find(m => 
+      m.archetype === primaryChar.archetype && 
+      !baseMentorNames.includes(m.name)
+    ) || MENTORS.find(m => !baseMentorNames.includes(m.name)) || MENTORS[0];
   }, [characters]);
 
+  const finalPartyIds = useMemo(() => {
+    const baseMentorNames = ['Lina', 'Miri', 'Seris'];
+    const baseIds = MENTORS.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
+    const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
+
+    const partySet = new Set([...baseIds]);
+    if (pathMentor) partySet.add(pathMentor.id);
+    if (primaryChar) partySet.add(primaryChar.id);
+
+    return Array.from(partySet).slice(0, 5);
+  }, [characters, pathMentor]);
+
   const finalize = () => {
-    onComplete(finalPartyIds, TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt);
+    const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
+    const mentorFlavor = pathMentor 
+      ? `${pathMentor.name} (the legendary ${pathMentor.archetype})`
+      : "thy chosen mentor";
+
+    const customPrompt = `Thou awakenest in the obsidian silence of the Sunken Sanctuary. A shimmering violet lattice of aetheric chains coils around thy Fellowship. 
+
+Lina (Mage), Seris (Archer), and ${mentorFlavor} lie paralyzed within the magical web, their eyes wide but limbs unresponsive, their legendary gear humming with suppressed power.
+
+Only thou, a fledgling ${primaryChar?.archetype || 'Soul'}, hast managed to resist the total binding. Beside thee, Miri (the Fighter) strains against the violet light, her Frontier Steel Broadsword glowing as she shatters her own chains to stand at thy side. 
+
+A pack of **Shadow Wolves** and two **Hollow Husks** emerge from the necrotic emerald mists, drawn to the flickering resonance of thy bound companions.
+
+**THE FIRST ACT: AWAKENING**
+Thou and the unbound Miri are the only barrier between thy comrades and the coming tide. How dost thou act?`;
+
+    onComplete(finalPartyIds, TUTORIAL_SCENARIO.title, customPrompt);
   };
 
   return (

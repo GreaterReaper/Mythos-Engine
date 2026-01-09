@@ -106,19 +106,29 @@ const DMWindow: React.FC<DMWindowProps> = ({
         campaignTitle: campaign.title
       });
 
-      if (responseText.includes("Aetheric Turbulence")) {
+      if (responseText.includes("Aetheric Turbulence") || responseText.includes("timed out")) {
         setLastError(true);
       }
 
       const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums...", timestamp: Date.now() };
       onMessage(dmMsg);
+
+      // CRITICAL: Clear loading state BEFORE processing complex secondary commands (Spawning monsters etc)
+      setIsLoading(false);
       
       if (responseText && !responseText.includes("Aetheric Turbulence")) {
         const cmds = parseDMCommand(responseText);
+        // Background commands execution
         if (cmds.exp > 0) onAwardExp(cmds.exp);
         if (cmds.currency.aurels > 0) onAwardCurrency(cmds.currency);
         cmds.items.forEach(item => onAwardItem(item.name, item.data));
-        for (const mName of cmds.monstersToAdd) await onAwardMonster(mName);
+        // Monsters are awaited in the background to not block future inputs
+        (async () => {
+          for (const mName of cmds.monstersToAdd) {
+            await onAwardMonster(mName);
+          }
+        })();
+        
         if (cmds.usedSlot) onAIRuntimeUseSlot(cmds.usedSlot.level, cmds.usedSlot.characterName);
         if (cmds.shortRest) onShortRest();
         if (cmds.longRest) onLongRest();
@@ -129,8 +139,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
     } catch (err: any) { 
       console.error(err); 
       setLastError(true);
-    } finally { 
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -250,7 +259,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
                 <div className={`max-w-[95%] md:max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl' : msg.role === 'system' ? 'bg-gray-950/40 border border-emerald-900/10 text-emerald-500/60 text-[10px] text-center w-full max-w-lg mx-auto py-2 px-4 rounded-sm' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl'}`}>
                   {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase border-b border-emerald-900/10 pb-1">The Engine Speaks</p>}
-                  <div className={`leading-relaxed whitespace-pre-wrap font-medium ${msg.content.includes("Turbulence") ? 'text-red-500 italic' : ''}`}>{msg.content}</div>
+                  <div className={`leading-relaxed whitespace-pre-wrap font-medium ${msg.content.includes("Turbulence") || msg.content.includes("timed out") ? 'text-red-500 italic' : ''}`}>{msg.content}</div>
                 </div>
               </div>
             ))}

@@ -23,7 +23,7 @@ import RulesScreen from './components/RulesScreen';
 import ShopModal from './components/ShopModal';
 import TavernScreen from './components/TavernScreen';
 import QuotaBanner from './components/QuotaBanner';
-import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, parseSoulSignature, hydrateState, manifestSoulLore, generateRumors, parseDMCommand, generateDMResponse } from './geminiService';
+import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, hydrateState, manifestSoulLore, generateRumors, parseDMCommand, generateDMResponse, parseSoulSignature } from './geminiService';
 
 declare var Peer: any;
 
@@ -32,8 +32,21 @@ const App: React.FC = () => {
   const [isShopLoading, setIsShopLoading] = useState(false);
   const [isRumorLoading, setIsRumorLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
+
+  // Mobile Keyboard Detection
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.visualViewport) {
+        const isCurrentlyKeyboard = window.visualViewport.height < window.innerHeight * 0.85;
+        setIsKeyboardOpen(isCurrentlyKeyboard);
+      }
+    };
+    window.visualViewport?.addEventListener('resize', handleResize);
+    return () => window.visualViewport?.removeEventListener('resize', handleResize);
+  }, []);
 
   const DEFAULT_STATE: GameState = {
     characters: [],
@@ -154,9 +167,11 @@ const App: React.FC = () => {
   };
 
   const handleMigrateSoul = (signature: string) => {
-    const migratedState = parseSoulSignature(signature, DEFAULT_STATE);
-    if (migratedState) {
-      setState({ ...migratedState, userAccount: { ...migratedState.userAccount, isLoggedIn: true } });
+    const newState = parseSoulSignature(signature, DEFAULT_STATE);
+    if (newState) {
+      const storageKey = `${STORAGE_PREFIX}${newState.userAccount.username}`;
+      localStorage.setItem(storageKey, JSON.stringify({ ...newState, userAccount: { ...newState.userAccount, isLoggedIn: true } }));
+      setState({ ...newState, userAccount: { ...newState.userAccount, isLoggedIn: true } });
       return true;
     }
     return false;
@@ -178,7 +193,7 @@ const App: React.FC = () => {
       script.async = true;
       script.onload = () => {
         if (typeof Peer !== 'undefined') {
-          const peer = new Peer();
+          const peer = new Peer(safeId());
           peerRef.current = peer;
           peer.on('open', (id: string) => { setState(prev => ({ ...prev, userAccount: { ...prev.userAccount, peerId: id } })); });
           peer.on('connection', handleIncomingConnection);
@@ -191,7 +206,12 @@ const App: React.FC = () => {
   const handleIncomingConnection = (conn: any) => {
     conn.on('open', () => {
       connectionsRef.current.push(conn);
-      setState(prev => ({ ...prev, multiplayer: { ...prev.multiplayer, connectedPeers: [...prev.multiplayer.connectedPeers, conn.peer] } }));
+      setState(prev => {
+        const nextConnected = prev.multiplayer.connectedPeers.includes(conn.peer) 
+          ? prev.multiplayer.connectedPeers 
+          : [...prev.multiplayer.connectedPeers, conn.peer];
+        return { ...prev, multiplayer: { ...prev.multiplayer, connectedPeers: nextConnected } };
+      });
       conn.send({ type: 'IDENTITY', payload: { username: state.userAccount.username, id: state.userAccount.id, characters: state.characters.filter(c => c.ownerName === state.userAccount.username || !c.ownerName) } });
       if (state.multiplayer.isHost) conn.send({ type: 'SYNC_STATE', payload: state });
     });
@@ -249,8 +269,8 @@ const App: React.FC = () => {
   const updateCharacter = (id: string, updates: Partial<Character>) => {
     setState(prev => {
       const char = prev.characters.find(c => c.id === id);
-      if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c) };
       const mentor = prev.mentors.find(m => m.id === id);
+      if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c) };
       if (mentor) return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m) };
       return prev;
     });
@@ -358,8 +378,8 @@ const App: React.FC = () => {
     setIsRumorLoading(true);
     try {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const avg = partyChars.length > 0 ? Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length) : 1;
-      const rumors = await generateRumors(avg);
+      const avgLevel = partyChars.length > 0 ? Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length) : 1;
+      const rumors = await generateRumors(avgLevel);
       setState(prev => ({ ...prev, activeRumors: rumors }));
       broadcast('UPDATE_RUMORS', rumors);
     } finally { setIsRumorLoading(false); }
@@ -404,7 +424,7 @@ const App: React.FC = () => {
       title, 
       prompt, 
       history: [
-        { role: 'user', content: `[ENGINE_COMMAND] Initialize Chronicle: ${title}`, timestamp: Date.now() },
+        { role: 'user', content: `[COMMAND] Initialize Chronicle: ${title}`, timestamp: Date.now() },
         { role: 'model', content: prompt, timestamp: Date.now() + 10 }
       ], 
       participants: state.party 
@@ -416,17 +436,28 @@ const App: React.FC = () => {
 
   const handleAddCharacter = (c: Character) => {
     const newChar = { ...c, ownerName: state.userAccount.username, isPrimarySoul: state.characters.length === 0 };
-    setState(p => ({ ...p, characters: [...p.characters, newChar], party: newChar.isPrimarySoul ? [...p.party, newChar.id] : p.party }));
+    setState(p => ({ 
+      ...p, 
+      characters: [...p.characters, newChar], 
+      party: newChar.isPrimarySoul ? [...p.party, newChar.id] : p.party,
+      userAccount: {
+        ...p.userAccount,
+        activeCharacterId: newChar.isPrimarySoul ? newChar.id : p.userAccount.activeCharacterId
+      }
+    }));
     if (state.campaigns.length === 0) setShowTutorial(true);
   };
 
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+  const localCharacters = state.characters.filter(c => c.ownerName === state.userAccount.username);
   const currentShop = (state.campaigns.find(c => c.id === state.activeCampaignId)?.activeShop) || state.currentTavernShop;
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
+    <div className={`flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative ${isKeyboardOpen ? 'keyboard-active' : ''}`}>
       <div className="flex flex-col w-full min-h-0">
-        <QuotaBanner usage={state.apiUsage} />
+        <div className={`${isKeyboardOpen ? 'hidden' : 'block'}`}>
+          <QuotaBanner usage={state.apiUsage} />
+        </div>
         <div className="flex flex-col flex-1 min-h-0 md:flex-row overflow-hidden">
           {!state.userAccount.isLoggedIn && (
             <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />
@@ -437,9 +468,9 @@ const App: React.FC = () => {
               createCampaign(title, prompt);
             }} />
           )}
-          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={!!state.campaigns.find(c => c.id === state.activeCampaignId)?.isCombatActive} />
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={!!state.campaigns.find(c => c.id === state.activeCampaignId)?.isCombatActive} isKeyboardOpen={isKeyboardOpen} />
           <main className="relative flex-1 overflow-y-auto bg-leather">
-            <div className="mx-auto max-w-7xl p-4 md:p-8">
+            <div className={`mx-auto max-w-7xl p-4 md:p-8 ${isKeyboardOpen ? 'p-2' : ''}`}>
               {currentShop && <ShopModal shop={currentShop} characters={activePartyObjects} onClose={() => setState(prev => ({ ...prev, currentTavernShop: null, campaigns: prev.campaigns.map(c => ({...c, activeShop: null})) }))} onBuy={(item, buyerId) => {
                 const buyer = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
                 if (!buyer) return;
@@ -459,11 +490,13 @@ const App: React.FC = () => {
                 const updatedInventory = char.inventory.map(i => i.id === iid ? { ...i, name: newName, stats: updatedStats } : i);
                 updateCharacter(cid, { inventory: updatedInventory, currency: { aurels: char.currency.aurels - cost.aurels, shards: char.currency.shards - cost.shards, ichor: char.currency.ichor - cost.ichor } });
               }} isHost={state.multiplayer.isHost} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} slainMonsterTypes={state.slainMonsterTypes} />}
-              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} onUpdateMentor={updateCharacter} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
+              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
-                allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} 
+                allCampaigns={state.campaigns} characters={activePartyObjects} fullRoster={localCharacters} bestiary={state.bestiary} 
                 mapTokens={state.mapTokens} activeRumors={state.activeRumors} onUpdateMap={m => setState(p => ({ ...p, mapTokens: m }))} 
+                activeCharacter={[...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || null}
+                onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))}
                 onMessage={m => {
                   setState(p => {
                     const next = p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c);
@@ -476,21 +509,23 @@ const App: React.FC = () => {
                   }
                 }} 
                 onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
+                onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id), activeCampaignId: p.activeCampaignId === id ? null : p.activeCampaignId }))}
                 onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onAwardExp={addExpToParty} 
                 onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} 
                 onShortRest={handleShortRest} onLongRest={handleLongRest} onAIRuntimeUseSlot={(l, n) => { 
                   const t = [...state.characters, ...state.mentors].find(x => x.name.toLowerCase() === n.toLowerCase()); 
                   if (t && t.spellSlots && t.spellSlots[l] !== undefined && t.spellSlots[l] > 0) { 
-                    updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); 
+                    const newSlots = { ...t.spellSlots, [l]: t.spellSlots[l] - 1 };
+                    updateCharacter(t.id, { spellSlots: newSlots }); 
                     return true; 
                   } 
                   return false; 
                 }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} 
-                isHost={state.multiplayer.isHost} username={state.userAccount.username} onOpenCombatMap={() => setActiveTab('Tactics')} 
+                isHost={state.multiplayer.isHost} username={state.userAccount.username} onOpenCombatMap={() => setActiveTab('Tactics')} isKeyboardOpen={isKeyboardOpen}
               />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={m => setState(p => ({ ...p, mapTokens: m }))} characters={[...state.characters, ...state.mentors]} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}
-              {activeTab === 'Spells' && <SpellsScreen mentors={state.mentors} playerCharacters={state.characters} customArchetypes={state.customArchetypes} />}
+              {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={updateMonster} />}
               {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} />}
               {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} party={activePartyObjects} />}

@@ -198,6 +198,7 @@ export interface GameState {
   userAccount: {
     username: string;
     id: string;
+    activeCharacterId?: string;
     friends: Friend[];
     sharedCreations: string[];
     isLoggedIn: boolean;

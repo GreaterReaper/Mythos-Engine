@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { generateSoulSignature } from '../geminiService';
 import { GameState, Friend } from '../types';
+import { generateSoulSignature } from '../geminiService';
 
 interface NexusScreenProps {
   peerId: string;
@@ -19,41 +19,149 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
 }) => {
   const [targetId, setTargetId] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
-  const [migrationSig, setMigrationSig] = useState('');
+  const [signature, setSignature] = useState('');
 
   useEffect(() => {
-    // Check if app is already running as a PWA
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
     setIsStandalone(isPWA);
   }, []);
 
   const handleManifestSignature = () => {
-    const sig = generateSoulSignature(gameState, username);
-    setMigrationSig(sig);
+    const sig = generateSoulSignature(gameState);
+    setSignature(sig);
   };
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
   return (
     <div className="space-y-8 pb-24 max-w-2xl mx-auto px-2">
-      <div className="border-b border-red-900 pb-4">
-        <h2 className="text-4xl font-cinzel text-[#a16207]">The Nexus</h2>
-        <p className="text-gray-500 italic text-sm">"Where separate realities bleed into one."</p>
+      <div className="border-b border-emerald-900 pb-4">
+        <h2 className="text-4xl font-cinzel text-gold">The Nexus</h2>
+        <p className="text-emerald-500/60 italic text-sm">"Where separate realities bleed into one."</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* PWA Installation Ritual */}
+        {/* Migration Section */}
+        <div className="rune-border p-6 bg-emerald-900/5 border-gold/40 space-y-6 animate-in fade-in duration-500">
+           <div className="flex justify-between items-center border-b border-gold/20 pb-3">
+              <h3 className="text-sm font-cinzel text-gold uppercase tracking-[0.2em] font-black">Ritual of Transmigration</h3>
+              <span className="text-[7px] bg-gold text-black px-1.5 py-0.5 rounded font-black">ACCOUNT SYNC</span>
+           </div>
+           
+           <div className="space-y-4">
+             <div className="space-y-1">
+               <label className="text-[10px] font-cinzel text-emerald-500 uppercase font-black">Thy Engine ID</label>
+               <div className="p-3 bg-black/60 border border-emerald-900/30 font-mono text-gold text-lg text-center tracking-[0.5em] rounded-sm">
+                  {gameState.userAccount.id}
+               </div>
+               <p className="text-[8px] text-gray-600 italic">This 10-character key uniquely identifies thy vessel within the Engine.</p>
+             </div>
+
+             <div className="space-y-2 pt-2">
+                <p className="text-[10px] text-gray-400 leading-relaxed font-medium">To migrate thy soul to another device (PC or Mobile), thou must manifest thy complete **Soul Signature**.</p>
+                <button 
+                  onClick={handleManifestSignature}
+                  className="w-full py-4 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-800 transition-all uppercase tracking-[0.2em] shadow-lg"
+                >
+                  Manifest Soul Signature
+                </button>
+             </div>
+
+             {signature && (
+               <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                 <label className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest">Encoded Soul Essence</label>
+                 <div className="relative">
+                    <textarea 
+                      readOnly 
+                      value={signature} 
+                      className="w-full h-24 bg-black border border-gold/40 p-3 text-gold font-mono text-[9px] outline-none resize-none custom-scrollbar" 
+                    />
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(signature);
+                        alert("Thy Soul Essence has been bound to the clipboard.");
+                      }}
+                      className="absolute bottom-2 right-2 px-3 py-1 bg-gold text-black text-[8px] font-black uppercase rounded shadow-lg hover:scale-105 active:scale-95 transition-all"
+                    >
+                      Copy Essence
+                    </button>
+                 </div>
+                 <p className="text-[8px] text-red-900 font-black uppercase text-center animate-pulse tracking-tighter">Warning: This signature contains all thy memories. Keep it secret.</p>
+               </div>
+             )}
+           </div>
+        </div>
+
+        {/* Multiplayer Section */}
+        <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-6 border-emerald-900/60">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-cinzel text-emerald-500 uppercase tracking-widest">Thy Resonance Signature (Session Code)</label>
+              <div className="flex gap-2">
+                <input 
+                  readOnly 
+                  value={peerId || 'Manifesting...'} 
+                  className="flex-1 bg-black/40 border border-emerald-900/30 p-3 text-gold font-mono text-xs outline-none" 
+                />
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(peerId);
+                    alert('Signature Bound to Clipboard');
+                  }}
+                  className="px-4 bg-emerald-900/20 border border-emerald-900 text-[10px] font-cinzel text-gold hover:bg-emerald-900/40 transition-all"
+                >
+                  COPY
+                </button>
+              </div>
+              <p className="text-[9px] text-gray-600 italic">Share this code for multiplayer soul-binding in the current session.</p>
+            </div>
+
+            <div className="h-px bg-emerald-900/20" />
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-cinzel text-emerald-500 uppercase tracking-widest">Bind to External Engine</label>
+              <div className="flex gap-2">
+                <input 
+                  value={targetId} 
+                  onChange={e => setTargetId(e.target.value)} 
+                  placeholder="ENTER SESSION CODE..."
+                  className="flex-1 bg-black/40 border border-emerald-900/30 p-3 text-gold font-mono text-xs outline-none focus:border-gold transition-all" 
+                />
+                <button 
+                  onClick={() => targetId && onConnect(targetId)}
+                  className="px-6 py-2 bg-emerald-900 text-white font-cinzel text-xs border border-gold hover:bg-emerald-800 disabled:opacity-30 transition-all"
+                >
+                  BIND
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Account Deletion */}
+        <div className="rune-border p-6 bg-black/60 border-emerald-900/40 space-y-4">
+           <h3 className="text-xs font-cinzel text-emerald-700 uppercase tracking-widest">Ritual of Severance</h3>
+           <p className="text-[10px] text-gray-500 leading-relaxed italic">"Abandon thy vessel and let thy fragments return to the void."</p>
+           <button 
+             onClick={onDeleteAccount}
+             className="w-full py-3 border border-emerald-900/50 text-emerald-900 hover:bg-emerald-900 hover:text-white transition-all font-cinzel text-[10px] font-black uppercase tracking-widest"
+           >
+             SEVER ALL BONDS (DELETE ACCOUNT)
+           </button>
+        </div>
+
+        {/* Installation Instructions */}
         {!isStandalone && (
-          <div className="rune-border p-5 bg-gold/5 border-gold/30 space-y-3 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="rune-border p-5 bg-gold/5 border-gold/30 space-y-3">
             <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-              Ritual of Manifestation (Install)
+              Manifestation Ritual (Install)
             </h3>
             <p className="text-[10px] text-gray-400 leading-relaxed">
               Manifest the Mythos Engine directly to thy home screen for a full-screen, immersive experience.
             </p>
             <div className="p-3 bg-black/40 border border-gold/10 rounded">
-              <p className="text-[10px] font-bold text-red-900 uppercase mb-1">
+              <p className="text-[10px] font-bold text-emerald-500 uppercase mb-1">
                 {isIOS ? 'On iOS Safari:' : 'On Android Chrome:'}
               </p>
               <p className="text-[10px] text-gray-300">
@@ -64,185 +172,6 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
             </div>
           </div>
         )}
-
-        {/* Soul Migration Section */}
-        <div className="rune-border p-6 bg-red-900/5 border-gold/20 space-y-4">
-          <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-            Ritual of Migration (Transfer)
-          </h3>
-          <p className="text-[10px] text-gray-400 leading-relaxed">
-            Generate a Soul Signature to transfer thy chronicles, characters, and artifacts to another device.
-          </p>
-          
-          {!migrationSig ? (
-            <button 
-              onClick={handleManifestSignature}
-              className="w-full py-2 bg-gold/10 border border-gold text-gold font-cinzel text-[10px] hover:bg-gold/20 transition-all"
-            >
-              MANIFEST SOUL SIGNATURE
-            </button>
-          ) : (
-            <div className="space-y-2">
-              <textarea 
-                readOnly 
-                value={migrationSig}
-                className="w-full h-24 bg-black/60 border border-gold/30 p-2 text-gold font-mono text-[8px] outline-none"
-              />
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(migrationSig);
-                    alert("Soul Signature bound to clipboard.");
-                  }}
-                  className="flex-1 py-1.5 bg-gold text-black font-cinzel text-[10px] font-bold"
-                >
-                  COPY SIGNATURE
-                </button>
-                <button 
-                  onClick={() => setMigrationSig('')}
-                  className="px-4 py-1.5 border border-red-900 text-red-900 font-cinzel text-[10px]"
-                >
-                  CLOSE
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Connection Portal */}
-        <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Thy Resonance Signature (Local ID)</label>
-              <div className="flex gap-2">
-                <input 
-                  readOnly 
-                  value={peerId || 'Manifesting...'} 
-                  className="flex-1 bg-black/40 border border-red-900/30 p-3 text-gold font-mono text-xs outline-none" 
-                />
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(peerId);
-                    alert('Signature Binded to Clipboard');
-                  }}
-                  className="px-4 bg-red-900/20 border border-red-900 text-[10px] font-cinzel text-gold hover:bg-red-900/40 transition-all"
-                >
-                  COPY
-                </button>
-              </div>
-              <p className="text-[9px] text-gray-600 italic">Share this ID for multiplayer soul-binding in the current session.</p>
-            </div>
-
-            <div className="h-px bg-red-900/20" />
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-red-900 uppercase tracking-widest">Bind to External Engine</label>
-              <div className="flex gap-2">
-                <input 
-                  value={targetId} 
-                  onChange={e => setTargetId(e.target.value)} 
-                  placeholder="ENTER PEER ID..."
-                  className="flex-1 bg-black/40 border border-red-900/30 p-3 text-gold font-mono text-xs outline-none focus:border-gold transition-all" 
-                />
-                <button 
-                  onClick={() => targetId && onConnect(targetId)}
-                  disabled={!targetId}
-                  className="px-6 py-2 bg-red-900 text-white font-cinzel text-xs border border-gold hover:bg-red-800 disabled:opacity-30 transition-all"
-                >
-                  BIND
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Status and Connected Souls */}
-        <div className="rune-border p-6 bg-black/40 space-y-4">
-          <div className="flex justify-between items-center border-b border-red-900/30 pb-2">
-            <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Active Bonds</h3>
-            <span className="text-[10px] text-red-900 font-bold">{connectedPeers.length} BONDED</span>
-          </div>
-
-          <div className="space-y-2">
-            {connectedPeers.map(p => (
-              <div key={p} className="flex items-center justify-between p-3 bg-red-900/5 border border-red-900/20 group">
-                <div className="flex items-center gap-3">
-                   <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-                   <span className="text-[10px] text-gray-300 font-mono truncate max-w-[150px]">{p}</span>
-                </div>
-                <span className="text-[8px] text-gold/40 uppercase font-cinzel group-hover:text-gold transition-colors">Stable Bond</span>
-              </div>
-            ))}
-
-            {connectedPeers.length === 0 && (
-              <div className="py-6 text-center opacity-30">
-                <p className="font-cinzel italic text-[10px] text-gray-500 uppercase">Alone in the current session.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Account Deletion Ritual */}
-        <div className="rune-border p-6 bg-black/60 border-red-900/40 space-y-4">
-           <h3 className="text-xs font-cinzel text-red-700 uppercase tracking-widest">Ritual of Severance</h3>
-           <p className="text-[10px] text-gray-500 leading-relaxed italic">"Abandon thy vessel and let thy fragments return to the void."</p>
-           <button 
-             onClick={onDeleteAccount}
-             className="w-full py-3 border border-red-900/50 text-red-900 hover:bg-red-900 hover:text-white transition-all font-cinzel text-[10px] font-black uppercase tracking-widest"
-           >
-             SEVER ALL BONDS (DELETE ACCOUNT)
-           </button>
-        </div>
-
-        {/* Known Souls (Archives) */}
-        <div className="rune-border p-6 bg-black/60 space-y-4">
-          <div className="flex justify-between items-center border-b border-gold/30 pb-2">
-            <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest">Known Souls (Archives)</h3>
-            <button 
-              onClick={onClearFriends}
-              className="text-[8px] text-red-900 hover:text-red-500 font-bold uppercase transition-colors"
-            >
-              PURGE ARCHIVES
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto custom-scrollbar">
-            {gameState.userAccount.friends.length > 0 ? (
-              gameState.userAccount.friends.map((friend: Friend) => {
-                const isActive = connectedPeers.includes(friend.peerId || '');
-                return (
-                  <div key={friend.id} className={`flex items-center justify-between p-3 bg-black/40 border transition-all ${isActive ? 'border-green-900/50 bg-green-900/5' : 'border-red-900/20 hover:border-gold/30'}`}>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-cinzel text-gold uppercase font-bold truncate">{friend.name}</span>
-                        {isActive && <span className="text-[7px] bg-green-900 text-white px-1 rounded animate-pulse">BONDED</span>}
-                      </div>
-                      <span className="text-[8px] text-gray-500 font-mono block truncate opacity-50">{friend.peerId}</span>
-                    </div>
-                    {!isActive && friend.peerId && (
-                      <button 
-                        onClick={() => onConnect(friend.peerId!)}
-                        className="px-3 py-1 bg-red-900/20 border border-red-900/40 text-[9px] font-cinzel text-red-900 hover:bg-red-900 hover:text-white transition-all uppercase tracking-tighter"
-                      >
-                        REBIND
-                      </button>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="py-8 text-center opacity-30">
-                <p className="font-cinzel italic text-[10px] text-gray-500 uppercase">No historical bonds found.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Multiplayer Info */}
-        <div className="p-4 bg-red-900/5 border border-red-900/10 text-[10px] text-gray-500 italic leading-relaxed">
-          Multiplayer syncing uses peer-to-peer soul resonance. The Engine Host controls the Dungeon Master and tactical manifestations. Once a soul is known, it is archived for faster re-binding in future Chronicles.
-        </div>
       </div>
     </div>
   );

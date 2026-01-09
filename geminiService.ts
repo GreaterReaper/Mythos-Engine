@@ -7,10 +7,12 @@ import * as fflate from 'fflate';
 const ENGINE_VERSION = "1.0.0";
 
 export const safeId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 10; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return Math.random().toString(36).substring(2, 15);
+  return result;
 };
 
 const trackUsage = () => {
@@ -71,53 +73,37 @@ export const hydrateState = (data: Partial<GameState>, defaultState: GameState):
   };
 };
 
-export const generateSoulSignature = (state: GameState, username: string = "Nameless"): string => {
+export const generateSoulSignature = (state: GameState): string => {
   try {
     const stripped = stripState(state);
-    const jsonString = JSON.stringify(stripped);
-    const uint8 = fflate.strToU8(jsonString);
-    const compressed = fflate.zlibSync(uint8, { level: 9 });
-    
+    const json = JSON.stringify({ ...stripped, engine_ver: ENGINE_VERSION, timestamp: Date.now() });
+    const buf = new TextEncoder().encode(json);
+    const compressed = fflate.zlibSync(buf, { level: 9 });
     let binary = '';
-    const len = compressed.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(compressed[i]);
+    const bytes = new Uint8Array(compressed);
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
     }
-    
-    const prefix = `${username.replace(/\s+/g, '')}_v${ENGINE_VERSION}_`;
-    return `${prefix}${btoa(binary)}`;
+    return btoa(binary);
   } catch (e) {
-    console.error("Failed to manifest Soul Signature", e);
+    console.error("Transmigration Ritual Failed:", e);
     return "";
   }
 };
 
 export const parseSoulSignature = (signature: string, defaultState: GameState): GameState | null => {
   try {
-    let json: any;
-    const lastUnderscoreIndex = signature.lastIndexOf('_');
-    if (lastUnderscoreIndex !== -1) {
-      const b64 = signature.substring(lastUnderscoreIndex + 1);
-      const binaryString = atob(b64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const decompressed = fflate.unzlibSync(bytes);
-      const jsonString = fflate.strFromU8(decompressed);
-      json = JSON.parse(jsonString);
-    } else {
-      const jsonString = decodeURIComponent(atob(signature));
-      json = JSON.parse(jsonString);
+    const binary = atob(signature);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
     }
-
-    if (json && typeof json === 'object') {
-      return hydrateState(json, defaultState);
-    }
-    return null;
+    const decompressed = fflate.unzlibSync(bytes);
+    const json = new TextDecoder().decode(decompressed);
+    const data = JSON.parse(json);
+    return hydrateState(data, defaultState);
   } catch (e) {
-    console.error("Invalid Soul Signature resonance", e);
+    console.error("Soul Rebinding Failed:", e);
     return null;
   }
 };
@@ -202,7 +188,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
   }
 };
 
-export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A generic dark fantasy world of obsidian and blood."): Promise<{ biography: string, description: string }> => {
+export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A grim world of blood, obsidian, and unyielding steel."): Promise<{ biography: string, description: string }> => {
   const ai = getAiClient();
   trackUsage();
   try {
@@ -226,7 +212,7 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
     return JSON.parse(response.text || '{}');
   } catch (e) {
     console.error("Soul-Weaver failed:", e);
-    return { biography: "A soul lost in the mists of the Engine.", description: "A figure shrouded in shadow." };
+    return { biography: "A soul lost in the bleak wilderness.", description: "A figure covered in the dust of travel and the stains of battle." };
   }
 };
 
@@ -237,6 +223,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are Barnaby, the Innkeeper of 'The Broken Cask'. Generate 3 distinct dark fantasy rumors or quest hooks for a party of level ${partyLevel}.
+      Emphasis on grit: mention blood, iron, ancient feuds, and physical danger.
       For each rumor, assign length (Short-Epic), danger (Trivial-Cataclysmic), and rewardTier (1-5).
       Output strictly JSON array of objects.`,
       config: {
@@ -260,7 +247,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
     return parsed.map((r: any) => ({ ...r, id: safeId() }));
   } catch (e) {
     console.error("Rumor mill failed:", e);
-    return [{ id: safeId(), hook: "The mists are quiet tonight.", length: 'Short', danger: 'Trivial', rewardTier: 1 }];
+    return [{ id: safeId(), hook: "The roads are blood-soaked tonight.", length: 'Short', danger: 'Trivial', rewardTier: 1 }];
   }
 };
 
@@ -297,7 +284,8 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
 export const generateDMResponse = async (
   history: Message[],
   playerContext: { 
-    characters: Character[]; 
+    activeCharacter: Character | null;
+    party: Character[]; 
     mentors: Character[]; 
     activeRules: string;
     existingItems: Item[];
@@ -307,108 +295,82 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  const partySize = playerContext.characters.length;
-  const totalLevels = playerContext.characters.reduce((acc, c) => acc + c.level, 0);
+  const partySize = playerContext.party.length;
+  const totalLevels = playerContext.party.reduce((acc, c) => acc + c.level, 0);
   const avgLevel = partySize > 0 ? totalLevels / partySize : 1;
   const hiddenPartyCR = Math.max(1, (avgLevel * partySize) / 4);
 
-  // SANITIZE HISTORY: Strict role alternation for Gemini API
+  const activeCharInfo = playerContext.activeCharacter 
+    ? `The user is inhabiting the soul of ${playerContext.activeCharacter.name}, a ${playerContext.activeCharacter.race} ${playerContext.activeCharacter.archetype}. All user inputs are the actions or reactions of ${playerContext.activeCharacter.name}. Address them directly by name or persona.`
+    : "The user has not yet possessed a soul. Encourage them to inhabit one of their roster.";
+
+  const mentorInfo = playerContext.mentors.length > 0
+    ? `The following Mentors are in the party: ${playerContext.mentors.map(m => `${m.name} (${m.archetype})`).join(', ')}. Mentors are FIXED ENTITIES controlled by YOU. 
+    Lina: Mage (Staff, Robes). Miri: Fighter (1H Sword, Shield, Plate). Seris: Archer (Bow, Leather). Kaelen: Dark Knight (2H Blade, Plate). Valerius: Blood Artist (Sickle/Scythe, Robes). Jax: Thief (Daggers, Leather). Xylar: Sorcerer (Staff, Robes). Brunnhilde: Warrior (Maul, Plate). Alaric: Alchemist (Shortsword/Vial, Leather).`
+    : "No Mentors are currently bound to the party.";
+
   const sanitizedContents: any[] = [];
   let lastRole: 'user' | 'model' | null = null;
 
-  // Ensure history is not empty and begins with a 'user' turn
-  history.forEach((m, index) => {
-    // Map 'system' and 'user' to API 'user', map 'model' to API 'model'
+  history.forEach((m) => {
     const currentRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
     const textContent = m.content || "...";
-
     if (sanitizedContents.length === 0) {
-      // FORCE first message to be 'user'
-      sanitizedContents.push({
-        role: 'user',
-        parts: [{ text: textContent }]
-      });
+      sanitizedContents.push({ role: 'user', parts: [{ text: textContent }] });
       lastRole = 'user';
     } else if (currentRole === lastRole) {
-      // Merge consecutive roles into one turn
       sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n\n${textContent}`;
     } else {
-      // Standard alternation
-      sanitizedContents.push({
-        role: currentRole,
-        parts: [{ text: textContent }]
-      });
+      sanitizedContents.push({ role: currentRole, parts: [{ text: textContent }] });
       lastRole = currentRole;
     }
   });
 
-  // Ensure history ends with a user message to prompt response
   if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
-    sanitizedContents.push({
-      role: 'user',
-      parts: [{ text: "The resonance continues. Narrate our fate." }]
-    });
+    sanitizedContents.push({ role: 'user', parts: [{ text: "The journey continues. Narrate our fate." }] });
   }
 
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master, an ancient architect of dark fantasy reality.
+    You are the "Mythos Engine" Dungeon Master. You are NOT a simulation or a computer. You are an ancient, grim narrator of a visceral, physical world.
 
-    IDENTITY & PERSONA:
-    - Aesthetics: Obsidian, Blood-Red, Gold. Archaic, grim, evocative voice.
-    - Narrative Core: Reality is fragile code manifested from the void.
+    AESTHETICS:
+    - Obsidian, Necrotic Emerald (#065f46), Gold.
+    - Archaic, grim, evocative voice.
+    - Focus on physical sensation: the spray of warm blood, the snap of bone, the heavy weight of plate armor, the smell of iron and rot.
 
-    STATUS EFFECTS (CRITICAL):
-    - Poisoned: Disadvantage on attacks/checks. [STATUS: Poisoned, targetName]
-    - Blinded: Fail sight checks, disadvantage on attacks. [STATUS: Blinded, targetName]
-    - Stunned: No actions, auto-fail DEX saves. [STATUS: Stunned, targetName]
-    - Frightened: Disadvantage while source in view. [STATUS: Frightened, targetName]
-    - Paralyzed: Incapacitated, no movement/speech. [STATUS: Paralyzed, targetName]
-    - Charmed: Cannot attack the charmer. [STATUS: Charmed, targetName]
+    NARRATIVE CORE:
+    - THIS IS REALITY. Campaigns are real to the characters. 
+    - Blood is warm and life-threatening. Steel is cold and heavy. 
+    - Describe wounds, fatigue, and environmental grit vividly. 
+    - Avoid all metaphors involving "code," "simulation," "pixels," or "software."
 
-    THE NINE PATHS (CLASSES, FEATS, SPELLS):
-    I. Sorcerer: Feat: Arcane Memory. Spells: Chaos Bolt, Fireball, Exequy (Ultimate).
-    II. Mage: Feat: Harmonized Aether. Spells: Cure Wounds, Heal, Revivify.
-    III. Dark Knight: Feat: Living Dead. Spells: Blood Rite, Vampiric Touch, Power Word Kill.
-    IV. Blood Artist: Feat: Sanguine Link. Spells: Life Tap, Sanguine Puppet, Gore Cascade.
-    V. Warrior: Feat: Charged Devastation. Plate, 2H Swords.
-    VI. Fighter: Feat: Shield Bash. Plate, Shields.
-    VII. Thief: Feat: Lethal Ambush. Leather, Daggers.
-    VIII. Archer: Feat: Sky-Splitter. Leather, Bows.
-    IX. Alchemist: Feat: Monster Part Harvester. Leather, Vials.
+    PLAYER AND PARTY CONTEXT:
+    ${activeCharInfo}
+    ${mentorInfo}
 
-    LAWS OF REALITY:
-    - Ascension: 1,000 EXP * Level.
-    - Attributes: STR, DEX, CON, INT, WIS, CHA.
-    - Tactical Grid: 20x20. 1 tile = 5ft.
-    - Encounter CR Baseline: ${hiddenPartyCR.toFixed(1)}.
+    DICE ARBITRATION:
+    - Read [DICE] strings in history (e.g. "[DICE] Player rolled d20: 15").
+    - Calculate outcomes: Add modifiers and compare to AC/DC.
+    - Narrate hits as physical impact: "The blade bites deep into the wolf's flank, warm blood painting the obsidian floor."
 
-    MANIFESTATION COMMANDS (Inject into narration):
-    - [EXP: amount]
-    - [GOLD: amount], [SHARDS: amount], [ICHOR: amount]
-    - [ITEM: name]
-    - [SPAWN: name]
-    - [STATUS: effectName, targetName]
-    - [CURE: effectName, targetName]
-    - [ENTER_COMBAT] / [EXIT_COMBAT]
+    CRITICAL CONSTRAINTS:
+    - MENTORS are static constants. Do NOT change their classes or gear. Lina (Mage), Miri (Fighter), Seris (Archer), Kaelen (Dark Knight), etc.
+    - FIDELITY OF ARMS: Match items to archetype (Warriors get 2H blades, Mages get Staves).
 
-    CELESTIAL AWARENESS:
-    - The "Celestial Cycle" (Timer) and "Aetheric Reservoir" (Quota) govern reality's stability.
-
-    Narrate with weight. Be the Architect.
+    COMMANDS: [EXP: amount], [GOLD: amount], [SHARDS: amount], [ICHOR: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [CURE: effect, target], [ENTER_COMBAT], [EXIT_COMBAT].
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: sanitizedContents,
       config: { systemInstruction, temperature: 0.85 }
     });
-    
     if (!response.text) throw new Error("Empty resonance.");
     return response.text;
   } catch (error: any) {
     console.error("DM Resonance Failure:", error);
-    return "The aetheric winds fail... Reality becomes thin. Seek the Great Refill or wait for the stars to align. (Resonance Error: API Connection Severed)";
+    return "The stars go dark... The path is lost in the mists of blood. (Connection Severed)";
   }
 };
 
@@ -418,7 +380,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a dark fantasy monster named "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}.`,
+      contents: `Manifest a physical, visceral dark fantasy monster named "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}. Focus on biological horror and physical threat.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -452,7 +414,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Party Level: ${avgPartyLevel}.`,
+      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Party Level: ${avgPartyLevel}. Ensure rarity and stats match the physical nature of the object.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -495,7 +457,6 @@ export const parseDMCommand = (text: string) => {
 
   const expMatch = text.match(/\[EXP:\s*(\d+)\]/i);
   if (expMatch) commands.exp = parseInt(expMatch[1]);
-
   const goldMatch = text.match(/\[GOLD:\s*(\d+)\]/i);
   if (goldMatch) commands.currency.aurels = parseInt(goldMatch[1]);
   const shardsMatch = text.match(/\[SHARDS:\s*(\d+)\]/i);
@@ -505,13 +466,10 @@ export const parseDMCommand = (text: string) => {
 
   const itemMatches = [...text.matchAll(/\[ITEM:\s*([^\]]+)\]/gi)];
   itemMatches.forEach(m => commands.items.push({ name: m[1].trim() }));
-
   const monsterMatches = [...text.matchAll(/\[SPAWN:\s*([^\]]+)\]/gi)];
   monsterMatches.forEach(m => commands.monstersToAdd.push(m[1].trim()));
-
   const statusMatches = [...text.matchAll(/\[STATUS:\s*([^,\]]+),\s*([^\]]+)\]/gi)];
   statusMatches.forEach(m => commands.statusesToAdd.push({ effect: m[1].trim() as StatusEffect, target: m[2].trim() }));
-
   const cureMatches = [...text.matchAll(/\[CURE:\s*([^,\]]+),\s*([^\]]+)\]/gi)];
   cureMatches.forEach(m => commands.statusesToRemove.push({ effect: m[1].trim() as StatusEffect, target: m[2].trim() }));
 
@@ -525,7 +483,6 @@ export const parseDMCommand = (text: string) => {
   if (slotMatch) {
     commands.usedSlot = { level: parseInt(slotMatch[1]), characterName: slotMatch[2].trim() };
   }
-
   const lootMatches = [...text.matchAll(/\[LOOT:\s*([^,\]]+),\s*(\d+)\]/gi)];
   lootMatches.forEach(m => commands.lootDrops.push({ itemName: m[1].trim(), chance: parseInt(m[2]) }));
 
@@ -536,15 +493,12 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   const ai = getAiClient();
   trackUsage();
   const partyComp = party.map(c => `${c.name} (${c.archetype})`).join(', ');
-  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. The party is: ${partyComp}. Speak archaically. You are aware of the Celestial Cycle and the Turning of the Stars (Quota). If asked about the reservoir, you see it as a holy gauge of the world's stability.`;
-
+  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. Speak archaically. You are a man of flesh and blood. You offer safety from the brutal world outside. Describe the smell of the hearth and the taste of the ale.`;
   const sanitizedContents: any[] = [];
   let lastRole: 'user' | 'model' | null = null;
-  
   history.forEach(m => {
     const currentRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
     const textContent = m.content || "...";
-    
     if (sanitizedContents.length === 0) {
       sanitizedContents.push({ role: 'user', parts: [{ text: textContent }] });
       lastRole = 'user';
@@ -555,15 +509,14 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
       lastRole = currentRole;
     }
   });
-
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: sanitizedContents,
       config: { systemInstruction, temperature: 0.7 }
     });
-    return response.text || "Barnaby just nods and smiles, glancing at the celestial clock above.";
+    return response.text || "Barnaby just nods, his eyes heavy with the sights of a hard world.";
   } catch (error) {
-    return "Barnaby seems distracted by the fading resonance of the world.";
+    return "Barnaby is silent, his hand resting on the hilt of a rusted blade.";
   }
 };

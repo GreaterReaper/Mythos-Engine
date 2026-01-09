@@ -60,22 +60,22 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4">
-      <div className="max-w-xl w-full rune-border bg-black shadow-[0_0_50px_rgba(127,29,29,0.3)] p-8 space-y-8 flex flex-col items-center">
+      <div className="max-w-xl w-full rune-border border-emerald-900/60 bg-black shadow-[0_0_50px_rgba(16,185,129,0.15)] p-8 space-y-8 flex flex-col items-center">
         <div className="space-y-4 text-center">
-          <h2 className="text-3xl font-cinzel text-gold animate-in zoom-in duration-500">{current.title}</h2>
-          <div className="h-0.5 w-12 bg-red-900 mx-auto" />
-          <p className="text-gray-400 text-sm leading-relaxed min-h-[80px] flex items-center">{current.content}</p>
+          <h2 className="text-3xl font-cinzel text-gold animate-in zoom-in duration-500 uppercase font-black">{current.title}</h2>
+          <div className="h-0.5 w-12 bg-emerald-900 mx-auto" />
+          <p className="text-gray-400 text-sm leading-relaxed min-h-[80px] flex items-center italic font-medium">{current.content}</p>
         </div>
 
-        <div className="flex items-center justify-between w-full pt-4 border-t border-red-900/20">
+        <div className="flex items-center justify-between w-full pt-4 border-t border-emerald-900/20">
            <div className="flex gap-1">
              {tutorialSteps.map((_, i) => (
-               <div key={i} className={`h-0.5 w-4 rounded-full transition-all ${step === i ? 'bg-gold' : 'bg-red-900/20'}`} />
+               <div key={i} className={`h-1 w-6 rounded-full transition-all duration-500 ${step === i ? 'bg-gold shadow-[0_0_8px_#d4af37]' : 'bg-emerald-950'}`} />
              ))}
            </div>
            <button 
              onClick={() => step < tutorialSteps.length - 1 ? setStep(step + 1) : finalize()}
-             className="px-6 py-2 bg-red-900 text-white font-cinzel text-xs border border-gold hover:bg-red-800 transition-all"
+             className="px-8 py-3 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-700 transition-all uppercase tracking-widest shadow-xl"
            >
              {step < tutorialSteps.length - 1 ? 'CONTINUE' : 'INITIATE TRIAL'}
            </button>

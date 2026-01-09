@@ -20,15 +20,18 @@
     <style>
         :root {
             --obsidian: #0c0a09;
-            --blood: #991b1b;
-            --gold: #d4af37; /* Brighter gold for visibility */
+            --blood: #065f46;
+            --gold: #d4af37;
             --parchment: #e7e5e4;
+            --necrotic: #4ade80;
+            --visual-height: 100vh;
         }
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--obsidian);
             color: var(--parchment);
             overflow: hidden;
+            height: var(--visual-height);
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             -webkit-tap-highlight-color: transparent;
@@ -73,7 +76,6 @@
             color: var(--gold) !important;
         }
 
-        /* Improved touch targets for mobile */
         @media (max-width: 768px) {
             button, select, input {
                 min-height: 44px;
@@ -83,7 +85,6 @@
             .text-[8px] { font-size: 0.65rem; }
         }
 
-        /* Smooth UI entry */
         .fade-up {
             animation: fadeUp 0.5s ease-out forwards;
         }
@@ -91,7 +92,43 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        .text-necrotic {
+            color: var(--necrotic);
+        }
+
+        /* Keyboard Avoidance Helper */
+        .keyboard-active .hide-on-keyboard {
+            display: none !important;
+        }
+        
+        .keyboard-active .adjust-for-keyboard {
+            padding-bottom: 0 !important;
+        }
     </style>
+    <script>
+        // Track the visual viewport to handle mobile keyboards
+        function updateViewport() {
+            if (window.visualViewport) {
+                const height = window.visualViewport.height;
+                document.documentElement.style.setProperty('--visual-height', height + 'px');
+                
+                // If viewport is significantly smaller than screen height, keyboard is likely open
+                const isKeyboard = height < window.innerHeight * 0.85;
+                if (isKeyboard) {
+                    document.body.classList.add('keyboard-active');
+                } else {
+                    document.body.classList.remove('keyboard-active');
+                }
+            }
+        }
+        
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateViewport);
+            window.visualViewport.addEventListener('scroll', updateViewport);
+        }
+        window.addEventListener('load', updateViewport);
+    </script>
 <script type="importmap">
 {
   "imports": {

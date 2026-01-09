@@ -37,9 +37,9 @@ const QuotaBanner: React.FC<QuotaBannerProps> = ({ usage }) => {
   const percent = Math.max(0, Math.min(100, (remaining / DAILY_LIMIT) * 100));
   
   return (
-    <div className="w-full bg-[#0c0a09] border-b-2 border-red-900/80 px-4 py-2 flex items-center justify-between gap-4 z-[100] relative overflow-hidden h-10 md:h-12 shadow-[0_5px_20px_rgba(0,0,0,0.5)]">
+    <div className="w-full bg-[#0c0a09] border-b-2 border-emerald-900/80 px-4 py-2 flex items-center justify-between gap-4 z-[100] relative overflow-hidden h-10 md:h-12 shadow-[0_5px_20px_rgba(0,0,0,0.5)]">
       {/* Dynamic atmospheric background */}
-      <div className="absolute inset-0 bg-gradient-to-r from-red-950/20 via-transparent to-red-950/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/20 via-transparent to-emerald-950/20 pointer-events-none" />
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gold/20" />
       
       {/* Left: Reservoir Label & Gauge */}
@@ -47,11 +47,11 @@ const QuotaBanner: React.FC<QuotaBannerProps> = ({ usage }) => {
         <div className="flex flex-col">
           <span className="text-[7px] md:text-[8px] font-black font-cinzel text-gold tracking-[0.2em] uppercase leading-none mb-1">Aetheric Reservoir</span>
           <div className="flex items-center gap-2">
-            <div className="w-24 md:w-40 h-1.5 bg-gray-900 rounded-full overflow-hidden border border-red-900/30">
+            <div className="w-24 md:w-40 h-1.5 bg-gray-900 rounded-full overflow-hidden border border-emerald-900/30">
               <div 
                 className={`h-full transition-all duration-1000 shadow-[0_0_10px] ${
-                  percent < 20 ? 'bg-red-600 shadow-red-600 animate-pulse' : 
-                  percent < 50 ? 'bg-amber-600 shadow-amber-600' : 
+                  percent < 20 ? 'bg-emerald-950 shadow-emerald-400 animate-pulse' : 
+                  percent < 50 ? 'bg-emerald-700 shadow-emerald-500' : 
                   'bg-gold shadow-gold'
                 }`} 
                 style={{ width: `${percent}%` }} 
@@ -64,9 +64,9 @@ const QuotaBanner: React.FC<QuotaBannerProps> = ({ usage }) => {
 
       {/* Center: Hero Celestial Timer */}
       <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-         <span className="text-[7px] md:text-[8px] font-black font-cinzel text-red-700 uppercase tracking-[0.4em] mb-0.5">Celestial Cycle</span>
-         <div className="flex items-center gap-2 bg-black/40 px-3 py-0.5 border border-red-900/20 rounded-sm">
-            <div className="w-1 h-1 rounded-full bg-red-600 animate-ping" />
+         <span className="text-[7px] md:text-[8px] font-black font-cinzel text-emerald-500 uppercase tracking-[0.4em] mb-0.5">Celestial Cycle</span>
+         <div className="flex items-center gap-2 bg-black/40 px-3 py-0.5 border border-emerald-900/20 rounded-sm">
+            <div className="w-1 h-1 rounded-full bg-emerald-500 animate-ping" />
             <span className="text-sm md:text-lg font-mono font-black text-white tracking-widest tabular-nums drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
               {timeUntilReset}
             </span>

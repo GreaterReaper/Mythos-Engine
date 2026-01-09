@@ -13,9 +13,10 @@ interface SidebarProps {
     connectedPeers: string[];
   };
   showTactics?: boolean;
+  isKeyboardOpen?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount, multiplayer, showTactics }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount, multiplayer, showTactics, isKeyboardOpen }) => {
   const [collapsed, setCollapsed] = React.useState(false);
 
   const tabs = [
@@ -34,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0c0a09]/98 backdrop-blur-xl border-t-2 border-red-900/60 flex justify-start items-center px-2 py-2 pb-safe z-[100] shadow-[0_-10px_30px_rgba(0,0,0,0.8)] overflow-x-auto no-scrollbar">
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-[#0c0a09]/98 backdrop-blur-xl border-t-2 border-emerald-900/60 flex justify-start items-center px-2 py-2 pb-safe z-[100] shadow-[0_-10px_30px_rgba(0,0,0,0.8)] overflow-x-auto no-scrollbar transition-transform duration-300 ${isKeyboardOpen ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         {tabs.filter(t => !t.hidden).map(tab => {
           const isActive = activeTab === tab.id;
           return (
@@ -42,15 +43,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex flex-col items-center justify-center gap-1.5 min-w-[72px] px-1 py-1 rounded-lg transition-all duration-300 ${
-                isActive ? 'scale-110 bg-red-900/10' : 'opacity-60 grayscale'
+                isActive ? 'scale-110 bg-emerald-900/10' : 'opacity-60 grayscale'
               }`}
             >
-              <div className={`p-1.5 rounded-full transition-colors ${isActive ? 'bg-red-900 shadow-[0_0_15px_#7f1d1d]' : ''}`}>
+              <div className={`p-1.5 rounded-full transition-colors ${isActive ? 'bg-emerald-900 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : ''}`}>
                 <svg className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 2.5 : 1.5} d={tab.icon} />
                 </svg>
               </div>
-              <span className={`text-[9px] font-cinzel font-bold tracking-tighter uppercase leading-none ${isActive ? 'text-gold' : 'text-gray-500'}`}>
+              <span className={`text-[9px] font-cinzel font-bold tracking-tighter uppercase leading-none ${isActive ? 'text-gold' : 'text-emerald-900/40'}`}>
                 {tab.label}
               </span>
             </button>
@@ -58,10 +59,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
         })}
       </nav>
 
-      <nav className={`hidden md:flex ${collapsed ? 'w-18' : 'w-72'} transition-all duration-500 bg-[#0c0a09] border-r-2 border-red-900/40 flex flex-col z-50 shrink-0 shadow-2xl`}>
-        <div className="p-6 border-b border-red-900/30 flex items-center justify-between bg-black/20">
+      <nav className={`hidden md:flex ${collapsed ? 'w-18' : 'w-72'} transition-all duration-500 bg-[#0c0a09] border-r-2 border-emerald-900/40 flex flex-col z-50 shrink-0 shadow-2xl`}>
+        <div className="p-6 border-b border-emerald-900/30 flex items-center justify-between bg-black/20">
           {!collapsed && <h1 className="text-2xl font-cinzel font-black text-gold drop-shadow-lg tracking-widest truncate">MYTHOS</h1>}
-          <button onClick={() => setCollapsed(!collapsed)} className="w-8 h-8 flex items-center justify-center rounded border border-red-900/30 text-gold hover:bg-red-900/20 transition-all">
+          <button onClick={() => setCollapsed(!collapsed)} className="w-8 h-8 flex items-center justify-center rounded border border-emerald-900/30 text-gold hover:bg-emerald-900/20 transition-all">
             {collapsed ? '→' : '←'}
           </button>
         </div>
@@ -77,12 +78,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center px-5 py-4 rounded transition-all duration-300 ${
                     isActive 
-                    ? 'bg-red-900 text-white shadow-[0_0_20px_rgba(127,29,29,0.3)]' 
-                    : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-emerald-900/80 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)] border border-gold/20' 
+                    : 'text-emerald-900/60 hover:bg-emerald-950/20 hover:text-emerald-500'
                   }`}
                 >
                   <svg className={`w-6 h-6 shrink-0 ${isActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={tab.icon} />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
                   {!collapsed && <span className="ml-5 font-cinzel text-xs font-bold tracking-[0.2em] truncate uppercase">{tab.label}</span>}
                 </button>
@@ -91,10 +92,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
           </div>
         </div>
 
-        <div className="p-5 border-t border-red-900/30 bg-black/60">
+        <div className="p-5 border-t border-emerald-900/30 bg-black/60">
           <div className="flex items-center gap-4">
             <div className={`w-10 h-10 rounded shadow-inner border-2 flex items-center justify-center text-sm font-black transition-all ${
-              multiplayer.connectedPeers.length > 0 ? 'bg-green-900/30 border-green-500 text-green-500' : 'bg-red-900/30 border-gold text-gold'
+              multiplayer.connectedPeers.length > 0 ? 'bg-emerald-900/30 border-emerald-500 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-black/80 border-gold text-gold'
             }`}>
               {userAccount.username[0]}
             </div>
@@ -102,8 +103,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, userAccount,
               <div className="min-w-0">
                 <p className="text-xs font-black text-gold truncate uppercase tracking-tighter">{userAccount.username}</p>
                 <div className="flex items-center gap-2 mt-1">
-                   <div className={`w-2 h-2 rounded-full ${multiplayer.connectedPeers.length > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-900 animate-ping'}`} />
-                   <p className="text-[9px] text-gray-500 font-bold uppercase">{multiplayer.isHost ? 'ENGINE HOST' : 'BOUND SOUL'}</p>
+                   <div className={`w-2 h-2 rounded-full ${multiplayer.connectedPeers.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-emerald-900 animate-ping'}`} />
+                   <p className="text-[9px] text-emerald-500/60 font-bold uppercase">{multiplayer.isHost ? 'ENGINE HOST' : 'BOUND SOUL'}</p>
                 </div>
               </div>
             )}

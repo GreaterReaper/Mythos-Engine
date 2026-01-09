@@ -125,6 +125,7 @@ export interface Character {
   activeStatuses: StatusEffect[];
   spellSlots?: Record<number, number>;
   maxSpellSlots?: Record<number, number>;
+  deathSaves?: { successes: number; failures: number };
   description: string;
   personality?: string;
   biography?: string;

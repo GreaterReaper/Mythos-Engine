@@ -118,7 +118,7 @@ export const SPELL_LIBRARY: Record<string, Ability[]> = {
     { name: 'Guiding Bolt', description: 'Radiant bolt grants advantage on next hit.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Lesser Restoration', description: 'Cleanse Poisoned, Blinded, or Bleeding.', type: 'Spell', levelReq: 3, baseLevel: 2 },
     { name: 'Spiritual Weapon', description: 'Manifest a floating spectral mace to strike.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Revivify', description: 'Recall a soul that fell in the last minute.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Revivify', description: 'Recall a soul that fell in the last minute. (Must have a level 3 spell slot to use).', type: 'Spell', levelReq: 5, baseLevel: 3 },
     { name: 'Spirit Guardians', description: 'Angelic spirits circle and slow enemies.', type: 'Spell', levelReq: 5, baseLevel: 3 },
     { name: 'Greater Restoration', description: 'Cleanse Stunned, Charmed, or Frightened.', type: 'Spell', levelReq: 9, baseLevel: 5 },
     { name: 'Heal', description: 'A massive flood of vitality restores health.', type: 'Spell', levelReq: 11, baseLevel: 6 },
@@ -298,7 +298,7 @@ export const MENTORS: Character[] = [
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
     currency: { aurels: 50, shards: 10, ichor: 2 }, 
-    personality: 'An energetic fighter who finds thrill in the dance of blades and the roar of the crowd.',
+    personality: 'An energetic combatant who finds thrill in the dance of blades and the roar of the crowd.',
     inventory: [
       { id: 'm-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'm-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
@@ -307,7 +307,7 @@ export const MENTORS: Character[] = [
       { id: 'm-gear-plate', name: 'Gilded Heavy Full Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Ornate heavy plate for a champion.', archetypes: [Archetype.Fighter] }
     ], 
     equippedIds: ['m-gear-sword', 'm-gear-shield', 'm-gear-plate'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
-    description: 'Energetic warrior.', biography: 'Frontier protector.', asiPoints: 0, activeStatuses: []
+    description: 'Energetic fighter.', biography: 'Frontier protector who specializes in shield-defense.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
@@ -346,7 +346,7 @@ export const MENTORS: Character[] = [
       { id: 'th-gear-plate', name: 'Deep-Iron Heavy Mountain Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Durable heavy dwarven plate.', archetypes: [Archetype.Warrior] }
     ], 
     equippedIds: ['th-gear-axe', 'th-gear-plate'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
-    description: 'A mountain of a dwarf with a beard braided in iron rings.', biography: 'Last of the Iron-Grip clan.', asiPoints: 0, activeStatuses: []
+    description: 'A mountain of a dwarf with a bbeard braided in iron rings.', biography: 'Last of the Iron-Grip clan.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-ignis', name: 'Ignis', age: 42, gender: 'Male', race: Race.Dragonborn, archetype: Archetype.Sorcerer, role: 'DPS', level: 5, exp: 0, maxHp: 32, currentHp: 32, stats: { str: 12, dex: 14, con: 14, int: 18, wis: 10, cha: 16 },
@@ -421,21 +421,29 @@ export const RULES_MANIFEST = `
 4. **THE LONE VESSEL**: Solo play is "Heroic Mode" with cinematic favor.
 5. **SOUL ASCENSION**: Progression requires 1,000 EXP * Level.
 6. **VOID LAW**: Blights cannot be removed manually. Reagents or Spells are required.
+7. **ANCHORED SOULS**: Mentors are immortal soul-fragments. If their Vitality (HP) reaches 0, they do not perish; they vanish in a swirl of amber light and return to 'The Broken Cask' to reform. They must leave the Fellowship immediately upon falling.
+8. **DEATH SAVES**: When a player character reaches 0 HP, they fall unconscious and must make Death Saving Throws. Roll a d20: 10 or higher is a Success, 9 or lower is a Failure. 3 Successes to stabilize, 3 Failures to perish permanently.
+9. **RITUAL OF RECALL (REVIVE)**: Mentors (like Lina) with revival spells (e.g., Revivify) can manifest them to bring a fallen soul back to 1 HP, provided they have a Level 3 spell slot.
+10. **AETHERIC RESTS**: 
+    - SHORT REST (4 Hours): Completely restores Vitality (HP) and restores half (rounded up) of thy used spell slots.
+    - LONG REST (8 Hours): Completely restores Vitality (HP), all used spell slots, and purges minor blights.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `The air is thick with iron. Thy Fellowship stands before 'The Broken Cask'. What is thy move?`;
 
 export const TUTORIAL_SCENARIO = {
   title: "The Fellowship of Five",
-  prompt: `Thou awakenest in the cold, stone amphitheater of the Sunken Sanctuary. To thy left, Miri (the Warrior) grips her claymore, her eyes scanning the mists. To thy right, Seris (the Elf Archer) has an arrow nocked, silent as a grave. Behind thee, Lina (the Mage) chants a low warding prayer.
+  prompt: `Thou awakenest in the obsidian silence of the Sunken Sanctuary. A shimmering violet lattice of aetheric chains coils around thy Fellowship. Lina (Mage), Seris (Archer), and any others lie paralyzed within the magical web, their eyes wide but limbs unresponsive.
 
-A pack of **Shadow Wolves** and two **Hollow Husks** emerge from the necrotic emerald mists. They hunger for thy fresh resonance.
+Only thou hast managed to resist the total binding. Beside thee, Miri (the Fighter) strains against the violet light, her heater shield glowing as she shatters her own chains to stand at thy side. 
+
+A pack of **Shadow Wolves** and two **Hollow Husks** emerge from the necrotic emerald mists, drawn to the flickering resonance of thy bound companions.
 
 **THE FIRST ACT: AWAKENING**
-Thou art the anchor of this Fellowship. Thy move shall dictate the fate of this trial. What dost thou do?`,
+Thou and the unbound Miri are the only barrier between thy comrades and the coming tide. How dost thou act?`,
   beats: [
-    "ACT 1: THE AWAKENING - Encounter 3 Shadow Wolves and 2 Hollow Husks. Lina buffs the party.",
-    "ACT 2: RITUAL OF STEEL - A path opens. Seris detects a trap. The party must cross the Razor Bridge.",
+    "ACT 1: THE AWAKENING - Encounter 3 Shadow Wolves and 2 Hollow Husks. Only Player and Tank are unbound initially.",
+    "ACT 2: RITUAL OF STEEL - A path opens. The party must perform a ritual to break the remaining chains.",
     "ACT 3: THE BREACH - The Shattered Warden guards the exit. Defeat him to ascend to the surface."
   ]
 };

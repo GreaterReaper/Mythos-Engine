@@ -169,7 +169,8 @@ const App: React.FC = () => {
           equippedIds: scaledInventory.map(i => i.id), 
           spellSlots: m.spellSlots || slots, 
           maxSpellSlots: slots, 
-          activeStatuses: m.activeStatuses || [] 
+          activeStatuses: m.activeStatuses || [],
+          deathSaves: m.deathSaves || { successes: 0, failures: 0 }
         };
       }
       return m;
@@ -300,8 +301,15 @@ const App: React.FC = () => {
     setState(prev => {
       const char = prev.characters.find(c => c.id === id);
       const mentor = prev.mentors.find(m => m.id === id);
-      if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c) };
-      if (mentor) return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m) };
+      
+      // Handle Death Saves Logic: Reset on heal
+      const finalUpdates = { ...updates };
+      if (updates.currentHp && updates.currentHp > 0) {
+        finalUpdates.deathSaves = { successes: 0, failures: 0 };
+      }
+
+      if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...finalUpdates } : c) };
+      if (mentor) return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...finalUpdates } : m) };
       return prev;
     });
     broadcast('UPDATE_CHARACTER', { id, updates });
@@ -344,7 +352,13 @@ const App: React.FC = () => {
     setState(prev => {
       const updateRest = (c: Character) => {
         if (!prev.party.includes(c.id)) return c;
-        return { ...c, currentHp: c.maxHp, spellSlots: c.maxSpellSlots ? { ...c.maxSpellSlots } : c.spellSlots, activeStatuses: [] };
+        return { 
+          ...c, 
+          currentHp: c.maxHp, 
+          spellSlots: c.maxSpellSlots ? { ...c.maxSpellSlots } : c.spellSlots, 
+          activeStatuses: [], 
+          deathSaves: { successes: 0, failures: 0 } 
+        };
       };
       return { ...prev, characters: prev.characters.map(updateRest), mentors: prev.mentors.map(updateRest) };
     });
@@ -359,10 +373,16 @@ const App: React.FC = () => {
           Object.keys(c.maxSpellSlots).forEach(lvlStr => {
             const lvl = Number(lvlStr);
             const max = c.maxSpellSlots![lvl];
+            // Restore half of TOTAL spell slots (rounded up) as requested
             newSlots[lvl] = Math.min(max, (newSlots[lvl] || 0) + Math.ceil(max / 2));
           });
         }
-        return { ...c, currentHp: Math.min(c.maxHp, c.currentHp + Math.floor(c.maxHp * 0.25)), spellSlots: newSlots };
+        return { 
+          ...c, 
+          currentHp: c.maxHp, 
+          spellSlots: newSlots, 
+          deathSaves: { successes: 0, failures: 0 } 
+        };
       };
       return { ...prev, characters: prev.characters.map(updateRest), mentors: prev.mentors.map(updateRest) };
     });
@@ -449,7 +469,7 @@ const App: React.FC = () => {
     
     if (!monster) {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
+      const avgLevel = partyChars.length > 0 ? Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length) : 1;
       
       try {
         const gen = await generateMonsterDetails(name, "Encounter", Math.ceil(avgLevel));
@@ -481,7 +501,7 @@ const App: React.FC = () => {
   };
 
   const handleAddCharacter = (c: Character) => {
-    const newChar = { ...c, ownerName: state.userAccount.username, isPrimarySoul: state.characters.length === 0 };
+    const newChar = { ...c, ownerName: state.userAccount.username, isPrimarySoul: state.characters.length === 0, deathSaves: { successes: 0, failures: 0 } };
     setState(p => ({ 
       ...p, 
       characters: [...p.characters, newChar], 
@@ -563,6 +583,28 @@ const App: React.FC = () => {
                     const cmds = parseDMCommand(m.content);
                     cmds.statusesToAdd.forEach(s => handleApplyStatus(s.effect, s.target));
                     cmds.statusesToRemove.forEach(s => handleRemoveStatus(s.effect, s.target));
+                    
+                    // HANDLE MENTOR RECALL LOGIC
+                    cmds.recalls.forEach(name => {
+                      const mentor = state.mentors.find(m => m.name.toLowerCase() === name.toLowerCase());
+                      if (mentor) {
+                        setState(prev => ({
+                          ...prev,
+                          party: prev.party.filter(id => id !== mentor.id),
+                          mentors: prev.mentors.map(m => m.id === mentor.id ? { ...m, currentHp: 1, deathSaves: { successes: 0, failures: 0 } } : m)
+                        }));
+                      }
+                    });
+
+                    // HANDLE HEALING LOGIC (REVIVAL ALSO USES THIS)
+                    cmds.heals.forEach(h => {
+                      const char = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === h.targetName.toLowerCase());
+                      if (char) {
+                        updateCharacter(char.id, { currentHp: Math.min(char.maxHp, char.currentHp + h.amount) });
+                      }
+                    });
+
+                    if (cmds.shortRest) handleShortRest();
                   }
                 }} 
                 onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 

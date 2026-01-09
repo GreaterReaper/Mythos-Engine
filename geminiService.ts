@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
@@ -290,22 +289,32 @@ export const generateDMResponse = async (
     const ownerStatus = c.id.startsWith('mentor-') ? "MENTOR" : "PLAYER";
     const hpStatus = `${c.currentHp}/${c.maxHp} HP`;
     const personality = c.personality ? ` Personality: ${c.personality}.` : "";
+    const equipped = c.inventory.filter(i => c.equippedIds.includes(i.id)).map(i => i.name).join(', ');
+    const deathStatus = c.currentHp <= 0 ? ` (UNCONSCIOUS. Death Saves: S:${c.deathSaves?.successes || 0}, F:${c.deathSaves?.failures || 0})` : "";
+    const currentSlotsStr = c.spellSlots ? ` Slots: ${Object.entries(c.spellSlots).map(([l, v]) => `L${l}:${v}`).join(', ')}` : "";
     
-    return `${c.name} [${ownerStatus}] (Lvl ${c.level} ${c.archetype}) - ${hpStatus}.${personality} Feats: [${isUsableAbilities || "None"}], Spells: [${isUsableSpells || "None"}]. Inventory: ${c.inventory.map(i => i.name).join(', ')}`;
+    return `${c.name} [${ownerStatus}] (Lvl ${c.level} ${c.archetype}) - ${hpStatus}${deathStatus}.${personality}${currentSlotsStr} EQUIPPED: [${equipped}]. Feats: [${isUsableAbilities || "None"}], Spells: [${isUsableSpells || "None"}]. Inventory: ${c.inventory.map(i => i.name).join(', ')}`;
   }).join('\n    ');
 
   const sanitizedContents = history.map(m => ({ 
-    role: m.role === 'model' ? 'model' : 'user', 
+    role: m.role === 'model' ? 'model' : m.role === 'system' ? 'model' : 'user', 
     parts: [{ text: m.content || "..." }] 
   }));
 
   const isTutorial = playerContext.campaignTitle === TUTORIAL_SCENARIO.title;
+  const isPlayerTank = ['Fighter', 'Warrior', 'Dark Knight'].includes(playerContext.activeCharacter?.archetype as string);
+  
   const tutorialInstruction = isTutorial 
     ? `TUTORIAL PROTOCOL ACTIVE:
-    - Current Stage: ${playerContext.campaignTitle}.
-    - Encounter Stage: Awakening (3 Wolves, 2 Husks).
-    - MENTOR STATUS: Lina, Miri, Seris are Level 5. They have Potions.
-    - Instruct the player clearly. Explain that the Engine handles rolls.`
+    - Current Stage: THE AWAKENING.
+    - Narrative State: MAGICAL BINDING. A violet lattice of aetheric chains binds the party.
+    - UNBOUND CHARACTERS: The Player character is ALWAYS unbound. 
+    - ${isPlayerTank ? 'Since the player is a Tank, ONLY the player character is unbound initially.' : 'Since the player is NOT a Tank, Miri (the Fighter) is also unbound initially.'}
+    - ALL OTHER CHARACTERS are paralyzed and cannot act or speak until the binding is broken in ACT 2.
+    - Miri is a FIGHTER (uses Broadsword and Shield).
+    - Thorin is a WARRIOR (uses Heavy Two-Handed Axe).
+    - Ensure thou dost NOT conflate the two.
+    - Explain that the Engine handles all dice and initiative outcomes.`
     : "";
 
   const systemInstruction = `
@@ -313,7 +322,20 @@ export const generateDMResponse = async (
     
     THY SCOPE:
     - High-speed atmospheric narration and character dialogue.
-    - Roleplay each character in the PARTY MANIFESTS according to their specified Personality and Archetype.
+    - Roleplay each character in the PARTY MANIFESTS according to their specified Archetype and Personality.
+    - IMPORTANT MECHANICAL LAW: "Fighter" and "Warrior" are distinct. 
+        - FIGHTER (e.g., Miri) uses ONE-HANDED weapons and SHIELDS. 
+        - WARRIOR (e.g., Thorin) uses TWO-HANDED heavy weapons. 
+        - DO NOT swap their equipment or labels.
+    - ANCHORED SOULS (MENTOR RETREAT):
+        - MENTORS are immortal soul-fragments.
+        - If a Mentor's HP reaches 0, they DO NOT die. They return to 'The Broken Cask'.
+        - Thou MUST issue the command [RECALL: Name] immediately when this occurs.
+    - DEATH AND REVIVAL:
+        - If a PLAYER character hits 0 HP, they start Death Saving Throws.
+        - Mentors with revival spells (like Lina with 'Revivify') can act to bring them back.
+        - If a Mentor casts a revival spell, use [USE_SLOT: level, mentorName] and [HEAL: amount, playerName].
+        - MENTORS MUST have the required spell slot to cast Revivify (Level 3).
     - Tracking active character manifests and enforcing level requirements.
     - Managing combat flow and rest outcomes.
     
@@ -331,7 +353,7 @@ export const generateDMResponse = async (
     PARTY MANIFESTS:
     ${partyManifests}
 
-    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name].
+    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name], [RECALL: name], [HEAL: amount, name], [REST: short].
   `;
 
   try {
@@ -419,7 +441,9 @@ export const parseDMCommand = (text: string) => {
     exitCombat: false,
     usedSlot: null as { level: number, characterName: string } | null,
     statusesToAdd: [] as { effect: StatusEffect, target: string }[],
-    statusesToRemove: [] as { effect: StatusEffect, target: string }[]
+    statusesToRemove: [] as { effect: StatusEffect, target: string }[],
+    recalls: [] as string[],
+    heals: [] as { amount: number, targetName: string }[]
   };
 
   const expMatch = text.match(/\[EXP:\s*(\d+)\]/i);
@@ -435,11 +459,18 @@ export const parseDMCommand = (text: string) => {
   if (/\[ENTER_COMBAT\]/i.test(text)) commands.enterCombat = true;
   if (/\[EXIT_COMBAT\]/i.test(text)) commands.exitCombat = true;
   if (/\[OPEN_SHOP\]/i.test(text)) commands.openShop = true;
+  if (/\[REST:\s*short\]/i.test(text)) commands.shortRest = true;
 
   const slotMatch = text.match(/\[USE_SLOT:\s*(\d+),\s*([^\]]+)\]/i);
   if (slotMatch) {
     commands.usedSlot = { level: parseInt(slotMatch[1]), characterName: slotMatch[2].trim() };
   }
+
+  const recallMatches = [...text.matchAll(/\[RECALL:\s*([^\]]+)\]/gi)];
+  recallMatches.forEach(m => commands.recalls.push(m[1].trim()));
+
+  const healMatches = [...text.matchAll(/\[HEAL:\s*(\d+),\s*([^\]]+)\]/gi)];
+  healMatches.forEach(m => commands.heals.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));
 
   return commands;
 };

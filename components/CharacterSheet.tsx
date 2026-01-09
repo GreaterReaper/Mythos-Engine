@@ -18,6 +18,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const [editedBio, setEditedBio] = useState(character.biography || '');
   const [editedDesc, setEditedDesc] = useState(character.description || '');
   const [isWeaving, setIsWeaving] = useState(false);
+  const [lastDeathRoll, setLastDeathRoll] = useState<number | null>(null);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
   const dexMod = getMod(character.stats.dex);
@@ -54,6 +55,30 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     onUpdate(character.id, { activeStatuses: nextStatuses });
   };
 
+  const handleRollDeathSave = () => {
+    if (!onUpdate || isMentor || character.currentHp > 0) return;
+    const roll = Math.floor(Math.random() * 20) + 1;
+    setLastDeathRoll(roll);
+    
+    const currentSaves = character.deathSaves || { successes: 0, failures: 0 };
+    if (roll >= 10) {
+      const next = Math.min(3, currentSaves.successes + 1);
+      onUpdate(character.id, { deathSaves: { ...currentSaves, successes: next } });
+      if (next === 3) {
+        // Stabilize
+        onUpdate(character.id, { currentHp: 1, deathSaves: { successes: 0, failures: 0 } });
+        setLastDeathRoll(null);
+      }
+    } else {
+      const next = Math.min(3, currentSaves.failures + 1);
+      onUpdate(character.id, { deathSaves: { ...currentSaves, failures: next } });
+      if (next === 3) {
+        // Death
+        alert(`${character.name}'s soul has shattered and returned to the void.`);
+      }
+    }
+  };
+
   const toggleEquip = (itemId: string) => {
     if (!onUpdate || isMentor) return;
     const currentEquipped = character.equippedIds || [];
@@ -67,14 +92,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     if (spell.levelReq > character.level) return; 
 
     const baseLevel = spell.baseLevel || 1;
-    if (spell.name === 'Exequy') {
-      if ((character.spellSlots[9] || 0) <= 0) { alert("Thy wells are dry."); return; }
-      if (!confirm("MANIFESTING EXEQUY SHALL VOID ALL THY AETHERIC RESERVES. PROCEED?")) return;
-      const drainedSlots = { ...character.spellSlots };
-      Object.keys(drainedSlots).forEach(lvl => { drainedSlots[Number(lvl)] = 0; });
-      onUpdate(character.id, { spellSlots: drainedSlots });
-      return;
-    }
     const availableLevels = Object.keys(character.spellSlots).map(Number).filter(lvl => lvl >= baseLevel && character.spellSlots![lvl] > 0).sort((a, b) => a - b);
     if (availableLevels.length === 0) return;
     const consumeLevel = availableLevels[0];
@@ -86,6 +103,8 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const innateNames = ['Living Dead', 'Sanguine Link', 'Life Tap', 'Gore Cascade'];
     return innateNames.includes(ability.name) || character.archetype === Archetype.BloodArtist;
   };
+
+  const deathSaves = character.deathSaves || { successes: 0, failures: 0 };
 
   return (
     <div className="rune-border bg-black/90 backdrop-blur-xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl border-emerald-900/60">
@@ -102,26 +121,75 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
              <p className={`text-[10px] font-bold uppercase animate-pulse ${isMentor ? 'text-amber-500' : 'text-emerald-500'}`}>{isMentor ? 'MENTOR' : 'BOUND'}</p>
           </div>
         </div>
-        <div className="mt-6 grid grid-cols-3 gap-2 md:gap-4">
-          <div className="bg-black/60 border border-emerald-900/30 p-2 md:p-3 flex flex-col items-center justify-center rounded-sm">
-            <span className="text-[9px] font-cinzel text-emerald-500 uppercase font-bold">AC</span>
-            <span className="text-xl md:text-2xl font-black text-gold">{acCalculation}</span>
-          </div>
-          <div className="bg-black/60 border border-emerald-900/30 p-2 md:p-3 flex flex-col items-center justify-center rounded-sm">
-            <span className="text-[9px] font-cinzel text-emerald-500 uppercase font-bold">INIT</span>
-            <span className="text-xl md:text-2xl font-black text-gold">{dexMod >= 0 ? `+${dexMod}` : dexMod}</span>
-          </div>
-          <div className="bg-black/60 border border-emerald-900/30 p-2 md:p-3 flex flex-col items-center justify-center rounded-sm"><span className="text-[9px] font-cinzel text-emerald-500 uppercase font-bold">SPD</span><span className="text-xl md:text-2xl font-black text-gold">30</span></div>
-        </div>
-        <div className="mt-5 space-y-3">
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] font-cinzel text-emerald-500 w-8 font-black uppercase">HP</span>
-            <div className="flex-1 h-2 bg-gray-950 rounded-full overflow-hidden border border-emerald-900/20">
-              <div className="h-full bg-emerald-700 transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={{ width: `${(character.currentHp / character.maxHp) * 100}%` }} />
+
+        {character.currentHp <= 0 ? (
+          <div className="mt-4 p-4 bg-red-950/20 border border-red-900/40 rounded-sm animate-pulse space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-[10px] font-cinzel text-red-500 font-black tracking-widest uppercase">Thy soul flickers in the void</p>
+              {lastDeathRoll !== null && (
+                <div className="bg-black border border-red-500/40 px-3 py-1 text-gold font-mono text-lg font-black animate-in zoom-in">
+                   {lastDeathRoll}
+                </div>
+              )}
             </div>
-            <span className="text-[10px] font-cinzel text-white min-w-[50px] text-right font-black">{character.currentHp}/{character.maxHp}</span>
+            <div className="flex justify-around items-center">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[8px] text-emerald-500 font-black uppercase tracking-tighter">Success</span>
+                <div className="flex gap-2">
+                  {[1, 2, 3].map(i => (
+                    <div 
+                      key={i} 
+                      className={`w-4 h-4 rounded-full border-2 transition-all ${i <= deathSaves.successes ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_#10b981]' : 'border-emerald-900/40 bg-black/40'}`} 
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <button 
+                onClick={handleRollDeathSave}
+                className="px-6 py-2 bg-emerald-900 border border-gold text-white font-cinzel text-[10px] font-black uppercase hover:bg-emerald-800 transition-all shadow-xl active:scale-95"
+              >
+                ROLL DEATH SAVE (d20)
+              </button>
+
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-[8px] text-red-500 font-black uppercase tracking-tighter">Failure</span>
+                <div className="flex gap-2">
+                  {[1, 2, 3].map(i => (
+                    <div 
+                      key={i} 
+                      className={`w-4 h-4 rounded-full border-2 transition-all ${i <= deathSaves.failures ? 'bg-red-500 border-red-400 shadow-[0_0_8px_#ef4444]' : 'border-red-900/40 bg-black/40'}`} 
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="text-[8px] text-gray-500 text-center uppercase tracking-tighter">10+ required to stabilize. 3 failures and thy soul is lost.</p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="mt-6 grid grid-cols-3 gap-2 md:gap-4">
+              <div className="bg-black/60 border border-emerald-900/30 p-2 md:p-3 flex flex-col items-center justify-center rounded-sm">
+                <span className="text-[9px] font-cinzel text-emerald-500 uppercase font-bold">AC</span>
+                <span className="text-xl md:text-2xl font-black text-gold">{acCalculation}</span>
+              </div>
+              <div className="bg-black/60 border border-emerald-900/30 p-2 md:p-3 flex flex-col items-center justify-center rounded-sm">
+                <span className="text-[9px] font-cinzel text-emerald-500 uppercase font-bold">INIT</span>
+                <span className="text-xl md:text-2xl font-black text-gold">{dexMod >= 0 ? `+${dexMod}` : dexMod}</span>
+              </div>
+              <div className="bg-black/60 border border-emerald-900/30 p-2 md:p-3 flex flex-col items-center justify-center rounded-sm"><span className="text-[9px] font-cinzel text-emerald-500 uppercase font-bold">SPD</span><span className="text-xl md:text-2xl font-black text-gold">30</span></div>
+            </div>
+            <div className="mt-5 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-cinzel text-emerald-500 w-8 font-black uppercase">HP</span>
+                <div className="flex-1 h-2 bg-gray-950 rounded-full overflow-hidden border border-emerald-900/20">
+                  <div className="h-full bg-emerald-700 transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={{ width: `${(character.currentHp / character.maxHp) * 100}%` }} />
+                </div>
+                <span className="text-[10px] font-cinzel text-white min-w-[50px] text-right font-black">{character.currentHp}/{character.maxHp}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex border-b border-emerald-900/30 text-[10px] font-cinzel overflow-x-auto bg-black/40 no-scrollbar">

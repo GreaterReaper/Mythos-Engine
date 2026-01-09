@@ -92,10 +92,10 @@ const DMWindow: React.FC<DMWindowProps> = ({
         existingMonsters: bestiary,
         campaignTitle: campaign.title
       });
-      const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums silently...", timestamp: Date.now() };
+      const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums...", timestamp: Date.now() };
       onMessage(dmMsg);
       if (responseText) {
-        const { exp, currency, items, monstersToAdd, shortRest, longRest, openShop, enterCombat, exitCombat, usedSlot } = parseDMCommand(responseText);
+        const { exp, currency, items, monstersToAdd, shortRest, longRest, openShop, enterCombat, exitCombat, usedSlot, heals } = parseDMCommand(responseText);
         if (exp > 0) onAwardExp(exp);
         if (currency.aurels > 0) onAwardCurrency(currency);
         items.forEach(item => onAwardItem(item.name, item.data));
@@ -158,9 +158,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
     );
   }
 
-  const totalSlots = activeCharacter?.spellSlots 
-    ? (Object.values(activeCharacter.spellSlots) as number[]).reduce((acc: number, val: number) => acc + (val || 0), 0)
-    : 0;
+  const activeSlots = (activeCharacter?.spellSlots || {}) as Record<number, number>;
+  const maxSlots = (activeCharacter?.maxSpellSlots || {}) as Record<number, number>;
+  const totalSlots = Object.values(activeSlots).reduce((acc: number, val: number) => acc + (val || 0), 0);
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
@@ -210,6 +210,16 @@ const DMWindow: React.FC<DMWindowProps> = ({
                 <h3 className="font-cinzel text-gold text-xs md:text-sm truncate font-black tracking-[0.1em]">{campaign.title}</h3>
               </div>
             </div>
+            <div className="flex gap-2">
+              {!campaign.isCombatActive && isHost && (
+                <button 
+                  onClick={onShortRest}
+                  className="px-3 py-1 bg-amber-900/20 border border-amber-600/40 text-amber-500 text-[9px] font-black uppercase tracking-widest hover:bg-amber-600/20 transition-all"
+                >
+                  SHORT REST
+                </button>
+              )}
+            </div>
           </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar bg-[#0c0a09] relative">
             {campaign.history.map((msg, idx) => (
@@ -239,17 +249,41 @@ const DMWindow: React.FC<DMWindowProps> = ({
           <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5">
              <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase tracking-widest mb-4">Fellowship Resonance</h4>
              <div className="space-y-4">
-              {characters.map(char => (
-                <div key={char.id} className={`space-y-2 p-2 rounded transition-all cursor-pointer ${char.id === activeCharacter?.id ? 'bg-gold/5 border border-gold/40 shadow-[0_0_10px_rgba(212,175,55,0.1)]' : 'border border-transparent hover:bg-emerald-900/5'}`} onClick={() => onSelectActiveCharacter(char.id)}>
-                  <div className="flex justify-between items-center">
-                    <p className={`text-xs font-cinzel font-black truncate ${char.id === activeCharacter?.id ? 'text-gold' : 'text-white'}`}>{char.name}</p>
-                    <span className="text-[8px] font-mono text-gray-500">LVL {char.level}</span>
+              {characters.map(char => {
+                const charMaxSlots = (char.maxSpellSlots || {}) as Record<number, number>;
+                const charCurrentSlots = (char.spellSlots || {}) as Record<number, number>;
+                
+                return (
+                  <div key={char.id} className={`space-y-2 p-2 rounded transition-all cursor-pointer ${char.id === activeCharacter?.id ? 'bg-gold/5 border border-gold/40 shadow-[0_0_10px_rgba(212,175,55,0.1)]' : 'border border-transparent hover:bg-emerald-900/5'}`} onClick={() => onSelectActiveCharacter(char.id)}>
+                    <div className="flex justify-between items-center">
+                      <p className={`text-xs font-cinzel font-black truncate ${char.id === activeCharacter?.id ? 'text-gold' : 'text-white'}`}>{char.name}</p>
+                      <span className="text-[8px] font-mono text-gray-500">LVL {char.level}</span>
+                    </div>
+                    <div className="h-1 w-full bg-gray-950 rounded-full overflow-hidden border border-emerald-900/10">
+                      <div className="h-full bg-emerald-900" style={{ width: `${(char.currentHp / char.maxHp) * 100}%` }} />
+                    </div>
+                    
+                    {char.spellSlots && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {Object.entries(charMaxSlots).map(([lvlStr, maxCount]) => {
+                          const lvl = Number(lvlStr);
+                          const currentCount = charCurrentSlots[lvl] || 0;
+                          return (
+                            <div key={lvl} className="flex flex-col items-center">
+                              <span className="text-[6px] text-blue-500 font-black uppercase leading-none">L{lvl}</span>
+                              <div className="flex gap-0.5 mt-0.5">
+                                {Array.from({ length: maxCount }).map((_, i) => (
+                                  <div key={i} className={`w-1 h-1 rounded-full ${i < currentCount ? 'bg-blue-400 shadow-[0_0_2px_#60a5fa]' : 'bg-gray-800'}`} />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div className="h-1 w-full bg-gray-950 rounded-full overflow-hidden border border-emerald-900/10">
-                    <div className="h-full bg-emerald-900" style={{ width: `${(char.currentHp / char.maxHp) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

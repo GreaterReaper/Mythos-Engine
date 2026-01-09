@@ -270,29 +270,112 @@ export const INITIAL_ITEMS: Item[] = [
   { id: 'al-c-apron', name: 'Reinforced Chemist Apron', description: 'Acid-resistant leather.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Alchemist] },
 
   // BLOOD ARTIST
-  { id: 'ba-c-lancet', name: 'Ritual Lancet', description: 'An elegant blade meant for controlled bleeding.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+CHA' }, archetypes: [Archetype.BloodArtist] }
+  { id: 'ba-c-lancet', name: 'Ritual Lancet', description: 'An elegant blade meant for controlled bleeding.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+CHA' }, archetypes: [Archetype.BloodArtist] },
+
+  // POTIONS
+  { id: 'util-hp-minor', name: 'Minor Vitality Potion', description: 'A bitter draft that seals surface wounds.', type: 'Utility', rarity: 'Common', stats: {} },
+  { id: 'util-mana-minor', name: 'Minor Aetheric Tincture', description: 'Restores a sliver of aetheric reservoir.', type: 'Utility', rarity: 'Common', stats: {} }
 ];
 
 export const MENTORS: Character[] = [
   {
     id: 'mentor-lina', name: 'Lina', age: 24, gender: 'Female', race: Race.Human, archetype: Archetype.Mage, role: 'Support', level: 5, exp: 0, maxHp: 35, currentHp: 35, stats: { str: 8, dex: 12, con: 12, int: 14, wis: 18, cha: 14 },
-    currency: { aurels: 100, shards: 50, ichor: 5 }, inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
+    currency: { aurels: 100, shards: 50, ichor: 5 }, 
+    personality: 'A timid mage that tries her best to support her allies.',
+    inventory: [
+      { id: 'l-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'l-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
     description: 'Serene priestess in gold and ivory.', biography: 'Guardian of the Sunken Sanctuary.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
-    currency: { aurels: 50, shards: 10, ichor: 2 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
+    currency: { aurels: 50, shards: 10, ichor: 2 }, 
+    personality: 'An energetic fighter.',
+    inventory: [
+      { id: 'm-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'm-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
     description: 'Energetic warrior.', biography: 'Frontier protector.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
-    currency: { aurels: 150, shards: 30, ichor: 0 }, inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
+    currency: { aurels: 150, shards: 30, ichor: 0 }, 
+    personality: 'A cool aloof archer.',
+    inventory: [
+      { id: 's-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 's-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
     description: 'Reserved elf.', biography: 'Master of precision.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-kaelen', name: 'Kaelen', age: 31, gender: 'Male', race: Race.Tiefling, archetype: Archetype.DarkKnight, role: 'Tank', level: 5, exp: 0, maxHp: 48, currentHp: 48, stats: { str: 17, dex: 10, con: 15, int: 12, wis: 10, cha: 16 },
-    currency: { aurels: 80, shards: 25, ichor: 4 }, inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
+    currency: { aurels: 80, shards: 25, ichor: 4 }, 
+    personality: 'A cold stoic dark knight that respects strength in all forms while condemning evil.',
+    inventory: [
+      { id: 'k-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'k-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
     description: 'Cold commander wearing a mask of indifference.', biography: 'Exiled prince.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-thorin', name: 'Thorin', age: 154, gender: 'Male', race: Race.Dwarf, archetype: Archetype.Warrior, role: 'Tank', level: 5, exp: 0, maxHp: 65, currentHp: 65, stats: { str: 19, dex: 10, con: 18, int: 8, wis: 12, cha: 10 },
+    currency: { aurels: 120, shards: 20, ichor: 3 }, 
+    personality: 'Boisterous and jovial, Thorin finds joy in the choir of clashing steel and a well-cooked haunch.',
+    inventory: [
+      { id: 'th-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'th-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
+    description: 'A mountain of a dwarf with a beard braided in iron rings.', biography: 'Last of the Iron-Grip clan.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-ignis', name: 'Ignis', age: 42, gender: 'Male', race: Race.Dragonborn, archetype: Archetype.Sorcerer, role: 'DPS', level: 5, exp: 0, maxHp: 32, currentHp: 32, stats: { str: 12, dex: 14, con: 14, int: 18, wis: 10, cha: 16 },
+    currency: { aurels: 200, shards: 60, ichor: 8 }, 
+    personality: 'Proud and volatile, Ignis views aether as a tool of absolute dominance over the lesser fragments.',
+    inventory: [
+      { id: 'ig-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'ig-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: SPELL_LIBRARY[Archetype.Sorcerer] || [], abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
+    description: 'Gold-scaled dragonborn whose eyes glow with aetheric embers.', biography: 'Exiled High-Caster.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-vesper', name: 'Vesper', age: 28, gender: 'Female', race: Race.Vesperian, archetype: Archetype.Thief, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 19, con: 12, int: 14, wis: 14, cha: 12 },
+    currency: { aurels: 300, shards: 40, ichor: 1 }, 
+    personality: 'Pragmatic and dry-witted, Vesper values silence and survival over the vanity of heroics.',
+    inventory: [
+      { id: 've-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 've-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
+    description: 'Shadow-touched vesperian with silent boots and quick eyes.', biography: 'Guild-Shadow of the Obsidian Reach.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-zora', name: 'Zora', age: 89, gender: 'Female', race: Race.Gnome, archetype: Archetype.Alchemist, role: 'Support', level: 5, exp: 0, maxHp: 40, currentHp: 40, stats: { str: 8, dex: 14, con: 16, int: 19, wis: 12, cha: 10 },
+    currency: { aurels: 150, shards: 80, ichor: 10 }, 
+    personality: 'Analytical and obsessive, Zora treats every combat as a chemical equation waiting to be balanced.',
+    inventory: [
+      { id: 'zo-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'zo-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
+    description: 'Gnome covered in soot and goggles, smelling of sulfur.', biography: 'Archivist of the Volatile Arts.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-elias', name: 'Elias', age: 35, gender: 'Male', race: Race.Vesperian, archetype: Archetype.BloodArtist, role: 'DPS', level: 5, exp: 0, maxHp: 45, currentHp: 45, stats: { str: 10, dex: 12, con: 16, int: 14, wis: 10, cha: 18 },
+    currency: { aurels: 180, shards: 50, ichor: 15 }, 
+    personality: 'Macabre and poetic, Elias sees the flow of life-essence as a symphony that must be carefully conducted.',
+    inventory: [
+      { id: 'el-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
+      { id: 'el-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} }
+    ], 
+    equippedIds: [], spells: SPELL_LIBRARY[Archetype.BloodArtist] || [], abilities: ARCHETYPE_INFO[Archetype.BloodArtist].coreAbilities,
+    description: 'Pale, elegant vessel wearing robes of deep crimson.', biography: 'Collector of the Forbidden Vitae.', asiPoints: 0, activeStatuses: []
   }
 ];
 
@@ -308,6 +391,30 @@ export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {
   'mentor-seris': [
     { name: 'Shadow-Thread Cloak', type: 'Armor', stats: { ac: 12 }, rarity: 'Rare' },
     { name: 'Void-Piercer Bow', type: 'Weapon', stats: { dex: 2 }, rarity: 'Rare' }
+  ],
+  'mentor-kaelen': [
+    { name: 'Grave-Iron Plate', type: 'Armor', stats: { ac: 17 }, rarity: 'Rare' },
+    { name: 'Sorrow-Edge Zweihander', type: 'Weapon', stats: { str: 2 }, rarity: 'Rare' }
+  ],
+  'mentor-thorin': [
+    { name: 'Obsidian Mountain Mail', type: 'Armor', stats: { ac: 16 }, rarity: 'Rare' },
+    { name: 'Iron-Grip Waraxe', type: 'Weapon', stats: { str: 2 }, rarity: 'Rare' }
+  ],
+  'mentor-ignis': [
+    { name: 'Cinder-Dragon Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare' },
+    { name: 'Heart-Stone Staff', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare' }
+  ],
+  'mentor-vesper': [
+    { name: 'Night-Stalker Leathers', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare' },
+    { name: 'Twin-Fang Daggers', type: 'Weapon', stats: { dex: 2 }, rarity: 'Rare' }
+  ],
+  'mentor-zora': [
+    { name: 'Acid-Proof Chemist Cloak', type: 'Armor', stats: { ac: 12 }, rarity: 'Rare' },
+    { name: 'Catalyst Infuser', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare' }
+  ],
+  'mentor-elias': [
+    { name: 'Sanguine Silk Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare' },
+    { name: 'Vitae-Draining Lancet', type: 'Weapon', stats: { cha: 2 }, rarity: 'Rare' }
   ]
 };
 

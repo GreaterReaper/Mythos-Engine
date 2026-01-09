@@ -42,13 +42,16 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
     let classMentorId: string | null = null;
     
     if (primaryChar) {
+      // Find a mentor that matches the player's archetype but isn't part of the core trio
       const mentor = MENTORS.find(m => 
         m.archetype === primaryChar.archetype && 
         !baseMentorNames.includes(m.name)
       );
+      
       if (mentor) {
         classMentorId = mentor.id;
       } else {
+        // Fallback: Pick any mentor not in the core trio if no direct archetype match
         const fallback = MENTORS.find(m => !baseMentorNames.includes(m.name));
         if (fallback) classMentorId = fallback.id;
       }
@@ -59,6 +62,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
     if (classMentorId) partySet.add(classMentorId);
     if (primaryChar) partySet.add(primaryChar.id);
 
+    // Ensure we return exactly what we found, limited to 5
     return Array.from(partySet).slice(0, 5);
   }, [characters]);
 

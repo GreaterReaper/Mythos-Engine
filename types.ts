@@ -126,6 +126,7 @@ export interface Character {
   spellSlots?: Record<number, number>;
   maxSpellSlots?: Record<number, number>;
   description: string;
+  personality?: string;
   biography?: string;
   imageUrl?: string;
   asiPoints: number;

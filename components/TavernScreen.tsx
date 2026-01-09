@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Character, Message, Item, Currency, Role, Archetype, Rumor } from '../types';
 import { generateInnkeeperResponse } from '../geminiService';
-import { SYNERGY_MAP } from '../constants';
+import { SYNERGY_MAP, APOTHECARY_TIERS } from '../constants';
 import Tooltip from './Tooltip';
 
 type TavernTab = 'Rest' | 'Mentors' | 'Smithy' | 'Apothecary';
@@ -73,7 +73,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
     if (partyRoles.DPS.count > 0) score += 20;
     if (partyRoles.Support.count > 0) score += 20;
     
-    // Bonus for matching theoretical bests
     if (bondInsight && party.some(p => bondInsight.bestMatches.includes(p.archetype as string))) {
       score += 10;
     }
@@ -101,6 +100,19 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
       const response = await generateInnkeeperResponse([...messages, userMsg], party);
       setMessages(prev => [...prev, { role: 'model', content: response || "Barnaby just nods.", timestamp: Date.now() }]);
     } catch (e) { console.error(e); } finally { setIsLoading(false); }
+  };
+
+  const calculateUpgradeCost = (item: Item): Currency => {
+    const currentPlus = parseInt(item.name.match(/\+(\d+)/)?.[1] || '0');
+    return {
+      aurels: 100 * (currentPlus + 1),
+      shards: 10 * (currentPlus),
+      ichor: 0
+    };
+  };
+
+  const canAfford = (char: Character, cost: Currency) => {
+    return char.currency.aurels >= cost.aurels && char.currency.shards >= cost.shards && char.currency.ichor >= cost.ichor;
   };
 
   return (
@@ -240,6 +252,84 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {activeTab === 'Smithy' && (
+            <div className="space-y-6">
+              <div className="rune-border p-6 bg-black/60 border-emerald-900/40">
+                <h3 className="text-xl font-cinzel text-gold mb-4 border-b border-gold/20 pb-2">Tempering of the Blade</h3>
+                <div className="space-y-4">
+                  {party.map(char => (
+                    <div key={char.id} className="space-y-3">
+                      <p className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest">{char.name}'s Armament</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {char.inventory.filter(i => i.type === 'Weapon' || i.type === 'Armor').map(item => {
+                          const cost = calculateUpgradeCost(item);
+                          const affordable = canAfford(char, cost);
+                          return (
+                            <div key={item.id} className="p-4 bg-emerald-900/5 border border-emerald-900/20 flex flex-col justify-between gap-3">
+                              <div className="flex justify-between items-start">
+                                <span className="text-xs font-bold text-white uppercase">{item.name}</span>
+                                <span className="text-[8px] font-black text-gold uppercase">{item.rarity}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="text-[10px] font-black text-gold flex items-center gap-1">● {cost.aurels}</div>
+                                <div className="text-[10px] font-black text-purple-400 flex items-center gap-1">◆ {cost.shards}</div>
+                              </div>
+                              <button 
+                                onClick={() => onUpgradeItem(char.id, item.id, cost)}
+                                disabled={!affordable}
+                                className={`w-full py-2 text-[8px] font-black uppercase tracking-widest border-2 transition-all ${affordable ? 'border-gold text-gold hover:bg-gold hover:text-black' : 'border-gray-800 text-gray-700 opacity-50 cursor-not-allowed'}`}
+                              >
+                                {affordable ? 'REFORGE +1' : 'INSUFFICIENT ESSENCE'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {party.length === 0 && <p className="text-center text-gray-600 py-10 italic">No souls are present to temper their steel.</p>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Apothecary' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Object.entries(APOTHECARY_TIERS).map(([tier, items]) => (
+                <div key={tier} className="rune-border p-5 bg-black/60 border-emerald-900/40 flex flex-col gap-4">
+                  <h4 className="text-xs font-cinzel text-emerald-400 border-b border-emerald-900/30 pb-2 uppercase tracking-widest font-black">{tier} Draughts</h4>
+                  <div className="space-y-4">
+                    {items.map((item, idx) => (
+                      <div key={idx} className="p-3 bg-emerald-900/5 border border-emerald-900/20 group">
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="text-[11px] font-bold text-white uppercase group-hover:text-emerald-400 transition-colors">{item.name}</p>
+                          <span className="text-[9px] font-black text-gold">● {item.cost}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 italic mb-3 leading-tight">{item.desc}</p>
+                        <div className="flex gap-2">
+                          {party.map(char => {
+                            const affordable = char.currency.aurels >= item.cost;
+                            return (
+                              <button
+                                key={char.id}
+                                disabled={!affordable}
+                                onClick={() => onBuyItem?.({ id: `item-buy-${idx}-${char.id}`, name: item.name, description: item.desc, type: 'Utility', rarity: 'Common', stats: {} }, char.id, { aurels: item.cost, shards: 0, ichor: 0 })}
+                                className={`flex-1 py-1.5 text-[7px] font-black uppercase tracking-tighter border transition-all ${affordable ? 'border-emerald-500/40 text-emerald-500 hover:bg-emerald-500 hover:text-black' : 'border-gray-800 text-gray-800 opacity-30'}`}
+                                title={`Buy for ${char.name}`}
+                              >
+                                {char.name[0]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

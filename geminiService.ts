@@ -288,7 +288,10 @@ export const generateDMResponse = async (
     const isUsableAbilities = c.abilities.filter(a => a.levelReq <= c.level).map(a => a.name).join(', ');
     const isUsableSpells = c.spells.filter(s => s.levelReq <= c.level).map(s => s.name).join(', ');
     const ownerStatus = c.id.startsWith('mentor-') ? "MENTOR" : "PLAYER";
-    return `${c.name} [${ownerStatus}] (Lvl ${c.level} ${c.archetype}) - Feats: [${isUsableAbilities || "None"}], Spells: [${isUsableSpells || "None"}].`;
+    const hpStatus = `${c.currentHp}/${c.maxHp} HP`;
+    const personality = c.personality ? ` Personality: ${c.personality}.` : "";
+    
+    return `${c.name} [${ownerStatus}] (Lvl ${c.level} ${c.archetype}) - ${hpStatus}.${personality} Feats: [${isUsableAbilities || "None"}], Spells: [${isUsableSpells || "None"}]. Inventory: ${c.inventory.map(i => i.name).join(', ')}`;
   }).join('\n    ');
 
   const sanitizedContents = history.map(m => ({ 
@@ -296,13 +299,13 @@ export const generateDMResponse = async (
     parts: [{ text: m.content || "..." }] 
   }));
 
-  const isTutorial = playerContext.campaignTitle === "The Fellowship of Five";
+  const isTutorial = playerContext.campaignTitle === TUTORIAL_SCENARIO.title;
   const tutorialInstruction = isTutorial 
     ? `TUTORIAL PROTOCOL ACTIVE:
-    - Act 1 (Awakening): 3 Wolves, 2 Husks.
-    - Act 2 (Ritual of Steel): Razor Bridge trap.
-    - Act 3 (The Breach): Shattered Warden mini-boss.
-    - Instruct the player clearly but immersion stays dark.`
+    - Current Stage: ${playerContext.campaignTitle}.
+    - Encounter Stage: Awakening (3 Wolves, 2 Husks).
+    - MENTOR STATUS: Lina, Miri, Seris are Level 5. They have Potions.
+    - Instruct the player clearly. Explain that the Engine handles rolls.`
     : "";
 
   const systemInstruction = `
@@ -310,6 +313,7 @@ export const generateDMResponse = async (
     
     THY SCOPE:
     - High-speed atmospheric narration and character dialogue.
+    - Roleplay each character in the PARTY MANIFESTS according to their specified Personality and Archetype.
     - Tracking active character manifests and enforcing level requirements.
     - Managing combat flow and rest outcomes.
     

@@ -5,7 +5,7 @@ import {
   Item, Monster, Stats, Friend, ArchetypeInfo, Ability, Currency, Shop, StatusEffect
 } from './types';
 import { 
-  MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STORAGE_PREFIX, MENTOR_UNIQUE_GEAR
+  MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STORAGE_PREFIX, MENTOR_UNIQUE_GEAR, TUTORIAL_SCENARIO
 } from './constants';
 import Sidebar from './components/Sidebar';
 import FellowshipScreen from './components/FellowshipScreen';
@@ -102,22 +102,35 @@ const App: React.FC = () => {
   }, [state]);
 
   useEffect(() => {
+    // SOUL SCALING RITUAL:
+    // If the active campaign is the tutorial, we maintain mentor levels at 5.
+    const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
+    const isTutorial = activeCampaign?.title === TUTORIAL_SCENARIO.title;
+
     const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
     const baselineChars = state.characters.filter(c => c.ownerName === state.userAccount.username);
-    const avgLevel = partyChars.length > 0 
+    
+    // Default avgLevel for scaling
+    const avgLevel = isTutorial ? 5 : (partyChars.length > 0 
       ? Math.max(5, Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length))
-      : (baselineChars.length > 0 ? Math.max(5, Math.ceil(baselineChars.reduce((acc, c) => acc + c.level, 0) / baselineChars.length)) : 5);
+      : (baselineChars.length > 0 ? Math.max(5, Math.ceil(baselineChars.reduce((acc, c) => acc + c.level, 0) / baselineChars.length)) : 5));
     
     const updatedMentors = state.mentors.map(m => {
-      const needsScaling = (m.level !== avgLevel || m.inventory.length === 0);
+      const needsScaling = !isTutorial && (m.level !== avgLevel || m.inventory.filter(i => i.type !== 'Utility').length === 0);
+      
       if (needsScaling) {
         const archInfo = ARCHETYPE_INFO[m.archetype as Archetype];
         const hpDie = archInfo?.hpDie || 8;
         const conMod = Math.floor(((m.stats.con || 10) - 10) / 2);
         const newMaxHp = hpDie + conMod + ((avgLevel - 1) * (Math.floor(hpDie/2) + 1 + conMod));
         const slots = SPELL_SLOT_PROGRESSION[avgLevel] || {};
+        
         let scaledInventory: Item[] = [];
         const uniqueTemplates = MENTOR_UNIQUE_GEAR[m.id] || [];
+        
+        // Retain consumables (potions)
+        const consumables = m.inventory.filter(i => i.type === 'Utility');
+        
         if (uniqueTemplates.length > 0) {
           scaledInventory = uniqueTemplates.map(t => {
             const gearBonus = Math.floor(avgLevel / 4);
@@ -137,6 +150,7 @@ const App: React.FC = () => {
           const templates = INITIAL_ITEMS.filter(i => i.archetypes?.includes(m.archetype as Archetype) && i.rarity === 'Common');
           scaledInventory = templates.map(t => ({ ...t, id: `${t.id}-mentor-${m.id}`, isUnique: true }));
         }
+
         const attributeBonus = Math.floor((avgLevel - 5) / 4);
         const originalMentor = MENTORS.find(init => init.id === m.id);
         const baseStats = originalMentor?.stats || m.stats;
@@ -144,14 +158,27 @@ const App: React.FC = () => {
         (Object.keys(scaledStats) as Array<keyof Stats>).forEach(key => { 
           scaledStats[key] = (baseStats[key] || 10) + Math.max(0, attributeBonus); 
         });
-        return { ...m, level: avgLevel, maxHp: newMaxHp, currentHp: m.currentHp > newMaxHp ? newMaxHp : m.currentHp, stats: scaledStats, inventory: scaledInventory, equippedIds: scaledInventory.map(i => i.id), spellSlots: m.spellSlots || slots, maxSpellSlots: slots, activeStatuses: m.activeStatuses || [] };
+
+        return { 
+          ...m, 
+          level: avgLevel, 
+          maxHp: newMaxHp, 
+          currentHp: m.currentHp > newMaxHp ? newMaxHp : m.currentHp, 
+          stats: scaledStats, 
+          inventory: [...scaledInventory, ...consumables], 
+          equippedIds: scaledInventory.map(i => i.id), 
+          spellSlots: m.spellSlots || slots, 
+          maxSpellSlots: slots, 
+          activeStatuses: m.activeStatuses || [] 
+        };
       }
       return m;
     });
+
     if (JSON.stringify(updatedMentors) !== JSON.stringify(state.mentors)) {
       setState(prev => ({ ...prev, mentors: updatedMentors }));
     }
-  }, [state.party, state.characters]);
+  }, [state.party, state.characters, state.activeCampaignId]);
 
   const handleLogin = (username: string) => {
     const storageKey = `${STORAGE_PREFIX}${username}`;

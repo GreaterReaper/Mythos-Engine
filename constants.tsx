@@ -247,9 +247,30 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
 };
 
 export const INITIAL_ITEMS: Item[] = [
-  { id: 'w-c-sword', name: 'Iron Zweihander', description: 'A massive iron blade.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
-  { id: 't-c-leather', name: 'Scout\'s Leather Tunic', description: 'Silent leather.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
-  { id: 's-c-staff', name: 'Ashwood Conduit', description: 'A simple staff.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] }
+  // WARRIOR / DARK KNIGHT
+  { id: 'w-c-sword', name: 'Iron Zweihander', description: 'A massive iron blade meant for heavy strokes.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
+  { id: 'w-c-chain', name: 'Rugged Chain Mail', description: 'Linked rings of iron.', type: 'Armor', rarity: 'Common', stats: { ac: 13 }, archetypes: [Archetype.Warrior, Archetype.DarkKnight] },
+  
+  // FIGHTER
+  { id: 'f-c-sword', name: 'Standard Broadsword', description: 'A versatile blade of military grade.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Fighter] },
+  { id: 'f-c-shield', name: 'Iron-Bound Shield', description: 'A sturdy kite shield.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
+  { id: 'f-c-plate', name: 'Half-Plate Suit', description: 'Plates protecting vital areas.', type: 'Armor', rarity: 'Common', stats: { ac: 15 }, archetypes: [Archetype.Fighter] },
+
+  // ARCHER / THIEF
+  { id: 'a-c-bow', name: 'Yew Shortbow', description: 'Lithe and silent.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+DEX' }, archetypes: [Archetype.Archer, Archetype.Thief] },
+  { id: 't-c-leather', name: 'Scout\'s Leather Tunic', description: 'Flexible leather for the unseen.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Thief, Archetype.Alchemist, Archetype.Archer] },
+  { id: 't-c-dagger', name: 'Serrated Dirk', description: 'A jagged blade meant for the kidney.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief] },
+
+  // SORCERER / MAGE
+  { id: 's-c-staff', name: 'Ashwood Conduit', description: 'A simple staff to channel aether.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
+  { id: 's-c-robes', name: 'Aetheric Silk Robes', description: 'Light robes infused with silver thread.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
+
+  // ALCHEMIST
+  { id: 'al-c-dagger', name: 'Catalytic Dagger', description: 'A glass-embedded blade for poison delivery.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+INT' }, archetypes: [Archetype.Alchemist] },
+  { id: 'al-c-apron', name: 'Reinforced Chemist Apron', description: 'Acid-resistant leather.', type: 'Armor', rarity: 'Common', stats: { ac: 11 }, archetypes: [Archetype.Alchemist] },
+
+  // BLOOD ARTIST
+  { id: 'ba-c-lancet', name: 'Ritual Lancet', description: 'An elegant blade meant for controlled bleeding.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+CHA' }, archetypes: [Archetype.BloodArtist] }
 ];
 
 export const MENTORS: Character[] = [
@@ -291,8 +312,11 @@ export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {
 };
 
 export const INITIAL_MONSTERS: Monster[] = [
-  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [], description: 'Shadows with teeth.', cr: 0.125, activeStatuses: [] },
-  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [], description: 'Burning eyes.', cr: 1, activeStatuses: [] }
+  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [], description: 'Shadows with teeth. They feast on the low-resonance fragments of the world.', cr: 0.125, activeStatuses: [] },
+  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [], description: 'Burning eyes and teeth made of cold obsidian.', cr: 1, activeStatuses: [] },
+  { id: 'mon-husk', name: 'Hollow Husk', type: 'Undead', hp: 12, ac: 8, stats: { str: 12, dex: 6, con: 14, int: 1, wis: 1, cha: 1 }, abilities: [{name: 'Soul Thirst', description: 'Deals 1d4 necrotic on hit.', type: 'Active', levelReq: 1}], description: 'The remains of a vessel that failed to bind. Slow and brittle.', cr: 0.25, activeStatuses: [] },
+  { id: 'mon-wisp', name: 'Aetheric Wisp', type: 'Hybrid', hp: 5, ac: 13, stats: { str: 1, dex: 16, con: 10, int: 14, wis: 14, cha: 10 }, abilities: [{name: 'Phase Out', description: 'Disadvantage on attacks against it.', type: 'Passive', levelReq: 1}], description: 'Flickering lights that feed on aetheric surges.', cr: 0.25, activeStatuses: [] },
+  { id: 'mon-warden', name: 'Shattered Warden', type: 'Undead', hp: 45, ac: 15, stats: { str: 18, dex: 10, con: 16, int: 8, wis: 12, cha: 8 }, abilities: [{name: 'Iron Cleave', description: 'Massive arc strike (2d8+STR).', type: 'Active', levelReq: 1}, {name: 'Stone Skin', description: 'Resistance to physical damage.', type: 'Passive', levelReq: 1}], description: 'A massive armored shell animated by a vengeful soul.', cr: 2, activeStatuses: [] }
 ];
 
 export const RULES_MANIFEST = `
@@ -308,7 +332,17 @@ export const STARTER_CAMPAIGN_PROMPT = `The air is thick with iron. Thy Fellowsh
 
 export const TUTORIAL_SCENARIO = {
   title: "The Fellowship of Five",
-  prompt: `Thou awakenest in a stone amphitheater. Lina, Miri, and Seris stand with thee. A pack of Shadow Wolves snarls nearby. What dost thou do?`
+  prompt: `Thou awakenest in the cold, stone amphitheater of the Sunken Sanctuary. To thy left, Miri (the Warrior) grips her claymore, her eyes scanning the mists. To thy right, Seris (the Elf Archer) has an arrow nocked, silent as a grave. Behind thee, Lina (the Mage) chants a low warding prayer.
+
+A pack of **Shadow Wolves** and two **Hollow Husks** emerge from the necrotic emerald mists. They hunger for thy fresh resonance.
+
+**THE FIRST ACT: AWAKENING**
+Thou art the anchor of this Fellowship. Thy move shall dictate the fate of this trial. What dost thou do?`,
+  beats: [
+    "ACT 1: THE AWAKENING - Encounter 3 Shadow Wolves and 2 Hollow Husks. Lina buffs the party.",
+    "ACT 2: RITUAL OF STEEL - A path opens. Seris detects a trap. The party must cross the Razor Bridge.",
+    "ACT 3: THE BREACH - The Shattered Warden guards the exit. Defeat him to ascend to the surface."
+  ]
 };
 
 export const APOTHECARY_TIERS = {

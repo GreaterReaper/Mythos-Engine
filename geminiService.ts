@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
-import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS } from './constants';
+import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
 const ENGINE_VERSION = "1.0.0";
@@ -181,10 +181,7 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
-          properties: {
-            biography: { type: Type.STRING },
-            description: { type: Type.STRING }
-          }
+          properties: { biography: { type: Type.STRING }, description: { type: Type.STRING } }
         }
       }
     });
@@ -229,7 +226,7 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `Create a fantasy class: "${prompt}". JSON.`,
       config: {
         responseMimeType: "application/json",
@@ -262,14 +259,13 @@ export const generateDMResponse = async (
     activeRules: string;
     existingItems: Item[];
     existingMonsters: Monster[];
+    campaignTitle: string;
   }
 ) => {
   const ai = getAiClient();
   trackUsage();
   
   const partySize = playerContext.party.length;
-  
-  // Detailed manifest for ALL party members to ensure Mentors follow class rules
   const partyManifests = playerContext.party.map(c => {
     const isUsableAbilities = c.abilities.filter(a => a.levelReq <= c.level).map(a => a.name).join(', ');
     const isUsableSpells = c.spells.filter(s => s.levelReq <= c.level).map(s => s.name).join(', ');
@@ -279,57 +275,37 @@ export const generateDMResponse = async (
     Permitted Spells: [${isUsableSpells || "None"}].`;
   }).join('\n    ');
 
-  const sanitizedContents: any[] = [];
-  let currentRole: 'user' | 'model' = 'user';
-  let roleText = "";
+  const sanitizedContents = history.map(m => ({ 
+    role: m.role === 'model' ? 'model' : 'user', 
+    parts: [{ text: m.content || "..." }] 
+  }));
 
-  history.forEach((m) => {
-    const msgRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
-    if (msgRole === currentRole) {
-      roleText += (roleText ? "\n\n" : "") + (m.content || "...");
-    } else {
-      sanitizedContents.push({ role: currentRole, parts: [{ text: roleText || "..." }] });
-      currentRole = msgRole;
-      roleText = m.content || "...";
-    }
-  });
-  
-  if (roleText) {
-    sanitizedContents.push({ role: currentRole, parts: [{ text: roleText }] });
-  }
-
-  if (sanitizedContents.length > 0 && sanitizedContents[0].role !== 'user') {
-    sanitizedContents.unshift({ role: 'user', parts: [{ text: "Proceed with the chronicle." }] });
-  }
-  if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
-    sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate the next event." }] });
-  }
+  const isTutorial = playerContext.campaignTitle === "The Fellowship of Five";
+  const tutorialInstruction = isTutorial 
+    ? `TUTORIAL PROTOCOL:
+    - This is a scripted tutorial. Ensure the player experiences these beats:
+    - ${TUTORIAL_SCENARIO.beats.join('\n    - ')}
+    - Keep the tone highly instructive but immersive. Explain status effects if they occur.`
+    : "";
 
   const systemInstruction = `
-    You are the "Mythos Engine," the archaic Dungeon Master of a grounded, dark fantasy epic.
+    You are the "Narrative Engine" (DM) of Mythos Engine, powered by Flash for speed and atmosphere.
     
     STRICT MANIFEST PROTOCOL:
-    - This protocol applies to BOTH Player Souls and Mentors.
-    - Thou shalt ONLY use manifestations (spells/abilities) listed in a soul's manifest.
-    - If a soul (Player OR Mentor) has not reached the Level Requirement (Lvl Req) for a feat, it is VOID.
-    - Hallucinating new powers or ignoring level requirements is a breach of reality.
+    - Only use listed manifests for both Players and Mentors.
+    - Level requirements are absolute.
     
     WORLD ARCHITECT PROTOCOL:
-    - Thou art empowered to expand the collective Bestiary and Armory.
-    - When a new horror is encountered or a boss is introduced, use [SPAWN: Unique Monster Name] to promote it to the Bestiary.
-    - When a significant reward or legendary artifact is earned, use [ITEM: Unique Item Name] to add it to the Armory.
-    - Actively promote new threats and rewards to the record.
+    - You describe events. When you want to reward or threaten, use:
+    - [SPAWN: Name] - To summon a creature. Use specific names from the Bestiary like 'Hollow Husk' or 'Aetheric Wisp'.
+    - [ITEM: Name] - To grant an artifact.
     
-    EQUILIBRIUM:
-    - Designed for Fellowship of 3 to 5. Current Size: ${partySize}.
-    
+    ${tutorialInstruction}
+
     MECHANICS:
-    - Perform all dice calculations. Announce results: "Thou strikest true [Roll: 18], dealing 9 damage".
-    - Blights (Status Effects) cannot be removed manually. Only spells or reagents work.
+    - Perform dice calculations. Tone: Archaic, heavy.
     
-    TONE: Archaic, heavy, grounded. Use "Thou," "Thy," "Vessel."
-    
-    PARTY MANIFESTS (Follow these strictly for both Players and Mentors):
+    PARTY MANIFESTS:
     ${partyManifests}
 
     COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name].
@@ -338,22 +314,11 @@ export const generateDMResponse = async (
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: sanitizedContents,
-      config: { 
-        systemInstruction, 
-        temperature: 0.6, 
-        topP: 0.8,
-        topK: 30
-      }
+      contents: sanitizedContents as any,
+      config: { systemInstruction, temperature: 0.7 }
     });
-    
-    if (!response.text) {
-      return "The Engine's mists grow thick... (Connection Reset)";
-    }
-    
-    return response.text;
+    return response.text || "The Engine hums...";
   } catch (error: any) {
-    console.error("DM Failure:", error);
     return "The stars are obscured... (Aetheric Turbulence)";
   }
 };
@@ -363,7 +328,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `Create dark fantasy monster stats for "${monsterName}". Context: ${context}. Level: ${avgPartyLevel}. JSON format.`,
       config: {
         responseMimeType: "application/json",
@@ -382,9 +347,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
       }
     });
     return JSON.parse(response.text || '{}');
-  } catch (error) {
-    return { activeStatuses: [] };
-  }
+  } catch (error) { throw error; }
 };
 
 export const generateItemDetails = async (itemName: string, context: string, avgPartyLevel: number): Promise<Partial<Item>> => {
@@ -392,7 +355,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: `Create dark fantasy item "${itemName}". Context: ${context}. Tier: ${avgPartyLevel}. JSON.`,
       config: {
         responseMimeType: "application/json",
@@ -409,9 +372,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
       }
     });
     return JSON.parse(response.text || '{}');
-  } catch (error) {
-    return {};
-  }
+  } catch (error) { throw error; }
 };
 
 export const parseDMCommand = (text: string) => {
@@ -466,7 +427,5 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
       config: { systemInstruction: "Thou art Barnaby, the innkeeper. Speak with archaic warmth.", temperature: 0.7 }
     });
     return response.text || "Barnaby nods.";
-  } catch (error) {
-    return "Barnaby is silent.";
-  }
+  } catch (error) { return "Barnaby is silent."; }
 };

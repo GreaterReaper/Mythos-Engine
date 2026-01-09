@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
@@ -35,7 +36,6 @@ const App: React.FC = () => {
   const peerRef = useRef<any>(null);
   const connectionsRef = useRef<any[]>([]);
 
-  // Mobile Keyboard Detection
   useEffect(() => {
     const handleResize = () => {
       if (window.visualViewport) {
@@ -390,15 +390,24 @@ const App: React.FC = () => {
 
   const handleAwardItem = async (name: string) => {
     let item = state.armory.find(i => i.name.toLowerCase() === name.toLowerCase());
+    
     if (!item) {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      const stats = await generateItemDetails(name, "Unique Reward", Math.ceil(avgLevel));
-      item = { id: safeId(), name, description: stats.description || 'A unique artifact awarded by the Engine.', type: (stats.type as any) || 'Weapon', rarity: (stats.rarity as any) || 'Legendary', stats: stats.stats || {}, archetypes: (stats.archetypes as string[]) || [], authorId: state.userAccount.id, isUnique: false };
-      setState(prev => ({ ...prev, armory: [...prev.armory, item!] }));
-      broadcast('SHARE_ITEM', item);
+      
+      try {
+        const stats = await generateItemDetails(name, "Unique Reward", Math.ceil(avgLevel));
+        item = { id: safeId(), name, description: stats.description || 'A unique artifact awarded by the Engine.', type: (stats.type as any) || 'Weapon', rarity: (stats.rarity as any) || 'Legendary', stats: stats.stats || {}, archetypes: (stats.archetypes as string[]) || [], authorId: state.userAccount.id, isUnique: false };
+        setState(prev => ({ ...prev, armory: [...prev.armory, item!] }));
+        broadcast('SHARE_ITEM', item);
+      } catch (e) {
+        // RESILIENCE PROTOCOL: Fallback to existing armory item if Pro fails
+        const fallbackItems = state.armory.filter(i => i.rarity !== 'Common');
+        item = fallbackItems[Math.floor(Math.random() * fallbackItems.length)];
+      }
     }
-    if (state.party.length > 0) {
+    
+    if (item && state.party.length > 0) {
       const recipientId = state.party[0]; 
       const character = state.characters.find(c => c.id === recipientId) || state.mentors.find(m => m.id === recipientId);
       if (character) {
@@ -410,13 +419,20 @@ const App: React.FC = () => {
 
   const handleAwardMonster = async (name: string) => {
     let monster = state.bestiary.find(m => m.name.toLowerCase() === name.toLowerCase());
+    
     if (!monster) {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      const gen = await generateMonsterDetails(name, "Encounter", Math.ceil(avgLevel));
-      monster = { id: safeId(), name, type: (gen.type as any) || 'Humanoid', hp: gen.hp || 20, ac: gen.ac || 10, stats: gen.stats as any, cr: gen.cr || 1, description: gen.description || '', abilities: gen.abilities || [], activeStatuses: [] };
-      setState(prev => ({ ...prev, bestiary: [...prev.bestiary, monster!] }));
-      broadcast('SHARE_MONSTER', monster);
+      
+      try {
+        const gen = await generateMonsterDetails(name, "Encounter", Math.ceil(avgLevel));
+        monster = { id: safeId(), name, type: (gen.type as any) || 'Humanoid', hp: gen.hp || 20, ac: gen.ac || 10, stats: gen.stats as any, cr: gen.cr || 1, description: gen.description || '', abilities: gen.abilities || [], activeStatuses: [] };
+        setState(prev => ({ ...prev, bestiary: [...prev.bestiary, monster!] }));
+        broadcast('SHARE_MONSTER', monster);
+      } catch (e) {
+        // RESILIENCE PROTOCOL: Fallback to existing beast if Pro fails
+        monster = state.bestiary[Math.floor(Math.random() * state.bestiary.length)];
+      }
     }
     return monster!;
   };

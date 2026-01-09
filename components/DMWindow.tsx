@@ -61,7 +61,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  // Strictly filter manifestations by the Soul's current Level Ascension
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
     return (activeCharacter.spells || []).filter(s => s.levelReq <= activeCharacter.level);
@@ -90,7 +89,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
         mentors: characters.filter(c => c.id.startsWith('mentor-')), 
         activeRules: RULES_MANIFEST, 
         existingItems: [], 
-        existingMonsters: bestiary 
+        existingMonsters: bestiary,
+        campaignTitle: campaign.title
       });
       const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums silently...", timestamp: Date.now() };
       onMessage(dmMsg);
@@ -112,7 +112,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
   };
 
   const handleManifestSpell = (spell: Ability) => {
-    // Only send the name of the spell. Description is handled internally by the DM rules.
     const text = `I manifest the spell: ${spell.name.toUpperCase()}.`;
     setInput(text);
     setShowMobileGrimoire(false);
@@ -165,7 +164,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
-      {/* Mobile Grimoire Toggle */}
       {!isKeyboardOpen && usableManifestations.length > 0 && (
         <button 
           onClick={() => setShowMobileGrimoire(true)}
@@ -177,7 +175,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
         </button>
       )}
 
-      {/* Mobile Grimoire Modal */}
       {showMobileGrimoire && (
         <div className="fixed inset-0 z-[110] bg-black/95 flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
            <div className="flex justify-between items-center border-b border-emerald-900 pb-4 mb-4">
@@ -238,7 +235,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
           </div>
         </div>
         
-        {/* Right Sidebar: Party & Grimoire */}
         <div className="hidden md:flex flex-col w-80 bg-[#0c0a09] border-l-2 border-emerald-900/30 overflow-hidden shrink-0 shadow-2xl">
           <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5">
              <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase tracking-widest mb-4">Fellowship Resonance</h4>

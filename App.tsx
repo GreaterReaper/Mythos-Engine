@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
-  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, MapToken, Currency, Shop, ApiUsage, StatusEffect
+  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, Currency, Shop, StatusEffect
 } from './types';
 import { 
   MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STORAGE_PREFIX, MENTOR_UNIQUE_GEAR
@@ -23,7 +23,7 @@ import RulesScreen from './components/RulesScreen';
 import ShopModal from './components/ShopModal';
 import TavernScreen from './components/TavernScreen';
 import QuotaBanner from './components/QuotaBanner';
-import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, hydrateState, manifestSoulLore, generateRumors, parseDMCommand, generateDMResponse, parseSoulSignature } from './geminiService';
+import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, hydrateState, generateRumors, parseDMCommand, parseSoulSignature } from './geminiService';
 
 declare var Peer: any;
 
@@ -228,16 +228,22 @@ const App: React.FC = () => {
           break;
         case 'SYNC_STATE': setState(prev => ({ ...data.payload, userAccount: prev.userAccount })); break;
         case 'ADD_CHARACTER': setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] })); break;
-        case 'UPDATE_CHARACTER':
+        case 'UPDATE_CHARACTER': {
+          // Fix: Destructure id and updates from payload
+          const { id, updates } = data.payload;
           setState(prev => ({
             ...prev,
-            characters: prev.characters.map(c => c.id === data.payload.id ? { ...c, ...data.payload.updates } : c),
-            mentors: prev.mentors.map(m => m.id === data.payload.id ? { ...m, ...data.payload.updates } : m)
+            characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c),
+            mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
           }));
           break;
-        case 'UPDATE_MONSTER':
-           setState(prev => ({ ...prev, bestiary: prev.bestiary.map(m => m.id === data.payload.id ? { ...m, ...data.payload.updates } : m) }));
+        }
+        case 'UPDATE_MONSTER': {
+           // Fix: Destructure id and updates from payload
+           const { id, updates } = data.payload;
+           setState(prev => ({ ...prev, bestiary: prev.bestiary.map(m => m.id === id ? { ...m, ...updates } : m) }));
            break;
+        }
         case 'UPDATE_PARTY': setState(prev => ({ ...prev, party: data.payload })); break;
         case 'UPDATE_MAP': setState(prev => ({ ...prev, mapTokens: data.payload })); break;
         case 'SHARE_ARCHETYPE': setState(prev => ({ ...prev, customArchetypes: [...prev.customArchetypes.filter(a => a.name !== data.payload.name), data.payload] })); break;
@@ -385,7 +391,7 @@ const App: React.FC = () => {
     } finally { setIsRumorLoading(false); }
   };
 
-  const handleAwardItem = async (name: string, data?: Partial<Item>) => {
+  const handleAwardItem = async (name: string) => {
     let item = state.armory.find(i => i.name.toLowerCase() === name.toLowerCase());
     if (!item) {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
@@ -449,7 +455,6 @@ const App: React.FC = () => {
   };
 
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-  const localCharacters = state.characters.filter(c => c.ownerName === state.userAccount.username);
   const currentShop = (state.campaigns.find(c => c.id === state.activeCampaignId)?.activeShop) || state.currentTavernShop;
 
   return (

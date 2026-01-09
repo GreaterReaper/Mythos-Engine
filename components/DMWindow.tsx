@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Campaign, Message, Character, Item, MapToken, Monster, Currency, Ability } from '../types';
+import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
 import { RULES_MANIFEST, TUTORIAL_SCENARIO } from '../constants';
 
@@ -159,9 +159,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
   }
 
   const activeSpells = activeCharacter?.spells || [];
-  // Robustly calculating totalSlots using Object.entries to ensure keys are treated as numbers and values are correctly summed.
+  // Fix: Explicitly cast Object.values to number[] to resolve 'unknown' type inference issue in reduce
   const totalSlots = activeCharacter?.spellSlots 
-    ? Object.entries(activeCharacter.spellSlots).reduce((acc: number, [_, count]: [string, number]) => acc + (count || 0), 0)
+    ? (Object.values(activeCharacter.spellSlots) as number[]).reduce((acc: number, val: number) => acc + (val || 0), 0)
     : 0;
 
   return (

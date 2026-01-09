@@ -268,11 +268,11 @@ export const generateDMResponse = async (
   trackUsage();
   
   const activeChar = playerContext.activeCharacter;
+  const partySize = playerContext.party.length;
   const activeCharInfo = activeChar 
-    ? `Player: ${activeChar.name}, Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}. [levelReq] checks must be strictly applied.`
+    ? `Player: ${activeChar.name}, Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.`
     : "No soul bound.";
 
-  // Simplify and Sanitize History for Model Input
   const sanitizedContents: any[] = [];
   let currentRole: 'user' | 'model' = 'user';
   let roleText = "";
@@ -292,34 +292,36 @@ export const generateDMResponse = async (
     sanitizedContents.push({ role: currentRole, parts: [{ text: roleText }] });
   }
 
-  // Final check: History MUST start with USER and end with USER for a "turn"
   if (sanitizedContents.length > 0 && sanitizedContents[0].role !== 'user') {
     sanitizedContents.unshift({ role: 'user', parts: [{ text: "Proceed with the chronicle." }] });
   }
   if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
-    // If the last message was the model, we can't send it as a 'generateContent' turn without a user prompt
     sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate the next event." }] });
   }
 
-  // System Instruction: Heavily sanitized to avoid safety triggers
   const systemInstruction = `
-    You are the "Mythos Engine," an archaic narrator of an epic, historical-toned fantasy saga.
+    You are the "Mythos Engine," the archaic Dungeon Master of a grounded, dark fantasy epic.
     
-    TONE & STYLE:
-    - Archaic, grounded, and heavy. Use words like "Thou," "Thy," "Vessel," and "Ascension."
-    - Focus on physical sensation: the sound of stone, the weight of armor, the movement of shadows.
-    - Strictly avoid graphic anatomical descriptions or explicit violence. Use terms like "Physical Conflict," "Grim Consequences," and "Heavy Toll."
+    EQUILIBRIUM & HEROIC MODE (STRICT PROTOCOL):
+    - Baseline Balance: The world and its threats are designed for a Fellowship of 3 to 5 souls.
+    - Current Party Size: ${partySize}.
+    - HEROIC MODE (Solo/Duo): If Party Size < 3, you are in "Heroic Mode." 
+      - The lone player is narratively empowered. Describe their actions with cinematic flair.
+      - Scale down enemy HP and Action Economy (fewer attacks per turn).
+      - Grant "Fate Points" in narration: describe narrow misses or unexpected environmental help that allows the lone vessel to survive.
+    - Standard Mode (3-5 Players): Use full tactical depth. Enemies cooperate to flank and overwhelm.
+    
+    MECHANICS:
+    - Perform all dice calculations (D20, damage, saves).
+    - Announce results: "Thou strikest true [Roll: 18], dealing 9 damage".
+    
+    TONE: Archaic, heavy, grounded. Use "Thou," "Thy," "Vessel."
     
     RULES:
     ${activeCharInfo}
-    - Level Ascension represents character growth. 
-    - Describe the world's physical laws as immutable.
-    
-    CONTEXT:
     Party: ${playerContext.party.map(c => `${c.name} (${c.archetype})`).join(', ')}.
 
-    COMMANDS (Append ONLY if triggered):
-    [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
+    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT].
   `;
 
   try {
@@ -335,13 +337,13 @@ export const generateDMResponse = async (
     });
     
     if (!response.text) {
-      return "The Engine's mists grow thick, obscuring the path ahead. Thy turn is recorded in silence.";
+      return "The Engine's mists grow thick... (Connection Reset)";
     }
     
     return response.text;
   } catch (error: any) {
     console.error("DM Failure:", error);
-    return "The stars are obscured... The aether is too turbulent to proceed. (Connection Reset)";
+    return "The stars are obscured... (Aetheric Turbulence)";
   }
 };
 
@@ -438,7 +440,7 @@ export const parseDMCommand = (text: string) => {
   return commands;
 };
 
-export const generateInnkeeperResponse = async (history: Message[], party: Character[]): Promise<string> => {
+export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
   const ai = getAiClient();
   trackUsage();
   const sanitizedContents = history.map(m => ({ 

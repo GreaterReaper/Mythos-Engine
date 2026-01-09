@@ -14,44 +14,52 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
   const tutorialSteps = [
     {
       title: "Welcome, Neophyte",
-      content: "You have arrived at the Mythos Engine—a dark realm where story is written in blood. The Gemini 3 Pro AI serves as your Dungeon Master.",
+      content: "You have arrived at the Mythos Engine—a dark realm where story is written in physical consequence. The Gemini Flash AI serves as your Dungeon Master and Arbiter.",
     },
     {
-      title: "The Fellowship of Guardians",
-      content: "The legendary trio—Lina the Mage, Miri the Fighter, and Seris the Archer—shall bind their souls to thine. Additionally, a specialized Mentor matching thy own path shall join the fray.",
+      title: "The Arbiter's Hand",
+      content: "Dice and fate are handled by the Engine. You do not roll; the AI calculates initiative and outcomes automatically based on your intent and attributes. Focus on your path.",
     },
     {
-      title: "The Path to Ascension",
-      content: "This journey is an epic saga. By the time thou reachest the Engine's heart, thou shalt have ascended to Level 5. Steel thy heart.",
+      title: "The Fellowship of Five",
+      content: "The world is balanced for a complete party. You shall be bound to the legendary Trio—Lina, Miri, and Seris—alongside a specialized Path-Mentor. Together, you form the Fellowship of Five.",
+    },
+    {
+      title: "The Lone Vessel",
+      content: "Should thy Fellowship fall, the Engine scales the difficulty. Solo play is a 'Heroic Trial'—harder numbers, but granted cinematic favor by the Arbiter to ensure thy legend survives.",
     }
   ];
 
   const current = tutorialSteps[step];
 
   const finalPartyIds = useMemo(() => {
-    // 1. Mandatory Trio
+    // 1. Mandatory Trio (Lina, Miri, Seris)
     const baseMentorNames = ['Lina', 'Miri', 'Seris'];
     const baseIds = MENTORS.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
     
-    // 2. Class-specific Mentor for the player's primary character (or any local character)
+    // 2. Class-specific Mentor for the player's primary character
     const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
     let classMentorId: string | null = null;
     
     if (primaryChar) {
-      const mentor = MENTORS.find(m => m.archetype === primaryChar.archetype);
+      const mentor = MENTORS.find(m => 
+        m.archetype === primaryChar.archetype && 
+        !baseMentorNames.includes(m.name)
+      );
       if (mentor) {
         classMentorId = mentor.id;
+      } else {
+        const fallback = MENTORS.find(m => !baseMentorNames.includes(m.name));
+        if (fallback) classMentorId = fallback.id;
       }
     }
 
-    // 3. Combine and filter unique
+    // 3. Combine to form the Fellowship of Five (3 Trio + 1 Path-Mentor + 1 Player)
     const partySet = new Set([...baseIds]);
     if (classMentorId) partySet.add(classMentorId);
-    
-    // Add the player's actual character(s) too
-    characters.forEach(c => partySet.add(c.id));
+    if (primaryChar) partySet.add(primaryChar.id);
 
-    return Array.from(partySet);
+    return Array.from(partySet).slice(0, 5);
   }, [characters]);
 
   const finalize = () => {

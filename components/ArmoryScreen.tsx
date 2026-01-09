@@ -1,16 +1,14 @@
-
 import React, { useState, useMemo } from 'react';
 import { Item, Archetype } from '../types';
 
 interface ArmoryScreenProps {
   armory: Item[];
   setArmory: (a: Item[]) => void;
-  onUpdateItem: (id: string, updates: Partial<Item>) => void;
   onShare: (item: Item) => void;
   userId: string;
 }
 
-const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare, userId }) => {
+const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare }) => {
   const [filterClass, setFilterClass] = useState<Archetype | string | 'All'>('All');
   const [filterType, setFilterType] = useState<Item['type'] | 'All'>('All');
   const [sortBy, setSortBy] = useState<'rarity' | 'name'>('rarity');

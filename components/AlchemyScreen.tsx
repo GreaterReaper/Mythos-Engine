@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Item, Character, Archetype } from '../types';
 import { APOTHECARY_TIERS } from '../constants';
@@ -6,7 +5,6 @@ import { APOTHECARY_TIERS } from '../constants';
 interface AlchemyScreenProps {
   armory: Item[];
   setArmory: (a: Item[]) => void;
-  onUpdateItem: (id: string, updates: Partial<Item>) => void;
   onShare: (item: Item) => void;
   userId: string;
   party: Character[];

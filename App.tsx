@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
@@ -229,7 +228,6 @@ const App: React.FC = () => {
         case 'SYNC_STATE': setState(prev => ({ ...data.payload, userAccount: prev.userAccount })); break;
         case 'ADD_CHARACTER': setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] })); break;
         case 'UPDATE_CHARACTER': {
-          // Fix: Destructure id and updates from payload
           const { id, updates } = data.payload;
           setState(prev => ({
             ...prev,
@@ -239,7 +237,6 @@ const App: React.FC = () => {
           break;
         }
         case 'UPDATE_MONSTER': {
-           // Fix: Destructure id and updates from payload
            const { id, updates } = data.payload;
            setState(prev => ({ ...prev, bestiary: prev.bestiary.map(m => m.id === id ? { ...m, ...updates } : m) }));
            break;
@@ -495,7 +492,18 @@ const App: React.FC = () => {
                 const updatedInventory = char.inventory.map(i => i.id === iid ? { ...i, name: newName, stats: updatedStats } : i);
                 updateCharacter(cid, { inventory: updatedInventory, currency: { aurels: char.currency.aurels - cost.aurels, shards: char.currency.shards - cost.shards, ichor: char.currency.ichor - cost.ichor } });
               }} isHost={state.multiplayer.isHost} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} slainMonsterTypes={state.slainMonsterTypes} />}
-              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
+              {activeTab === 'Fellowship' && <FellowshipScreen 
+                characters={state.characters} 
+                onAdd={handleAddCharacter} 
+                onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
+                onUpdate={updateCharacter} 
+                mentors={state.mentors} 
+                party={state.party} 
+                setParty={p => setState(s => ({ ...s, party: p }))} 
+                customArchetypes={state.customArchetypes} 
+                onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
+                username={state.userAccount.username} 
+              />}
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
                 allCampaigns={state.campaigns} 
@@ -535,8 +543,8 @@ const App: React.FC = () => {
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={updateMonster} />}
-              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} />}
-              {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onUpdateItem={() => {}} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} party={activePartyObjects} />}
+              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} />}
+              {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} party={activePartyObjects} />}
               {activeTab === 'Rules' && <RulesScreen />}
               {activeTab === 'Nexus' && <NexusScreen peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} isHost={state.multiplayer.isHost} onConnect={connectToSoul} username={state.userAccount.username} gameState={state} onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))} onDeleteAccount={handleDeleteAccount} />}
             </div>

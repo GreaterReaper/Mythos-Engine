@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Character, ArchetypeInfo } from '../types';
 import CharacterCreator from './CharacterCreator';
@@ -10,7 +9,6 @@ interface FellowshipScreenProps {
   onDelete: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Character>) => void;
   mentors: Character[];
-  onUpdateMentor: (id: string, updates: Partial<Character>) => void;
   party: string[];
   setParty: (ids: string[]) => void;
   customArchetypes: ArchetypeInfo[];
@@ -38,7 +36,6 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
   };
 
   const localSouls = characters.filter(c => c.ownerName === username || !c.ownerName);
-  const remoteSouls = characters.filter(c => c.ownerName && c.ownerName !== username);
 
   const renderCharacterCard = (char: Character) => (
     <div 

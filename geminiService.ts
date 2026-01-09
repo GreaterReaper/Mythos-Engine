@@ -118,9 +118,8 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate a Dark Fantasy Shop. Context: ${context}. Level: ${avgPartyLevel}.
-      Items (Limit 5): Include name, desc, type(Weapon/Armor/Utility), rarity(Common to Legendary), archetypes(Array of classes like Warrior, Mage, etc), stats(str/dex/con/int/wis/cha/ac/damage), cost(aurels, shards, ichor).
-      Output JSON strictly.`,
+      contents: `Generate a fantasy shop. Context: ${context}. Level: ${avgPartyLevel}.
+      Items (Limit 5): JSON format.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -137,35 +136,18 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
                   description: { type: Type.STRING },
                   type: { type: Type.STRING },
                   rarity: { type: Type.STRING },
-                  archetypes: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  stats: {
-                    type: Type.OBJECT,
-                    properties: {
-                      str: { type: Type.NUMBER },
-                      dex: { type: Type.NUMBER },
-                      con: { type: Type.NUMBER },
-                      int: { type: Type.NUMBER },
-                      wis: { type: Type.NUMBER },
-                      cha: { type: Type.NUMBER },
-                      ac: { type: Type.NUMBER },
-                      damage: { type: Type.STRING }
-                    }
-                  },
                   cost: {
                     type: Type.OBJECT,
                     properties: {
                       aurels: { type: Type.NUMBER },
                       shards: { type: Type.NUMBER },
                       ichor: { type: Type.NUMBER }
-                    },
-                    required: ["aurels", "shards", "ichor"]
+                    }
                   }
-                },
-                required: ["name", "description", "type", "rarity", "stats", "cost"]
+                }
               }
             }
-          },
-          required: ["merchantName", "merchantAura", "inventory"]
+          }
         }
       }
     });
@@ -174,7 +156,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
     return {
       id: safeId(),
       merchantName: parsed.merchantName || "Unseen Merchant",
-      merchantAura: parsed.merchantAura || "An unsettling presence fills the air.",
+      merchantAura: parsed.merchantAura || "A quiet figure.",
       inventory: (parsed.inventory || []).map((i: any) => ({ 
         ...i, 
         id: safeId(),
@@ -183,20 +165,18 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
       }))
     };
   } catch (error) {
-    console.error("Failed to manifest shop:", error);
+    console.error("Shop manifest failed:", error);
     throw error;
   }
 };
 
-export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A grim world of stone, obsidian, and unyielding steel."): Promise<{ biography: string, description: string }> => {
+export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A world of heavy steel and ancient stone."): Promise<{ biography: string, description: string }> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Weave a dark fantasy biography and visual description for a ${char.age}-year-old ${char.gender} ${char.race} ${char.archetype} named "${char.name}". 
-      Current World Context: ${campaignContext}. 
-      Return strictly as JSON with keys "biography" and "description".`,
+      contents: `Narrate the origin and appearance of ${char.name}, a ${char.race} ${char.archetype}. JSON with biography and description.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -204,15 +184,13 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
           properties: {
             biography: { type: Type.STRING },
             description: { type: Type.STRING }
-          },
-          required: ["biography", "description"]
+          }
         }
       }
     });
     return JSON.parse(response.text || '{}');
   } catch (e) {
-    console.error("Soul-Weaver failed:", e);
-    return { biography: "A soul lost in the bleak wilderness.", description: "A figure covered in the dust of travel and the stains of battle." };
+    return { biography: "A soul forged in trial.", description: "A figure of quiet resolve." };
   }
 };
 
@@ -222,10 +200,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are Barnaby, the Innkeeper of 'The Broken Cask'. Generate 3 distinct dark fantasy rumors or quest hooks for a party of level ${partyLevel}.
-      Emphasis on grit: mention physical danger and ancient feuds.
-      For each rumor, assign length (Short-Epic), danger (Trivial-Cataclysmic), and rewardTier (1-5).
-      Output strictly JSON array of objects.`,
+      contents: `Generate 3 fantasy rumors for level ${partyLevel}. JSON array.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -237,8 +212,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
               length: { type: Type.STRING },
               danger: { type: Type.STRING },
               rewardTier: { type: Type.NUMBER }
-            },
-            required: ["hook", "length", "danger", "rewardTier"]
+            }
           }
         }
       }
@@ -246,8 +220,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
     const parsed = JSON.parse(response.text || '[]');
     return parsed.map((r: any) => ({ ...r, id: safeId() }));
   } catch (e) {
-    console.error("Rumor mill failed:", e);
-    return [{ id: safeId(), hook: "The roads are dangerous tonight.", length: 'Short', danger: 'Trivial', rewardTier: 1 }];
+    return [{ id: safeId(), hook: "Shadows lengthen in the valley.", length: 'Short', danger: 'Trivial', rewardTier: 1 }];
   }
 };
 
@@ -257,7 +230,7 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Forge a new dark fantasy character class based on: "${prompt}". Return JSON.`,
+      contents: `Create a fantasy class: "${prompt}". JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -276,7 +249,6 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
     });
     return JSON.parse(response.text || '{}');
   } catch (e) {
-    console.error("Class forging failed:", e);
     throw e;
   }
 };
@@ -297,91 +269,79 @@ export const generateDMResponse = async (
   
   const activeChar = playerContext.activeCharacter;
   const activeCharInfo = activeChar 
-    ? `The player currently inhabits the vessel of ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
-       AETHERIC CONSTRAINTS (Strictly Enforced):
-       - This character can ONLY manifest manifestations with [levelReq] <= ${activeChar.level}.
-       - Current Level: ${activeChar.level}.
-       - If the player attempts a manifestation of a higher level, describe a "Aetheric Rejection"—their spirit is not yet dense enough to hold the power, and the manifestation fails with a psychic shock.`
-    : "No soul is currently bound to the player. Guide them to inhabit a vessel.";
+    ? `Player: ${activeChar.name}, Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}. [levelReq] checks must be strictly applied.`
+    : "No soul bound.";
 
-  const mentorInfo = playerContext.mentors.length > 0
-    ? `Allies: ${playerContext.mentors.map(m => `${m.name} (${m.archetype})`).join(', ')}.`
-    : "No Mentors are currently bound.";
-
-  // Strictly alternate turns and condense consecutive roles to avoid API protocol errors
+  // Simplify and Sanitize History for Model Input
   const sanitizedContents: any[] = [];
-  let currentParts: any[] = [];
   let currentRole: 'user' | 'model' = 'user';
+  let roleText = "";
 
-  history.forEach((m, idx) => {
+  history.forEach((m) => {
     const msgRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
-    
-    if (idx === 0) {
-      currentRole = msgRole;
-      currentParts = [{ text: m.content || "..." }];
-    } else if (msgRole === currentRole) {
-      currentParts[0].text += `\n\n${m.content}`;
+    if (msgRole === currentRole) {
+      roleText += (roleText ? "\n\n" : "") + (m.content || "...");
     } else {
-      sanitizedContents.push({ role: currentRole, parts: currentParts });
+      sanitizedContents.push({ role: currentRole, parts: [{ text: roleText || "..." }] });
       currentRole = msgRole;
-      currentParts = [{ text: m.content || "..." }];
+      roleText = m.content || "...";
     }
   });
   
-  // Final push
-  if (currentParts.length > 0) {
-    sanitizedContents.push({ role: currentRole, parts: currentParts });
+  if (roleText) {
+    sanitizedContents.push({ role: currentRole, parts: [{ text: roleText }] });
   }
 
-  // Ensure history starts with user and ends with user for the prompt to function as a turn
+  // Final check: History MUST start with USER and end with USER for a "turn"
   if (sanitizedContents.length > 0 && sanitizedContents[0].role !== 'user') {
-    sanitizedContents.unshift({ role: 'user', parts: [{ text: "The chronicle begins..." }] });
+    sanitizedContents.unshift({ role: 'user', parts: [{ text: "Proceed with the chronicle." }] });
   }
   if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
-    sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate the consequences of our path." }] });
+    // If the last message was the model, we can't send it as a 'generateContent' turn without a user prompt
+    sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate the next event." }] });
   }
 
+  // System Instruction: Heavily sanitized to avoid safety triggers
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. You are an ancient, archaic narrator of a grounded dark fantasy world.
+    You are the "Mythos Engine," an archaic narrator of an epic, historical-toned fantasy saga.
     
-    AESTHETIC & VOICE:
-    - Tone: Grim, physical, heavy, archaic.
-    - Style: Focus on physical sensations—the chill of shadows, the weight of plate armor, the sound of heavy steel meeting stone. 
-    - Avoid: Graphic violence, explicit anatomical descriptions, or software metaphors. Focus on "Physical Realism" and "Grim Consequences."
+    TONE & STYLE:
+    - Archaic, grounded, and heavy. Use words like "Thou," "Thy," "Vessel," and "Ascension."
+    - Focus on physical sensation: the sound of stone, the weight of armor, the movement of shadows.
+    - Strictly avoid graphic anatomical descriptions or explicit violence. Use terms like "Physical Conflict," "Grim Consequences," and "Heavy Toll."
     
-    ENGINE PROTOCOLS:
+    RULES:
     ${activeCharInfo}
-    - Progress is measured by Soul Ascension (Level). 
-    - Narrative outcomes are final. Reflect the danger of the environment in your descriptions.
+    - Level Ascension represents character growth. 
+    - Describe the world's physical laws as immutable.
     
     CONTEXT:
-    ${mentorInfo}
     Party: ${playerContext.party.map(c => `${c.name} (${c.archetype})`).join(', ')}.
 
-    COMMANDS (Append to the end of your narration ONLY if triggered):
+    COMMANDS (Append ONLY if triggered):
     [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-latest',
+      model: 'gemini-3-flash-preview',
       contents: sanitizedContents,
       config: { 
         systemInstruction, 
-        temperature: 0.7, 
-        topP: 0.9,
-        topK: 40
+        temperature: 0.6, 
+        topP: 0.8,
+        topK: 30
       }
     });
     
     if (!response.text) {
-      return "The Engine's core shudders... The aether is too turbulent to record this turn. (Safety Filter Triggered)";
+      return "The Engine's mists grow thick, obscuring the path ahead. Thy turn is recorded in silence.";
     }
     
     return response.text;
   } catch (error: any) {
-    console.error("DM Resonance Failure:", error);
-    return "The stars go dark... The path is lost in the mists. (Engine Connection Severed)";
+    console.error("DM Failure:", error);
+    return "The stars are obscured... The aether is too turbulent to proceed. (Connection Reset)";
   }
 };
 
@@ -391,7 +351,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a physical monster named "${monsterName}". Context: ${context}. Level: ${avgPartyLevel}. Output strictly JSON.`,
+      contents: `Create monster stats for "${monsterName}". Context: ${context}. JSON format.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -402,16 +362,13 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             cr: { type: Type.NUMBER },
             description: { type: Type.STRING },
-            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } },
-            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, levelReq: { type: Type.NUMBER } } } }
-          },
-          required: ["type", "hp", "ac", "cr", "description", "abilities", "stats"]
+            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } }
+          }
         }
       }
     });
     return JSON.parse(response.text || '{}');
   } catch (error) {
-    console.error("Monster manifestation failed:", error);
     return { activeStatuses: [] };
   }
 };
@@ -422,7 +379,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Level: ${avgPartyLevel}. JSON only.`,
+      contents: `Create fantasy item "${itemName}". JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -433,14 +390,12 @@ export const generateItemDetails = async (itemName: string, context: string, avg
             type: { type: Type.STRING },
             rarity: { type: Type.STRING },
             stats: { type: Type.OBJECT }
-          },
-          required: ["name", "description", "type", "rarity", "stats"]
+          }
         }
       }
     });
     return JSON.parse(response.text || '{}');
   } catch (error) {
-    console.error("Item manifestation failed:", error);
     return {};
   }
 };
@@ -486,7 +441,6 @@ export const parseDMCommand = (text: string) => {
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]): Promise<string> => {
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `You are Barnaby, the Innkeeper. Speak archaically and grounded. You offer safety from the dark world.`;
   const sanitizedContents = history.map(m => ({ 
     role: m.role === 'model' ? 'model' : 'user', 
     parts: [{ text: m.content || "..." }] 
@@ -495,10 +449,10 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: sanitizedContents as any,
-      config: { systemInstruction, temperature: 0.7 }
+      config: { systemInstruction: "Thou art Barnaby, the innkeeper. Speak with archaic warmth.", temperature: 0.7 }
     });
-    return response.text || "Barnaby just nods.";
+    return response.text || "Barnaby nods.";
   } catch (error) {
-    return "Barnaby is silent, his hand resting on the hilt of a rusted blade.";
+    return "Barnaby is silent.";
   }
 };

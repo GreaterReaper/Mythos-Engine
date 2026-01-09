@@ -83,26 +83,30 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleMessage = async (msg: Message) => {
-    // 1. Add Narrative Message to History
-    setState(prev => {
-      if (!prev.activeCampaignId) return prev;
-      return {
-        ...prev,
-        campaigns: prev.campaigns.map(c => 
-          c.id === prev.activeCampaignId ? { ...c, history: [...c.history, msg] } : c
-        )
-      };
-    });
+  /**
+   * CENTRAL MESSAGE HUB
+   * Handlers narrative addition, Scribe audits, and Architect forging.
+   */
+  const handleMessage = async (msg: Message, campaignId?: string, overrideParty?: Character[]) => {
+    const targetCampaignId = campaignId || state.activeCampaignId;
+    if (!targetCampaignId) return;
+
+    // 1. Add Narrative Message to History (Source of Truth)
+    setState(prev => ({
+      ...prev,
+      campaigns: prev.campaigns.map(c => 
+        c.id === targetCampaignId ? { ...c, history: [...c.history, msg] } : c
+      )
+    }));
 
     if (msg.role === 'model') {
-      const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+      const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       
-      // 2. PARALLEL: Trigger the Scribe and Architect
-      // We don't await this immediately to keep the Arbiter's text visible
       const processMechanicalAudit = async () => {
+        // Run Scribe Audit
         const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
         
+        // Apply Changes
         if (audit.changes) {
           audit.changes.forEach((change: any) => {
             const target = activePartyObjects.find(c => c.name.toLowerCase() === change.target.toLowerCase());
@@ -115,7 +119,6 @@ const App: React.FC = () => {
             
             if (Object.keys(updates).length > 0) {
               updateCharacter(target.id, updates);
-              // System message for Ledger only
               const logMsg: Message = { 
                 role: 'system', 
                 content: `SCRIBE_LOG: ${target.name} ${change.type === 'damage' ? '-' : '+'}${change.value} ${change.type.toUpperCase()}`, 
@@ -123,18 +126,19 @@ const App: React.FC = () => {
               };
               setState(prev => ({
                 ...prev,
-                campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
               }));
             }
           });
         }
 
+        // Run Architect for new entities
         if (audit.newEntities) {
           for (const entity of audit.newEntities) {
-            const logMsg: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
+            const forgeLog: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
             setState(prev => ({
               ...prev,
-              campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+              campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, forgeLog] } : c)
             }));
 
             if (entity.category === 'item') {
@@ -173,18 +177,21 @@ const App: React.FC = () => {
   };
 
   const handleTutorialComplete = async (partyIds: string[], campaignTitle: string, campaignPrompt: string) => {
+    const campId = safeId();
     const newCampaign: Campaign = { 
-      id: safeId(), 
+      id: campId, 
       title: campaignTitle, 
       prompt: campaignPrompt, 
-      history: [{ role: 'model', content: campaignPrompt, timestamp: Date.now() }], 
+      history: [], // handleMessage will add the prompt
       participants: partyIds 
     };
+
+    const activePartyObjects = [...state.characters, ...state.mentors].filter(c => partyIds.includes(c.id));
 
     setState(prev => ({ 
       ...prev, 
       campaigns: [...prev.campaigns, newCampaign], 
-      activeCampaignId: newCampaign.id,
+      activeCampaignId: campId,
       party: partyIds,
       userAccount: {
         ...prev.userAccount,
@@ -195,9 +202,8 @@ const App: React.FC = () => {
     setShowTutorial(false);
     setActiveTab('Chronicles');
 
-    // Trigger initial audit
-    const initialMsg: Message = { role: 'model', content: campaignPrompt, timestamp: Date.now() };
-    handleMessage(initialMsg);
+    // Manually trigger handleMessage with the override party to ensure first turn audit works
+    handleMessage({ role: 'model', content: campaignPrompt, timestamp: Date.now() }, campId, activePartyObjects);
   };
 
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
@@ -229,15 +235,16 @@ const App: React.FC = () => {
                 onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} 
                 onMessage={handleMessage} 
                 onCreateCampaign={(t, p) => {
+                  const campId = safeId();
                   const newCampaign: Campaign = { 
-                    id: safeId(), 
+                    id: campId, 
                     title: t, 
                     prompt: p, 
-                    history: [{ role: 'model', content: p, timestamp: Date.now() }], 
+                    history: [], 
                     participants: state.party 
                   };
-                  setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: newCampaign.id }));
-                  handleMessage({ role: 'model', content: p, timestamp: Date.now() });
+                  setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
+                  handleMessage({ role: 'model', content: p, timestamp: Date.now() }, campId);
                 }} 
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
                 onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} 

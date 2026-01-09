@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
@@ -93,7 +92,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
     setIsLoading(true);
     
     try {
-      const currentHistory = retryContent ? campaign.history : [...campaign.history, { role: 'user', content: messageContent, timestamp: Date.now() }];
+      const currentHistory: Message[] = retryContent 
+        ? campaign.history 
+        : [...campaign.history, { role: 'user', content: messageContent, timestamp: Date.now() } as Message];
       
       const responseText = await generateDMResponse(currentHistory, { 
         activeCharacter, 

@@ -14,10 +14,12 @@ interface FellowshipScreenProps {
   customArchetypes: ArchetypeInfo[];
   onAddCustomArchetype: (arch: ArchetypeInfo) => void;
   username: string;
+  onStartTutorial?: () => void;
+  hasCampaigns?: boolean;
 }
 
 const FellowshipScreen: React.FC<FellowshipScreenProps> = ({ 
-  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username
+  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username, onStartTutorial, hasCampaigns
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
@@ -148,6 +150,21 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
         </div>
       ) : (
         <div className="space-y-12">
+          {!hasCampaigns && localSouls.length > 0 && onStartTutorial && (
+            <div className="rune-border p-8 bg-emerald-900/10 border-gold/40 flex flex-col items-center text-center space-y-6 animate-in zoom-in duration-500 shadow-[0_0_30px_rgba(212,175,55,0.1)]">
+               <div className="space-y-2">
+                 <h3 className="text-2xl font-cinzel text-gold font-black">A Call from the Void</h3>
+                 <p className="text-xs text-gray-400 max-w-lg italic font-medium">"Thy souls are forged, yet thy journey has not begun. The Sunken Sanctuary awaits its newest vessels."</p>
+               </div>
+               <button 
+                 onClick={onStartTutorial}
+                 className="px-10 py-4 bg-emerald-900 text-white font-cinzel font-black border-2 border-gold hover:bg-emerald-700 transition-all shadow-2xl uppercase tracking-widest active:scale-95"
+               >
+                 Begin First Trial
+               </button>
+            </div>
+          )}
+
           {viewingMentors ? (
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                {mentors.map(renderCharacterCard)}

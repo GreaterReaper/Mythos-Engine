@@ -5,6 +5,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
 import { generateDMResponse } from '../geminiService';
 import { RULES_MANIFEST } from '../constants';
+import SpellSlotManager from './SpellSlotManager';
 
 interface DMWindowProps {
   campaign: Campaign | null; 
@@ -206,7 +207,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
         </div>
         
         <div className="hidden md:flex flex-col w-80 bg-[#0c0a09] border-l-2 border-emerald-900/30 overflow-hidden shrink-0 shadow-2xl">
-          <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5">
+          <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5 shrink-0">
              <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase tracking-widest mb-4">Fellowship Resonance</h4>
              <div className="space-y-4">
               {characters.map(char => (
@@ -226,15 +227,30 @@ const DMWindow: React.FC<DMWindowProps> = ({
             </div>
           </div>
           
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
-             <h4 className="text-[10px] font-cinzel text-gold font-black uppercase mb-4">Manifestations</h4>
-             <div className="space-y-3">
-               {usableManifestations.map((spell, i) => (
-                 <div key={i} className="p-3 bg-black/40 border border-emerald-900/20 hover:border-gold transition-all">
-                    <p className="text-[10px] font-cinzel text-gold font-bold">{spell.name}</p>
-                    <p className="text-[9px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{spell.description}"</p>
-                 </div>
-               ))}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8">
+             {activeCharacter?.spellSlots && activeCharacter.maxSpellSlots && (
+               <div>
+                  <h4 className="text-[10px] font-cinzel text-amber-500 font-black uppercase mb-4 tracking-widest">Spectral Reservoir</h4>
+                  <SpellSlotManager 
+                    currentSlots={activeCharacter.spellSlots} 
+                    maxSlots={activeCharacter.maxSpellSlots} 
+                    onUseSlot={() => {}} 
+                    onRestoreAll={() => {}} 
+                    isReadOnly 
+                  />
+               </div>
+             )}
+
+             <div>
+                <h4 className="text-[10px] font-cinzel text-gold font-black uppercase mb-4 tracking-widest">Manifestations</h4>
+                <div className="space-y-3">
+                  {usableManifestations.map((spell, i) => (
+                    <div key={i} className="p-3 bg-black/40 border border-emerald-900/20 hover:border-gold transition-all">
+                        <p className="text-[10px] font-cinzel text-gold font-bold">{spell.name}</p>
+                        <p className="text-[9px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{spell.description}"</p>
+                    </div>
+                  ))}
+                </div>
              </div>
           </div>
         </div>

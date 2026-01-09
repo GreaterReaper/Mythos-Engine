@@ -3,7 +3,7 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.1.1";
+const ENGINE_VERSION = "1.1.2";
 
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
 const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
@@ -263,10 +263,7 @@ export const generateDMResponse = async (
         .map(s => `${s.name} [Lvl ${s.baseLevel || 1}]`)
         .join(', ');
     
-    const equipped = c.inventory
-        .filter(i => c.equippedIds.includes(i.id))
-        .map(i => `${i.name} (${i.description})`)
-        .join(', ');
+    const abilities = c.abilities.map(a => `${a.name} (${a.description})`).join(', ');
 
     const currentSlotsStr = c.spellSlots 
         ? ` Slots: ${Object.entries(c.spellSlots).map(([l, v]) => `L${l}:${v}`).join(', ')}` 
@@ -277,9 +274,9 @@ export const generateDMResponse = async (
 
     return `${c.name} [${status}] (${c.race} ${c.archetype} Lvl ${c.level})
     - VITALITY: ${hpStatus}.
-    - GEAR: [${equipped || "No legendary gear"}]
+    - PASSIVES/ABILITIES: [${abilities}]
     - RESOURCES: ${currentSlotsStr || "None"}
-    - MANIFESTATIONS: [${usableSpells || "None"}]
+    - MANIFESTATIONS (Usable Spells): [${usableSpells || "None"}]
     - SOUL ESSENCE: ${c.exp} EXP
     - AURELS: ${c.currency.aurels}`;
   }).join('\n\n    ');
@@ -287,13 +284,19 @@ export const generateDMResponse = async (
   const systemInstruction = `
     Thou art the "Narrative DM" (Gemini Flash). 
     
-    LAWS OF ARBITRATION:
-    1. MECHANICAL PRIORITY: Compute results first. Use dice notation in prose.
-    2. TARGETED REWARDS: Award EXP, Items, and Gold explicitly.
-       - EXP: [EXP: amount] (Split among party automatically).
-       - ITEMS: [ITEM: "Name", "Target"] or just [ITEM: "Name"] for the leader.
-       - GOLD: [GOLD: amount, "Target"] or [GOLD: amount, "Party"] to split.
-    3. RESOURCE TRACKING: Use [USE_SLOT: level, "Name"] for magic and [TAKE_DAMAGE: amount, "Name"] for hits.
+    LAWS OF MORTALITY:
+    1. DYING SOULS: When a vessel hits 0 HP, they are UNCONSCIOUS. Narrate the struggle. Use [TAKE_DAMAGE: amount, "Name"] to reduce HP to 0.
+    2. DEATH SAVES: If a character starts their turn at 0 HP, narrate their soul flickering and instruct the player to use the "Death Save" ritual in their sheet.
+    3. LIVING DEAD (Dark Knight): Dark Knights with the "Living Dead" passive can act for 1 turn at 0 HP. Narrate this as a desperate spectral defiance before they finally fall.
+    4. RESTING: 
+       - [REST: short] restores all Vitality and half spell slots.
+       - [REST: long] restores all Vitality, all slots, and clears death saves.
+    
+    MECHANICAL ACTIONS:
+    - [USE_SLOT: level, "Name"]: Deduct a spell slot when magic is manifested.
+    - [TAKE_DAMAGE: amount, "Name"]: Deduct Vitality.
+    - [HEAL: amount, "Name"]: Restore Vitality.
+    - [EXP: amount]: Award progression essence.
     
     PARTY MANIFEST:
     ${partyManifests}
@@ -409,6 +412,15 @@ export const parseDMCommand = (text: string) => {
   monsterMatches.forEach(m => commands.monstersToAdd.push(m[1].trim()));
   
   if (/\[REST:\s*short\]/i.test(text)) commands.shortRest = true;
+  if (/\[REST:\s*long\]/i.test(text)) commands.longRest = true;
+
+  const usedSlotMatch = text.match(/\[USE_SLOT:\s*(\d+),\s*"?([^"\]]+)"?\]/i);
+  if (usedSlotMatch) {
+    commands.usedSlot = { 
+      level: parseInt(usedSlotMatch[1]), 
+      characterName: usedSlotMatch[2].trim() 
+    };
+  }
 
   const healMatches = [...text.matchAll(/\[HEAL:\s*(\d+),\s*([^\]]+)\]/gi)];
   healMatches.forEach(m => commands.heals.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));

@@ -41,6 +41,20 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        {/* Global Aether State */}
+        <div className="rune-border p-6 bg-emerald-950/20 border-emerald-500/40 space-y-4 animate-in fade-in duration-700">
+           <h3 className="text-xs font-cinzel text-emerald-500 uppercase tracking-[0.3em] font-black">Global Aetheric Equilibrium</h3>
+           <div className="p-4 bg-black/60 border border-emerald-900/30 rounded-sm">
+              <p className="text-xs text-gray-300 leading-relaxed italic">
+                "The Aether is not infinite. Every soul that awakens, every spell that manifests, draws from the Great Well. Should the Convergence reach zero, the Engine enters a state of high turbulence until the Turning of the Stars (UTC Midnight)."
+              </p>
+              <div className="mt-4 flex items-center gap-4">
+                 <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Spectral Connection: STABLE</span>
+              </div>
+           </div>
+        </div>
+
         {/* Migration Section */}
         <div className="rune-border p-6 bg-emerald-900/5 border-gold/40 space-y-6 animate-in fade-in duration-500">
            <div className="flex justify-between items-center border-b border-gold/20 pb-3">

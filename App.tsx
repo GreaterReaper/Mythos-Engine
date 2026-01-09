@@ -83,15 +83,18 @@ const App: React.FC = () => {
     }));
   };
 
+  const clearBestiary = () => {
+    setState(prev => ({ ...prev, bestiary: [] }));
+  };
+
   /**
    * CENTRAL MESSAGE HUB
-   * Handlers narrative addition, Scribe audits, and Architect forging.
    */
   const handleMessage = async (msg: Message, campaignId?: string, overrideParty?: Character[]) => {
     const targetCampaignId = campaignId || state.activeCampaignId;
     if (!targetCampaignId) return;
 
-    // 1. Add Narrative Message to History (Source of Truth)
+    // 1. Add Message to History
     setState(prev => ({
       ...prev,
       campaigns: prev.campaigns.map(c => 
@@ -103,72 +106,79 @@ const App: React.FC = () => {
       const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       
       const processMechanicalAudit = async () => {
-        // Run Scribe Audit
-        const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
-        
-        // Apply Changes
-        if (audit.changes) {
-          audit.changes.forEach((change: any) => {
-            const target = activePartyObjects.find(c => c.name.toLowerCase() === change.target.toLowerCase());
-            if (!target) return;
+        try {
+          // Run Scribe Audit
+          const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
+          
+          if (audit.changes && audit.changes.length > 0) {
+            audit.changes.forEach((change: any) => {
+              const target = activePartyObjects.find(c => c.name.toLowerCase() === change.target.toLowerCase());
+              if (!target) return;
 
-            const updates: Partial<Character> = {};
-            if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
-            if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
-            if (change.type === 'exp') updates.exp = target.exp + change.value;
-            
-            if (Object.keys(updates).length > 0) {
-              updateCharacter(target.id, updates);
-              const logMsg: Message = { 
-                role: 'system', 
-                content: `SCRIBE_LOG: ${target.name} ${change.type === 'damage' ? '-' : '+'}${change.value} ${change.type.toUpperCase()}`, 
-                timestamp: Date.now() 
-              };
+              const updates: Partial<Character> = {};
+              if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
+              if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
+              if (change.type === 'exp') updates.exp = target.exp + change.value;
+              
+              if (Object.keys(updates).length > 0) {
+                updateCharacter(target.id, updates);
+                const logMsg: Message = { 
+                  role: 'system', 
+                  content: `SCRIBE_LOG: ${target.name} ${change.type === 'damage' ? '-' : '+'}${change.value} ${change.type.toUpperCase()}`, 
+                  timestamp: Date.now() 
+                };
+                setState(prev => ({
+                  ...prev,
+                  campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+                }));
+              }
+            });
+          }
+
+          if (audit.newEntities && audit.newEntities.length > 0) {
+            for (const entity of audit.newEntities) {
+              const forgeLog: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
               setState(prev => ({
                 ...prev,
-                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, forgeLog] } : c)
               }));
-            }
-          });
-        }
 
-        // Run Architect for new entities
-        if (audit.newEntities) {
-          for (const entity of audit.newEntities) {
-            const forgeLog: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
-            setState(prev => ({
-              ...prev,
-              campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, forgeLog] } : c)
-            }));
-
-            if (entity.category === 'item') {
-              const itemData = await generateItemDetails(entity.name, msg.content);
-              const newItem: Item = {
-                id: safeId(),
-                name: itemData.name || entity.name,
-                description: itemData.description || "A mysterious object.",
-                type: (itemData.type as any) || 'Quest',
-                rarity: (itemData.rarity as any) || 'Common',
-                stats: itemData.stats
-              };
-              setState(prev => ({ ...prev, armory: [...prev.armory, newItem] }));
-            } else if (entity.category === 'monster') {
-              const monData = await generateMonsterDetails(entity.name, msg.content);
-              const newMon: Monster = {
-                id: safeId(),
-                name: monData.name || entity.name,
-                description: monData.description || "A threat manifests.",
-                hp: monData.hp || 20,
-                ac: monData.ac || 10,
-                cr: monData.cr || 1,
-                stats: monData.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-                type: 'Hybrid',
-                abilities: monData.abilities || [],
-                activeStatuses: []
-              };
-              setState(prev => ({ ...prev, bestiary: [...prev.bestiary, newMon] }));
+              if (entity.category === 'item') {
+                const itemData = await generateItemDetails(entity.name, msg.content);
+                const newItem: Item = {
+                  id: safeId(),
+                  name: itemData.name || entity.name,
+                  description: itemData.description || "A mysterious object.",
+                  type: (itemData.type as any) || 'Quest',
+                  rarity: (itemData.rarity as any) || 'Common',
+                  stats: itemData.stats
+                };
+                setState(prev => ({ ...prev, armory: [...prev.armory, newItem] }));
+              } else if (entity.category === 'monster') {
+                const monData = await generateMonsterDetails(entity.name, msg.content);
+                const newMon: Monster = {
+                  id: safeId(),
+                  name: monData.name || entity.name,
+                  description: monData.description || "A threat manifests.",
+                  hp: monData.hp || 20,
+                  ac: monData.ac || 10,
+                  cr: monData.cr || 1,
+                  stats: monData.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+                  type: 'Hybrid',
+                  abilities: monData.abilities || [],
+                  activeStatuses: []
+                };
+                setState(prev => ({ ...prev, bestiary: [...prev.bestiary, newMon] }));
+              }
             }
           }
+        } catch (auditErr) {
+          console.error("Trinity Audit Failure:", auditErr);
+          const errorLog: Message = { role: 'system', content: `SCRIBE_LOG: Resonance Flicker - mechanical sync skipped.`, timestamp: Date.now() };
+          setState(prev => ({
+            ...prev,
+            campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, errorLog] } : c)
+          }));
         }
       };
 
@@ -182,7 +192,7 @@ const App: React.FC = () => {
       id: campId, 
       title: campaignTitle, 
       prompt: campaignPrompt, 
-      history: [], // handleMessage will add the prompt
+      history: [], 
       participants: partyIds 
     };
 
@@ -202,7 +212,7 @@ const App: React.FC = () => {
     setShowTutorial(false);
     setActiveTab('Chronicles');
 
-    // Manually trigger handleMessage with the override party to ensure first turn audit works
+    // Trigger initial audit
     handleMessage({ role: 'model', content: campaignPrompt, timestamp: Date.now() }, campId, activePartyObjects);
   };
 
@@ -236,13 +246,7 @@ const App: React.FC = () => {
                 onMessage={handleMessage} 
                 onCreateCampaign={(t, p) => {
                   const campId = safeId();
-                  const newCampaign: Campaign = { 
-                    id: campId, 
-                    title: t, 
-                    prompt: p, 
-                    history: [], 
-                    participants: state.party 
-                  };
+                  const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party };
                   setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
                   handleMessage({ role: 'model', content: p, timestamp: Date.now() }, campId);
                 }} 
@@ -265,7 +269,7 @@ const App: React.FC = () => {
               {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} onBuyItem={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={t => setState(p => ({ ...p, mapTokens: t }))} characters={state.characters} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={() => {}} userId={state.userAccount.id} />}
-              {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={() => {}} />}
+              {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onClear={clearBestiary} />}
               {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}
               {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} party={activePartyObjects} />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}

@@ -1,4 +1,3 @@
-
 import { Race, Archetype, Stats, Ability, Character, Monster, Item, Role, Currency } from './types';
 
 export const STORAGE_PREFIX = 'mythos_soul_';
@@ -206,7 +205,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     hpDie: 10, role: 'Tank', description: 'Unyielding guardians with blade and bulwark.',
     coreAbilities: [
       { name: 'Shield Bash', description: 'Shatter the stance of thy enemy.', type: 'Active', levelReq: 1 },
-      { name: 'Defender’s Stance', description: 'Take hits meant for nearby allies.', type: 'Active', levelReq: 3 },
+      { name: 'Defender’S Stance', description: 'Take hits meant for nearby allies.', type: 'Active', levelReq: 3 },
       { name: 'Indomitable', description: 'Reroll a failed saving throw.', type: 'Active', levelReq: 7 },
       { name: 'Improved Critical', description: 'Critical on 19 or 20.', type: 'Passive', levelReq: 11 },
       { name: 'Master of Arms', description: 'Perform four attacks in one turn.', type: 'Passive', levelReq: 15 }
@@ -380,15 +379,7 @@ export const MENTORS: Character[] = [
 
 export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {}; 
 
-export const INITIAL_MONSTERS: Monster[] = [
-  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [], description: 'Shadows with teeth. They feast on the low-resonance fragments of the world.', cr: 0.125, activeStatuses: [] },
-  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [], description: 'Burning eyes and teeth made of cold obsidian.', cr: 1, activeStatuses: [] },
-  { id: 'mon-husk', name: 'Hollow Husk', type: 'Undead', hp: 12, ac: 8, stats: { str: 12, dex: 6, con: 14, int: 1, wis: 1, cha: 1 }, abilities: [{name: 'Soul Thirst', description: 'Deals 1d4 necrotic on hit.', type: 'Active', levelReq: 1}], description: 'The remains of a vessel that failed to bind. Slow and brittle.', cr: 0.25, activeStatuses: [] },
-  { id: 'mon-wisp', name: 'Aetheric Wisp', type: 'Hybrid', hp: 5, ac: 13, stats: { str: 1, dex: 16, con: 10, int: 14, wis: 14, cha: 10 }, abilities: [{name: 'Phase Out', description: 'Disadvantage on attacks against it.', type: 'Passive', levelReq: 1}], description: 'Flickering lights that feed on aetheric surges.', cr: 0.25, activeStatuses: [] },
-  { id: 'mon-warden', name: 'Shattered Warden', type: 'Undead', hp: 45, ac: 15, stats: { str: 18, dex: 10, con: 16, int: 8, wis: 12, cha: 8 }, abilities: [{name: 'Iron Cleave', description: 'Massive arc strike (2d8+STR).', type: 'Active', levelReq: 1}, {name: 'Stone Skin', description: 'Resistance to physical damage.', type: 'Passive', levelReq: 1}], description: 'A massive armored shell animated by a vengeful soul.', cr: 2, activeStatuses: [] },
-  { id: 'mon-gorechimera', name: 'Gorechimera', type: 'Hybrid', hp: 140, ac: 16, stats: { str: 20, dex: 12, con: 18, int: 6, wis: 14, cha: 10 }, cr: 7, description: 'A twisted fusion of apex predators.', abilities: [{ name: 'Lion Pulse', description: 'Stun nearby vessels.', type: 'Active', levelReq: 1 }], activeStatuses: [] },
-  { id: 'mon-colossus', name: 'Blight-Walker Colossus', type: 'Undead', hp: 280, ac: 20, stats: { str: 24, dex: 8, con: 22, int: 4, wis: 10, cha: 5 }, cr: 16, description: 'A titan of stitched flesh.', abilities: [{ name: 'Earth-Shaker', description: 'Knock all vessels prone.', type: 'Active', levelReq: 1 }], vulnerabilities: ['Fire'], activeStatuses: [] }
-];
+export const INITIAL_MONSTERS: Monster[] = [];
 
 export const RULES_MANIFEST = `
 1. **THE ARBITER**: Gemini AI is the ultimate judge. Reality is grounded; its word on outcomes is final.

@@ -2,7 +2,8 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 
-const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
+// Complexity-based Model Selection
+const NARRATIVE_MODEL = 'gemini-3-pro-preview'; // Upgraded to Pro for complex DMing
 const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
 const SCRIBE_MODEL = 'gemini-3-flash-preview';
 
@@ -33,16 +34,17 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
   const prompt = `
     Thou art the "Mechanical Scribe" for the Mythos Engine. 
-    Audit this narrative for mechanical consequences.
+    Audit this narrative for mechanical consequences and state changes.
     
     PARTY MANIFEST: ${manifest}
     NARRATIVE SEGMENT: "${narrative}"
     
     CRITICAL INSTRUCTIONS:
-    1. Damage detection: If the text says a character "takes 15 damage" or "is struck for 10", record it.
-    2. Target matching: Match names exactly as they appear in the manifest (e.g., Miri, Lina).
-    3. Item detection: If they "find", "obtain", or "gain" an item, list its name.
-    4. New Entities: If a NEW monster or item name is introduced that doesn't exist in the party or common knowledge, flag it for the Architect.
+    1. Damage detection: If the text says a character "takes 15 damage" or "is struck for 10", record it as a "damage" change.
+    2. Healing detection: If a character "mends", "heals", or "recovers", record it as a "heal" change.
+    3. Target matching: Match names exactly as they appear in the manifest.
+    4. Item detection: If they "find", "obtain", or "gain" an item, list its name.
+    5. New Entities: If a NEW monster or item name is introduced (e.g., "Gravelord"), flag it for the Architect.
   `;
 
   try {
@@ -63,7 +65,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                   target: { type: Type.STRING },
                   value: { type: Type.NUMBER },
                   detail: { type: Type.STRING }
-                }
+                },
+                required: ["type", "target", "value"]
               }
             },
             newEntities: {
@@ -73,7 +76,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                 properties: {
                   name: { type: Type.STRING },
                   category: { type: Type.STRING, description: "monster | item" }
-                }
+                },
+                required: ["name", "category"]
               }
             }
           },
@@ -103,18 +107,24 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  // PURIFY HISTORY: The Arbiter must not see the Scribe's system logs or internal ledger
+  // PURIFY HISTORY: Ensure the Arbiter ONLY sees Narrative/Model exchanges.
+  // We strictly filter for role 'user' and 'model' to prevent system logs from breaking context.
   const purifiedHistory = history.filter(m => m.role === 'user' || m.role === 'model');
 
   const partyManifests = playerContext.party.map(c => {
-    return `${c.name} (Lvl ${c.level} ${c.archetype}): HP ${c.currentHp}/${c.maxHp}`;
+    return `${c.name} (Lvl ${c.level} ${c.archetype}): HP ${c.currentHp}/${c.maxHp}, Exp ${c.exp}`;
   }).join('\n');
 
   const systemInstruction = `
-    Thou art the "Arbiter of Mythos", a dark fantasy DM.
-    Focus on atmosphere, weight, and roleplay.
-    The Mechanical Scribe automatically processes thy words for damage/items.
-    Always describe mechanical impacts clearly (e.g., "The feedback scorches Miri for 15 damage").
+    Thou art the "Arbiter of Mythos", a senior DM for a dark fantasy TTRPG.
+    Atmosphere: Grim, weighted, cinematic.
+    
+    Thy role is to describe the world and mediate player actions.
+    A Mechanical Scribe listens to thy words.
+    When damage occurs, state it clearly (e.g., "Lina takes 12 damage").
+    When items are found, name them (e.g., "Thou findeth an Iron Shield").
+    
+    Avoid repeating previous descriptions. Drive the narrative forward with consequence.
     
     CURRENT PARTY:
     ${partyManifests}
@@ -124,9 +134,9 @@ export const generateDMResponse = async (
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
       contents: purifiedHistory.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
-      config: { systemInstruction, temperature: 0.8 }
+      config: { systemInstruction, temperature: 0.85 }
     });
-    return response.text || "The shadows remain silent.";
+    return response.text || "The abyss stares back in silence...";
   } catch (error: any) {
     console.error("Arbiter Error:", error);
     return "The aetheric connection flickers; the Arbiter's voice is lost to the void.";

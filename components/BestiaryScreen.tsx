@@ -1,16 +1,16 @@
-
 import React, { useState, useMemo } from 'react';
 import { Monster, Stats } from '../types';
 
 interface BestiaryScreenProps {
   monsters: Monster[];
-  onUpdateMonster: (id: string, updates: Partial<Monster>) => void;
+  onClear?: () => void;
+  onUpdateMonster?: (id: string, updates: Partial<Monster>) => void;
 }
 
 type SortCriteria = 'cr' | 'hp' | 'ac' | 'name';
 type SortOrder = 'asc' | 'desc';
 
-const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
+const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) => {
   const [sortBy, setSortBy] = useState<SortCriteria>('cr');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,6 +21,12 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setExpandedIds(next);
+  };
+
+  const handlePurge = () => {
+    if (confirm("Art thou certain? This ritual shall dissolve all monster fragments stored in the engine. This action is irreversible.")) {
+      onClear?.();
+    }
   };
 
   const sortedMonsters = useMemo(() => {
@@ -42,9 +48,17 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
 
   return (
     <div className="space-y-8 pb-20 max-w-6xl mx-auto px-2">
-      <div className="border-b border-emerald-900/50 pb-6">
-        <h2 className="text-4xl md:text-5xl font-cinzel text-gold tracking-tighter">Ancient Bestiary</h2>
-        <p className="text-gray-500 italic mt-2 opacity-70">"Heed the biological warnings of the fallen, and target the weakness in their flesh."</p>
+      <div className="border-b border-emerald-900/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h2 className="text-4xl md:text-5xl font-cinzel text-gold tracking-tighter">Ancient Bestiary</h2>
+          <p className="text-gray-500 italic mt-2 opacity-70">"Heed the biological warnings of the fallen, and target the weakness in their flesh."</p>
+        </div>
+        <button 
+          onClick={handlePurge}
+          className="px-6 py-3 border-2 border-red-900 text-red-500 font-cinzel text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all shadow-lg"
+        >
+          Purge Bestiary
+        </button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 p-5 bg-black/40 rune-border items-end shadow-2xl">
@@ -197,6 +211,11 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters }) => {
             </div>
           );
         })}
+        {sortedMonsters.length === 0 && (
+          <div className="py-20 text-center opacity-30 border-2 border-dashed border-emerald-900/20">
+            <p className="text-xl font-cinzel text-gray-500 uppercase italic">The wilderness is currently empty.</p>
+          </div>
+        )}
       </div>
     </div>
   );

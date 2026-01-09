@@ -95,6 +95,8 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   };
 
   const deathSaves = character.deathSaves || { successes: 0, failures: 0 };
+  const expThreshold = character.level * 1000;
+  const expPercentage = Math.min(100, (character.exp / expThreshold) * 100);
 
   return (
     <div className="rune-border bg-black/90 backdrop-blur-xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl border-emerald-900/60">
@@ -166,11 +168,18 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             </div>
             <div className="mt-5 space-y-3">
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-cinzel text-emerald-500 w-8 font-black uppercase">HP</span>
+                <span className="text-[10px] font-cinzel text-emerald-500 w-12 font-black uppercase shrink-0">Vitality</span>
                 <div className="flex-1 h-2 bg-gray-950 rounded-full overflow-hidden border border-emerald-900/20">
                   <div className="h-full bg-emerald-700 transition-all duration-700 shadow-[0_0_10px_rgba(16,185,129,0.5)]" style={{ width: `${(character.currentHp / character.maxHp) * 100}%` }} />
                 </div>
                 <span className="text-[10px] font-cinzel text-white min-w-[50px] text-right font-black">{character.currentHp}/{character.maxHp}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-cinzel text-blue-500 w-12 font-black uppercase shrink-0">Soul</span>
+                <div className="flex-1 h-1.5 bg-gray-950 rounded-full overflow-hidden border border-blue-900/20">
+                  <div className="h-full bg-blue-600 transition-all duration-700 shadow-[0_0_8px_rgba(59,130,246,0.5)]" style={{ width: `${expPercentage}%` }} />
+                </div>
+                <span className="text-[10px] font-cinzel text-white min-w-[50px] text-right font-black">{character.exp}/{expThreshold}</span>
               </div>
             </div>
           </>
@@ -207,6 +216,13 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                   </div>
                 );
               })}
+              <div className="p-3 border border-blue-900/20 bg-blue-900/5 rounded-sm shadow-inner col-span-2 md:col-span-1">
+                <span className="text-[9px] font-cinzel uppercase text-blue-700 font-bold">Total Essence</span>
+                <div className="flex justify-between items-baseline mt-1">
+                  <span className="text-xl font-black text-blue-400">{character.exp}</span>
+                  <span className="text-[8px] text-blue-600 font-black uppercase">Next: {expThreshold}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -248,7 +264,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                         <p className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">{item.rarity} • {item.type}</p>
                       </div>
                     </div>
-                    <button onClick={() => toggleEquip(item.id)} disabled={isMentor} className={`px-4 py-2 text-[9px] font-cinzel uppercase border-2 transition-all font-black tracking-widest ${isEquipped ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'border-emerald-900 text-emerald-500 hover:border-gold hover:text-gold'}`}>{isEquipped ? 'Equipped' : 'Equip'}</button>
+                    <button onClick={() => toggleEquip(item.id)} disabled={isMentor} className={`px-4 py-2 text-[9px] font-cinzel uppercase border-2 transition-all font-black tracking-widest ${isEquipped ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'border-emerald-900 text-emerald-500 hover:border-gold hover:border-gold'}`}>{isEquipped ? 'Equipped' : 'Equip'}</button>
                   </div>
                 );
               })}

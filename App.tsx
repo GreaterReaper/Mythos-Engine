@@ -376,28 +376,66 @@ const App: React.FC = () => {
     });
   };
 
-  const handleLevelUp = (id: string) => {
-    const char = [...state.characters, ...state.mentors].find(c => c.id === id);
-    if (!char || char.exp < char.level * 1000) return;
-    const archInfo = ARCHETYPE_INFO[char.archetype] || state.customArchetypes.find(a => a.name === char.archetype);
-    const hpDie = archInfo?.hpDie || 8;
-    const hpGain = Math.floor(Math.random() * hpDie) + 1 + Math.floor(((char.stats.con || 10) - 10) / 2);
-    const newLevel = char.level + 1;
-    let slots = {};
-    if ([Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(char.archetype as Archetype) || (archInfo as any)?.spells?.length > 0) {
-      slots = { maxSpellSlots: SPELL_SLOT_PROGRESSION[newLevel], spellSlots: SPELL_SLOT_PROGRESSION[newLevel] };
-    }
-    updateCharacter(id, { level: newLevel, exp: char.exp - (char.level * 1000), maxHp: char.maxHp + hpGain, currentHp: char.maxHp + hpGain, asiPoints: char.asiPoints + ([4,8,12,16,19].includes(newLevel) ? 2 : 0), ...slots });
+  const checkLevelUp = (id: string) => {
+    setState(prev => {
+      const char = [...prev.characters, ...prev.mentors].find(c => c.id === id);
+      if (!char) return prev;
+      
+      const threshold = char.level * 1000;
+      if (char.exp < threshold) return prev;
+
+      // Soul Ascension Logic
+      const archInfo = ARCHETYPE_INFO[char.archetype] || prev.customArchetypes.find(a => a.name === char.archetype);
+      const hpDie = archInfo?.hpDie || 8;
+      const conMod = Math.floor(((char.stats.con || 10) - 10) / 2);
+      const hpGain = Math.floor(Math.random() * hpDie) + 1 + conMod;
+      const newLevel = char.level + 1;
+      const newExp = char.exp - threshold;
+      
+      const slots = SPELL_SLOT_PROGRESSION[newLevel] || {};
+      const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(char.archetype as Archetype) || (archInfo as any)?.spells?.length > 0;
+
+      const systemMsg: Message = {
+        role: 'system',
+        content: `[ASCENSION] ${char.name} has attained Soul Level ${newLevel}! Max Vitality increased by ${hpGain}. Resources replenished.`,
+        timestamp: Date.now()
+      };
+
+      const charUpdates: Partial<Character> = {
+        level: newLevel,
+        exp: newExp,
+        maxHp: char.maxHp + hpGain,
+        currentHp: char.maxHp + hpGain, // Full heal on level up
+        asiPoints: char.asiPoints + ([4, 8, 12, 16, 19].includes(newLevel) ? 2 : 0),
+        spellSlots: isCaster ? { ...slots } : undefined,
+        maxSpellSlots: isCaster ? { ...slots } : undefined,
+      };
+
+      // Apply updates to either characters or mentors list
+      const nextState = {
+        ...prev,
+        characters: prev.characters.map(c => c.id === id ? { ...c, ...charUpdates } : c),
+        mentors: prev.mentors.map(m => m.id === id ? { ...m, ...charUpdates } : m),
+        campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, systemMsg] } : c)
+      };
+
+      // Broadcast the character update
+      broadcast('UPDATE_CHARACTER', { id, updates: charUpdates });
+      
+      return nextState;
+    });
   };
 
-  const addExpToParty = (amount: number) => state.party.forEach(id => { 
-    const char = [...state.characters, ...state.mentors].find(x => x.id === id); 
-    if (char) { 
-      const newExp = char.exp + amount;
-      updateCharacter(id, { exp: newExp }); 
-      setTimeout(() => handleLevelUp(id), 100);
-    } 
-  });
+  const addExpToParty = (amount: number) => {
+    state.party.forEach(id => { 
+      const char = [...state.characters, ...state.mentors].find(x => x.id === id); 
+      if (char) { 
+        updateCharacter(id, { exp: char.exp + amount }); 
+        // Trigger potential level up check after the update
+        setTimeout(() => checkLevelUp(id), 50);
+      } 
+    });
+  };
   
   const addCurrencyToParty = (curr: Partial<Currency>) => state.party.forEach(id => { const c = [...state.characters, ...state.mentors].find(x => x.id === id); if (c) { const v = c.currency || { aurels: 0, shards: 0, ichor: 0 }; updateCharacter(id, { currency: { aurels: v.aurels + (curr.aurels || 0), shards: v.shards + (curr.shards || 0), ichor: v.ichor + (curr.ichor || 0) } }); } });
 

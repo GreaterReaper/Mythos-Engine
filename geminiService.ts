@@ -3,7 +3,7 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.0.8";
+const ENGINE_VERSION = "1.0.9";
 
 // Model Constants - HARD SEPARATION
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
@@ -279,13 +279,14 @@ export const generateDMResponse = async (
     
     const status = c.id.startsWith('mentor-') ? "VETERAN IMMORTAL MENTOR" : "FLEDGLING PLAYER VESSEL";
     const hpStatus = c.currentHp <= 0 ? "UNCONSCIOUS (DYING)" : `${c.currentHp}/${c.maxHp} HP`;
+    const expToNext = c.level * 1000;
 
     return `${c.name} [${status}] (${c.race} ${c.archetype} Lvl ${c.level})
     - VITALITY: ${hpStatus}.
     - GEAR: [${equipped || "No legendary gear"}]
     - RESOURCES: ${currentSlotsStr || "None"}
     - MANIFESTATIONS: [${usableSpells || "None"}]
-    - CURRENT EXP: ${c.exp}`;
+    - SOUL ESSENCE: ${c.exp}/${expToNext} EXP (Next Ascension at ${expToNext})`;
   }).join('\n\n    ');
 
   const sanitizedContents = history
@@ -302,7 +303,10 @@ export const generateDMResponse = async (
        - HP COSTS: Sacrificial rites (e.g. Dark Rite, Life Tap) consume Vitality. Issue [TAKE_DAMAGE: amount, caster].
     3. DYING STATE: If a Player Vessel is at 0 HP, they are "Unconscious". They cannot act. Acknowledge their Death Save results.
     4. MENTOR RECOGNITION: Treat Lina, Miri, Seris, and the Path-Mentor with legendary reverence. Recognize their specific gear.
-    5. ENCOUNTER REWARDS: When foes fall, award Experience, Gold, or Items.
+    5. SOUL ASCENSION (LEVELING): Soul Progression requires 1,000 EXP multiplied by current Level. 
+       - When awarding EXP, calculate if the threshold is met. 
+       - If a Soul ascends, narrate their surge in aetheric power. The Engine handles the stat shifts automatically.
+    6. ENCOUNTER REWARDS: When foes fall, award Experience, Gold, or Items.
        - EXP: State it clearly as "+X EXP". Append [EXP: X].
        - GEAR: Name the item clearly. Append [ITEM: name].
        - GOLD: Append [GOLD: X].

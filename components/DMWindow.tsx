@@ -61,8 +61,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  // Filter spells to only those usable at the current level
-  const usableSpells = useMemo(() => {
+  // Strictly filter usable manifestations based on the Soul's current level
+  const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
     return (activeCharacter.spells || []).filter(s => s.levelReq <= activeCharacter.level);
   }, [activeCharacter]);
@@ -97,7 +97,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
       if (responseText) {
         const { exp, currency, items, monstersToAdd, shortRest, longRest, openShop, enterCombat, exitCombat, usedSlot } = parseDMCommand(responseText);
         if (exp > 0) onAwardExp(exp);
-        if (currency.aurels > 0 || currency.shards > 0 || currency.ichor > 0) onAwardCurrency(currency);
+        if (currency.aurels > 0) onAwardCurrency(currency);
         items.forEach(item => onAwardItem(item.name, item.data));
         for (const mName of monstersToAdd) await onAwardMonster(mName);
         if (usedSlot) onAIRuntimeUseSlot(usedSlot.level, usedSlot.characterName);
@@ -129,12 +129,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
              <h3 className="text-sm font-cinzel text-gold uppercase tracking-widest font-black border-b border-emerald-900/30 pb-2">Manifest Reality</h3>
              {isHost ? (
                <div className="space-y-6">
-                  {allCampaigns.length === 0 && (
-                    <div className="rune-border p-6 bg-emerald-900/5 border-gold/40 shadow-xl space-y-4">
-                      <h4 className="text-xl font-cinzel text-gold font-bold">Begin the Saga</h4>
-                      <button onClick={() => onCreateCampaign(TUTORIAL_SCENARIO.title, TUTORIAL_SCENARIO.prompt)} className="w-full py-4 bg-emerald-900 text-white font-cinzel font-black border border-gold shadow-lg transition-all">INITIATE SACRED SAGA</button>
-                    </div>
-                  )}
                   <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-5 border-emerald-900/40">
                     <input value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-black/40 border border-emerald-900/50 p-4 text-gold font-cinzel text-base focus:border-gold outline-none transition-all placeholder:text-emerald-900/30" placeholder="CHRONICLE TITLE..." />
                     <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} className="w-full bg-black/40 border border-emerald-900/50 p-4 text-gray-200 text-sm h-32 focus:border-gold outline-none resize-none" placeholder="PREMISE..." />
@@ -171,7 +165,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
       {/* Mobile Grimoire Toggle */}
-      {!isKeyboardOpen && usableSpells.length > 0 && (
+      {!isKeyboardOpen && usableManifestations.length > 0 && (
         <button 
           onClick={() => setShowMobileGrimoire(true)}
           className="md:hidden fixed bottom-24 right-4 w-12 h-12 bg-emerald-900 border-2 border-gold text-gold rounded-full shadow-2xl flex items-center justify-center z-[60] animate-bounce"
@@ -190,7 +184,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
              <button onClick={() => setShowMobileGrimoire(false)} className="text-emerald-500 text-3xl font-black">&times;</button>
            </div>
            <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
-             {usableSpells.map((spell, i) => (
+             {usableManifestations.map((spell, i) => (
                <div key={i} className="p-4 bg-emerald-900/10 border-l-4 border-emerald-900">
                   <div className="flex justify-between items-start mb-2">
                     <p className="font-cinzel text-gold font-bold">{spell.name}</p>
@@ -271,9 +265,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
                </div>
             </div>
             
-            {usableSpells.length > 0 ? (
+            {usableManifestations.length > 0 ? (
               <div className="space-y-4">
-                {usableSpells.map((spell, i) => (
+                {usableManifestations.map((spell, i) => (
                   <div key={i} className="group/spell p-3 bg-black/40 border border-emerald-900/20 hover:border-gold/30 transition-all rounded-sm">
                     <div className="flex justify-between items-start mb-1">
                       <p className="text-[11px] font-cinzel text-gold font-bold leading-tight group-hover/spell:text-white transition-colors">{spell.name}</p>
@@ -291,7 +285,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
               </div>
             ) : (
               <div className="py-10 text-center opacity-30">
-                 <p className="text-[9px] font-cinzel text-gray-500 uppercase tracking-widest italic">Character level insufficient for manifestations.</p>
+                 <p className="text-[9px] font-cinzel text-gray-500 uppercase tracking-widest italic">Aetheric reach limited by Soul Ascension level.</p>
               </div>
             )}
           </div>

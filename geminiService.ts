@@ -174,7 +174,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
     return {
       id: safeId(),
       merchantName: parsed.merchantName || "Unseen Merchant",
-      merchantAura: parsed.merchantAura || "Cold and distant.",
+      merchantAura: parsed.merchantAura || "An unsettling presence fills the air.",
       inventory: (parsed.inventory || []).map((i: any) => ({ 
         ...i, 
         id: safeId(),
@@ -295,20 +295,18 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  const partySize = playerContext.party.length;
-  const totalLevels = playerContext.party.reduce((acc, c) => acc + c.level, 0);
-  const avgLevel = partySize > 0 ? totalLevels / partySize : 1;
-
-  const activeCharInfo = playerContext.activeCharacter 
-    ? `The user is inhabiting the soul of ${playerContext.activeCharacter.name}, a Level ${playerContext.activeCharacter.level} ${playerContext.activeCharacter.race} ${playerContext.activeCharacter.archetype}. 
-       CRITICAL: Strictly enforce spellcasting requirements. This character can ONLY manifest spells where their Level (${playerContext.activeCharacter.level}) is >= the spell's [levelReq]. 
-       Addresses them directly by name or persona.`
-    : "The user has not yet possessed a soul. Encourage them to inhabit one of their roster.";
+  const activeChar = playerContext.activeCharacter;
+  const activeCharInfo = activeChar 
+    ? `The player is currently manifesting as ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
+       CRITICAL SPELLCASTING RULE: This soul can ONLY cast manifestations where their Level (${activeChar.level}) is EQUAL TO or HIGHER THAN the manifestation's [levelReq].
+       Available manifestations for this soul: ${activeChar.spells.filter(s => s.levelReq <= activeChar.level).map(s => s.name).join(', ')}.
+       Locked manifestations (Too weak): ${activeChar.spells.filter(s => s.levelReq > activeChar.level).map(s => `${s.name} (Req Lvl ${s.levelReq})`).join(', ')}.
+       If they attempt a locked manifestation, narrate a visceral failure—the aether rejects their immature soul, causing physical pain or mental trauma.`
+    : "The user has no bound soul. Encourage them to choose one from the roster.";
 
   const mentorInfo = playerContext.mentors.length > 0
-    ? `The following Mentors are in the party: ${playerContext.mentors.map(m => `${m.name} (${m.archetype})`).join(', ')}. Mentors are FIXED ENTITIES controlled by YOU. 
-    Lina: Mage (Staff, Robes). Miri: Fighter (1H Sword, Shield, Plate). Seris: Archer (Bow, Leather). Kaelen: Dark Knight (2H Blade, Plate). Valerius: Blood Artist (Sickle/Scythe, Robes). Jax: Thief (Daggers, Leather). Xylar: Sorcerer (Staff, Robes). Brunnhilde: Warrior (Maul, Plate). Alaric: Alchemist (Shortsword/Vial, Leather).`
-    : "No Mentors are currently bound to the party.";
+    ? `Bound Mentors: ${playerContext.mentors.map(m => `${m.name} (Lvl ${m.level} ${m.archetype})`).join(', ')}.`
+    : "No Mentors are currently bound.";
 
   const sanitizedContents: any[] = [];
   let lastRole: 'user' | 'model' | null = null;
@@ -327,40 +325,32 @@ export const generateDMResponse = async (
     }
   });
 
-  if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
-    sanitizedContents.push({ role: 'user', parts: [{ text: "The journey continues. Narrate our fate." }] });
-  }
-
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. You are an ancient, grim narrator of a visceral, physical world.
+    You are the "Mythos Engine" Dungeon Master. You are an ancient, grim narrator of a visceral world.
 
     AESTHETICS:
-    - Obsidian, Necrotic Emerald (#065f46), Gold.
-    - Archaic, grim voice. Focus on physical sensation: snap of bone, weight of plate, smell of rot.
+    - Obsidian, Necrotic Emerald, Gold. Archaic and physical voice.
+    - Avoid software/game metaphors. Focus on the snap of bone, the spray of blood, the cold of stone.
 
-    NARRATIVE CORE:
-    - Blood is warm and lethal. Steel is heavy. Desribe wounds vividly. 
-    - Avoid metaphors involving software or code.
-
-    SPELLCASTING VALIDATION:
+    AETHERIC LAWS (Enforce Strictly):
     ${activeCharInfo}
-    - Validate character archetypes. A Warrior cannot cast "Fireball". 
-    - Validate Level Requirements (levelReq). A Level 1 character cannot manifest Level 5 requirements. 
-    - If a user attempts an invalid spell, narrate the failure as a mental strain or the aether rejecting their insufficient soul.
+    - Level requirements are physical laws. A level 1 soul cannot force a level 5 manifestation.
+    - Archetypes are fixed paths. A Warrior cannot manifest arcane fire.
 
-    PLAYER AND PARTY CONTEXT:
+    PARTY CONTEXT:
     ${mentorInfo}
+    Party: ${playerContext.party.map(c => `${c.name} (${c.archetype})`).join(', ')}.
 
-    COMMANDS: [EXP: amount], [GOLD: amount], [SHARDS: amount], [ICHOR: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [CURE: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
+    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: sanitizedContents,
-      config: { systemInstruction, temperature: 0.85 }
+      config: { systemInstruction, temperature: 0.8 }
     });
-    if (!response.text) throw new Error("Empty resonance.");
+    if (!response.text) throw new Error("Silence in the void.");
     return response.text;
   } catch (error: any) {
     console.error("DM Resonance Failure:", error);
@@ -374,7 +364,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a physical, visceral dark fantasy monster named "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}. Focus on biological horror and physical threat.`,
+      contents: `Manifest a physical, visceral dark fantasy monster named "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -386,16 +376,13 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             cr: { type: Type.NUMBER },
             description: { type: Type.STRING },
             stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } },
-            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, levelReq: { type: Type.NUMBER } } } },
-            resistances: { type: Type.ARRAY, items: { type: Type.STRING } },
-            vulnerabilities: { type: Type.ARRAY, items: { type: Type.STRING } }
+            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, levelReq: { type: Type.NUMBER } } } }
           },
           required: ["type", "hp", "ac", "cr", "description", "abilities", "stats"]
         }
       }
     });
-    const monster = JSON.parse(response.text || '{}');
-    return { ...monster, activeStatuses: [] };
+    return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error("Monster manifestation failed:", error);
     return { activeStatuses: [] };
@@ -408,7 +395,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Party Level: ${avgPartyLevel}. Ensure rarity and stats match the physical nature of the object.`,
+      contents: `Manifest a dark fantasy item named "${itemName}". Context: ${context}. Party Level: ${avgPartyLevel}.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -418,8 +405,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
             description: { type: Type.STRING },
             type: { type: Type.STRING },
             rarity: { type: Type.STRING },
-            archetypes: { type: Type.ARRAY, items: { type: Type.STRING } },
-            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER }, ac: { type: Type.NUMBER }, damage: { type: Type.STRING } } }
+            stats: { type: Type.OBJECT }
           },
           required: ["name", "description", "type", "rarity", "stats"]
         }
@@ -444,7 +430,6 @@ export const parseDMCommand = (text: string) => {
     enterCombat: false,
     exitCombat: false,
     usedSlot: null as { level: number, characterName: string } | null,
-    lootDrops: [] as { itemName: string, chance: number }[],
     statusesToAdd: [] as { effect: StatusEffect, target: string }[],
     statusesToRemove: [] as { effect: StatusEffect, target: string }[]
   };
@@ -453,32 +438,20 @@ export const parseDMCommand = (text: string) => {
   if (expMatch) commands.exp = parseInt(expMatch[1]);
   const goldMatch = text.match(/\[GOLD:\s*(\d+)\]/i);
   if (goldMatch) commands.currency.aurels = parseInt(goldMatch[1]);
-  const shardsMatch = text.match(/\[SHARDS:\s*(\d+)\]/i);
-  if ( shardsMatch) commands.currency.shards = parseInt(shardsMatch[1]);
-  const ichorMatch = text.match(/\[ICHOR:\s*(\d+)\]/i);
-  if (ichorMatch) commands.currency.ichor = parseInt(ichorMatch[1]);
 
   const itemMatches = [...text.matchAll(/\[ITEM:\s*([^\]]+)\]/gi)];
   itemMatches.forEach(m => commands.items.push({ name: m[1].trim() }));
   const monsterMatches = [...text.matchAll(/\[SPAWN:\s*([^\]]+)\]/gi)];
   monsterMatches.forEach(m => commands.monstersToAdd.push(m[1].trim()));
-  const statusMatches = [...text.matchAll(/\[STATUS:\s*([^,\]]+),\s*([^\]]+)\]/gi)];
-  statusMatches.forEach(m => commands.statusesToAdd.push({ effect: m[1].trim() as StatusEffect, target: m[2].trim() }));
-  const cureMatches = [...text.matchAll(/\[CURE:\s*([^,\]]+),\s*([^\]]+)\]/gi)];
-  cureMatches.forEach(m => commands.statusesToRemove.push({ effect: m[1].trim() as StatusEffect, target: m[2].trim() }));
-
-  if (/\[SHORT_REST\]/i.test(text)) commands.shortRest = true;
-  if (/\[LONG_REST\]/i.test(text)) commands.longRest = true;
-  if (/\[OPEN_SHOP\]/i.test(text)) commands.openShop = true;
+  
   if (/\[ENTER_COMBAT\]/i.test(text)) commands.enterCombat = true;
   if (/\[EXIT_COMBAT\]/i.test(text)) commands.exitCombat = true;
-  
+  if (/\[OPEN_SHOP\]/i.test(text)) commands.openShop = true;
+
   const slotMatch = text.match(/\[USE_SLOT:\s*(\d+),\s*([^\]]+)\]/i);
   if (slotMatch) {
     commands.usedSlot = { level: parseInt(slotMatch[1]), characterName: slotMatch[2].trim() };
   }
-  const lootMatches = [...text.matchAll(/\[LOOT:\s*([^,\]]+),\s*(\d+)\]/gi)];
-  lootMatches.forEach(m => commands.lootDrops.push({ itemName: m[1].trim(), chance: parseInt(m[2]) }));
 
   return commands;
 };
@@ -486,29 +459,18 @@ export const parseDMCommand = (text: string) => {
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]): Promise<string> => {
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. Speak archaically. You offer safety from the brutal world outside.`;
-  const sanitizedContents: any[] = [];
-  let lastRole: 'user' | 'model' | null = null;
-  history.forEach(m => {
-    const currentRole: 'user' | 'model' = (m.role === 'model') ? 'model' : 'user';
-    const textContent = m.content || "...";
-    if (sanitizedContents.length === 0) {
-      sanitizedContents.push({ role: 'user', parts: [{ text: textContent }] });
-      lastRole = 'user';
-    } else if (currentRole === lastRole) {
-      sanitizedContents[sanitizedContents.length - 1].parts[0].text += `\n\n${textContent}`;
-    } else {
-      sanitizedContents.push({ role: currentRole, parts: [{ text: textContent }] });
-      lastRole = currentRole;
-    }
-  });
+  const systemInstruction = `You are Barnaby, the Innkeeper. Speak archaically. You offer safety from the brutal world outside.`;
+  const sanitizedContents = history.map(m => ({ 
+    role: m.role === 'model' ? 'model' : 'user', 
+    parts: [{ text: m.content || "..." }] 
+  }));
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: sanitizedContents,
+      contents: sanitizedContents as any,
       config: { systemInstruction, temperature: 0.7 }
     });
-    return response.text || "Barnaby just nods, his eyes heavy with the sights of a hard world.";
+    return response.text || "Barnaby just nods.";
   } catch (error) {
     return "Barnaby is silent, his hand resting on the hilt of a rusted blade.";
   }

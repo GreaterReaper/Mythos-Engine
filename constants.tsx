@@ -411,7 +411,78 @@ export const INITIAL_MONSTERS: Monster[] = [
   { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [], description: 'Burning eyes and teeth made of cold obsidian.', cr: 1, activeStatuses: [] },
   { id: 'mon-husk', name: 'Hollow Husk', type: 'Undead', hp: 12, ac: 8, stats: { str: 12, dex: 6, con: 14, int: 1, wis: 1, cha: 1 }, abilities: [{name: 'Soul Thirst', description: 'Deals 1d4 necrotic on hit.', type: 'Active', levelReq: 1}], description: 'The remains of a vessel that failed to bind. Slow and brittle.', cr: 0.25, activeStatuses: [] },
   { id: 'mon-wisp', name: 'Aetheric Wisp', type: 'Hybrid', hp: 5, ac: 13, stats: { str: 1, dex: 16, con: 10, int: 14, wis: 14, cha: 10 }, abilities: [{name: 'Phase Out', description: 'Disadvantage on attacks against it.', type: 'Passive', levelReq: 1}], description: 'Flickering lights that feed on aetheric surges.', cr: 0.25, activeStatuses: [] },
-  { id: 'mon-warden', name: 'Shattered Warden', type: 'Undead', hp: 45, ac: 15, stats: { str: 18, dex: 10, con: 16, int: 8, wis: 12, cha: 8 }, abilities: [{name: 'Iron Cleave', description: 'Massive arc strike (2d8+STR).', type: 'Active', levelReq: 1}, {name: 'Stone Skin', description: 'Resistance to physical damage.', type: 'Passive', levelReq: 1}], description: 'A massive armored shell animated by a vengeful soul.', cr: 2, activeStatuses: [] }
+  { id: 'mon-warden', name: 'Shattered Warden', type: 'Undead', hp: 45, ac: 15, stats: { str: 18, dex: 10, con: 16, int: 8, wis: 12, cha: 8 }, abilities: [{name: 'Iron Cleave', description: 'Massive arc strike (2d8+STR).', type: 'Active', levelReq: 1}, {name: 'Stone Skin', description: 'Resistance to physical damage.', type: 'Passive', levelReq: 1}], description: 'A massive armored shell animated by a vengeful soul.', cr: 2, activeStatuses: [] },
+  
+  // BOSS TYPE ENEMIES
+  { 
+    id: 'mon-gorechimera', 
+    name: 'Gorechimera', 
+    type: 'Hybrid', 
+    hp: 140, 
+    ac: 16, 
+    stats: { str: 20, dex: 12, con: 18, int: 6, wis: 14, cha: 10 }, 
+    cr: 7, 
+    description: 'A twisted fusion of apex predators. Its multiple heads snap and roar in a discordant symphony of carnage.', 
+    abilities: [
+      { name: 'Lion Pulse', description: 'A roar that can stun nearby vessels.', type: 'Active', levelReq: 1 },
+      { name: 'Serpent Sting', description: 'Tail strike that inflicts lethal poison.', type: 'Active', levelReq: 1 },
+      { name: 'Goat Breath', description: 'A cone of necrotic fire.', type: 'Active', levelReq: 1 }
+    ],
+    resistances: ['Poisoned'],
+    activeStatuses: []
+  },
+  { 
+    id: 'mon-void-beholder', 
+    name: 'The Obsidian Eye', 
+    type: 'Beast', 
+    hp: 180, 
+    ac: 18, 
+    stats: { str: 10, dex: 14, con: 18, int: 17, wis: 15, cha: 17 }, 
+    cr: 13, 
+    description: 'A floating mass of necrotic tissue dominated by a singular, unblinking iris. Smaller eyes sprout from its body like tumors.', 
+    abilities: [
+      { name: 'Enervation Ray', description: 'Deals 8d8 necrotic damage on a failed save.', type: 'Active', levelReq: 1 },
+      { name: 'Anti-Magic Gaze', description: 'Disables all spells in a frontal cone.', type: 'Passive', levelReq: 1 },
+      { name: 'Telekinetic Grip', description: 'Crushes the physical vessel of a target.', type: 'Active', levelReq: 1 }
+    ],
+    resistances: ['Blinded', 'Charmed'],
+    activeStatuses: []
+  },
+  { 
+    id: 'mon-colossus', 
+    name: 'Blight-Walker Colossus', 
+    type: 'Undead', 
+    hp: 280, 
+    ac: 20, 
+    stats: { str: 24, dex: 8, con: 22, int: 4, wis: 10, cha: 5 }, 
+    cr: 16, 
+    description: 'A titan of stitched flesh and reinforced iron. It leaves a trail of dying earth wherever its massive feet fall.', 
+    abilities: [
+      { name: 'Earth-Shaker', description: 'Massive stomp that knocks all vessels prone.', type: 'Active', levelReq: 1 },
+      { name: 'Miasma Cloud', description: 'A permanent aura of poison surrounds the colossus.', type: 'Passive', levelReq: 1 },
+      { name: 'Siege Strike', description: 'Deals double damage to structures and shields.', type: 'Active', levelReq: 1 }
+    ],
+    vulnerabilities: ['Fire'],
+    resistances: ['Poisoned', 'Exhausted'],
+    activeStatuses: []
+  },
+  { 
+    id: 'mon-nightlord', 
+    name: 'Vesperian Nightlord', 
+    type: 'Humanoid', 
+    hp: 350, 
+    ac: 19, 
+    stats: { str: 16, dex: 22, con: 18, int: 18, wis: 16, cha: 20 }, 
+    cr: 19, 
+    description: 'An ancient Vesperian who has attained absolute resonance with the void. They move as a shadow among shadows.', 
+    abilities: [
+      { name: 'Eternal Night', description: 'Extinguishes all light and blinds all vessels.', type: 'Active', levelReq: 1 },
+      { name: 'Void Flicker', description: 'Teleports after every strike.', type: 'Passive', levelReq: 1 },
+      { name: 'Soul Sip', description: 'Heals for 50% of damage dealt.', type: 'Active', levelReq: 1 }
+    ],
+    resistances: ['Blinded', 'Stunned', 'Frightened'],
+    activeStatuses: []
+  }
 ];
 
 export const RULES_MANIFEST = `

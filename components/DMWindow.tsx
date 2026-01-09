@@ -64,7 +64,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  // Use strict boolean conversion to avoid TS build errors (null vs boolean | undefined)
   const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
   const deathSaves = activeCharacter?.deathSaves || { successes: 0, failures: 0 };
 
@@ -187,6 +186,23 @@ const DMWindow: React.FC<DMWindowProps> = ({
     setShowMobileGrimoire(false);
   };
 
+  const renderContentWithRewards = (content: string) => {
+    // Regex to match +123 EXP or [EXP: 123] patterns
+    const expRegex = /(\+\d+\s*EXP|\[EXP:\s*\d+\])/gi;
+    const parts = content.split(expRegex);
+
+    return parts.map((part, i) => {
+      if (part.match(expRegex)) {
+        return (
+          <span key={i} className="text-gold font-cinzel font-black tracking-widest animate-pulse drop-shadow-[0_0_8px_rgba(212,175,55,0.4)]">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
   if (!campaign) {
     return (
       <div className="space-y-12 max-w-4xl mx-auto animate-in fade-in px-4 py-8">
@@ -297,7 +313,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in`}>
                 <div className={`max-w-[95%] md:max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl' : msg.role === 'system' ? 'bg-gray-950/40 border border-emerald-900/10 text-emerald-500/60 text-[10px] text-center w-full max-w-lg mx-auto py-2 px-4 rounded-sm' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl'}`}>
                   {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase border-b border-emerald-900/10 pb-1">The Engine Speaks</p>}
-                  <div className={`leading-relaxed whitespace-pre-wrap font-medium ${msg.content.includes("Turbulence") || msg.content.includes("timed out") ? 'text-red-500 italic' : ''}`}>{msg.content}</div>
+                  <div className={`leading-relaxed whitespace-pre-wrap font-medium ${msg.content.includes("Turbulence") || msg.content.includes("timed out") ? 'text-red-500 italic' : ''}`}>
+                    {renderContentWithRewards(msg.content)}
+                  </div>
                 </div>
               </div>
             ))}

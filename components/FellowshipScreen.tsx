@@ -141,7 +141,8 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
             <CharacterSheet 
               character={selectedChar} 
               onUpdate={viewingMentors || selectedChar.ownerName !== username ? undefined : onUpdate} 
-              isMentor={viewingMentors} 
+              isMentor={viewingMentors}
+              customArchetypes={customArchetypes}
             />
           </div>
         </div>

@@ -162,8 +162,14 @@ const App: React.FC = () => {
               }} isHost={true} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} />}
               {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
               {activeTab === 'Chronicles' && <DMWindow campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} activeCharacter={activePartyObjects.find(c => c.id === state.userAccount.activeCharacterId) || null} onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} onMessage={m => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c) }))} onCreateCampaign={(t, p) => {
-                const c = { id: safeId(), title: t, prompt: p, history: [{ role: 'model', content: p, timestamp: Date.now() }], participants: state.party };
-                setState(prev => ({ ...prev, campaigns: [...prev.campaigns, c], activeCampaignId: c.id }));
+                const newCampaign: Campaign = { 
+                  id: safeId(), 
+                  title: t, 
+                  prompt: p, 
+                  history: [{ role: 'model', content: p, timestamp: Date.now() }], 
+                  participants: state.party 
+                };
+                setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: newCampaign.id }));
               }} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onShortRest={() => {}} isHost={true} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={updateMonster} />}
               {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}

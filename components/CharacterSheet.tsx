@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Character, Stats, Ability, Item, Archetype, Race, Currency, StatusEffect } from '../types';
+import { Character, Stats, Ability, Item, Archetype, Race, Currency, StatusEffect, ArchetypeInfo } from '../types';
 import { ARCHETYPE_INFO, SPELL_LIBRARY } from '../constants';
 import Tooltip from './Tooltip';
 
@@ -7,9 +7,10 @@ interface CharacterSheetProps {
   character: Character;
   onUpdate?: (id: string, updates: Partial<Character>) => void;
   isMentor?: boolean;
+  customArchetypes?: ArchetypeInfo[];
 }
 
-const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, isMentor }) => {
+const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, isMentor, customArchetypes = [] }) => {
   const [activeTab, setActiveTab] = useState<'Stats' | 'Soul Path' | 'Inventory' | 'Lore'>('Stats');
   const [inventoryFilter, setInventoryFilter] = useState<'Gear' | 'Mundane'>('Gear');
   const [lastDeathRoll, setLastDeathRoll] = useState<number | null>(null);
@@ -28,8 +29,24 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   // Aggregate all possible abilities/spells for this archetype to show progression
   const fullSoulPath = useMemo(() => {
-    const info = ARCHETYPE_INFO[character.archetype as Archetype];
-    if (!info) return [...character.abilities, ...character.spells];
+    // Try standard lookup first
+    let info = ARCHETYPE_INFO[character.archetype as Archetype];
+    
+    // If not found, check custom archetypes
+    if (!info) {
+      const customMatch = customArchetypes.find(a => a.name === character.archetype);
+      if (customMatch) {
+        info = {
+          hpDie: customMatch.hpDie,
+          role: customMatch.role,
+          description: customMatch.description,
+          coreAbilities: customMatch.coreAbilities,
+          spells: customMatch.spells
+        };
+      }
+    }
+
+    if (!info) return [...character.abilities, ...character.spells].sort((a, b) => a.levelReq - b.levelReq);
 
     const allAbilities = [...info.coreAbilities];
     if (info.spells) allAbilities.push(...info.spells);
@@ -39,7 +56,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     allAbilities.forEach(a => uniqueMap.set(a.name, a));
     
     return Array.from(uniqueMap.values()).sort((a, b) => a.levelReq - b.levelReq);
-  }, [character.archetype, character.abilities, character.spells]);
+  }, [character.archetype, character.abilities, character.spells, customArchetypes]);
 
   const equippedItems = useMemo(() => 
     character.inventory.filter(i => character.equippedIds?.includes(i.id)),
@@ -201,20 +218,25 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             <div className="border-l border-emerald-900/30 space-y-4 ml-2 pl-6 relative">
               {fullSoulPath.map((a, i) => {
                 const isUnlocked = a.levelReq <= character.level;
+                const isNext = !isUnlocked && a.levelReq === character.level + 1;
                 return (
                   <div key={i} className="relative">
                     {/* Connection Node */}
-                    <div className={`absolute -left-[31px] top-1.5 w-2.5 h-2.5 rounded-full border-2 transform rotate-45 z-10 transition-all duration-700 ${isUnlocked ? 'bg-gold border-gold shadow-[0_0_8px_#d4af37]' : 'bg-black border-emerald-900/50'}`} />
+                    <div className={`absolute -left-[31px] top-1.5 w-2.5 h-2.5 rounded-full border-2 transform rotate-45 z-10 transition-all duration-700 ${isUnlocked ? 'bg-gold border-gold shadow-[0_0_8px_#d4af37]' : isNext ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_10px_#10b981] animate-pulse' : 'bg-black border-emerald-900/50'}`} />
                     
-                    <div className={`p-4 border-l-2 rounded-r-sm transition-all duration-500 ${isUnlocked ? 'bg-emerald-900/5 border-gold shadow-[inset_0_0_15px_rgba(212,175,55,0.03)]' : 'bg-black/40 border-gray-800 opacity-40 grayscale'}`}>
+                    <div className={`p-4 border-l-2 rounded-r-sm transition-all duration-500 ${isUnlocked ? 'bg-emerald-900/5 border-gold shadow-[inset_0_0_15px_rgba(212,175,55,0.03)]' : isNext ? 'bg-emerald-950/10 border-emerald-800' : 'bg-black/40 border-gray-800 opacity-40 grayscale'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex flex-col">
-                          <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUnlocked ? 'text-gold' : 'text-gray-500'}`}>{a.name}</span>
-                          {!isUnlocked && <span className="text-[7px] text-red-900 uppercase font-black tracking-widest mt-0.5">Latent: Level {a.levelReq} Required</span>}
+                          <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUnlocked ? 'text-gold' : isNext ? 'text-emerald-500' : 'text-gray-500'}`}>{a.name}</span>
+                          {!isUnlocked && (
+                            <span className={`text-[7px] uppercase font-black tracking-widest mt-0.5 ${isNext ? 'text-emerald-600 animate-pulse' : 'text-red-900'}`}>
+                              {isNext ? `Proximal Ascension: Level ${a.levelReq}` : `Latent: Level ${a.levelReq} Required`}
+                            </span>
+                          )}
                         </div>
                         <span className={`text-[8px] uppercase italic font-black px-1.5 py-0.5 rounded-sm ${isUnlocked ? 'text-emerald-500 bg-emerald-900/20 border border-emerald-900/40' : 'text-gray-600 border border-gray-800'}`}>{a.type}</span>
                       </div>
-                      <p className="text-[11px] text-gray-400 leading-relaxed font-medium">"{a.description}"</p>
+                      <p className={`text-[11px] leading-relaxed font-medium transition-colors ${isUnlocked ? 'text-gray-300' : 'text-gray-500'}`}>"{a.description}"</p>
                     </div>
                   </div>
                 );

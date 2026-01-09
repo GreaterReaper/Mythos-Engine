@@ -47,8 +47,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     if (!onUpdate || isMentor) return;
     const isActive = character.activeStatuses.includes(effect);
     if (isActive) {
-      // THOU SHALT NOT REMOVE THY OWN BLIGHTS.
-      // Reagents or Spells are required for purification.
+      // VOID LAW: THOU SHALT NOT REMOVE THY OWN BLIGHTS.
       return;
     }
     const nextStatuses = [...character.activeStatuses, effect];
@@ -85,7 +84,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   const isInnateSoulAbility = (ability: Ability) => {
     const innateNames = ['Living Dead', 'Sanguine Link', 'Life Tap', 'Gore Cascade'];
-    // These are functionally Level 1 unlocks but visually distinct in the UI.
     return innateNames.includes(ability.name) || character.archetype === Archetype.BloodArtist;
   };
 
@@ -146,7 +144,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                        onClick={() => toggleStatus(status)} 
                        disabled={isMentor} 
                        className={`px-3 py-1.5 rounded-sm border text-[8px] font-black uppercase tracking-widest transition-all ${isActive ? 'text-red-500 border-red-900/60 bg-red-900/10 shadow-[0_0_10px_currentColor] cursor-not-allowed' : 'border-white/10 text-white/20 hover:text-white/40'}`}
-                       title={isActive ? "This blight is locked. Reagents or Aetheric Spells are required to purge it." : "Mark this soul with a blight."}
+                       title={isActive ? "Locked. Use reagents or spells to purge." : "Mark soul with blight."}
                      >
                        {status}
                      </button>

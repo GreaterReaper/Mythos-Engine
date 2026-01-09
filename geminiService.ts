@@ -267,13 +267,17 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  const activeChar = playerContext.activeCharacter;
   const partySize = playerContext.party.length;
-  const activeCharInfo = activeChar 
-    ? `Player Soul: ${activeChar.name}, Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
-       Manifested Feats: ${activeChar.abilities.filter(a => a.levelReq <= activeChar.level).map(a => a.name).join(', ')}.
-       Unlocked Spells: ${activeChar.spells.filter(s => s.levelReq <= activeChar.level).map(s => s.name).join(', ')}.`
-    : "No soul bound.";
+  
+  // Detailed manifest for ALL party members to ensure Mentors follow class rules
+  const partyManifests = playerContext.party.map(c => {
+    const isUsableAbilities = c.abilities.filter(a => a.levelReq <= c.level).map(a => a.name).join(', ');
+    const isUsableSpells = c.spells.filter(s => s.levelReq <= c.level).map(s => s.name).join(', ');
+    const ownerStatus = c.id.startsWith('mentor-') ? "MENTOR (Engine-controlled)" : "PLAYER SOUL";
+    return `${c.name} [${ownerStatus}] - Level ${c.level} ${c.race} ${c.archetype}. 
+    Permitted Feats: [${isUsableAbilities || "None"}]. 
+    Permitted Spells: [${isUsableSpells || "None"}].`;
+  }).join('\n    ');
 
   const sanitizedContents: any[] = [];
   let currentRole: 'user' | 'model' = 'user';
@@ -305,26 +309,30 @@ export const generateDMResponse = async (
     You are the "Mythos Engine," the archaic Dungeon Master of a grounded, dark fantasy epic.
     
     STRICT MANIFEST PROTOCOL:
-    - Thou shalt ONLY use manifestations (spells/abilities) listed in the character's manifest provided below.
-    - If a soul has not reached the Level Requirement (Lvl Req) for a feat, it is VOID.
-    - Hallucinating new powers or using high-level feats prematurely is a breach of reality.
-    - If a player attempts an invalid action, describe their soul straining against the aether as the attempt fails.
+    - This protocol applies to BOTH Player Souls and Mentors.
+    - Thou shalt ONLY use manifestations (spells/abilities) listed in a soul's manifest.
+    - If a soul (Player OR Mentor) has not reached the Level Requirement (Lvl Req) for a feat, it is VOID.
+    - Hallucinating new powers or ignoring level requirements is a breach of reality.
     
-    EQUILIBRIUM & HEROIC MODE:
-    - Baseline Balance: Designed for Fellowship of 3 to 5. Current Size: ${partySize}.
-    - HEROIC MODE (Solo/Duo): If Size < 3, empower the player narratively but keep mechanics grounded.
+    WORLD ARCHITECT PROTOCOL:
+    - Thou art empowered to expand the collective Bestiary and Armory.
+    - When a new horror is encountered or a boss is introduced, use [SPAWN: Unique Monster Name] to promote it to the Bestiary.
+    - When a significant reward or legendary artifact is earned, use [ITEM: Unique Item Name] to add it to the Armory.
+    - Actively promote new threats and rewards to the record.
+    
+    EQUILIBRIUM:
+    - Designed for Fellowship of 3 to 5. Current Size: ${partySize}.
     
     MECHANICS:
-    - Perform all dice calculations (D20, damage, saves).
-    - Announce results: "Thou strikest true [Roll: 18], dealing 9 damage".
+    - Perform all dice calculations. Announce results: "Thou strikest true [Roll: 18], dealing 9 damage".
+    - Blights (Status Effects) cannot be removed manually. Only spells or reagents work.
     
     TONE: Archaic, heavy, grounded. Use "Thou," "Thy," "Vessel."
     
-    RULES:
-    ${activeCharInfo}
-    Fellowship: ${playerContext.party.map(c => `${c.name} (Lvl ${c.level} ${c.archetype})`).join(', ')}.
+    PARTY MANIFESTS (Follow these strictly for both Players and Mentors):
+    ${partyManifests}
 
-    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT].
+    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name].
   `;
 
   try {
@@ -356,7 +364,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Create monster stats for "${monsterName}". Context: ${context}. JSON format.`,
+      contents: `Create dark fantasy monster stats for "${monsterName}". Context: ${context}. Level: ${avgPartyLevel}. JSON format.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -367,7 +375,8 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             cr: { type: Type.NUMBER },
             description: { type: Type.STRING },
-            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } }
+            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } },
+            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING } } } }
           }
         }
       }
@@ -384,7 +393,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Create fantasy item "${itemName}". JSON.`,
+      contents: `Create dark fantasy item "${itemName}". Context: ${context}. Tier: ${avgPartyLevel}. JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {

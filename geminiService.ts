@@ -2,8 +2,7 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 
-// Complexity-based Model Selection
-const NARRATIVE_MODEL = 'gemini-3-pro-preview'; // Upgraded to Pro for complex DMing
+const NARRATIVE_MODEL = 'gemini-3-pro-preview'; 
 const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
 const SCRIBE_MODEL = 'gemini-3-flash-preview';
 
@@ -33,18 +32,16 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP)`).join(', ');
 
   const prompt = `
-    Thou art the "Mechanical Scribe" for the Mythos Engine. 
-    Audit this narrative for mechanical consequences and state changes.
+    Thou art the "Mechanical Scribe". 
+    Read this segment and extract mechanical changes into JSON.
     
-    PARTY MANIFEST: ${manifest}
-    NARRATIVE SEGMENT: "${narrative}"
+    PARTY: ${manifest}
+    TEXT: "${narrative}"
     
-    CRITICAL INSTRUCTIONS:
-    1. Damage detection: If the text says a character "takes 15 damage" or "is struck for 10", record it as a "damage" change.
-    2. Healing detection: If a character "mends", "heals", or "recovers", record it as a "heal" change.
-    3. Target matching: Match names exactly as they appear in the manifest.
-    4. Item detection: If they "find", "obtain", or "gain" an item, list its name.
-    5. New Entities: If a NEW monster or item name is introduced (e.g., "Gravelord"), flag it for the Architect.
+    Rules:
+    - If a character takes damage (e.g., "Miri takes 15 damage"), record type: "damage", target: "Miri", value: 15.
+    - If a character heals (e.g., "Lina mends for 10"), record type: "heal", target: "Lina", value: 10.
+    - If items are found, name them in "newEntities".
   `;
 
   try {
@@ -61,10 +58,9 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  type: { type: Type.STRING, description: "damage | heal | item | exp | status" },
+                  type: { type: Type.STRING, description: "damage | heal | exp" },
                   target: { type: Type.STRING },
-                  value: { type: Type.NUMBER },
-                  detail: { type: Type.STRING }
+                  value: { type: Type.NUMBER }
                 },
                 required: ["type", "target", "value"]
               }
@@ -76,18 +72,15 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                 properties: {
                   name: { type: Type.STRING },
                   category: { type: Type.STRING, description: "monster | item" }
-                },
-                required: ["name", "category"]
+                }
               }
             }
-          },
-          required: ["changes", "newEntities"]
+          }
         }
       }
     });
     return JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
   } catch (e) {
-    console.error("Scribe audit failure:", e);
     return { changes: [], newEntities: [] };
   }
 };
@@ -107,38 +100,43 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  // PURIFY HISTORY: Ensure the Arbiter ONLY sees Narrative/Model exchanges.
-  // We strictly filter for role 'user' and 'model' to prevent system logs from breaking context.
-  const purifiedHistory = history.filter(m => m.role === 'user' || m.role === 'model');
+  // 1. Filter out system logs
+  let purifiedHistory = history.filter(m => m.role === 'user' || m.role === 'model');
 
-  const partyManifests = playerContext.party.map(c => {
-    return `${c.name} (Lvl ${c.level} ${c.archetype}): HP ${c.currentHp}/${c.maxHp}, Exp ${c.exp}`;
-  }).join('\n');
+  // 2. ENSURE ALTERNATION: Gemini requires User -> Model -> User.
+  // If history starts with 'model', prepend a synthetic 'user' start.
+  if (purifiedHistory.length > 0 && purifiedHistory[0].role === 'model') {
+    purifiedHistory = [
+      { role: 'user', content: "Begin the chronicle.", timestamp: Date.now() },
+      ...purifiedHistory
+    ];
+  }
+
+  const partyManifests = playerContext.party.map(c => `${c.name}: ${c.currentHp}/${c.maxHp} HP`).join(', ');
 
   const systemInstruction = `
-    Thou art the "Arbiter of Mythos", a senior DM for a dark fantasy TTRPG.
-    Atmosphere: Grim, weighted, cinematic.
+    Thou art the Arbiter of Mythos.
+    Focus on grim atmosphere and cinematic consequence.
     
-    Thy role is to describe the world and mediate player actions.
-    A Mechanical Scribe listens to thy words.
-    When damage occurs, state it clearly (e.g., "Lina takes 12 damage").
-    When items are found, name them (e.g., "Thou findeth an Iron Shield").
+    MECHANICAL LOGIC:
+    State damage clearly: "[Name] takes [X] damage."
+    State healing clearly: "[Name] heals [X] HP."
     
-    Avoid repeating previous descriptions. Drive the narrative forward with consequence.
-    
-    CURRENT PARTY:
-    ${partyManifests}
+    Current Party: ${partyManifests}
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: purifiedHistory.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
-      config: { systemInstruction, temperature: 0.85 }
+      contents: purifiedHistory.map(m => ({ 
+        role: m.role, 
+        parts: [{ text: m.content }] 
+      })) as any,
+      config: { systemInstruction, temperature: 0.8 }
     });
-    return response.text || "The abyss stares back in silence...";
+    return response.text || "The shadows lengthen...";
   } catch (error: any) {
-    console.error("Arbiter Error:", error);
+    console.error("Arbiter API Error:", error);
     return "The aetheric connection flickers; the Arbiter's voice is lost to the void.";
   }
 };
@@ -159,10 +157,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             cr: { type: Type.NUMBER },
             description: { type: Type.STRING },
-            stats: { 
-              type: Type.OBJECT, 
-              properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } 
-            }
+            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } }
           }
         }
       }
@@ -203,4 +198,4 @@ export const manifestSoulLore = async (c: any): Promise<any> => ({ biography: ""
 export const generateRumors = async (l: number): Promise<Rumor[]> => [];
 export const generateCustomClass = async (p: string): Promise<any> => ({});
 export const parseDMCommand = (t: string) => ({ setHp: [], takeDamage: [], heals: [], usedSlot: null, shortRest: false, longRest: false, currencyRewards: [], exp: 0, items: [] });
-export const generateInnkeeperResponse = async (h: any, p: any) => "The fire crackles in silence.";
+export const generateInnkeeperResponse = async (h: any, p: any) => "The fire crackles.";

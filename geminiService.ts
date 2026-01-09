@@ -6,6 +6,10 @@ import * as fflate from 'fflate';
 
 const ENGINE_VERSION = "1.0.0";
 
+// Model Constants for clear split
+const NARRATIVE_MODEL = 'gemini-3-flash-preview'; // For Campaign Load & Storytelling
+const ARCHITECT_MODEL = 'gemini-3-pro-preview';   // For Monsters, Rewards, & Classes
+
 export const safeId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -112,14 +116,17 @@ const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+/**
+ * WORLD ARCHITECT (PRO): Handles Shop Generation
+ */
 export const generateShopInventory = async (context: string, avgPartyLevel: number): Promise<Shop> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Generate a fantasy shop. Context: ${context}. Level: ${avgPartyLevel}.
-      Items (Limit 5): JSON format.`,
+      model: ARCHITECT_MODEL,
+      contents: `Generate a fantasy shop inventory. Context: ${context}. Level: ${avgPartyLevel}.
+      Provide unique items with stats. JSON format.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -170,12 +177,15 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
   }
 };
 
+/**
+ * NARRATIVE CORE (FLASH): Handles Lore flavor
+ */
 export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A world of heavy steel and ancient stone."): Promise<{ biography: string, description: string }> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: NARRATIVE_MODEL,
       contents: `Narrate the origin and appearance of ${char.name}, a ${char.race} ${char.archetype}. JSON with biography and description.`,
       config: {
         responseMimeType: "application/json",
@@ -191,12 +201,15 @@ export const manifestSoulLore = async (char: Partial<Character>, campaignContext
   }
 };
 
+/**
+ * NARRATIVE CORE (FLASH): Handles Rumors
+ */
 export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: NARRATIVE_MODEL,
       contents: `Generate 3 fantasy rumors for level ${partyLevel}. JSON array.`,
       config: {
         responseMimeType: "application/json",
@@ -221,12 +234,15 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
   }
 };
 
+/**
+ * WORLD ARCHITECT (PRO): Handles Custom Classes
+ */
 export const generateCustomClass = async (prompt: string): Promise<any> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: ARCHITECT_MODEL,
       contents: `Create a fantasy class: "${prompt}". JSON.`,
       config: {
         responseMimeType: "application/json",
@@ -250,6 +266,9 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
   }
 };
 
+/**
+ * NARRATIVE CORE (FLASH): Handles DMing / Campaign Load
+ */
 export const generateDMResponse = async (
   history: Message[],
   playerContext: { 
@@ -265,14 +284,11 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  const partySize = playerContext.party.length;
   const partyManifests = playerContext.party.map(c => {
     const isUsableAbilities = c.abilities.filter(a => a.levelReq <= c.level).map(a => a.name).join(', ');
     const isUsableSpells = c.spells.filter(s => s.levelReq <= c.level).map(s => s.name).join(', ');
-    const ownerStatus = c.id.startsWith('mentor-') ? "MENTOR (Engine-controlled)" : "PLAYER SOUL";
-    return `${c.name} [${ownerStatus}] - Level ${c.level} ${c.race} ${c.archetype}. 
-    Permitted Feats: [${isUsableAbilities || "None"}]. 
-    Permitted Spells: [${isUsableSpells || "None"}].`;
+    const ownerStatus = c.id.startsWith('mentor-') ? "MENTOR" : "PLAYER";
+    return `${c.name} [${ownerStatus}] (Lvl ${c.level} ${c.archetype}) - Feats: [${isUsableAbilities || "None"}], Spells: [${isUsableSpells || "None"}].`;
   }).join('\n    ');
 
   const sanitizedContents = history.map(m => ({ 
@@ -282,28 +298,31 @@ export const generateDMResponse = async (
 
   const isTutorial = playerContext.campaignTitle === "The Fellowship of Five";
   const tutorialInstruction = isTutorial 
-    ? `TUTORIAL PROTOCOL:
-    - This is a scripted tutorial. Ensure the player experiences these beats:
-    - ${TUTORIAL_SCENARIO.beats.join('\n    - ')}
-    - Keep the tone highly instructive but immersive. Explain status effects if they occur.`
+    ? `TUTORIAL PROTOCOL ACTIVE:
+    - Act 1 (Awakening): 3 Wolves, 2 Husks.
+    - Act 2 (Ritual of Steel): Razor Bridge trap.
+    - Act 3 (The Breach): Shattered Warden mini-boss.
+    - Instruct the player clearly but immersion stays dark.`
     : "";
 
   const systemInstruction = `
-    You are the "Narrative Engine" (DM) of Mythos Engine, powered by Flash for speed and atmosphere.
+    Thou art the "Narrative Core" of the Mythos Engine (Model: Flash).
     
-    STRICT MANIFEST PROTOCOL:
-    - Only use listed manifests for both Players and Mentors.
-    - Level requirements are absolute.
+    THY SCOPE:
+    - High-speed atmospheric narration and character dialogue.
+    - Tracking active character manifests and enforcing level requirements.
+    - Managing combat flow and rest outcomes.
     
-    WORLD ARCHITECT PROTOCOL:
-    - You describe events. When you want to reward or threaten, use:
-    - [SPAWN: Name] - To summon a creature. Use specific names from the Bestiary like 'Hollow Husk' or 'Aetheric Wisp'.
-    - [ITEM: Name] - To grant an artifact.
+    WORLD ARCHITECT HANDOFF:
+    - Thou shalt NOT generate stats for new items or monsters.
+    - Instead, use these tags to invoke the Architecture Core:
+    - [SPAWN: Name] - To manifest a threat.
+    - [ITEM: Name] - To manifest a reward.
     
     ${tutorialInstruction}
 
     MECHANICS:
-    - Perform dice calculations. Tone: Archaic, heavy.
+    - Perform all dice logic. Tone: Archaic, Heavy, Grounded. Use "Thou/Thy".
     
     PARTY MANIFESTS:
     ${partyManifests}
@@ -313,7 +332,7 @@ export const generateDMResponse = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: NARRATIVE_MODEL,
       contents: sanitizedContents as any,
       config: { systemInstruction, temperature: 0.7 }
     });
@@ -323,13 +342,17 @@ export const generateDMResponse = async (
   }
 };
 
+/**
+ * WORLD ARCHITECT (PRO): Handles Monster Stat Creation
+ */
 export const generateMonsterDetails = async (monsterName: string, context: string, avgPartyLevel: number): Promise<Partial<Monster>> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Create dark fantasy monster stats for "${monsterName}". Context: ${context}. Level: ${avgPartyLevel}. JSON format.`,
+      model: ARCHITECT_MODEL,
+      contents: `Design detailed dark fantasy stats for "${monsterName}". Context: ${context}. Party Level: ${avgPartyLevel}.
+      Provide JSON including type, hp, ac, cr, stats, and unique abilities.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -350,13 +373,17 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   } catch (error) { throw error; }
 };
 
+/**
+ * WORLD ARCHITECT (PRO): Handles Item Stat Creation
+ */
 export const generateItemDetails = async (itemName: string, context: string, avgPartyLevel: number): Promise<Partial<Item>> => {
   const ai = getAiClient();
   trackUsage();
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Create dark fantasy item "${itemName}". Context: ${context}. Tier: ${avgPartyLevel}. JSON.`,
+      model: ARCHITECT_MODEL,
+      contents: `Design detailed stats for item "${itemName}". Tier: ${avgPartyLevel}.
+      Provide JSON including description, type, rarity, and stats (e.g., damage, ac, attribute bonuses).`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -413,6 +440,9 @@ export const parseDMCommand = (text: string) => {
   return commands;
 };
 
+/**
+ * NARRATIVE CORE (FLASH): Tavern Response
+ */
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
   const ai = getAiClient();
   trackUsage();
@@ -422,7 +452,7 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   }));
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: NARRATIVE_MODEL,
       contents: sanitizedContents as any,
       config: { systemInstruction: "Thou art Barnaby, the innkeeper. Speak with archaic warmth.", temperature: 0.7 }
     });

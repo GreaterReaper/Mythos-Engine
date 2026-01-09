@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
 import { generateDMResponse } from '../geminiService';
@@ -91,16 +92,15 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
-
-  // Derive ledger logs from campaign history if we were tracking them, 
-  // but for now we'll simulate a session-based scribe log
-  const [scribeLog, setScribeLog] = useState<{id: string, text: string, type: 'info' | 'success' | 'alert'}[]>([]);
-
+  // Fix: Defined usableManifestations to resolve "Cannot find name 'usableManifestations'" errors
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
-    return (activeCharacter.spells || []).filter(s => s.levelReq <= activeCharacter.level);
+    return [...(activeCharacter.abilities || []), ...(activeCharacter.spells || [])]
+      .filter(a => a.levelReq <= activeCharacter.level)
+      .sort((a, b) => a.levelReq - b.levelReq);
   }, [activeCharacter]);
+
+  const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
 
   useEffect(() => { 
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
@@ -108,7 +108,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   useEffect(() => {
     if (ledgerEndRef.current) ledgerEndRef.current.scrollIntoView({ behavior: 'smooth' });
-  }, [scribeLog]);
+  }, [campaign?.history]);
 
   useEffect(() => {
     let timer: any;
@@ -118,7 +118,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   const handleSend = async (retryContent?: string) => {
     const messageContent = retryContent || input;
-    if (!campaign || !messageContent.trim() || isLoading || speakCooldown > 0 || !activeCharacter) return;
+    if (!campaign || (!retryContent && !messageContent.trim()) || isLoading || speakCooldown > 0 || !activeCharacter) return;
     
     if (!retryContent) {
       const userMsg: Message = { role: 'user', content: messageContent, timestamp: Date.now() };
@@ -150,13 +150,28 @@ const DMWindow: React.FC<DMWindowProps> = ({
       setIsLoading(false);
     } catch (error: any) { 
       setIsLoading(false);
+      onMessage({ role: 'system', content: "SYSTEM_ALERT: The aetheric connection flickers; the Arbiter's voice is lost to the void.", timestamp: Date.now() });
     }
   };
 
-  const renderContentWithRewards = (content: string) => {
+  const renderContentWithRewards = (content: string, isError: boolean) => {
     const expRegex = /(\+\d+\s*EXP|\[EXP:\s*\d+\])/gi;
     const parts = content.split(expRegex);
-    return parts.map((part, i) => part.match(expRegex) ? <span key={i} className="text-gold font-cinzel font-black tracking-widest animate-pulse">{part}</span> : part);
+    return (
+      <div className="space-y-4">
+        <div className="leading-relaxed whitespace-pre-wrap font-medium text-sm md:text-base">
+          {parts.map((part, i) => part.match(expRegex) ? <span key={i} className="text-gold font-cinzel font-black tracking-widest animate-pulse">{part}</span> : part)}
+        </div>
+        {isError && (
+          <button 
+            onClick={() => handleSend(campaign?.history[campaign.history.length-2]?.content)} 
+            className="mt-4 px-4 py-2 border border-red-900 bg-red-950/20 text-red-500 font-cinzel text-[10px] uppercase font-black tracking-widest hover:bg-red-900 hover:text-white transition-all"
+          >
+            Retry Resonance
+          </button>
+        )}
+      </div>
+    );
   };
 
   if (!campaign) {
@@ -219,7 +234,10 @@ const DMWindow: React.FC<DMWindowProps> = ({
               <button onClick={onQuitCampaign} className="text-emerald-900 hover:text-emerald-500 font-black text-2xl" title="Return to Grimoire">×</button>
               <div className="min-w-0">
                 <h3 className="font-cinzel text-gold text-[10px] md:text-sm font-black tracking-[0.1em] truncate">{campaign.title}</h3>
-                <p className="text-[8px] text-emerald-500/60 font-black uppercase tracking-tighter">Active Arbitration</p>
+                <div className="flex items-center gap-2">
+                   <div className={`w-1.5 h-1.5 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                   <p className="text-[8px] text-emerald-500/60 font-black uppercase tracking-tighter">{isLoading ? 'Resonance Loading...' : 'Aether Connected'}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -227,16 +245,18 @@ const DMWindow: React.FC<DMWindowProps> = ({
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar bg-[#0c0a09] relative">
             <div className="absolute inset-0 bg-leather opacity-20 pointer-events-none" />
             
-            {campaign.history.map((msg, idx) => (
-              <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in relative z-10`}>
-                <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl rounded-tr-xl' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl rounded-r-xl'}`}>
-                  {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase">The Arbiter Speaks</p>}
-                  <div className="leading-relaxed whitespace-pre-wrap font-medium text-sm md:text-base">
-                    {renderContentWithRewards(msg.content)}
+            {campaign.history.map((msg, idx) => {
+              const isError = msg.content.includes("voice is lost to the void") || msg.content.includes("flickers");
+              return (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in relative z-10`}>
+                  <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl rounded-tr-xl' : isError ? 'bg-red-950/10 border-l-4 border-red-900 text-red-200 p-5 rounded-r-xl' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl rounded-r-xl'}`}>
+                    {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase">The Arbiter Speaks</p>}
+                    {msg.role === 'system' && <p className="text-[9px] font-cinzel text-red-500 mb-2 font-black uppercase">Engine Alert</p>}
+                    {renderContentWithRewards(msg.content, isError)}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {isLoading && (
               <div className="flex justify-start animate-in fade-in relative z-10">
                  <div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl max-w-[85%] rounded-r-xl">

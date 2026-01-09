@@ -2,9 +2,10 @@ import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 
-const NARRATIVE_MODEL = 'gemini-3-pro-preview'; 
-const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
-const SCRIBE_MODEL = 'gemini-3-flash-preview';
+// Models optimized for task type
+const NARRATIVE_MODEL = 'gemini-3-flash-preview'; // Flash for dialogue (faster, higher availability)
+const ARCHITECT_MODEL = 'gemini-3-pro-preview';  // Pro for procedural generation
+const SCRIBE_MODEL = 'gemini-3-flash-preview';    // Flash for mechanical extraction
 
 export const safeId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -32,16 +33,16 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP)`).join(', ');
 
   const prompt = `
-    Thou art the "Mechanical Scribe". 
-    Read this segment and extract mechanical changes into JSON.
+    Thou art the "Mechanical Scribe" for the Mythos Engine. 
+    Read this narrative segment and extract state changes into JSON.
     
-    PARTY: ${manifest}
-    TEXT: "${narrative}"
+    PARTY MANIFEST: ${manifest}
+    NARRATIVE: "${narrative}"
     
-    Rules:
-    - If a character takes damage (e.g., "Miri takes 15 damage"), record type: "damage", target: "Miri", value: 15.
-    - If a character heals (e.g., "Lina mends for 10"), record type: "heal", target: "Lina", value: 10.
-    - If items are found, name them in "newEntities".
+    INSTRUCTIONS:
+    1. If a character takes damage (e.g., "Miri is struck for 10"), record type: "damage", target: "[Name]", value: [Number].
+    2. If a character heals (e.g., "Lina mends for 5"), record type: "heal", target: "[Name]", value: [Number].
+    3. If new items or monsters are introduced, list them in "newEntities".
   `;
 
   try {
@@ -81,10 +82,15 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
     });
     return JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
   } catch (e) {
+    console.error("Scribe failure:", e);
     return { changes: [], newEntities: [] };
   }
 };
 
+/**
+ * THE ARBITER OF MYTHOS
+ * Core narrative generation.
+ */
 export const generateDMResponse = async (
   history: Message[],
   playerContext: { 
@@ -100,29 +106,39 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
   
-  // 1. Filter out system logs
+  // 1. FILTER HISTORY: Remove technical logs and system messages
   let purifiedHistory = history.filter(m => m.role === 'user' || m.role === 'model');
 
-  // 2. ENSURE ALTERNATION: Gemini requires User -> Model -> User.
-  // If history starts with 'model', prepend a synthetic 'user' start.
-  if (purifiedHistory.length > 0 && purifiedHistory[0].role === 'model') {
+  // 2. ENFORCE STARTING TURN: Must begin with 'user'
+  if (purifiedHistory.length === 0 || purifiedHistory[0].role === 'model') {
     purifiedHistory = [
-      { role: 'user', content: "Begin the chronicle.", timestamp: Date.now() },
+      { role: 'user', content: "A soul awakens in the dark. Chronicle their journey.", timestamp: Date.now() },
       ...purifiedHistory
     ];
+  }
+
+  // 3. ENFORCE TRAILING TURN: Must end with 'user' for the model to respond to.
+  // If the last message was the DM (model), the DM has no prompt to answer.
+  if (purifiedHistory[purifiedHistory.length - 1].role === 'model') {
+    purifiedHistory.push({
+      role: 'user',
+      content: "The mists swirl. What happens next?",
+      timestamp: Date.now()
+    });
   }
 
   const partyManifests = playerContext.party.map(c => `${c.name}: ${c.currentHp}/${c.maxHp} HP`).join(', ');
 
   const systemInstruction = `
-    Thou art the Arbiter of Mythos.
-    Focus on grim atmosphere and cinematic consequence.
+    Thou art the "Arbiter of Mythos", a senior DM for a dark fantasy TTRPG.
+    Atmosphere: Grim, visceral, cinematic. Use archaic but readable prose.
     
-    MECHANICAL LOGIC:
-    State damage clearly: "[Name] takes [X] damage."
-    State healing clearly: "[Name] heals [X] HP."
+    MECHANICAL RULE:
+    When damage occurs, state it clearly in the narrative (e.g., "Miri takes 12 damage").
+    When items are found, name them clearly.
     
-    Current Party: ${partyManifests}
+    CURRENT PARTY: ${partyManifests}
+    ACTIVE RULES: ${playerContext.activeRules}
   `;
 
   try {
@@ -132,12 +148,23 @@ export const generateDMResponse = async (
         role: m.role, 
         parts: [{ text: m.content }] 
       })) as any,
-      config: { systemInstruction, temperature: 0.8 }
+      config: { 
+        systemInstruction, 
+        temperature: 0.85,
+        topP: 0.95
+      }
     });
-    return response.text || "The shadows lengthen...";
+
+    const text = response.text;
+    if (!text) throw new Error("Empty resonance from the Void.");
+    return text;
   } catch (error: any) {
-    console.error("Arbiter API Error:", error);
-    return "The aetheric connection flickers; the Arbiter's voice is lost to the void.";
+    console.error("Arbiter Resonance Error:", error);
+    // Return a descriptive error to help debugging
+    if (error.message?.includes("User and Model turns must alternate")) {
+      return "The chronicle is out of sync; the roles have merged in the void. (Role Alternation Error)";
+    }
+    return "The aetheric connection flickers; the Arbiter's voice is lost to the void. (Check Console or API Key)";
   }
 };
 
@@ -147,7 +174,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Design detailed RPG stats for "${monsterName}". Context: ${context}. JSON format.`,
+      contents: `Design detailed stats for "${monsterName}" in a dark TTRPG. Context: ${context}. Return JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -172,7 +199,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Design stats for fantasy item "${itemName}". Context: ${context}. JSON.`,
+      contents: `Design fantasy item stats for "${itemName}". Context: ${context}. Return JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -191,11 +218,29 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
 };
 
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => ({ ...defaultState, ...data });
-export const generateSoulSignature = (state: GameState): string => "";
-export const parseSoulSignature = (sig: string, def: GameState): GameState | null => null;
-export const generateShopInventory = async (c: string, l: number): Promise<Shop> => ({ id: '1', merchantName: 'Test', merchantAura: '', inventory: [] });
-export const manifestSoulLore = async (c: any): Promise<any> => ({ biography: "", description: "" });
+export const generateSoulSignature = (state: GameState): string => btoa(JSON.stringify(state));
+export const parseSoulSignature = (sig: string, def: GameState): GameState | null => {
+  try { return JSON.parse(atob(sig)); } catch { return null; }
+};
+export const generateShopInventory = async (c: string, l: number): Promise<Shop> => ({ id: safeId(), merchantName: 'Barnaby', merchantAura: 'Smells of old dust.', inventory: [] });
+export const manifestSoulLore = async (char: any): Promise<any> => {
+  const ai = getAiClient();
+  trackUsage();
+  const response = await ai.models.generateContent({
+    model: ARCHITECT_MODEL,
+    contents: `Write a dark biography and physical description for a ${char.race} ${char.archetype} named ${char.name}. JSON: {biography, description}`
+  });
+  return JSON.parse(response.text || '{"biography":"", "description":""}');
+};
 export const generateRumors = async (l: number): Promise<Rumor[]> => [];
-export const generateCustomClass = async (p: string): Promise<any> => ({});
+export const generateCustomClass = async (p: string): Promise<any> => {
+  const ai = getAiClient();
+  trackUsage();
+  const response = await ai.models.generateContent({
+    model: ARCHITECT_MODEL,
+    contents: `Forge a TTRPG class from this prompt: "${p}". Return JSON with name, description, role, hpDie, abilities (array of {name, description, type, levelReq}), spells (array).`
+  });
+  return JSON.parse(response.text || '{}');
+};
 export const parseDMCommand = (t: string) => ({ setHp: [], takeDamage: [], heals: [], usedSlot: null, shortRest: false, longRest: false, currencyRewards: [], exp: 0, items: [] });
-export const generateInnkeeperResponse = async (h: any, p: any) => "The fire crackles.";
+export const generateInnkeeperResponse = async (h: any, p: any) => "The ale is bitter today, traveler.";

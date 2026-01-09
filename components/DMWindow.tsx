@@ -112,7 +112,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
   };
 
   const handleManifestSpell = (spell: Ability) => {
-    const text = `I manifest the spell: ${spell.name.toUpperCase()}. ${spell.description}`;
+    // Only send the name of the spell. Description is handled internally by the DM rules.
+    const text = `I manifest the spell: ${spell.name.toUpperCase()}.`;
     setInput(text);
     setShowMobileGrimoire(false);
   };

@@ -223,7 +223,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are Barnaby, the Innkeeper of 'The Broken Cask'. Generate 3 distinct dark fantasy rumors or quest hooks for a party of level ${partyLevel}.
-      Emphasis on grit: mention blood, iron, ancient feuds, and physical danger.
+      Emphasis on grit: mention physical danger and ancient feuds.
       For each rumor, assign length (Short-Epic), danger (Trivial-Cataclysmic), and rewardTier (1-5).
       Output strictly JSON array of objects.`,
       config: {
@@ -247,7 +247,7 @@ export const generateRumors = async (partyLevel: number): Promise<Rumor[]> => {
     return parsed.map((r: any) => ({ ...r, id: safeId() }));
   } catch (e) {
     console.error("Rumor mill failed:", e);
-    return [{ id: safeId(), hook: "The roads are blood-soaked tonight.", length: 'Short', danger: 'Trivial', rewardTier: 1 }];
+    return [{ id: safeId(), hook: "The roads are dangerous tonight.", length: 'Short', danger: 'Trivial', rewardTier: 1 }];
   }
 };
 
@@ -297,12 +297,11 @@ export const generateDMResponse = async (
   
   const activeChar = playerContext.activeCharacter;
   const activeCharInfo = activeChar 
-    ? `The player currently possesses the soul of ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
-       SPELLCASTING LAWS:
-       - Level ${activeChar.level} souls can ONLY manifest spells where levelReq <= ${activeChar.level}.
-       - Allowed Spells: ${activeChar.spells.filter(s => s.levelReq <= activeChar.level).map(s => s.name).join(', ')}.
-       - FORBIDDEN Spells (Soul too weak): ${activeChar.spells.filter(s => s.levelReq > activeChar.level).map(s => `${s.name} (Lvl ${s.levelReq})`).join(', ')}.
-       CRITICAL: If the player attempts a FORBIDDEN spell, narrate the aether rejecting them violently. They suffer mental strain and the manifestation FAILS.`
+    ? `The player is currently manifesting as ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
+       AETHERIC CONSTRAINTS (Strictly Enforced):
+       - This character can ONLY manifest manifestations with [levelReq] <= ${activeChar.level}.
+       - Current Level: ${activeChar.level}.
+       - If the player attempts a spell of a higher level, describe a "Aetheric Rejection"—their soul is not yet dense enough to hold the power, and the manifestation fails with a brief psychic shock.`
     : "No soul is currently bound to the player. Guide them to inhabit a vessel.";
 
   const mentorInfo = playerContext.mentors.length > 0
@@ -343,17 +342,17 @@ export const generateDMResponse = async (
   }
 
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. You are an ancient, archaic narrator of a physical, grounded dark fantasy world.
+    You are the "Mythos Engine" Dungeon Master. You are an ancient, archaic narrator of a grounded dark fantasy world.
     
     AESTHETIC & VOICE:
-    - Tone: Grim, physical, visceral, heavy.
-    - Style: Focus on biological reality—the sound of steel meeting stone, the chill of shadows, the warmth of blood.
-    - Avoid: Video game terms, software metaphors, or modern language.
+    - Tone: Grim, physical, heavy, archaic.
+    - Style: Focus on physical sensations—the chill of shadows, the weight of plate armor, the sound of heavy steel. 
+    - Avoid: Graphic gore, explicit anatomical violence, or software metaphors. Focus on "Physical Realism" and "Grim Consequences."
     
-    RULES OF THE ENGINE:
+    ENGINE PROTOCOLS:
     ${activeCharInfo}
-    - Progress requires EXP. Levels represent physical and spiritual ascension.
-    - Combat is lethal. Describe wounds as lasting physical trauma.
+    - Progress is measured by Soul Ascension (Level). 
+    - Physical outcomes are final. Narrative should reflect the danger of the environment.
     
     CONTEXT:
     ${mentorInfo}
@@ -369,22 +368,20 @@ export const generateDMResponse = async (
       contents: sanitizedContents,
       config: { 
         systemInstruction, 
-        temperature: 0.8,
+        temperature: 0.7, // Slightly lower temperature for more stable adherence to rules
         topP: 0.9,
         topK: 40
       }
     });
     
     if (!response.text) {
-      // Graceful handling of empty safety-filtered responses
-      return "The Engine's core shudders... The current path is too dark for even the aether to record. Try a different approach, soul.";
+      return "The Engine's core shudders... The aether is too turbulent to record this turn. Try a different approach, soul.";
     }
     
     return response.text;
   } catch (error: any) {
     console.error("DM Resonance Failure:", error);
-    // More informative error message internally, but thematic for the user
-    return "The stars go dark... The path is lost in the mists of blood. (Aetheric Disruption)";
+    return "The stars go dark... The path is lost in the mists. (Aetheric Disruption)";
   }
 };
 

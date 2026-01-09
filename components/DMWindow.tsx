@@ -180,6 +180,39 @@ const DMWindow: React.FC<DMWindowProps> = ({
     }, 1000);
   };
 
+  const handleManualSlotToggle = (e: React.MouseEvent, charId: string, level: number, index: number, isAvailable: boolean) => {
+    e.stopPropagation();
+    if (!updateCharacter) return;
+    
+    const char = characters.find(c => c.id === charId);
+    if (!char || !char.spellSlots) return;
+
+    const currentCount = char.spellSlots[level] || 0;
+    const maxCount = char.maxSpellSlots?.[level] || 0;
+
+    // Determine new count: if clicked an available one, we want to consume (decrement)
+    // If clicked a spent one, we want to restore (increment)
+    // The visual logic: dots 0 to current-1 are filled. 
+    // If index < currentCount, user clicked a filled dot -> reduce count to index
+    // If index >= currentCount, user clicked an empty dot -> increase count to index + 1
+    
+    let newCount = currentCount;
+    if (index < currentCount) {
+        newCount = index; // Consume slots including and after this one
+    } else {
+        newCount = index + 1; // Restore slots up to and including this one
+    }
+    
+    newCount = Math.max(0, Math.min(maxCount, newCount));
+
+    updateCharacter(charId, {
+      spellSlots: {
+        ...char.spellSlots,
+        [level]: newCount
+      }
+    });
+  };
+
   const handleManifestSpell = (spell: Ability) => {
     const text = `I manifest the spell: ${spell.name.toUpperCase()}.`;
     setInput(text);
@@ -423,7 +456,12 @@ const DMWindow: React.FC<DMWindowProps> = ({
                               <span className="text-[6px] text-blue-500 font-black uppercase leading-none mb-0.5">L{lvl}</span>
                               <div className="flex gap-0.5">
                                 {Array.from({ length: maxCount }).map((_, i) => (
-                                  <div key={i} className={`w-1.5 h-1.5 rounded-full border border-blue-900/50 ${i < currentCount ? 'bg-blue-400 shadow-[0_0_3px_#60a5fa]' : 'bg-gray-900'}`} />
+                                  <button 
+                                    key={i} 
+                                    title={`Level ${lvl} Slot ${i+1}: ${i < currentCount ? 'Available' : 'Spent'}. Click to toggle manually.`}
+                                    onClick={(e) => handleManualSlotToggle(e, char.id, lvl, i, i < currentCount)}
+                                    className={`w-2 h-2 rounded-full border border-blue-900/50 transition-all hover:scale-125 ${i < currentCount ? 'bg-blue-400 shadow-[0_0_3px_#60a5fa]' : 'bg-gray-900'}`} 
+                                  />
                                 ))}
                               </div>
                             </div>

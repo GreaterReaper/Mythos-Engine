@@ -38,13 +38,13 @@ export const RACIAL_BONUSES: Record<Race, Partial<Stats>> = {
 };
 
 export const STATUS_EFFECT_GUIDE = {
-  Poisoned: "Thy blood turns toxic. Disadvantage on attacks and checks.",
+  Poisoned: "Thy system is compromised. Disadvantage on attacks and checks.",
   Blinded: "Sight is lost. Automatically fail checks relying on vision. Attackers gain advantage.",
   Stunned: "The mind reels. Inactive. Cannot move. Auto-fail STR and DEX saves.",
   Frightened: "Terror grips the heart. Disadvantage while the source is visible.",
-  Paralyzed: "Limbs turn to stone. Inactive. Attacks within 5ft are auto-crits.",
-  Charmed: "Thy will is not thy own. Cannot harm the charmer.",
-  Bleeding: "Life-force leaks from open wounds. 1d4 damage each turn.",
+  Paralyzed: "Limbs are unresponsive. Inactive. Attacks within 5ft are critical strikes.",
+  Charmed: "Thy will is influenced. Cannot harm the charmer.",
+  Bleeding: "Vitality drains from open wounds. Persistent minor damage each turn.",
   Exhausted: "The body fails. Slower movement and weakness in all checks."
 };
 
@@ -61,37 +61,37 @@ export const SPELL_SLOT_PROGRESSION: Record<number, Record<number, number>> = {
 
 export const SPELL_LIBRARY: Record<string, Ability[]> = {
   [Archetype.Sorcerer]: [
-    { name: 'Chaos Bolt', description: 'Fire a bolt of unpredictable energy. Deals 2d8 damage of a random type.', type: 'Spell', levelReq: 1, baseLevel: 1, scaling: 'Deals extra 1d6 damage for each slot level above 3rd.' },
+    { name: 'Chaos Bolt', description: 'Fire a bolt of unpredictable energy. Deals elemental damage of a random type.', type: 'Spell', levelReq: 1, baseLevel: 1, scaling: 'Deals extra damage for each slot level above 3rd.' },
     { name: 'Shield of Aether', description: 'A barrier of shimmering force protects you. +5 AC.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Aether Shards', description: 'Three shards of glowing glass strike targets. Deals 1d4+1 damage each.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Burning Hands', description: 'Flames shoot from thy fingertips. 3d6 fire damage in a 15ft cone.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Aether Shards', description: 'Three shards of glowing glass strike targets.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Burning Hands', description: 'Flames shoot from thy fingertips. Fire damage in a 15ft cone.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Misty Step', description: 'Vanish into mist and reappear 30 feet away.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Fireball', description: 'A massive explosion of heat. 8d6 fire damage in a 20ft radius.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Lightning Bolt', description: 'A stroke of lightning 100 feet long blasts out. Deals 8d6 damage.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Disintegrate', description: 'A thin green ray that dissolves the body into dust. 10d6 + 40 damage.', type: 'Spell', levelReq: 11, baseLevel: 6 },
+    { name: 'Fireball', description: 'A massive explosion of heat. Fire damage in a 20ft radius.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Lightning Bolt', description: 'A stroke of lightning 100 feet long blasts out.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Disintegrate', description: 'A thin ray that breaks down the target into dust.', type: 'Spell', levelReq: 11, baseLevel: 6 },
     { name: 'Wish', description: 'Bending the physical world to thy spoken command.', type: 'Spell', levelReq: 17, baseLevel: 9 },
     { name: 'Exequy', description: 'The final dirge. Consumes all reserves to end a life instantly.', type: 'Spell', levelReq: 17, baseLevel: 9 }
   ],
   [Archetype.Mage]: [
-    { name: 'Cure Wounds', description: 'Seal open flesh and stop bleeding. 1d8 + WIS modifier HP.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Cure Wounds', description: 'Seal wounds and restore vitality.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Bless', description: 'Fortify the spirits of three allies. Add 1d4 to attack rolls and saves.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Revivify', description: 'Snatch a soul back to its warm body within one minute of death.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Flame Strike', description: 'A vertical column of fire strikes from the heavens.', type: 'Spell', levelReq: 9, baseLevel: 5 },
-    { name: 'Heal', description: 'A flood of vitality restores 70 HP and seals all wounds.', type: 'Spell', levelReq: 11, baseLevel: 6 }
+    { name: 'Revivify', description: 'Snatch a soul back to its vessel within a short time of passing.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Flame Strike', description: 'A vertical column of light strikes from the heavens.', type: 'Spell', levelReq: 9, baseLevel: 5 },
+    { name: 'Heal', description: 'A flood of vitality restores health and seals all wounds.', type: 'Spell', levelReq: 11, baseLevel: 6 }
   ],
   [Archetype.DarkKnight]: [
-    { name: 'Blood Rite', description: 'Sacrifice thy own blood (5 HP) to deal 2d10 necrotic damage.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Dark Rite', description: 'Sacrifice thy own vitality to deal necrotic damage.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Hold Person', description: 'Bind the muscles of a target with dark authority.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Animate Dead', description: 'Force a corpse to rise and serve.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Blight', description: 'Necrotic energy withers the very cells of the target. 8d8 damage.', type: 'Spell', levelReq: 7, baseLevel: 4 },
-    { name: 'Power Word Kill', description: 'A word that stops the heart of any under 100 HP.', type: 'Spell', levelReq: 17, baseLevel: 9 }
+    { name: 'Animate Dead', description: 'Force a remains to rise and serve.', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Blight', description: 'Energy withers the very cells of the target.', type: 'Spell', levelReq: 7, baseLevel: 4 },
+    { name: 'Power Word Stun', description: 'A word that overwhelms the mind of the target.', type: 'Spell', levelReq: 15, baseLevel: 8 }
   ],
   [Archetype.BloodArtist]: [
-    { name: 'Life Tap', description: 'Drain the blood of a foe to replenish thy own.', type: 'Spell', levelReq: 1, baseLevel: 1 },
-    { name: 'Hemoplague', description: 'Infect a target\'s blood, causing internal decay.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Life Tap', description: 'Drain the vitality of a foe to replenish thy own.', type: 'Spell', levelReq: 1, baseLevel: 1 },
+    { name: 'Decay', description: 'Infect a target, causing internal decline.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Transfusion', description: 'Equalize thy vitality with an ally.', type: 'Spell', levelReq: 5, baseLevel: 3 },
-    { name: 'Sanguine Puppet', description: 'Control a corpse by its remaining filaments of blood.', type: 'Spell', levelReq: 9, baseLevel: 5 },
-    { name: 'Gore Cascade', description: 'A storm of razor-sharp blood shards. 15d10 necrotic damage.', type: 'Spell', levelReq: 17, baseLevel: 9 }
+    { name: 'Sanguine Puppet', description: 'Control a target by its internal resonance.', type: 'Spell', levelReq: 9, baseLevel: 5 },
+    { name: 'Gore Cascade', description: 'A storm of razor-sharp shards. Massive necrotic damage.', type: 'Spell', levelReq: 17, baseLevel: 9 }
   ]
 };
 
@@ -127,7 +127,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
   [Archetype.Warrior]: {
     hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts of the front line.',
     coreAbilities: [
-      { name: 'Charged Devastation', description: 'Put every ounce of muscle into thy next swing.', type: 'Active', levelReq: 1 }
+      { name: 'Charged Devastation', description: 'Put every ounce of strength into thy next swing.', type: 'Active', levelReq: 1 }
     ]
   },
   [Archetype.Fighter]: {
@@ -146,14 +146,14 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
   [Archetype.Alchemist]: {
     hpDie: 8, role: 'Support', description: 'Brewers of tonics and volatile acids.',
     coreAbilities: [
-      { name: 'Harvester', description: 'Carve reagents from the corpses of thy foes.', type: 'Passive', levelReq: 1 },
+      { name: 'Harvester', description: 'Carve reagents from the remains of thy foes.', type: 'Passive', levelReq: 1 },
       { name: 'Transmutation', description: 'Forge elixirs from raw ingredients.', type: 'Active', levelReq: 1 }
     ]
   },
   [Archetype.BloodArtist]: {
     hpDie: 10, role: 'Support', description: 'Elegant collectors of life-force.',
     coreAbilities: [
-      { name: 'Sanguine Link', description: 'Bind two hearts together to share the pain.', type: 'Active', levelReq: 1 }
+      { name: 'Sanguine Link', description: 'Bind two hearts together to share the toll.', type: 'Active', levelReq: 1 }
     ],
     spells: SPELL_LIBRARY[Archetype.BloodArtist]
   }
@@ -235,34 +235,34 @@ export const MENTORS: Character[] = [
 ];
 
 export const INITIAL_MONSTERS: Monster[] = [
-  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [{ name: 'Naw', description: '1 damage.', type: 'Active', levelReq: 1 }], description: 'Scurrying shadows with teeth like glass.', cr: 0.125, activeStatuses: [] },
-  { id: 'mon-skel', name: 'Restless Bones', type: 'Undead', hp: 13, ac: 13, stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }, abilities: [{ name: 'Rusted Blade', description: '1d6+2 damage.', type: 'Active', levelReq: 1 }], description: 'Necrotic clatter of bone on iron.', cr: 0.25, activeStatuses: [] },
-  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [{ name: 'Bite', description: '1d6+2 damage.', type: 'Active', levelReq: 1 }], description: 'Lithe muscle and burning eyes.', cr: 1, activeStatuses: [] },
-  { id: 'mon-knight', name: 'Fallen Paladin', type: 'Undead', hp: 110, ac: 20, stats: { str: 20, dex: 10, con: 18, int: 12, wis: 16, cha: 18 }, resistances: ["Necrotic", "Poison"], vulnerabilities: ["Radiant"], abilities: [{ name: 'Unholy Smite', description: '3d8 necrotic extra.', type: 'Active', levelReq: 1 }], description: 'A massive knight in blood-stained plate.', cr: 12, activeStatuses: [] }
+  { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [{ name: 'Naw', description: 'Minor damage.', type: 'Active', levelReq: 1 }], description: 'Scurrying shadows with teeth like glass.', cr: 0.125, activeStatuses: [] },
+  { id: 'mon-skel', name: 'Restless Bones', type: 'Undead', hp: 13, ac: 13, stats: { str: 10, dex: 14, con: 15, int: 6, wis: 8, cha: 5 }, abilities: [{ name: 'Rusted Blade', description: 'Attack with a jagged edge.', type: 'Active', levelReq: 1 }], description: 'Necrotic clatter of bone on iron.', cr: 0.25, activeStatuses: [] },
+  { id: 'mon-wolf', name: 'Shadow Wolf', type: 'Beast', hp: 15, ac: 12, stats: { str: 14, dex: 14, con: 12, int: 3, wis: 12, cha: 6 }, abilities: [{ name: 'Bite', description: 'Strike with feral force.', type: 'Active', levelReq: 1 }], description: 'Lithe muscle and burning eyes.', cr: 1, activeStatuses: [] },
+  { id: 'mon-knight', name: 'Fallen Paladin', type: 'Undead', hp: 110, ac: 20, stats: { str: 20, dex: 10, con: 18, int: 12, wis: 16, cha: 18 }, resistances: ["Necrotic", "Poison"], vulnerabilities: ["Radiant"], abilities: [{ name: 'Dark Smite', description: 'Extra necrotic damage.', type: 'Active', levelReq: 1 }], description: 'A massive knight in weathered plate.', cr: 12, activeStatuses: [] }
 ];
 
 export const RULES_MANIFEST = `
-1. **THE ARBITER OF BLOOD**: Gemini AI is the ultimate judge. Reality is visceral; its word on physical outcomes is final.
-2. **SOUL ASCENSION**: Progression requires 1,000 EXP * Level. Each level brings physical growth and refined attributes.
-3. **BLOOD & IRON**: Wounds are real. describe the spray of blood and the sound of steel. This is not a game to the characters.
-4. **TACTICS**: The Grid represents 100 square feet of real, blood-soaked ground.
-5. **CRITICAL FATE**: Overcoming lethal odds results in legendary rewards. multiplied by the grit of thy victory.
+1. **THE ARBITER**: Gemini AI is the ultimate judge. Reality is grounded; its word on physical outcomes is final.
+2. **SOUL ASCENSION**: Progression requires 1,000 EXP * Level. Each level brings growth and refined attributes.
+3. **WEIGHT OF CONSEQUENCE**: Actions have physical impact. Describe the toll of travel and the grit of the world.
+4. **TACTICS**: The Grid represents 100 square feet of real ground.
+5. **CRITICAL FATE**: Overcoming lethal odds results in legendary rewards.
 6. **SACRED GARB**: Warrior/Fighter/Dark Knight wear Plate. Thief/Alchemist/Archer wear Leather. Sorcerer/Mage/Blood Artist wear Robes.
 7. **FIDELITY OF ARMS**: Warriors carry heavy iron. Thieves carry hidden steel. Mages carry ancient conduits.
 `;
 
-export const STARTER_CAMPAIGN_PROMPT = `The air is thick with the scent of iron and ancient rot. Thy party stands before the iron-bound doors of 'The Broken Cask', lantern-light painting long, jagged shadows against the valley's obsidian walls. To the North, the Whispering Woods moan with a hunger for flesh. To the East, the Maw of the Engine vibrates with a bone-shaking frequency. What is thy first move in this dying, blood-soaked world?`;
+export const STARTER_CAMPAIGN_PROMPT = `The air is thick with the scent of iron and ancient rot. Thy party stands before the iron-bound doors of 'The Broken Cask', lantern-light painting long, jagged shadows against the valley's walls. To the North, the Whispering Woods moan with an ancient hunger. To the East, the Maw of the Engine vibrates with a bone-shaking frequency. What is thy first move in this perilous world?`;
 
 export const TUTORIAL_SCENARIO = {
-  title: "The Path of Blood",
-  prompt: `Thou awakenest on the cold, obsidian floor. The sky is a void, save for the rhythmic, emerald pulse above. The air tastes of copper. To thy left, a pack of Shadow Wolves snarls, their muzzles stained with fresh red. To thy right, a jagged trail leads toward the First Citadel. Thy journey begins now. What dost thou do?`
+  title: "The Path of Shadows",
+  prompt: `Thou awakenest on the cold floor. The sky is a void, save for the rhythmic, emerald pulse above. The air tastes of copper. To thy left, a pack of Shadow Wolves snarls. To thy right, a jagged trail leads toward the First Citadel. Thy journey begins now. What dost thou do?`
 };
 
 export const APOTHECARY_TIERS = {
   HEALTH: [
-    { name: 'Minor Vitality Potion', desc: 'Seal shallow wounds. Restores 2d4+2 HP.', cost: 50, lvl: 1 },
-    { name: 'Greater Vitality Potion', desc: 'Mend broken bones. Restores 4d4+4 HP.', cost: 150, lvl: 5 },
-    { name: 'Superior Vitality Potion', desc: 'Knock on death\'s door and walk away. Restores 8d4+8 HP.', cost: 450, lvl: 11 }
+    { name: 'Minor Vitality Potion', desc: 'Seal shallow wounds. Restores vitality.', cost: 50, lvl: 1 },
+    { name: 'Greater Vitality Potion', desc: 'Mend broken bones. Restores significant vitality.', cost: 150, lvl: 5 },
+    { name: 'Superior Vitality Potion', desc: 'Restores nearly all vitality.', cost: 450, lvl: 11 }
   ],
   AETHER: [
     { name: 'Essence of Clarity', desc: 'Restore a 1st level spell slot.', cost: 100, lvl: 3 },
@@ -270,8 +270,8 @@ export const APOTHECARY_TIERS = {
     { name: 'Philter of High Sorcery', desc: 'Restore a 5th level spell slot.', cost: 900, lvl: 13 }
   ],
   DAMAGE: [
-    { name: 'Vial of Corrosive Acid', desc: 'Deals 2d6 acid damage on impact.', cost: 75, lvl: 2 },
-    { name: 'Flask of Liquid Fire', desc: 'Deals 3d6 fire damage in a 5ft radius.', cost: 200, lvl: 6 },
-    { name: 'Extract of Necrotic Rot', desc: 'Deals 5d8 necrotic damage and poisons the target.', cost: 600, lvl: 12 }
+    { name: 'Vial of Corrosive Acid', desc: 'Deals acid damage on impact.', cost: 75, lvl: 2 },
+    { name: 'Flask of Liquid Fire', desc: 'Deals fire damage in a 5ft radius.', cost: 200, lvl: 6 },
+    { name: 'Extract of Rot', desc: 'Deals necrotic damage and poisons the target.', cost: 600, lvl: 12 }
   ]
 };

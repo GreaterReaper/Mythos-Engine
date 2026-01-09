@@ -188,7 +188,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
   }
 };
 
-export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A grim world of blood, obsidian, and unyielding steel."): Promise<{ biography: string, description: string }> => {
+export const manifestSoulLore = async (char: Partial<Character>, campaignContext: string = "A grim world of stone, obsidian, and unyielding steel."): Promise<{ biography: string, description: string }> => {
   const ai = getAiClient();
   trackUsage();
   try {
@@ -297,18 +297,18 @@ export const generateDMResponse = async (
   
   const activeChar = playerContext.activeCharacter;
   const activeCharInfo = activeChar 
-    ? `The player is currently manifesting as ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
+    ? `The player currently inhabits the vessel of ${activeChar.name}, a Level ${activeChar.level} ${activeChar.race} ${activeChar.archetype}.
        AETHERIC CONSTRAINTS (Strictly Enforced):
        - This character can ONLY manifest manifestations with [levelReq] <= ${activeChar.level}.
        - Current Level: ${activeChar.level}.
-       - If the player attempts a spell of a higher level, describe a "Aetheric Rejection"—their soul is not yet dense enough to hold the power, and the manifestation fails with a brief psychic shock.`
+       - If the player attempts a manifestation of a higher level, describe a "Aetheric Rejection"—their spirit is not yet dense enough to hold the power, and the manifestation fails with a psychic shock.`
     : "No soul is currently bound to the player. Guide them to inhabit a vessel.";
 
   const mentorInfo = playerContext.mentors.length > 0
     ? `Allies: ${playerContext.mentors.map(m => `${m.name} (${m.archetype})`).join(', ')}.`
     : "No Mentors are currently bound.";
 
-  // Strictly alternate turns and condense consecutive roles to avoid API errors
+  // Strictly alternate turns and condense consecutive roles to avoid API protocol errors
   const sanitizedContents: any[] = [];
   let currentParts: any[] = [];
   let currentRole: 'user' | 'model' = 'user';
@@ -333,12 +333,12 @@ export const generateDMResponse = async (
     sanitizedContents.push({ role: currentRole, parts: currentParts });
   }
 
-  // Ensure history starts with user and ends with user for the prompt
+  // Ensure history starts with user and ends with user for the prompt to function as a turn
   if (sanitizedContents.length > 0 && sanitizedContents[0].role !== 'user') {
     sanitizedContents.unshift({ role: 'user', parts: [{ text: "The chronicle begins..." }] });
   }
   if (sanitizedContents.length > 0 && sanitizedContents[sanitizedContents.length - 1].role !== 'user') {
-    sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate our next trial." }] });
+    sanitizedContents.push({ role: 'user', parts: [{ text: "Narrate the consequences of our path." }] });
   }
 
   const systemInstruction = `
@@ -346,19 +346,19 @@ export const generateDMResponse = async (
     
     AESTHETIC & VOICE:
     - Tone: Grim, physical, heavy, archaic.
-    - Style: Focus on physical sensations—the chill of shadows, the weight of plate armor, the sound of heavy steel. 
-    - Avoid: Graphic gore, explicit anatomical violence, or software metaphors. Focus on "Physical Realism" and "Grim Consequences."
+    - Style: Focus on physical sensations—the chill of shadows, the weight of plate armor, the sound of heavy steel meeting stone. 
+    - Avoid: Graphic violence, explicit anatomical descriptions, or software metaphors. Focus on "Physical Realism" and "Grim Consequences."
     
     ENGINE PROTOCOLS:
     ${activeCharInfo}
     - Progress is measured by Soul Ascension (Level). 
-    - Physical outcomes are final. Narrative should reflect the danger of the environment.
+    - Narrative outcomes are final. Reflect the danger of the environment in your descriptions.
     
     CONTEXT:
     ${mentorInfo}
     Party: ${playerContext.party.map(c => `${c.name} (${c.archetype})`).join(', ')}.
 
-    COMMANDS (Append to end of your narration if triggered):
+    COMMANDS (Append to the end of your narration ONLY if triggered):
     [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
   `;
 
@@ -368,20 +368,20 @@ export const generateDMResponse = async (
       contents: sanitizedContents,
       config: { 
         systemInstruction, 
-        temperature: 0.7, // Slightly lower temperature for more stable adherence to rules
+        temperature: 0.7, 
         topP: 0.9,
         topK: 40
       }
     });
     
     if (!response.text) {
-      return "The Engine's core shudders... The aether is too turbulent to record this turn. Try a different approach, soul.";
+      return "The Engine's core shudders... The aether is too turbulent to record this turn. (Safety Filter Triggered)";
     }
     
     return response.text;
   } catch (error: any) {
     console.error("DM Resonance Failure:", error);
-    return "The stars go dark... The path is lost in the mists. (Aetheric Disruption)";
+    return "The stars go dark... The path is lost in the mists. (Engine Connection Severed)";
   }
 };
 

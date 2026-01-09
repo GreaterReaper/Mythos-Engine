@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Shop, ShopItem, Character, Currency } from '../types';
 import Tooltip from './Tooltip';
@@ -17,9 +16,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
 
   const canAfford = (buyer: Character, cost: Partial<Currency>) => {
     if (!buyer || !buyer.currency) return false;
-    return (buyer.currency.aurels >= (cost?.aurels || 0)) &&
-           (buyer.currency.shards >= (cost?.shards || 0)) &&
-           (buyer.currency.ichor >= (cost?.ichor || 0));
+    return (buyer.currency.aurels >= (cost?.aurels || 0));
   };
 
   const getRarityColor = (rarity: string | undefined) => {
@@ -60,16 +57,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
             </div>
             <div className="flex gap-8 w-full md:w-auto justify-center md:justify-end border-t md:border-t-0 border-emerald-900/20 pt-4 md:pt-0">
               <div className="text-center group">
-                <p className="text-[9px] text-gold uppercase font-black tracking-tighter mb-1 opacity-60 group-hover:opacity-100 transition-opacity">Aurels</p>
+                <p className="text-[9px] text-gold uppercase font-black tracking-tighter mb-1 opacity-60 group-hover:opacity-100 transition-opacity">Total Aurels</p>
                 <p className="text-lg font-black text-white leading-none">{primaryBuyer.currency?.aurels || 0}</p>
-              </div>
-              <div className="text-center group">
-                <p className="text-[9px] text-purple-400 uppercase font-black tracking-tighter mb-1 opacity-60 group-hover:opacity-100 transition-opacity">Shards</p>
-                <p className="text-lg font-black text-white leading-none">{primaryBuyer.currency?.shards || 0}</p>
-              </div>
-              <div className="text-center group">
-                <p className="text-[9px] text-emerald-500 uppercase font-black tracking-tighter mb-1 opacity-60 group-hover:opacity-100 transition-opacity">Ichor</p>
-                <p className="text-lg font-black text-white leading-none">{primaryBuyer.currency?.ichor || 0}</p>
               </div>
             </div>
           </div>
@@ -82,9 +71,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {(shop.inventory || []).map((item) => {
             if (!item) return null;
-            const itemCost = item.cost || { aurels: 0, shards: 0, ichor: 0 };
+            const itemCost = item.cost || { aurels: 0 };
             const affordable = primaryBuyer && canAfford(primaryBuyer, itemCost);
-            const relevantArchetypes = (item.archetypes || []).filter(a => a && partyArchetypes.has(a.toLowerCase()));
             const resonancesWithBuyer = primaryBuyer && (!item.archetypes || item.archetypes.length === 0 || item.archetypes.some(a => a && a.toLowerCase() === (primaryBuyer.archetype as string).toLowerCase()));
 
             return (
@@ -100,26 +88,12 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
                       </h4>
                     </Tooltip>
                     <p className="text-xs text-gray-500 truncate italic mt-1">{item.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {relevantArchetypes.length > 0 ? (
-                        relevantArchetypes.map(a => {
-                          const isBuyerPath = primaryBuyer && (a.toLowerCase() === (primaryBuyer.archetype as string).toLowerCase());
-                          return (
-                            <span key={a} className={`text-[9px] px-2 py-0.5 border rounded-sm font-cinzel uppercase tracking-widest transition-all font-black ${isBuyerPath ? 'bg-gold border-gold text-black shadow-[0_0_10px_rgba(161,98,7,0.4)]' : 'border-emerald-900/40 text-emerald-500/80 bg-emerald-900/5'}`}>
-                              {a}
-                            </span>
-                          );
-                        })
-                      ) : <span className="text-[9px] px-2 py-0.5 border border-white/20 text-white/60 rounded-sm font-cinzel uppercase font-bold">Universal Use</span>}
-                    </div>
                   </div>
                 </div>
 
                 <div className="flex justify-between items-center pt-4 border-t border-emerald-900/10">
                   <div className="flex gap-4 items-center">
-                    {itemCost.aurels > 0 && <span className="text-xs text-gold font-black flex items-center gap-1.5"><span className="text-[10px] opacity-50">●</span> {itemCost.aurels}</span>}
-                    {itemCost.shards > 0 && <span className="text-xs text-purple-400 font-black flex items-center gap-1.5"><span className="text-[10px] opacity-50">◆</span> {itemCost.shards}</span>}
-                    {itemCost.ichor > 0 && <span className="text-xs text-emerald-500 font-black flex items-center gap-1.5"><span className="text-[10px] opacity-50">▲</span> {itemCost.ichor}</span>}
+                    <span className="text-xs text-gold font-black flex items-center gap-1.5"><span className="text-[10px] opacity-50">●</span> {itemCost.aurels} AURELS</span>
                   </div>
                   <button 
                     disabled={!affordable}

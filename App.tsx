@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
-  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, Currency, Shop, StatusEffect
+  Item, Monster, Stats, Friend, ArchetypeInfo, Ability, Currency, Shop, StatusEffect, MapToken
 } from './types';
 import { 
   MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STORAGE_PREFIX, MENTOR_UNIQUE_GEAR, TUTORIAL_SCENARIO
@@ -84,8 +84,7 @@ const App: React.FC = () => {
         const usage = prev.apiUsage || { count: 0, lastReset: now };
         const lastDate = new Date(usage.lastReset).getUTCDate();
         const currentDate = new Date(now).getUTCDate();
-        const isNewDay = lastDate !== currentDate;
-        const updatedUsage = isNewDay ? { count: 1, lastReset: now } : { ...usage, count: usage.count + 1 };
+        const updatedUsage = lastDate !== currentDate ? { count: 1, lastReset: now } : { ...usage, count: usage.count + 1 };
         return { ...prev, apiUsage: updatedUsage };
       });
     };
@@ -95,527 +94,82 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (state.userAccount.isLoggedIn) {
-      const storageKey = `${STORAGE_PREFIX}${state.userAccount.username}`;
-      localStorage.setItem(storageKey, JSON.stringify(state));
+      localStorage.setItem(`${STORAGE_PREFIX}${state.userAccount.username}`, JSON.stringify(state));
     }
   }, [state]);
 
-  useEffect(() => {
-    // SOUL SCALING RITUAL:
-    const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
-    const isTutorial = activeCampaign?.title === TUTORIAL_SCENARIO.title;
-
-    const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-    const baselineChars = state.characters.filter(c => c.ownerName === state.userAccount.username);
-    
-    const avgLevel = isTutorial ? 5 : (partyChars.length > 0 
-      ? Math.max(5, Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length))
-      : (baselineChars.length > 0 ? Math.max(5, Math.ceil(baselineChars.reduce((acc, c) => acc + c.level, 0) / baselineChars.length)) : 5));
-    
-    const updatedMentors = state.mentors.map(m => {
-      const needsScaling = !isTutorial && (m.level !== avgLevel || m.inventory.filter(i => i.type !== 'Utility').length === 0);
-      
-      if (needsScaling) {
-        const archInfo = ARCHETYPE_INFO[m.archetype as Archetype];
-        const hpDie = archInfo?.hpDie || 8;
-        const conMod = Math.floor(((m.stats.con || 10) - 10) / 2);
-        const newMaxHp = hpDie + conMod + ((avgLevel - 1) * (Math.floor(hpDie/2) + 1 + conMod));
-        const slots = SPELL_SLOT_PROGRESSION[avgLevel] || {};
-        
-        let scaledInventory: Item[] = [];
-        const uniqueTemplates = MENTOR_UNIQUE_GEAR[m.id] || [];
-        const consumables = m.inventory.filter(i => i.type === 'Utility');
-        
-        if (uniqueTemplates.length > 0) {
-          scaledInventory = uniqueTemplates.map(t => {
-            const gearBonus = Math.floor(avgLevel / 4);
-            const stats = { ...t.stats };
-            if (t.type === 'Armor' && stats.ac !== undefined) stats.ac += gearBonus;
-            if (t.type === 'Weapon') {
-               const arch = m.archetype as Archetype;
-               const primary = [Archetype.Archer, Archetype.Thief, Archetype.Alchemist].includes(arch) ? 'dex' : 
-                               [Archetype.Mage, Archetype.Sorcerer, Archetype.BloodArtist].includes(arch) ? 'int' : 'str';
-               if (stats[primary as keyof Stats] !== undefined) {
-                 stats[primary as keyof Stats] = (stats[primary as keyof Stats] as number) + gearBonus;
-               }
-            }
-            return { ...t, id: `${t.id || safeId()}-${m.id}`, name: `${t.name}${gearBonus > 0 ? ` +${gearBonus}` : ''}`, stats, isUnique: true } as Item;
-          });
-        } else {
-          const templates = INITIAL_ITEMS.filter(i => i.archetypes?.includes(m.archetype as Archetype) && i.rarity === 'Common');
-          scaledInventory = templates.map(t => ({ ...t, id: `${t.id}-mentor-${m.id}`, isUnique: true }));
-        }
-
-        const attributeBonus = Math.floor((avgLevel - 5) / 4);
-        const originalMentor = MENTORS.find(init => init.id === m.id);
-        const baseStats = originalMentor?.stats || m.stats;
-        const scaledStats = { ...baseStats };
-        (Object.keys(scaledStats) as Array<keyof Stats>).forEach(key => { 
-          scaledStats[key] = (baseStats[key] || 10) + Math.max(0, attributeBonus); 
-        });
-
-        return { 
-          ...m, 
-          level: avgLevel, 
-          maxHp: newMaxHp, 
-          currentHp: m.currentHp > newMaxHp ? newMaxHp : m.currentHp, 
-          stats: scaledStats, 
-          inventory: [...scaledInventory, ...consumables], 
-          equippedIds: scaledInventory.map(i => i.id), 
-          spellSlots: m.spellSlots || slots, 
-          maxSpellSlots: slots, 
-          activeStatuses: m.activeStatuses || [],
-          deathSaves: { successes: 0, failures: 0 }
-        };
-      }
-      return m;
-    });
-
-    if (JSON.stringify(updatedMentors) !== JSON.stringify(state.mentors)) {
-      setState(prev => ({ ...prev, mentors: updatedMentors }));
-    }
-  }, [state.party, state.characters, state.activeCampaignId]);
-
-  const handleLogin = (username: string) => {
-    const storageKey = `${STORAGE_PREFIX}${username}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const hydrated = hydrateState(JSON.parse(saved), { ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, username, isLoggedIn: true } });
-        setState(hydrated);
-      } catch (e) { setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } })); }
-    } else { setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } })); }
-  };
-
-  const handleMigrateSoul = (signature: string) => {
-    const newState = parseSoulSignature(signature, DEFAULT_STATE);
-    if (newState) {
-      const storageKey = `${STORAGE_PREFIX}${newState.userAccount.username}`;
-      localStorage.setItem(storageKey, JSON.stringify({ ...newState, userAccount: { ...newState.userAccount, isLoggedIn: true } }));
-      setState({ ...newState, userAccount: { ...newState.userAccount, isLoggedIn: true } });
-      return true;
-    }
-    return false;
-  };
-
-  const handleDeleteAccount = () => {
-    if (confirm("Sever all bonds? This action shall dissolve thy memories.")) {
-      localStorage.removeItem(`${STORAGE_PREFIX}${state.userAccount.username}`);
-      setState(prev => ({ ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, isLoggedIn: false } }));
-      window.location.reload();
-    }
-  };
-
-  useEffect(() => {
-    if (state.userAccount.isLoggedIn && !peerRef.current && typeof window !== 'undefined') {
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
-      script.async = true;
-      script.onload = () => {
-        if (typeof Peer !== 'undefined') {
-          const peer = new Peer(safeId());
-          peerRef.current = peer;
-          peer.on('open', (id: string) => { setState(prev => ({ ...prev, userAccount: { ...prev.userAccount, peerId: id } })); });
-          peer.on('connection', handleIncomingConnection);
-        }
-      };
-      document.body.appendChild(script);
-    }
-  }, [state.userAccount.isLoggedIn]);
-
-  const handleIncomingConnection = (conn: any) => {
-    conn.on('open', () => {
-      connectionsRef.current.push(conn);
-      setState(prev => {
-        const nextConnected = prev.multiplayer.connectedPeers.includes(conn.peer) 
-          ? prev.multiplayer.connectedPeers 
-          : [...prev.multiplayer.connectedPeers, conn.peer];
-        return { ...prev, multiplayer: { ...prev.multiplayer, connectedPeers: nextConnected } };
-      });
-      conn.send({ type: 'IDENTITY', payload: { username: state.userAccount.username, id: state.userAccount.id, characters: state.characters.filter(c => c.ownerName === state.userAccount.username || !c.ownerName) } });
-      if (state.multiplayer.isHost) conn.send({ type: 'SYNC_STATE', payload: state });
-    });
-    conn.on('data', (data: any) => {
-      if (!data) return;
-      switch (data.type) {
-        case 'IDENTITY':
-          setState(prev => {
-            const updatedFriend: Friend = { id: data.payload.id || safeId(), name: data.payload.username, active: true, peerId: conn.peer };
-            const newFriends = [...prev.userAccount.friends.filter(f => f.name !== data.payload.username), updatedFriend];
-            const remoteChars = (data.payload.characters || []).map((c: Character) => ({ ...c, ownerName: data.payload.username }));
-            return { ...prev, userAccount: { ...prev.userAccount, friends: newFriends }, characters: [...prev.characters.filter(c => c.ownerName !== data.payload.username), ...remoteChars] };
-          });
-          break;
-        case 'SYNC_STATE': setState(prev => ({ ...data.payload, userAccount: prev.userAccount })); break;
-        case 'UPDATE_CHARACTER': {
-          const { id, updates } = data.payload;
-          setState(prev => ({
-            ...prev,
-            characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c),
-            mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
-          }));
-          break;
-        }
-        case 'UPDATE_MONSTER': {
-           const { id, updates } = data.payload;
-           setState(prev => ({ ...prev, bestiary: prev.bestiary.map(m => m.id === id ? { ...m, ...updates } : m) }));
-           break;
-        }
-        case 'UPDATE_PARTY': setState(prev => ({ ...prev, party: data.payload })); break;
-        case 'UPDATE_MAP': setState(prev => ({ ...prev, mapTokens: data.payload })); break;
-        case 'SHARE_ARCHETYPE': setState(prev => ({ ...prev, customArchetypes: [...prev.customArchetypes.filter(a => a.name !== data.payload.name), data.payload] })); break;
-        case 'SHARE_ITEM': setState(prev => ({ ...prev, armory: [...prev.armory.filter(i => i.id !== data.payload.id), data.payload] })); break;
-        case 'SHARE_MONSTER': setState(prev => ({ ...prev, bestiary: [...prev.bestiary.filter(m => m.id !== data.payload.id), data.payload] })); break;
-        case 'NEW_MESSAGE': onMessageFromPeer(data.payload); break;
-        case 'UPDATE_RUMORS': setState(prev => ({ ...prev, activeRumors: data.payload })); break;
-      }
-    });
-    conn.on('close', () => {
-      connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
-      setState(prev => ({ ...prev, multiplayer: { ...prev.multiplayer, connectedPeers: prev.multiplayer.connectedPeers.filter(p => p !== conn.peer) } }));
-    });
-  };
-
-  const connectToSoul = (peerId: string) => {
-    if (!peerRef.current || !peerId) return;
-    const conn = peerRef.current.connect(peerId);
-    handleIncomingConnection(conn);
-    setState(prev => ({ ...prev, multiplayer: { ...prev.multiplayer, isHost: false } }));
-  };
-
-  const broadcast = (type: string, payload: any) => { connectionsRef.current.forEach(conn => { if (conn.open) conn.send({ type, payload }); }); };
-
-  const onMessageFromPeer = (msg: Message) => {
-    setState(prev => ({ ...prev, campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, msg] } : c) }));
-  };
-
   const updateCharacter = (id: string, updates: Partial<Character>) => {
-    setState(prev => {
-      const char = prev.characters.find(c => c.id === id);
-      const mentor = prev.mentors.find(m => m.id === id);
-      
-      const finalUpdates = { ...updates };
-      // If healed above 0, reset death saves
-      if (updates.currentHp !== undefined && updates.currentHp > 0) {
-        finalUpdates.deathSaves = { successes: 0, failures: 0 };
-      }
-
-      if (char) return { ...prev, characters: prev.characters.map(c => c.id === id ? { ...c, ...finalUpdates } : c) };
-      if (mentor) return { ...prev, mentors: prev.mentors.map(m => m.id === id ? { ...m, ...finalUpdates } : m) };
-      return prev;
-    });
-    broadcast('UPDATE_CHARACTER', { id, updates });
+    setState(prev => ({
+      ...prev,
+      characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c),
+      mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
+    }));
   };
 
   const updateMonster = (id: string, updates: Partial<Monster>) => {
     setState(prev => ({ ...prev, bestiary: prev.bestiary.map(m => m.id === id ? { ...m, ...updates } : m) }));
-    broadcast('UPDATE_MONSTER', { id, updates });
   };
-
-  const handleApplyStatus = (effect: StatusEffect, targetName: string) => {
-    const target = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === targetName.toLowerCase());
-    if (target && !target.activeStatuses.includes(effect)) {
-      updateCharacter(target.id, { activeStatuses: [...target.activeStatuses, effect] });
-      return;
-    }
-    const monster = state.bestiary.find(m => m.name.toLowerCase() === targetName.toLowerCase());
-    if (monster && !monster.activeStatuses.includes(effect)) {
-      updateMonster(monster.id, { activeStatuses: [...monster.activeStatuses, effect] });
-    }
-  };
-
-  const handleRemoveStatus = (effect: StatusEffect, targetName: string) => {
-    const target = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === targetName.toLowerCase());
-    if (target) {
-      updateCharacter(target.id, { activeStatuses: target.activeStatuses.filter(s => s !== effect) });
-      return;
-    }
-    const monster = state.bestiary.find(m => m.name.toLowerCase() === targetName.toLowerCase());
-    if (monster) {
-      updateMonster(monster.id, { activeStatuses: monster.activeStatuses.filter(s => s !== effect) });
-    }
-  };
-
-  const handleLongRest = () => {
-    setState(prev => {
-      const updateRest = (c: Character) => {
-        if (!prev.party.includes(c.id)) return c;
-        return { 
-          ...c, 
-          currentHp: c.maxHp, 
-          spellSlots: c.maxSpellSlots ? { ...c.maxSpellSlots } : c.spellSlots, 
-          activeStatuses: [], 
-          deathSaves: { successes: 0, failures: 0 } 
-        };
-      };
-      return { ...prev, characters: prev.characters.map(updateRest), mentors: prev.mentors.map(updateRest) };
-    });
-  };
-
-  const handleShortRest = () => {
-    setState(prev => {
-      const updateRest = (c: Character) => {
-        if (!prev.party.includes(c.id)) return c;
-        const newSlots = c.spellSlots ? { ...c.spellSlots } : undefined;
-        if (newSlots && c.maxSpellSlots) {
-          Object.keys(c.maxSpellSlots).forEach(lvlStr => {
-            const lvl = Number(lvlStr);
-            const max = c.maxSpellSlots![lvl];
-            // Restore 50% of TOTAL spell slots (rounded up)
-            newSlots[lvl] = Math.min(max, (newSlots[lvl] || 0) + Math.ceil(max / 2));
-          });
-        }
-        return { 
-          ...c, 
-          currentHp: c.maxHp, // Restore 100% HP on short rest as requested
-          spellSlots: newSlots, 
-          deathSaves: { successes: 0, failures: 0 } 
-        };
-      };
-      return { ...prev, characters: prev.characters.map(updateRest), mentors: prev.mentors.map(updateRest) };
-    });
-  };
-
-  const checkLevelUp = (id: string) => {
-    setState(prev => {
-      const char = [...prev.characters, ...prev.mentors].find(c => c.id === id);
-      if (!char) return prev;
-      
-      const threshold = char.level * 1000;
-      if (char.exp < threshold) return prev;
-
-      // Soul Ascension Logic
-      const archInfo = ARCHETYPE_INFO[char.archetype] || prev.customArchetypes.find(a => a.name === char.archetype);
-      const hpDie = archInfo?.hpDie || 8;
-      const conMod = Math.floor(((char.stats.con || 10) - 10) / 2);
-      const hpGain = Math.floor(Math.random() * hpDie) + 1 + conMod;
-      const newLevel = char.level + 1;
-      const newExp = char.exp - threshold;
-      
-      const slots = SPELL_SLOT_PROGRESSION[newLevel] || {};
-      const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(char.archetype as Archetype) || (archInfo as any)?.spells?.length > 0;
-
-      const systemMsg: Message = {
-        role: 'system',
-        content: `[ASCENSION] ${char.name} has attained Soul Level ${newLevel}! Max Vitality increased by ${hpGain}. Resources replenished.`,
-        timestamp: Date.now()
-      };
-
-      const charUpdates: Partial<Character> = {
-        level: newLevel,
-        exp: newExp,
-        maxHp: char.maxHp + hpGain,
-        currentHp: char.maxHp + hpGain, // Full heal on level up
-        asiPoints: char.asiPoints + ([4, 8, 12, 16, 19].includes(newLevel) ? 2 : 0),
-        spellSlots: isCaster ? { ...slots } : undefined,
-        maxSpellSlots: isCaster ? { ...slots } : undefined,
-      };
-
-      // Apply updates to either characters or mentors list
-      const nextState = {
-        ...prev,
-        characters: prev.characters.map(c => c.id === id ? { ...c, ...charUpdates } : c),
-        mentors: prev.mentors.map(m => m.id === id ? { ...m, ...charUpdates } : m),
-        campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, systemMsg] } : c)
-      };
-
-      // Broadcast the character update
-      broadcast('UPDATE_CHARACTER', { id, updates: charUpdates });
-      
-      return nextState;
-    });
-  };
-
-  const addExpToParty = (amount: number) => {
-    state.party.forEach(id => { 
-      const char = [...state.characters, ...state.mentors].find(x => x.id === id); 
-      if (char) { 
-        updateCharacter(id, { exp: char.exp + amount }); 
-        // Trigger potential level up check after the update
-        setTimeout(() => checkLevelUp(id), 50);
-      } 
-    });
-  };
-  
-  const addCurrencyToParty = (curr: Partial<Currency>) => state.party.forEach(id => { const c = [...state.characters, ...state.mentors].find(x => x.id === id); if (c) { const v = c.currency || { aurels: 0, shards: 0, ichor: 0 }; updateCharacter(id, { currency: { aurels: v.aurels + (curr.aurels || 0), shards: v.shards + (curr.shards || 0), ichor: v.ichor + (curr.ichor || 0) } }); } });
 
   const handleOpenShop = async () => {
     setIsShopLoading(true);
     try {
-      const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const avg = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      const shop = await generateShopInventory("Encounter", Math.ceil(avg));
-      setState(prev => ({ ...prev, campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, activeShop: shop } : c), currentTavernShop: prev.activeCampaignId ? null : shop }));
+      const avg = state.party.length > 0 ? 5 : 1; 
+      const shop = await generateShopInventory("Encounter", avg);
+      setState(prev => ({ ...prev, currentTavernShop: shop }));
     } finally { setIsShopLoading(false); }
   };
 
   const handleFetchRumors = async () => {
     setIsRumorLoading(true);
     try {
-      const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const avgLevel = partyChars.length > 0 ? Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length) : 1;
-      const rumors = await generateRumors(avgLevel);
+      const rumors = await generateRumors(5);
       setState(prev => ({ ...prev, activeRumors: rumors }));
-      broadcast('UPDATE_RUMORS', rumors);
     } finally { setIsRumorLoading(false); }
-  };
-
-  const handleAwardItem = async (name: string) => {
-    let item = state.armory.find(i => i.name.toLowerCase() === name.toLowerCase());
-    if (!item) {
-      const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      try {
-        const stats = await generateItemDetails(name, "Unique Reward", Math.ceil(avgLevel));
-        item = { id: safeId(), name, description: stats.description || 'Artifact.', type: (stats.type as any) || 'Weapon', rarity: (stats.rarity as any) || 'Legendary', stats: stats.stats || {}, archetypes: [], authorId: state.userAccount.id, isUnique: false };
-        setState(prev => ({ ...prev, armory: [...prev.armory, item!] }));
-        broadcast('SHARE_ITEM', item);
-      } catch (e) {
-        item = state.armory[Math.floor(Math.random() * state.armory.length)];
-      }
-    }
-    if (item && state.party.length > 0) {
-      const character = state.characters.find(c => c.id === state.party[0]) || state.mentors.find(m => m.id === state.party[0]);
-      if (character && !character.inventory.some(i => i.name === item!.name)) {
-        updateCharacter(character.id, { inventory: [...character.inventory, item!] });
-      }
-    }
-  };
-
-  const handleAwardMonster = async (name: string) => {
-    let monster = state.bestiary.find(m => m.name.toLowerCase() === name.toLowerCase());
-    if (!monster) {
-      const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const avgLevel = partyChars.length > 0 ? Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length) : 1;
-      try {
-        const gen = await generateMonsterDetails(name, "Encounter", Math.ceil(avgLevel));
-        monster = { id: safeId(), name, type: (gen.type as any) || 'Humanoid', hp: gen.hp || 20, ac: gen.ac || 10, stats: gen.stats as any, cr: gen.cr || 1, description: gen.description || '', abilities: gen.abilities || [], activeStatuses: [] };
-        setState(prev => ({ ...prev, bestiary: [...prev.bestiary, monster!] }));
-        broadcast('SHARE_MONSTER', monster);
-      } catch (e) {
-        monster = state.bestiary[0];
-      }
-    }
-    return monster!;
-  };
-
-  const createCampaign = (title: string, prompt: string) => {
-    const c: Campaign = { 
-      id: safeId(), 
-      title, 
-      prompt, 
-      history: [
-        { role: 'user', content: `[COMMAND] Initialize Chronicle: ${title}`, timestamp: Date.now() },
-        { role: 'model', content: prompt, timestamp: Date.now() + 10 }
-      ], 
-      participants: state.party 
-    };
-    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, c], activeCampaignId: c.id }));
-    setActiveTab('Chronicles');
-    setShowTutorial(false);
-  };
-
-  const handleAddCharacter = (c: Character) => {
-    const newChar = { ...c, ownerName: state.userAccount.username, isPrimarySoul: state.characters.length === 0, deathSaves: { successes: 0, failures: 0 } };
-    setState(p => ({ 
-      ...p, 
-      characters: [...p.characters, newChar], 
-      party: newChar.isPrimarySoul ? [...p.party, newChar.id] : p.party,
-      userAccount: {
-        ...p.userAccount,
-        activeCharacterId: newChar.isPrimarySoul ? newChar.id : p.userAccount.activeCharacterId
-      }
-    }));
-    if (state.campaigns.length === 0) setShowTutorial(true);
   };
 
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
   const currentShop = (state.campaigns.find(c => c.id === state.activeCampaignId)?.activeShop) || state.currentTavernShop;
 
   return (
-    <div className={`flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative ${isKeyboardOpen ? 'keyboard-active' : ''}`}>
+    <div className="flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
       <div className="flex flex-col w-full min-h-0">
-        <div className={`${isKeyboardOpen ? 'hidden' : 'block'}`}>
-          <QuotaBanner usage={state.apiUsage} />
-        </div>
+        <QuotaBanner usage={state.apiUsage} />
         <div className="flex flex-col flex-1 min-h-0 md:flex-row overflow-hidden">
           {!state.userAccount.isLoggedIn && (
-            <AccountPortal onLogin={handleLogin} onMigrate={handleMigrateSoul} />
+            <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={() => false} />
           )}
-          {showTutorial && (
-            <TutorialScreen characters={state.characters} onComplete={(ids, title, prompt) => {
-              setState(prev => ({ ...prev, party: ids }));
-              createCampaign(title, prompt);
-            }} />
-          )}
-          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={!!state.campaigns.find(c => c.id === state.activeCampaignId)?.isCombatActive} isKeyboardOpen={isKeyboardOpen} />
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
           <main className="relative flex-1 overflow-y-auto bg-leather">
-            <div className={`mx-auto max-w-7xl p-4 md:p-8 ${isKeyboardOpen ? 'p-2' : ''}`}>
-              {currentShop && <ShopModal shop={currentShop} characters={activePartyObjects} onClose={() => setState(prev => ({ ...prev, currentTavernShop: null, campaigns: prev.campaigns.map(c => ({...c, activeShop: null})) }))} onBuy={(item, buyerId) => {
-                const buyer = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
-                if (!buyer) return;
-                const cost = item.cost;
-                const buyerCurr = buyer.currency || { aurels: 0, shards: 0, ichor: 0 };
-                updateCharacter(buyerId, { currency: { aurels: buyerCurr.aurels - cost.aurels, shards: buyerCurr.shards - cost.shards, ichor: buyerCurr.ichor - cost.ichor }, inventory: [...buyer.inventory, item] });
+            <div className="mx-auto max-w-7xl p-4 md:p-8">
+              {currentShop && <ShopModal shop={currentShop} characters={activePartyObjects} onClose={() => setState(p => ({ ...p, currentTavernShop: null }))} onBuy={(item, buyerId) => {
+                const buyer = activePartyObjects.find(c => c.id === buyerId);
+                if (!buyer || buyer.currency.aurels < item.cost.aurels) return;
+                updateCharacter(buyerId, { 
+                  currency: { aurels: buyer.currency.aurels - item.cost.aurels }, 
+                  inventory: [...buyer.inventory, item] 
+                });
               }} />}
-              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={handleLongRest} onOpenShop={handleOpenShop} onUpgradeItem={(cid, iid, cost) => {
-                const char = [...state.characters, ...state.mentors].find(c => cid === c.id);
-                if (!char) return;
+              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={handleOpenShop} onUpgradeItem={(cid, iid, cost) => {
+                const char = activePartyObjects.find(c => c.id === cid);
+                if (!char || char.currency.aurels < cost.aurels) return;
                 const item = char.inventory.find(i => i.id === iid);
                 if (!item) return;
-                const currentPlus = parseInt(item.name.match(/\+(\d+)/)?.[1] || '0');
-                const newName = `${item.name.split(' +')[0]} +${currentPlus + 1}`;
-                const updatedStats = { ...item.stats };
-                if (item.type === 'Armor' && updatedStats.ac !== undefined) updatedStats.ac += 1;
-                const updatedInventory = char.inventory.map(i => i.id === iid ? { ...i, name: newName, stats: updatedStats } : i);
-                updateCharacter(cid, { inventory: updatedInventory, currency: { aurels: char.currency.aurels - cost.aurels, shards: char.currency.shards - cost.shards, ichor: char.currency.ichor - cost.ichor } });
-              }} isHost={state.multiplayer.isHost} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} slainMonsterTypes={state.slainMonsterTypes} />}
-              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
-              {activeTab === 'Chronicles' && <DMWindow 
-                campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
-                allCampaigns={state.campaigns} 
-                characters={activePartyObjects} 
-                bestiary={state.bestiary} 
-                activeCharacter={[...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || null}
-                onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))}
-                onMessage={m => {
-                  setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c) }));
-                  if (m.role === 'model' && state.multiplayer.isHost) {
-                    const cmds = parseDMCommand(m.content);
-                    cmds.statusesToAdd.forEach(s => handleApplyStatus(s.effect, s.target));
-                    cmds.statusesToRemove.forEach(s => handleRemoveStatus(s.effect, s.target));
-                    cmds.recalls.forEach(name => {
-                      const mentor = state.mentors.find(m => m.name.toLowerCase() === name.toLowerCase());
-                      if (mentor) setState(prev => ({ ...prev, party: prev.party.filter(id => id !== mentor.id) }));
-                    });
-                    cmds.heals.forEach(h => {
-                      const char = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === h.targetName.toLowerCase());
-                      if (char) updateCharacter(char.id, { currentHp: Math.min(char.maxHp, char.currentHp + h.amount) });
-                    });
-                    cmds.takeDamage.forEach(d => {
-                      const char = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === d.targetName.toLowerCase());
-                      if (char) updateCharacter(char.id, { currentHp: Math.max(0, char.currentHp - d.amount) });
-                    });
-                    if (cmds.shortRest) handleShortRest();
-                  }
-                }} 
-                onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id), activeCampaignId: p.activeCampaignId === id ? null : p.activeCampaignId }))} onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onAwardExp={addExpToParty} onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} onShortRest={handleShortRest} onLongRest={handleLongRest} onAIRuntimeUseSlot={(l, n) => { 
-                  const t = [...state.characters, ...state.mentors].find(x => x.name.toLowerCase() === n.toLowerCase()); 
-                  if (t && t.spellSlots && (t.spellSlots[l] || 0) > 0) { 
-                    updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); 
-                    return true; 
-                  } 
-                  return false; 
-                }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} updateCharacter={updateCharacter} isHost={state.multiplayer.isHost} isKeyboardOpen={isKeyboardOpen}
-              />}
-              {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={m => setState(p => ({ ...p, mapTokens: m }))} characters={[...state.characters, ...state.mentors]} monsters={state.bestiary} />}
-              {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}
-              {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
+                const newName = `${item.name.split(' +')[0]} +${parseInt(item.name.match(/\+(\d+)/)?.[1] || '0') + 1}`;
+                updateCharacter(cid, { inventory: char.inventory.map(i => i.id === iid ? { ...i, name: newName } : i), currency: { aurels: char.currency.aurels - cost.aurels } });
+              }} onBuyItem={(item, bid, cost) => {
+                const b = activePartyObjects.find(c => c.id === bid);
+                if (b && b.currency.aurels >= cost.aurels) updateCharacter(bid, { currency: { aurels: b.currency.aurels - cost.aurels }, inventory: [...b.inventory, item] });
+              }} isHost={true} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} />}
+              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
+              {activeTab === 'Chronicles' && <DMWindow campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} activeCharacter={activePartyObjects.find(c => c.id === state.userAccount.activeCharacterId) || null} onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} onMessage={m => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c) }))} onCreateCampaign={(t, p) => {
+                const c = { id: safeId(), title: t, prompt: p, history: [{ role: 'model', content: p, timestamp: Date.now() }], participants: state.party };
+                setState(prev => ({ ...prev, campaigns: [...prev.campaigns, c], activeCampaignId: c.id }));
+              }} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onShortRest={() => {}} isHost={true} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={updateMonster} />}
-              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} />}
-              {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={i => broadcast('SHARE_ITEM', i)} userId={state.userAccount.id} party={activePartyObjects} />}
+              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}
+              {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
               {activeTab === 'Rules' && <RulesScreen />}
-              {activeTab === 'Nexus' && <NexusScreen peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} isHost={state.multiplayer.isHost} onConnect={connectToSoul} username={state.userAccount.username} gameState={state} onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))} onDeleteAccount={handleDeleteAccount} />}
+              {activeTab === 'Nexus' && <NexusScreen peerId="" connectedPeers={[]} isHost={true} onConnect={() => {}} username={state.userAccount.username} gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {}} />}
             </div>
           </main>
         </div>

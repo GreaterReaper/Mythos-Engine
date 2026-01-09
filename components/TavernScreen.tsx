@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Character, Message, Item, Currency, Role, Archetype, Rumor } from '../types';
 import { generateInnkeeperResponse } from '../geminiService';
@@ -49,37 +48,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
     return SYNERGY_MAP[primarySoul.archetype as Archetype] || null;
   }, [primarySoul]);
 
-  const partyRoles = useMemo<Record<Role, { count: number; playerContribution: number }>>(() => {
-    const roles: Record<Role, { count: number; playerContribution: number }> = { 
-      Tank: { count: 0, playerContribution: 0 }, 
-      DPS: { count: 0, playerContribution: 0 }, 
-      Support: { count: 0, playerContribution: 0 } 
-    };
-    party.forEach(c => {
-      const r = c.role as Role;
-      if (roles[r]) {
-        roles[r].count++;
-        if (c.isPrimarySoul) roles[r].playerContribution++;
-      }
-    });
-    return roles;
-  }, [party]);
-
-  const resonanceScore = useMemo(() => {
-    if (party.length === 0) return 0;
-    let score = 0;
-    if (primarySoul) score += 20;
-    if (partyRoles.Tank.count > 0) score += 20;
-    if (partyRoles.DPS.count > 0) score += 20;
-    if (partyRoles.Support.count > 0) score += 20;
-    
-    if (bondInsight && party.some(p => bondInsight.bestMatches.includes(p.archetype as string))) {
-      score += 10;
-    }
-
-    return Math.max(10, Math.min(100, score + (party.length * 2)));
-  }, [partyRoles, party.length, primarySoul, bondInsight]);
-
   const rotatedMentors = useMemo(() => {
     const groupIndex = Math.floor(Date.now() / ROTATION_INTERVAL) % MENTOR_GROUPS.length;
     const activeArchetypes = MENTOR_GROUPS[groupIndex];
@@ -105,14 +73,12 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
   const calculateUpgradeCost = (item: Item): Currency => {
     const currentPlus = parseInt(item.name.match(/\+(\d+)/)?.[1] || '0');
     return {
-      aurels: 100 * (currentPlus + 1),
-      shards: 10 * (currentPlus),
-      ichor: 0
+      aurels: 150 * (currentPlus + 1)
     };
   };
 
   const canAfford = (char: Character, cost: Currency) => {
-    return char.currency.aurels >= cost.aurels && char.currency.shards >= cost.shards && char.currency.ichor >= cost.ichor;
+    return char.currency.aurels >= cost.aurels;
   };
 
   return (
@@ -121,10 +87,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline gap-3">
             <h2 className="text-5xl font-cinzel text-amber-600 font-black tracking-tighter">The Broken Cask</h2>
-            <div className="bg-amber-900/20 px-3 py-1 border border-amber-600/30 rounded flex items-center gap-3">
-               <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Hearth Active</span>
-               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
           </div>
           <p className="text-gray-500 italic text-sm font-medium">"A sanctuary of warmth in a world of biting obsidian."</p>
         </div>
@@ -141,37 +103,25 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
         <div className="space-y-10">
           <div className="rune-border p-6 bg-black/60 border-emerald-900/40 space-y-6">
              <div className="flex justify-between items-center border-b border-emerald-900/20 pb-2">
-               <h3 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest">Strategist's Council</h3>
-               <span className={`text-sm font-mono font-black ${resonanceScore > 50 ? 'text-emerald-500' : 'text-amber-600'}`}>{resonanceScore}% Synergy</span>
+               <h3 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest">Resonance Score</h3>
+               <span className="text-sm font-mono font-black text-emerald-500">STABLE</span>
              </div>
              
              {bondInsight && (
-               <div className="space-y-3 animate-in fade-in slide-in-from-left duration-500">
+               <div className="space-y-3">
                   <p className="text-[9px] text-gold uppercase font-black tracking-widest mb-1">Anchor Bond: {primarySoul?.name}</p>
                   <div className="p-3 bg-gold/5 border border-gold/20 rounded-sm">
                     <p className="text-[8px] text-gray-500 uppercase font-black mb-2">Theoretical Best Matches</p>
                     <div className="flex flex-wrap gap-2">
                        {bondInsight.bestMatches.map(match => (
-                         <div key={match} className="group relative">
-                           <span className="text-[9px] bg-emerald-900/40 text-emerald-400 border border-emerald-900/60 px-2 py-0.5 rounded-sm font-bold uppercase cursor-help shadow-[0_0_8px_rgba(16,185,129,0.2)]">
-                             {match}
-                           </span>
-                         </div>
+                         <span key={match} className="text-[9px] bg-emerald-900/40 text-emerald-400 border border-emerald-900/60 px-2 py-0.5 rounded-sm font-bold uppercase">
+                           {match}
+                         </span>
                        ))}
                     </div>
-                    <p className="text-[10px] text-gray-400 italic mt-3 leading-relaxed">"{bondInsight.reason}"</p>
                   </div>
                </div>
              )}
-
-             <div className="space-y-4 pt-2">
-                <p className="text-[8px] text-emerald-700 font-black uppercase">Role Distribution</p>
-                <div className="flex h-3 w-full bg-gray-900 rounded-sm overflow-hidden border border-emerald-900/20">
-                  {partyRoles.Tank.count > 0 && <div className="h-full bg-blue-900/80 shadow-[inset_0_0_10px_rgba(30,58,138,0.5)]" style={{ width: `${(partyRoles.Tank.count / (party.length || 1)) * 100}%` }} />}
-                  {partyRoles.DPS.count > 0 && <div className="h-full bg-emerald-900/80 shadow-[inset_0_0_10px_rgba(6,78,59,0.5)]" style={{ width: `${(partyRoles.DPS.count / (party.length || 1)) * 100}%` }} />}
-                  {partyRoles.Support.count > 0 && <div className="h-full bg-gold/80 shadow-[inset_0_0_10px_rgba(161,98,7,0.5)]" style={{ width: `${(partyRoles.Support.count / (party.length || 1)) * 100}%` }} />}
-                </div>
-             </div>
           </div>
 
           <div className="rune-border p-5 bg-amber-900/5 border-amber-900/20 space-y-4">
@@ -181,12 +131,10 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
              </div>
              <div className="space-y-3">
                {activeRumors.map(rumor => (
-                 <div key={rumor.id} className="p-3 bg-black/40 border-l-2 border-amber-600 space-y-1">
-                    <span className="text-[7px] font-black uppercase text-emerald-500">{rumor.danger}</span>
+                 <div key={rumor.id} className="p-3 bg-black/40 border-l-2 border-amber-600">
                     <p className="text-[10px] text-gray-300 italic leading-relaxed">"{rumor.hook}"</p>
                  </div>
                ))}
-               {activeRumors.length === 0 && <p className="text-[9px] text-gray-700 italic text-center py-4">Silence fills the corners of the room.</p>}
              </div>
           </div>
         </div>
@@ -205,12 +153,11 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
           </div>
 
           {activeTab === 'Rest' && (
-            <div className="flex flex-col h-[650px] rune-border bg-black/40 border-amber-900/30 overflow-hidden shadow-2xl relative">
+            <div className="flex flex-col h-[550px] rune-border bg-black/40 border-amber-900/30 overflow-hidden shadow-2xl relative">
                <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar">
                  {messages.map((msg, idx) => (
                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} fade-up`}>
                       <div className={`max-w-[85%] p-4 text-sm leading-relaxed ${msg.role === 'user' ? 'bg-amber-900/20 border-r-4 border-amber-600 text-gray-200' : 'bg-black/90 border-l-4 border-amber-800 text-amber-100'}`}>
-                        {msg.role === 'model' && <p className="text-[9px] font-cinzel text-amber-700 mb-2 uppercase font-black">BARNABY</p>}
                         <p className="italic font-medium">{msg.content}</p>
                       </div>
                    </div>
@@ -230,20 +177,11 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {rotatedMentors.map(mentor => {
                 const isInParty = partyIds.includes(mentor.id);
-                const isSynergy = bondInsight && bondInsight.bestMatches.includes(mentor.archetype as string);
-                
                 return (
-                  <div key={mentor.id} className={`relative p-6 border transition-all flex flex-col gap-5 rounded-sm overflow-hidden ${isInParty ? 'bg-emerald-900/10 border-emerald-500' : 'bg-black/40 border-amber-900/20'} ${isSynergy ? 'ring-1 ring-gold/20' : ''}`}>
-                    {isSynergy && (
-                       <div className="absolute top-0 right-0 bg-gold text-black text-[7px] font-black px-2 py-0.5 uppercase transform rotate-45 translate-x-[15px] translate-y-[5px] shadow-lg">
-                         SYNERGY
-                       </div>
-                    )}
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className={`text-xl font-cinzel font-black transition-colors ${isSynergy ? 'text-gold' : 'text-amber-500'}`}>{mentor.name}</p>
-                        <p className="text-[9px] text-gray-500 uppercase font-black">{mentor.archetype} • {mentor.role}</p>
-                      </div>
+                  <div key={mentor.id} className={`relative p-6 border transition-all flex flex-col gap-5 rounded-sm overflow-hidden ${isInParty ? 'bg-emerald-900/10 border-emerald-500' : 'bg-black/40 border-amber-900/20'}`}>
+                    <div>
+                      <p className="text-xl font-cinzel font-black text-amber-500">{mentor.name}</p>
+                      <p className="text-[9px] text-gray-500 uppercase font-black">{mentor.archetype} • {mentor.role}</p>
                     </div>
                     <p className="text-[11px] text-gray-400 italic leading-relaxed font-medium">"{mentor.description}"</p>
                     <button onClick={() => onToggleParty(mentor.id)} className={`w-full py-3 text-[9px] font-cinzel font-black uppercase border-2 transition-all ${isInParty ? 'bg-emerald-600 text-black border-emerald-600' : 'text-amber-600 border-amber-600/40 hover:bg-amber-600 hover:text-black'}`}>
@@ -273,16 +211,13 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                                 <span className="text-xs font-bold text-white uppercase">{item.name}</span>
                                 <span className="text-[8px] font-black text-gold uppercase">{item.rarity}</span>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <div className="text-[10px] font-black text-gold flex items-center gap-1">● {cost.aurels}</div>
-                                <div className="text-[10px] font-black text-purple-400 flex items-center gap-1">◆ {cost.shards}</div>
-                              </div>
+                              <div className="text-[10px] font-black text-gold">● {cost.aurels} AURELS</div>
                               <button 
                                 onClick={() => onUpgradeItem(char.id, item.id, cost)}
                                 disabled={!affordable}
                                 className={`w-full py-2 text-[8px] font-black uppercase tracking-widest border-2 transition-all ${affordable ? 'border-gold text-gold hover:bg-gold hover:text-black' : 'border-gray-800 text-gray-700 opacity-50 cursor-not-allowed'}`}
                               >
-                                {affordable ? 'REFORGE +1' : 'INSUFFICIENT ESSENCE'}
+                                {affordable ? 'REFORGE +1' : 'INSUFFICIENT GOLD'}
                               </button>
                             </div>
                           );
@@ -290,7 +225,6 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                       </div>
                     </div>
                   ))}
-                  {party.length === 0 && <p className="text-center text-gray-600 py-10 italic">No souls are present to temper their steel.</p>}
                 </div>
               </div>
             </div>
@@ -303,27 +237,22 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
                   <h4 className="text-xs font-cinzel text-emerald-400 border-b border-emerald-900/30 pb-2 uppercase tracking-widest font-black">{tier} Draughts</h4>
                   <div className="space-y-4">
                     {items.map((item, idx) => (
-                      <div key={idx} className="p-3 bg-emerald-900/5 border border-emerald-900/20 group">
+                      <div key={idx} className="p-3 bg-emerald-900/5 border border-emerald-900/20">
                         <div className="flex justify-between items-start mb-1">
-                          <p className="text-[11px] font-bold text-white uppercase group-hover:text-emerald-400 transition-colors">{item.name}</p>
+                          <p className="text-[11px] font-bold text-white uppercase">{item.name}</p>
                           <span className="text-[9px] font-black text-gold">● {item.cost}</span>
                         </div>
-                        <p className="text-[10px] text-gray-500 italic mb-3 leading-tight">{item.desc}</p>
-                        <div className="flex gap-2">
-                          {party.map(char => {
-                            const affordable = char.currency.aurels >= item.cost;
-                            return (
-                              <button
-                                key={char.id}
-                                disabled={!affordable}
-                                onClick={() => onBuyItem?.({ id: `item-buy-${idx}-${char.id}`, name: item.name, description: item.desc, type: 'Utility', rarity: 'Common', stats: {} }, char.id, { aurels: item.cost, shards: 0, ichor: 0 })}
-                                className={`flex-1 py-1.5 text-[7px] font-black uppercase tracking-tighter border transition-all ${affordable ? 'border-emerald-500/40 text-emerald-500 hover:bg-emerald-500 hover:text-black' : 'border-gray-800 text-gray-800 opacity-30'}`}
-                                title={`Buy for ${char.name}`}
-                              >
-                                {char.name[0]}
-                              </button>
-                            );
-                          })}
+                        <div className="flex gap-2 mt-3">
+                          {party.map(char => (
+                            <button
+                              key={char.id}
+                              disabled={char.currency.aurels < item.cost}
+                              onClick={() => onBuyItem?.({ id: `item-buy-${idx}-${char.id}`, name: item.name, description: item.desc, type: 'Utility', rarity: 'Common', stats: {} }, char.id, { aurels: item.cost })}
+                              className={`flex-1 py-1.5 text-[7px] font-black uppercase tracking-tighter border transition-all ${char.currency.aurels >= item.cost ? 'border-emerald-500/40 text-emerald-500 hover:bg-emerald-500 hover:text-black' : 'border-gray-800 text-gray-800 opacity-30'}`}
+                            >
+                              {char.name[0]}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     ))}

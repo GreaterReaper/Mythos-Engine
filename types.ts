@@ -45,8 +45,6 @@ export interface Stats {
 
 export interface Currency {
   aurels: number;
-  shards: number;
-  ichor: number;
 }
 
 export interface Ability {

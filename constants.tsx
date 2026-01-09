@@ -247,36 +247,19 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
 };
 
 export const INITIAL_ITEMS: Item[] = [
-  // WARRIOR
   { id: 'w-c-axe', name: 'Iron Battleaxe', description: 'A heavy axe meant for devastating heavy armor.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d12+STR' }, archetypes: [Archetype.Warrior] },
   { id: 'w-c-plate', name: 'Heavy Chain Mail', description: 'Interlocking rings of heavy iron.', type: 'Armor', rarity: 'Common', stats: { ac: 16 }, archetypes: [Archetype.Warrior, Archetype.Fighter, Archetype.DarkKnight] },
-  
-  // FIGHTER
   { id: 'f-c-sword', name: 'Steel Longsword', description: 'A balanced blade for the disciplined.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+STR' }, archetypes: [Archetype.Fighter] },
   { id: 'f-c-shield', name: 'Heater Shield', description: 'A sturdy shield for the front line.', type: 'Armor', rarity: 'Common', stats: { ac: 2 }, archetypes: [Archetype.Fighter] },
-
-  // DARK KNIGHT
   { id: 'dk-c-greatsword', name: 'Sorrow Zweihander', description: 'A massive blade that resonates with despair.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6+STR' }, archetypes: [Archetype.DarkKnight] },
-
-  // ARCHER
   { id: 'a-c-bow', name: 'Yew Longbow', description: 'Lithe and powerful.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8+DEX' }, archetypes: [Archetype.Archer] },
   { id: 'a-c-leather', name: 'Hardened Leather', description: 'Durable and flexible.', type: 'Armor', rarity: 'Common', stats: { ac: 12 }, archetypes: [Archetype.Archer, Archetype.Thief, Archetype.Alchemist] },
-
-  // THIEF
   { id: 't-c-dagger', name: 'Stiletto Dagger', description: 'Meant for the soft spots.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4+DEX' }, archetypes: [Archetype.Thief] },
   { id: 't-c-shortsword', name: 'Cutpurse Shortsword', description: 'Quick and reliable.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+DEX' }, archetypes: [Archetype.Thief, Archetype.Alchemist] },
-
-  // CASTERS (SORCERER / MAGE)
   { id: 's-c-staff', name: 'Ebony Conduit Staff', description: 'A staff to focus the mind.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Sorcerer, Archetype.Mage] },
   { id: 's-c-robes', name: 'Practitioner Robes', description: 'Light silk infused with aether.', type: 'Armor', rarity: 'Common', stats: { ac: 10 }, archetypes: [Archetype.Sorcerer, Archetype.Mage, Archetype.BloodArtist] },
-
-  // ALCHEMIST
   { id: 'al-c-vial', name: 'Reactionary Offhand Vial', description: 'An offhand catalyst for reactions.', type: 'Weapon', rarity: 'Common', stats: { int: 1 }, archetypes: [Archetype.Alchemist] },
-
-  // BLOOD ARTIST
   { id: 'ba-c-sickle', name: 'Crimson Sickle', description: 'A tool for the harvest of life.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6+CHA' }, archetypes: [Archetype.BloodArtist] },
-
-  // POTIONS
   { id: 'util-hp-minor', name: 'Minor Vitality Potion', description: 'A bitter draft that seals surface wounds.', type: 'Utility', rarity: 'Common', stats: {} },
   { id: 'util-mana-minor', name: 'Minor Aetheric Tincture', description: 'Restores a sliver of aetheric reservoir.', type: 'Utility', rarity: 'Common', stats: {} }
 ];
@@ -284,11 +267,10 @@ export const INITIAL_ITEMS: Item[] = [
 export const MENTORS: Character[] = [
   {
     id: 'mentor-lina', name: 'Lina', age: 24, gender: 'Female', race: Race.Human, archetype: Archetype.Mage, role: 'Support', level: 5, exp: 0, maxHp: 35, currentHp: 35, stats: { str: 8, dex: 12, con: 12, int: 14, wis: 18, cha: 14 },
-    currency: { aurels: 100, shards: 50, ichor: 5 }, 
+    currency: { aurels: 100 }, 
     personality: 'A timid mage that tries her best to support her allies, often whispering prayers under her breath.',
     inventory: [
       { id: 'l-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'l-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'l-gear-staff', name: 'Radiant Dawn Ebony Staff', type: 'Weapon', stats: { wis: 2 }, rarity: 'Rare', description: 'A staff that glows with inner light.', archetypes: [Archetype.Mage] },
       { id: 'l-gear-robes', name: 'Vestments of the Weave Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare', description: 'Robes that ripple with mana.', archetypes: [Archetype.Mage] }
     ], 
@@ -297,11 +279,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
-    currency: { aurels: 50, shards: 10, ichor: 2 }, 
+    currency: { aurels: 50 }, 
     personality: 'An energetic combatant who finds thrill in the dance of blades and the roar of the crowd.',
     inventory: [
       { id: 'm-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'm-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'm-gear-sword', name: 'Frontier Steel Broadsword', type: 'Weapon', stats: { damage: '1d8+STR' }, rarity: 'Rare', description: 'A notched but sharp one-handed blade.', archetypes: [Archetype.Fighter] },
       { id: 'm-gear-shield', name: 'Battered Heater Shield', type: 'Armor', stats: { ac: 2 }, rarity: 'Rare', description: 'A shield that has seen a hundred sieges.', archetypes: [Archetype.Fighter] },
       { id: 'm-gear-plate', name: 'Gilded Heavy Full Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Ornate heavy plate for a champion.', archetypes: [Archetype.Fighter] }
@@ -311,11 +292,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
-    currency: { aurels: 150, shards: 30, ichor: 0 }, 
+    currency: { aurels: 150 }, 
     personality: 'A cool, aloof archer who prefers the company of shadows to that of men.',
     inventory: [
       { id: 's-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 's-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 's-gear-bow', name: 'Void-Piercer Yew Longbow', type: 'Weapon', stats: { damage: '1d10+DEX' }, rarity: 'Rare', description: 'An obsidian-limbed ranged weapon.', archetypes: [Archetype.Archer] },
       { id: 's-gear-leather', name: 'Shadow-Thread Leather Armor', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare', description: 'Leather that blends into moonlight.', archetypes: [Archetype.Archer] }
     ], 
@@ -324,11 +304,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-kaelen', name: 'Kaelen', age: 31, gender: 'Male', race: Race.Tiefling, archetype: Archetype.DarkKnight, role: 'Tank', level: 5, exp: 0, maxHp: 48, currentHp: 48, stats: { str: 17, dex: 10, con: 15, int: 12, wis: 10, cha: 16 },
-    currency: { aurels: 80, shards: 25, ichor: 4 }, 
+    currency: { aurels: 80 }, 
     personality: 'A cold stoic dark knight that respects strength in all forms while condemning evil. He speaks only when necessary.',
     inventory: [
       { id: 'k-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'k-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'k-gear-sword', name: 'Abyssal Two-Handed Sorrow-Blade', type: 'Weapon', stats: { damage: '2d6+STR' }, rarity: 'Rare', description: 'A massive blade that screams when swung.', archetypes: [Archetype.DarkKnight] },
       { id: 'k-gear-plate', name: 'Sorrow-Forged Heavy Obsidian Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Black plate that absorbs light.', archetypes: [Archetype.DarkKnight] }
     ], 
@@ -337,11 +316,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-thorin', name: 'Thorin', age: 154, gender: 'Male', race: Race.Dwarf, archetype: Archetype.Warrior, role: 'Tank', level: 5, exp: 0, maxHp: 65, currentHp: 65, stats: { str: 19, dex: 10, con: 18, int: 8, wis: 12, cha: 10 },
-    currency: { aurels: 120, shards: 20, ichor: 3 }, 
+    currency: { aurels: 120 }, 
     personality: 'Boisterous and jovial, Thorin finds joy in the choir of clashing steel and a well-cooked haunch.',
     inventory: [
       { id: 'th-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'th-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'th-gear-axe', name: 'Mountain Breaker Two-Handed Axe', type: 'Weapon', stats: { damage: '1d12+STR' }, rarity: 'Rare', description: 'A heavy dwarf-forged heavy weapon.', archetypes: [Archetype.Warrior] },
       { id: 'th-gear-plate', name: 'Deep-Iron Heavy Mountain Plate', type: 'Armor', stats: { ac: 18 }, rarity: 'Rare', description: 'Durable heavy dwarven plate.', archetypes: [Archetype.Warrior] }
     ], 
@@ -350,11 +328,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-ignis', name: 'Ignis', age: 42, gender: 'Male', race: Race.Dragonborn, archetype: Archetype.Sorcerer, role: 'DPS', level: 5, exp: 0, maxHp: 32, currentHp: 32, stats: { str: 12, dex: 14, con: 14, int: 18, wis: 10, cha: 16 },
-    currency: { aurels: 200, shards: 60, ichor: 8 }, 
+    currency: { aurels: 200 }, 
     personality: 'Proud and volatile, Ignis views aether as a tool of absolute dominance over the lesser fragments.',
     inventory: [
       { id: 'ig-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'ig-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'ig-gear-staff', name: 'Dragon-Heart Ebony Staff', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare', description: 'A staff tipped with a glowing ruby.', archetypes: [Archetype.Sorcerer] },
       { id: 'ig-gear-robes', name: 'Cinder-Woven Aetheric Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare', description: 'Robes that never feel the cold.', archetypes: [Archetype.Sorcerer] }
     ], 
@@ -363,11 +340,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-vesper', name: 'Vesper', age: 28, gender: 'Female', race: Race.Vesperian, archetype: Archetype.Thief, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, stats: { str: 10, dex: 19, con: 12, int: 14, wis: 14, cha: 12 },
-    currency: { aurels: 300, shards: 40, ichor: 1 }, 
+    currency: { aurels: 300 }, 
     personality: 'Pragmatic and dry-witted, Vesper values silence and survival over the vanity of heroics.',
     inventory: [
       { id: 've-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 've-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 've-gear-dagger', name: 'Shadow-Bite Stiletto Dagger', type: 'Weapon', stats: { damage: '1d4+DEX' }, rarity: 'Rare', description: 'First part of a dual-wield set.', archetypes: [Archetype.Thief] },
       { id: 've-gear-shortsword', name: 'Obsidian Shortsword', type: 'Weapon', stats: { damage: '1d6+DEX' }, rarity: 'Rare', description: 'Second part of a dual-wield set.', archetypes: [Archetype.Thief] },
       { id: 've-gear-leather', name: 'Whisper-Soft Silent Leathers', type: 'Armor', stats: { ac: 13 }, rarity: 'Rare', description: 'Armor that makes no sound.', archetypes: [Archetype.Thief] }
@@ -377,11 +353,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-zora', name: 'Zora', age: 89, gender: 'Female', race: Race.Gnome, archetype: Archetype.Alchemist, role: 'Support', level: 5, exp: 0, maxHp: 40, currentHp: 40, stats: { str: 8, dex: 14, con: 16, int: 19, wis: 12, cha: 10 },
-    currency: { aurels: 150, shards: 80, ichor: 10 }, 
+    currency: { aurels: 150 }, 
     personality: 'Analytical and obsessive, Zora treats every combat as a chemical equation waiting to be balanced.',
     inventory: [
       { id: 'zo-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'zo-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'zo-gear-sword', name: 'Reactionary Steel Shortsword', type: 'Weapon', stats: { damage: '1d6+INT' }, rarity: 'Rare', description: 'Used to stir and strike.', archetypes: [Archetype.Alchemist] },
       { id: 'zo-gear-vial', name: 'Offhand Volatile Catalyst Vial', type: 'Weapon', stats: { int: 2 }, rarity: 'Rare', description: 'An offhand tool for transmutation.', archetypes: [Archetype.Alchemist] },
       { id: 'zo-gear-leather', name: 'Reinforced Chemist Leathers', type: 'Armor', stats: { ac: 12 }, rarity: 'Rare', description: 'Acid-resistant protection.', archetypes: [Archetype.Alchemist] }
@@ -391,11 +366,10 @@ export const MENTORS: Character[] = [
   },
   {
     id: 'mentor-elias', name: 'Elias', age: 35, gender: 'Male', race: Race.Vesperian, archetype: Archetype.BloodArtist, role: 'DPS', level: 5, exp: 0, maxHp: 45, currentHp: 45, stats: { str: 10, dex: 12, con: 16, int: 14, wis: 10, cha: 18 },
-    currency: { aurels: 180, shards: 50, ichor: 15 }, 
+    currency: { aurels: 180 }, 
     personality: 'Macabre and poetic, Elias sees the flow of life-essence as a symphony that must be carefully conducted.',
     inventory: [
       { id: 'el-hp-1', name: 'Minor Vitality Potion', description: 'A bitter draft.', type: 'Utility', rarity: 'Common', stats: {} },
-      { id: 'el-mn-1', name: 'Minor Aetheric Tincture', description: 'Restores aether.', type: 'Utility', rarity: 'Common', stats: {} },
       { id: 'el-gear-scythe', name: 'Soul-Harvest Blood Scythe', type: 'Weapon', stats: { damage: '1d10+CHA' }, rarity: 'Rare', description: 'A weapon of grim beauty.', archetypes: [Archetype.BloodArtist] },
       { id: 'el-gear-robes', name: 'Sanguine Silk Aetheric Robes', type: 'Armor', stats: { ac: 11 }, rarity: 'Rare', description: 'Robes that drink spilled blood.', archetypes: [Archetype.BloodArtist] }
     ], 
@@ -404,7 +378,7 @@ export const MENTORS: Character[] = [
   }
 ];
 
-export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {}; // Kept for logic compatibility but pre-populated above
+export const MENTOR_UNIQUE_GEAR: Record<string, Partial<Item>[]> = {}; 
 
 export const INITIAL_MONSTERS: Monster[] = [
   { id: 'mon-rat', name: 'Obsidian Rat', type: 'Beast', hp: 4, ac: 10, stats: { str: 4, dex: 12, con: 10, int: 2, wis: 10, cha: 4 }, abilities: [], description: 'Shadows with teeth. They feast on the low-resonance fragments of the world.', cr: 0.125, activeStatuses: [] },
@@ -412,77 +386,8 @@ export const INITIAL_MONSTERS: Monster[] = [
   { id: 'mon-husk', name: 'Hollow Husk', type: 'Undead', hp: 12, ac: 8, stats: { str: 12, dex: 6, con: 14, int: 1, wis: 1, cha: 1 }, abilities: [{name: 'Soul Thirst', description: 'Deals 1d4 necrotic on hit.', type: 'Active', levelReq: 1}], description: 'The remains of a vessel that failed to bind. Slow and brittle.', cr: 0.25, activeStatuses: [] },
   { id: 'mon-wisp', name: 'Aetheric Wisp', type: 'Hybrid', hp: 5, ac: 13, stats: { str: 1, dex: 16, con: 10, int: 14, wis: 14, cha: 10 }, abilities: [{name: 'Phase Out', description: 'Disadvantage on attacks against it.', type: 'Passive', levelReq: 1}], description: 'Flickering lights that feed on aetheric surges.', cr: 0.25, activeStatuses: [] },
   { id: 'mon-warden', name: 'Shattered Warden', type: 'Undead', hp: 45, ac: 15, stats: { str: 18, dex: 10, con: 16, int: 8, wis: 12, cha: 8 }, abilities: [{name: 'Iron Cleave', description: 'Massive arc strike (2d8+STR).', type: 'Active', levelReq: 1}, {name: 'Stone Skin', description: 'Resistance to physical damage.', type: 'Passive', levelReq: 1}], description: 'A massive armored shell animated by a vengeful soul.', cr: 2, activeStatuses: [] },
-  
-  // BOSS TYPE ENEMIES
-  { 
-    id: 'mon-gorechimera', 
-    name: 'Gorechimera', 
-    type: 'Hybrid', 
-    hp: 140, 
-    ac: 16, 
-    stats: { str: 20, dex: 12, con: 18, int: 6, wis: 14, cha: 10 }, 
-    cr: 7, 
-    description: 'A twisted fusion of apex predators. Its multiple heads snap and roar in a discordant symphony of carnage.', 
-    abilities: [
-      { name: 'Lion Pulse', description: 'A roar that can stun nearby vessels.', type: 'Active', levelReq: 1 },
-      { name: 'Serpent Sting', description: 'Tail strike that inflicts lethal poison.', type: 'Active', levelReq: 1 },
-      { name: 'Goat Breath', description: 'A cone of necrotic fire.', type: 'Active', levelReq: 1 }
-    ],
-    resistances: ['Poisoned'],
-    activeStatuses: []
-  },
-  { 
-    id: 'mon-void-beholder', 
-    name: 'The Obsidian Eye', 
-    type: 'Beast', 
-    hp: 180, 
-    ac: 18, 
-    stats: { str: 10, dex: 14, con: 18, int: 17, wis: 15, cha: 17 }, 
-    cr: 13, 
-    description: 'A floating mass of necrotic tissue dominated by a singular, unblinking iris. Smaller eyes sprout from its body like tumors.', 
-    abilities: [
-      { name: 'Enervation Ray', description: 'Deals 8d8 necrotic damage on a failed save.', type: 'Active', levelReq: 1 },
-      { name: 'Anti-Magic Gaze', description: 'Disables all spells in a frontal cone.', type: 'Passive', levelReq: 1 },
-      { name: 'Telekinetic Grip', description: 'Crushes the physical vessel of a target.', type: 'Active', levelReq: 1 }
-    ],
-    resistances: ['Blinded', 'Charmed'],
-    activeStatuses: []
-  },
-  { 
-    id: 'mon-colossus', 
-    name: 'Blight-Walker Colossus', 
-    type: 'Undead', 
-    hp: 280, 
-    ac: 20, 
-    stats: { str: 24, dex: 8, con: 22, int: 4, wis: 10, cha: 5 }, 
-    cr: 16, 
-    description: 'A titan of stitched flesh and reinforced iron. It leaves a trail of dying earth wherever its massive feet fall.', 
-    abilities: [
-      { name: 'Earth-Shaker', description: 'Massive stomp that knocks all vessels prone.', type: 'Active', levelReq: 1 },
-      { name: 'Miasma Cloud', description: 'A permanent aura of poison surrounds the colossus.', type: 'Passive', levelReq: 1 },
-      { name: 'Siege Strike', description: 'Deals double damage to structures and shields.', type: 'Active', levelReq: 1 }
-    ],
-    vulnerabilities: ['Fire'],
-    resistances: ['Poisoned', 'Exhausted'],
-    activeStatuses: []
-  },
-  { 
-    id: 'mon-nightlord', 
-    name: 'Vesperian Nightlord', 
-    type: 'Humanoid', 
-    hp: 350, 
-    ac: 19, 
-    stats: { str: 16, dex: 22, con: 18, int: 18, wis: 16, cha: 20 }, 
-    cr: 19, 
-    description: 'An ancient Vesperian who has attained absolute resonance with the void. They move as a shadow among shadows.', 
-    abilities: [
-      { name: 'Eternal Night', description: 'Extinguishes all light and blinds all vessels.', type: 'Active', levelReq: 1 },
-      { name: 'Void Flicker', description: 'Teleports after every strike.', type: 'Passive', levelReq: 1 },
-      { name: 'Soul Sip', description: 'Heals for 50% of damage dealt.', type: 'Active', levelReq: 1 }
-    ],
-    resistances: ['Blinded', 'Stunned', 'Frightened'],
-    activeStatuses: []
-  }
+  { id: 'mon-gorechimera', name: 'Gorechimera', type: 'Hybrid', hp: 140, ac: 16, stats: { str: 20, dex: 12, con: 18, int: 6, wis: 14, cha: 10 }, cr: 7, description: 'A twisted fusion of apex predators.', abilities: [{ name: 'Lion Pulse', description: 'Stun nearby vessels.', type: 'Active', levelReq: 1 }], activeStatuses: [] },
+  { id: 'mon-colossus', name: 'Blight-Walker Colossus', type: 'Undead', hp: 280, ac: 20, stats: { str: 24, dex: 8, con: 22, int: 4, wis: 10, cha: 5 }, cr: 16, description: 'A titan of stitched flesh.', abilities: [{ name: 'Earth-Shaker', description: 'Knock all vessels prone.', type: 'Active', levelReq: 1 }], vulnerabilities: ['Fire'], activeStatuses: [] }
 ];
 
 export const RULES_MANIFEST = `
@@ -492,30 +397,22 @@ export const RULES_MANIFEST = `
 4. **THE LONE VESSEL**: Solo play is "Heroic Mode" with cinematic favor.
 5. **SOUL ASCENSION**: Progression requires 1,000 EXP * Level.
 6. **VOID LAW**: Blights cannot be removed manually. Reagents or Spells are required.
-7. **ANCHORED SOULS**: Mentors are immortal soul-fragments. If their Vitality (HP) reaches 0, they do not perish; they vanish in a swirl of amber light and return to 'The Broken Cask' to reform. They must leave the Fellowship immediately upon falling.
-8. **DEATH SAVES**: When a player character reaches 0 HP, they fall unconscious and must make Death Saving Throws. Roll a d20: 10 or higher is a Success, 9 or lower is a Failure. 3 Successes to stabilize, 3 Failures to perish permanently.
-9. **RITUAL OF RECALL (REVIVE)**: Mentors (like Lina) with revival spells (e.g., Revivify) can manifest them to bring a fallen soul back to 1 HP, provided they have a Level 3 spell slot.
-10. **AETHERIC RESTS**: 
-    - SHORT REST (4 Hours): Completely restores Vitality (HP) and restores half (rounded up) of thy total spell slots.
-    - LONG REST (8 Hours): Completely restores Vitality (HP) and all spell slots. Purges minor blights.
+7. **ANCHORED SOULS**: Mentors are immortal soul-fragments. If their Vitality (HP) reaches 0, they return to 'The Broken Cask' to reform.
+8. **DEATH SAVES**: 3 Successes to stabilize, 3 Failures to perish permanently.
+9. **AETHERIC RESTS**: 
+    - SHORT REST: Completely restores Vitality (HP) and half spell slots.
+    - LONG REST: Completely restores Vitality (HP) and all spell slots. Purges minor blights.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `The air is thick with iron. Thy Fellowship stands before 'The Broken Cask'. What is thy move?`;
 
 export const TUTORIAL_SCENARIO = {
   title: "The Fellowship of Five",
-  prompt: `Thou awakenest in the obsidian silence of the Sunken Sanctuary. A shimmering violet lattice of aetheric chains coils around thy Fellowship. Lina (Mage), Seris (Archer), and any others lie paralyzed within the magical web, their eyes wide but limbs unresponsive.
-
-Only thou hast managed to resist the total binding. Beside thee, Miri (the Fighter) strains against the violet light, her heater shield glowing as she shatters her own chains to stand at thy side. 
-
-A pack of **Shadow Wolves** and two **Hollow Husks** emerge from the necrotic emerald mists, drawn to the flickering resonance of thy bound companions.
-
-**THE FIRST ACT: AWAKENING**
-Thou and the unbound Miri are the only barrier between thy comrades and the coming tide. How dost thou act?`,
+  prompt: `Thou awakenest in the obsidian silence of the Sunken Sanctuary...`,
   beats: [
-    "ACT 1: THE AWAKENING - Encounter 3 Shadow Wolves and 2 Hollow Husks. Only Player and Tank are unbound initially.",
-    "ACT 2: RITUAL OF STEEL - A path opens. The party must perform a ritual to break the remaining chains.",
-    "ACT 3: THE BREACH - The Shattered Warden guards the exit. Defeat him to ascend to the surface."
+    "ACT 1: THE AWAKENING",
+    "ACT 2: RITUAL OF STEEL",
+    "ACT 3: THE BREACH"
   ]
 };
 

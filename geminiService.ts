@@ -3,9 +3,8 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.0.9";
+const ENGINE_VERSION = "1.1.1";
 
-// Model Constants - HARD SEPARATION
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
 const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
 
@@ -113,8 +112,6 @@ export const parseSoulSignature = (signature: string, defaultState: GameState): 
 
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
-
 export const generateShopInventory = async (context: string, avgPartyLevel: number): Promise<Shop> => {
   const ai = getAiClient();
   trackUsage();
@@ -141,9 +138,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
                   cost: {
                     type: Type.OBJECT,
                     properties: {
-                      aurels: { type: Type.NUMBER },
-                      shards: { type: Type.NUMBER },
-                      ichor: { type: Type.NUMBER }
+                      aurels: { type: Type.NUMBER }
                     }
                   }
                 }
@@ -162,7 +157,7 @@ export const generateShopInventory = async (context: string, avgPartyLevel: numb
       inventory: (parsed.inventory || []).map((i: any) => ({ 
         ...i, 
         id: safeId(),
-        cost: i.cost || { aurels: 0, shards: 0, ichor: 0 },
+        cost: i.cost || { aurels: 0 },
         stats: i.stats || {}
       }))
     };
@@ -238,7 +233,7 @@ export const generateCustomClass = async (prompt: string): Promise<any> => {
             hpDie: { type: Type.NUMBER },
             abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, levelReq: { type: Type.NUMBER } } } },
             spells: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, levelReq: { type: Type.NUMBER }, baseLevel: { type: Type.NUMBER } } } },
-            themedItems: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, rarity: { type: Type.STRING }, stats: { type: Type.OBJECT } } } }
+            themedItems: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING }, rarity: { type: Type.STRING }, stats: { type: Type.OBJECT, properties: { damage: { type: Type.STRING }, ac: { type: Type.NUMBER } } } } } }
           }
         }
       }
@@ -279,64 +274,39 @@ export const generateDMResponse = async (
     
     const status = c.id.startsWith('mentor-') ? "VETERAN IMMORTAL MENTOR" : "FLEDGLING PLAYER VESSEL";
     const hpStatus = c.currentHp <= 0 ? "UNCONSCIOUS (DYING)" : `${c.currentHp}/${c.maxHp} HP`;
-    const expToNext = c.level * 1000;
 
     return `${c.name} [${status}] (${c.race} ${c.archetype} Lvl ${c.level})
     - VITALITY: ${hpStatus}.
     - GEAR: [${equipped || "No legendary gear"}]
     - RESOURCES: ${currentSlotsStr || "None"}
     - MANIFESTATIONS: [${usableSpells || "None"}]
-    - SOUL ESSENCE: ${c.exp}/${expToNext} EXP (Next Ascension at ${expToNext})`;
+    - SOUL ESSENCE: ${c.exp} EXP
+    - AURELS: ${c.currency.aurels}`;
   }).join('\n\n    ');
-
-  const sanitizedContents = history
-    .filter(m => m.role === 'user' || m.role === 'model')
-    .map(m => ({ role: m.role, parts: [{ text: m.content || "..." }] }));
 
   const systemInstruction = `
     Thou art the "Narrative DM" (Gemini Flash). 
     
     LAWS OF ARBITRATION:
-    1. MECHANICAL PRIORITY: Before narrating, compute the math. Describe dice rolls in prose (e.g. "Thy strike rolls a 16 against AC 14, dealing 8 damage").
-    2. STRICT RESOURCE TRACKING: 
-       - SPELL SLOTS: If a spell is used, verify character has the slot. Append [USE_SLOT: level, name] if successful.
-       - HP COSTS: Sacrificial rites (e.g. Dark Rite, Life Tap) consume Vitality. Issue [TAKE_DAMAGE: amount, caster].
-    3. DYING STATE: If a Player Vessel is at 0 HP, they are "Unconscious". They cannot act. Acknowledge their Death Save results.
-    4. MENTOR RECOGNITION: Treat Lina, Miri, Seris, and the Path-Mentor with legendary reverence. Recognize their specific gear.
-    5. SOUL ASCENSION (LEVELING): Soul Progression requires 1,000 EXP multiplied by current Level. 
-       - When awarding EXP, calculate if the threshold is met. 
-       - If a Soul ascends, narrate their surge in aetheric power. The Engine handles the stat shifts automatically.
-    6. ENCOUNTER REWARDS: When foes fall, award Experience, Gold, or Items.
-       - EXP: State it clearly as "+X EXP". Append [EXP: X].
-       - GEAR: Name the item clearly. Append [ITEM: name].
-       - GOLD: Append [GOLD: X].
-    
-    FORMAT: 
-    1. Atmosphere & Action
-    2. Mechanical Result (Rolls/Damage/Rewards)
-    3. Commands (VERY END): [TAKE_DAMAGE: X, name], [HEAL: X, name], [USE_SLOT: X, name], [SPAWN: name], [RECALL: name], [EXP: amount], [ITEM: name], [GOLD: amount].
+    1. MECHANICAL PRIORITY: Compute results first. Use dice notation in prose.
+    2. TARGETED REWARDS: Award EXP, Items, and Gold explicitly.
+       - EXP: [EXP: amount] (Split among party automatically).
+       - ITEMS: [ITEM: "Name", "Target"] or just [ITEM: "Name"] for the leader.
+       - GOLD: [GOLD: amount, "Target"] or [GOLD: amount, "Party"] to split.
+    3. RESOURCE TRACKING: Use [USE_SLOT: level, "Name"] for magic and [TAKE_DAMAGE: amount, "Name"] for hits.
     
     PARTY MANIFEST:
     ${partyManifests}
   `;
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: sanitizedContents as any,
-      config: { 
-        systemInstruction, 
-        temperature: 0.7,
-        topP: 0.9,
-      }
+      contents: history.filter(m => m.role === 'user' || m.role === 'model').map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      config: { systemInstruction, temperature: 0.7 }
     });
-    clearTimeout(timeout);
     return response.text || "The Engine hums...";
   } catch (error: any) {
-    if (error.name === 'AbortError') return "Aetheric turbulence has severed the link. (Request timed out).";
     return "Aetheric turbulence has obscured the path.";
   }
 };
@@ -347,7 +317,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Design stats for "${monsterName}". Level: ${avgPartyLevel}. JSON.`,
+      contents: `Design detailed RPG stats for "${monsterName}". JSON format.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -358,8 +328,14 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             cr: { type: Type.NUMBER },
             description: { type: Type.STRING },
-            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } },
-            abilities: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING } } } }
+            stats: { 
+              type: Type.OBJECT, 
+              properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } 
+            },
+            abilities: { 
+              type: Type.ARRAY, 
+              items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, description: { type: Type.STRING }, type: { type: Type.STRING } } } 
+            }
           }
         }
       }
@@ -374,7 +350,7 @@ export const generateItemDetails = async (itemName: string, context: string, avg
   try {
     const response = await ai.models.generateContent({
       model: ARCHITECT_MODEL,
-      contents: `Design stats for item "${itemName}". Level: ${avgPartyLevel}. JSON.`,
+      contents: `Design stats for item "${itemName}". JSON.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -384,7 +360,10 @@ export const generateItemDetails = async (itemName: string, context: string, avg
             description: { type: Type.STRING },
             type: { type: Type.STRING },
             rarity: { type: Type.STRING },
-            stats: { type: Type.OBJECT }
+            stats: { 
+              type: Type.OBJECT, 
+              properties: { damage: { type: Type.STRING }, ac: { type: Type.NUMBER } }
+            }
           }
         }
       }
@@ -396,8 +375,10 @@ export const generateItemDetails = async (itemName: string, context: string, avg
 export const parseDMCommand = (text: string) => {
   const commands = {
     exp: 0,
-    currency: { aurels: 0, shards: 0, ichor: 0 },
-    items: [] as { name: string, data?: any }[],
+    currencyRewards: [] as { amount: number, target: string }[],
+    currencyLosses: [] as { amount: number, target: string }[],
+    items: [] as { name: string, item?: string, target?: string }[],
+    consumedItems: [] as { name: string, target: string }[],
     monstersToAdd: [] as string[],
     shortRest: false,
     longRest: false,
@@ -414,24 +395,20 @@ export const parseDMCommand = (text: string) => {
 
   const expMatch = text.match(/\[EXP:\s*(\d+)\]/i);
   if (expMatch) commands.exp = parseInt(expMatch[1]);
-  const goldMatch = text.match(/\[GOLD:\s*(\d+)\]/i);
-  if (goldMatch) commands.currency.aurels = parseInt(goldMatch[1]);
 
-  const itemMatches = [...text.matchAll(/\[ITEM:\s*([^\]]+)\]/gi)];
-  itemMatches.forEach(m => commands.items.push({ name: m[1].trim() }));
-  const monsterMatches = [...text.matchAll(/\[SPAWN:\s*([^\]]+)\]/gi)];
+  const goldMatches = [...text.matchAll(/\[GOLD:\s*(\d+)(?:,\s*"?([^"\]]+)"?)?\]/gi)];
+  goldMatches.forEach(m => commands.currencyRewards.push({ amount: parseInt(m[1]), target: m[2] || 'Party' }));
+
+  const takeGoldMatches = [...text.matchAll(/\[TAKE_GOLD:\s*(\d+)(?:,\s*"?([^"\]]+)"?)?\]/gi)];
+  takeGoldMatches.forEach(m => commands.currencyLosses.push({ amount: parseInt(m[1]), target: m[2] || 'Leader' }));
+
+  const itemMatches = [...text.matchAll(/\[ITEM:\s*"?([^",\]]+)"?(?:,\s*"?([^"\]]+)"?)?\]/gi)];
+  itemMatches.forEach(m => commands.items.push({ name: m[1].trim(), item: m[1].trim(), target: m[2]?.trim() }));
+
+  const monsterMatches = [...text.matchAll(/\[SPAWN:\s*"?([^"\]]+)"?\]/gi)];
   monsterMatches.forEach(m => commands.monstersToAdd.push(m[1].trim()));
   
-  if (/\[ENTER_COMBAT\]/i.test(text)) commands.enterCombat = true;
-  if (/\[EXIT_COMBAT\]/i.test(text)) commands.exitCombat = true;
-  if (/\[OPEN_SHOP\]/i.test(text)) commands.openShop = true;
   if (/\[REST:\s*short\]/i.test(text)) commands.shortRest = true;
-
-  const slotMatch = text.match(/\[USE_SLOT:\s*(\d+),\s*([^\]]+)\]/i);
-  if (slotMatch) commands.usedSlot = { level: parseInt(slotMatch[1]), characterName: slotMatch[2].trim() };
-
-  const recallMatches = [...text.matchAll(/\[RECALL:\s*([^\]]+)\]/gi)];
-  recallMatches.forEach(m => commands.recalls.push(m[1].trim()));
 
   const healMatches = [...text.matchAll(/\[HEAL:\s*(\d+),\s*([^\]]+)\]/gi)];
   healMatches.forEach(m => commands.heals.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));
@@ -445,13 +422,10 @@ export const parseDMCommand = (text: string) => {
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
   const ai = getAiClient();
   trackUsage();
-  const sanitizedContents = history
-    .filter(m => m.role === 'user' || m.role === 'model')
-    .map(m => ({ role: m.role, parts: [{ text: m.content || "..." }] }));
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: sanitizedContents as any,
+      contents: history.filter(m => m.role === 'user' || m.role === 'model').map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
       config: { systemInstruction: "Thou art Barnaby, the innkeeper. Speak with archaic warmth.", temperature: 0.7 }
     });
     return response.text || "Barnaby nods.";

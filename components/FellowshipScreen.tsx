@@ -53,18 +53,26 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
             <p className="text-[10px] text-emerald-500 font-cinzel uppercase tracking-[0.2em] mt-1 font-bold">{char.race} {char.archetype}</p>
           </div>
         </div>
-        <div className="mt-4 flex gap-4">
-           <div className="text-center bg-black/40 px-3 py-1 rounded border border-emerald-900/20">
-             <p className="text-[8px] text-gray-500 uppercase font-black">Level</p>
-             <p className="text-sm font-black text-white">{char.level}</p>
+        <div className="mt-4 flex flex-col gap-3">
+           <div className="flex gap-4">
+             <div className="text-center bg-black/40 px-3 py-1 rounded border border-emerald-900/20">
+               <p className="text-[8px] text-gray-500 uppercase font-black">Level</p>
+               <p className="text-sm font-black text-white">{char.level}</p>
+             </div>
+             <div className="flex-1 bg-black/40 p-1.5 rounded border border-emerald-900/20 flex flex-col justify-center">
+                <div className="flex justify-between items-center text-[8px] uppercase font-black text-gray-500 mb-0.5">
+                  <span>Vitality</span>
+                  <span className="text-emerald-500">{char.currentHp}/{char.maxHp}</span>
+                </div>
+                <div className="h-1 bg-gray-900 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-900" style={{ width: `${(char.currentHp/char.maxHp)*100}%` }} />
+                </div>
+             </div>
            </div>
-           <div className="flex-1 bg-black/40 p-1.5 rounded border border-emerald-900/20 flex flex-col justify-center">
-              <div className="flex justify-between items-center text-[8px] uppercase font-black text-gray-500 mb-0.5">
-                <span>Vitality</span>
-                <span className="text-emerald-500">{char.currentHp}/{char.maxHp}</span>
-              </div>
-              <div className="h-1 bg-gray-900 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-900" style={{ width: `${(char.currentHp/char.maxHp)*100}%` }} />
+           <div className="flex gap-3 px-1 py-1 border-t border-emerald-900/10">
+              <div className="flex items-center gap-1.5">
+                <span className="text-gold text-[10px] font-black">●</span>
+                <span className="text-white/60 font-mono text-[9px] font-black">{char.currency?.aurels || 0} AURELS</span>
               </div>
            </div>
         </div>

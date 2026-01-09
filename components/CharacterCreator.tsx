@@ -127,11 +127,12 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     const initialSlots = SPELL_SLOT_PROGRESSION[1];
     const isCaster = [Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(archetype as Archetype) || baseSpells.length > 0;
 
+    // Fixed Currency object to match type definition in types.ts (removed 'shards' and 'ichor')
     const newChar: Character = {
       id: safeId(),
       name, age, gender, race, archetype, role,
       level: 1, exp: 0, maxHp: startHp, currentHp: startHp,
-      stats: finalStats, currency: { aurels: 10, shards: 0, ichor: 0 },
+      stats: finalStats, currency: { aurels: 10 },
       inventory, equippedIds: inventory.map(i => i.id), spells: baseSpells,
       abilities: baseAbilities, activeStatuses: [],
       spellSlots: isCaster ? initialSlots : undefined,

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop, ShopItem, Role, Rumor, StatusEffect } from './types';
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
@@ -336,8 +337,17 @@ export const generateDMResponse = async (
         - Mentors with revival spells (like Lina with 'Revivify') can act to bring them back.
         - If a Mentor casts a revival spell, use [USE_SLOT: level, mentorName] and [HEAL: amount, playerName].
         - MENTORS MUST have the required spell slot to cast Revivify (Level 3).
-    - Tracking active character manifests and enforcing level requirements.
-    - Managing combat flow and rest outcomes.
+        - DEATH SAVES: 10 or higher is SUCCESS. 9 or lower is FAILURE.
+    - HP SACRIFICE TRACKING:
+        - SPELLS LIKE 'DARK RITE' OR 'LIFE TAP' CONSUME THE USER'S HP.
+        - Whenever a character sacrifices vitality for power (e.g., Dark Rite), thou MUST issue [TAKE_DAMAGE: amount, name].
+        - A standard Dark Rite sacrifice is 2 HP.
+    - SAFETY PROTOCOL:
+        - Keep descriptions of violence at a "Fantasy / PG-13" level. 
+        - Avoid hyper-realistic anatomical detail, excessive gore, or excessive cruelty. 
+        - If a prompt requests something too visceral, sanitize it into "aetheric dissolution" or "shadow dissipation" to maintain stability within the Aether (Safety Filters). 
+    - TRACKING resources:
+        - Enforce spell slots and level requirements.
     
     WORLD ARCHITECT HANDOFF:
     - Thou shalt NOT generate stats for new items or monsters.
@@ -353,7 +363,7 @@ export const generateDMResponse = async (
     PARTY MANIFESTS:
     ${partyManifests}
 
-    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name], [RECALL: name], [HEAL: amount, name], [REST: short].
+    COMMANDS: [EXP: amount], [GOLD: amount], [ITEM: name], [SPAWN: name], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, name], [RECALL: name], [HEAL: amount, name], [TAKE_DAMAGE: amount, name], [REST: short].
   `;
 
   try {
@@ -364,6 +374,11 @@ export const generateDMResponse = async (
     });
     return response.text || "The Engine hums...";
   } catch (error: any) {
+    console.error("Narrative Core Failure:", error);
+    // If the error looks like a safety block, provide a flavored message
+    if (error.message?.includes('safety') || error.message?.includes('blocked')) {
+      return "The stars are obscured... The void rejects this path. (Aetheric Turbulence - Safety Filter Triggered. Try a less visceral approach.)";
+    }
     return "The stars are obscured... (Aetheric Turbulence)";
   }
 };
@@ -443,7 +458,8 @@ export const parseDMCommand = (text: string) => {
     statusesToAdd: [] as { effect: StatusEffect, target: string }[],
     statusesToRemove: [] as { effect: StatusEffect, target: string }[],
     recalls: [] as string[],
-    heals: [] as { amount: number, targetName: string }[]
+    heals: [] as { amount: number, targetName: string }[],
+    takeDamage: [] as { amount: number, targetName: string }[]
   };
 
   const expMatch = text.match(/\[EXP:\s*(\d+)\]/i);
@@ -472,6 +488,9 @@ export const parseDMCommand = (text: string) => {
   const healMatches = [...text.matchAll(/\[HEAL:\s*(\d+),\s*([^\]]+)\]/gi)];
   healMatches.forEach(m => commands.heals.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));
 
+  const damageMatches = [...text.matchAll(/\[TAKE_DAMAGE:\s*(\d+),\s*([^\]]+)\]/gi)];
+  damageMatches.forEach(m => commands.takeDamage.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));
+
   return commands;
 };
 
@@ -482,7 +501,7 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   const ai = getAiClient();
   trackUsage();
   const sanitizedContents = history.map(m => ({ 
-    role: m.role === 'model' ? 'model' : 'user', 
+    role: m.role === 'model' ? 'model' : m.role === 'user', 
     parts: [{ text: m.content || "..." }] 
   }));
   try {

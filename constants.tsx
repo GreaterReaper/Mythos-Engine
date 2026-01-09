@@ -118,7 +118,7 @@ export const SPELL_LIBRARY: Record<string, Ability[]> = {
     { name: 'Guiding Bolt', description: 'Radiant bolt grants advantage on next hit.', type: 'Spell', levelReq: 1, baseLevel: 1 },
     { name: 'Lesser Restoration', description: 'Cleanse Poisoned, Blinded, or Bleeding.', type: 'Spell', levelReq: 3, baseLevel: 2 },
     { name: 'Spiritual Weapon', description: 'Manifest a floating spectral mace to strike.', type: 'Spell', levelReq: 3, baseLevel: 2 },
-    { name: 'Revivify', description: 'Recall a soul that fell in the last minute. (Must have a level 3 spell slot to use).', type: 'Spell', levelReq: 5, baseLevel: 3 },
+    { name: 'Revivify', description: 'Recall a soul that fell in the last minute. (Requires Level 3 spell slot).', type: 'Spell', levelReq: 5, baseLevel: 3 },
     { name: 'Spirit Guardians', description: 'Angelic spirits circle and slow enemies.', type: 'Spell', levelReq: 5, baseLevel: 3 },
     { name: 'Greater Restoration', description: 'Cleanse Stunned, Charmed, or Frightened.', type: 'Spell', levelReq: 9, baseLevel: 5 },
     { name: 'Heal', description: 'A massive flood of vitality restores health.', type: 'Spell', levelReq: 11, baseLevel: 6 },
@@ -425,8 +425,8 @@ export const RULES_MANIFEST = `
 8. **DEATH SAVES**: When a player character reaches 0 HP, they fall unconscious and must make Death Saving Throws. Roll a d20: 10 or higher is a Success, 9 or lower is a Failure. 3 Successes to stabilize, 3 Failures to perish permanently.
 9. **RITUAL OF RECALL (REVIVE)**: Mentors (like Lina) with revival spells (e.g., Revivify) can manifest them to bring a fallen soul back to 1 HP, provided they have a Level 3 spell slot.
 10. **AETHERIC RESTS**: 
-    - SHORT REST (4 Hours): Completely restores Vitality (HP) and restores half (rounded up) of thy used spell slots.
-    - LONG REST (8 Hours): Completely restores Vitality (HP), all used spell slots, and purges minor blights.
+    - SHORT REST (4 Hours): Completely restores Vitality (HP) and restores half (rounded up) of thy total spell slots.
+    - LONG REST (8 Hours): Completely restores Vitality (HP) and all spell slots. Purges minor blights.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `The air is thick with iron. Thy Fellowship stands before 'The Broken Cask'. What is thy move?`;

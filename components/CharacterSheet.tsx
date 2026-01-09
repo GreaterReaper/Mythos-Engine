@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Character, Stats, Ability, Item, Archetype, Race, Currency, StatusEffect } from '../types';
 import { RECOMMENDED_STATS } from '../constants';
@@ -14,11 +13,8 @@ interface CharacterSheetProps {
 
 const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, isMentor }) => {
   const [activeTab, setActiveTab] = useState<'Stats' | 'Abilities' | 'Inventory' | 'Lore'>('Stats');
-  const [isEditingLore, setIsEditingLore] = useState(false);
-  const [editedBio, setEditedBio] = useState(character.biography || '');
-  const [editedDesc, setEditedDesc] = useState(character.description || '');
-  const [isWeaving, setIsWeaving] = useState(false);
   const [lastDeathRoll, setLastDeathRoll] = useState<number | null>(null);
+  const [isRolling, setIsRolling] = useState(false);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
   const dexMod = getMod(character.stats.dex);
@@ -46,44 +42,44 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   const toggleStatus = (effect: StatusEffect) => {
     if (!onUpdate || isMentor) return;
-    const isActive = character.activeStatuses.includes(effect);
-    if (isActive) {
-      // VOID LAW: THOU SHALT NOT REMOVE THY OWN BLIGHTS.
-      return;
-    }
-    const nextStatuses = [...character.activeStatuses, effect];
-    onUpdate(character.id, { activeStatuses: nextStatuses });
+    if (character.activeStatuses.includes(effect)) return;
+    onUpdate(character.id, { activeStatuses: [...character.activeStatuses, effect] });
   };
 
   const handleRollDeathSave = () => {
-    if (!onUpdate || isMentor || character.currentHp > 0) return;
-    const roll = Math.floor(Math.random() * 20) + 1;
-    setLastDeathRoll(roll);
+    if (!onUpdate || isMentor || character.currentHp > 0 || isRolling) return;
     
-    const currentSaves = character.deathSaves || { successes: 0, failures: 0 };
-    if (roll >= 10) {
-      const next = Math.min(3, currentSaves.successes + 1);
-      onUpdate(character.id, { deathSaves: { ...currentSaves, successes: next } });
-      if (next === 3) {
-        // Stabilize
-        onUpdate(character.id, { currentHp: 1, deathSaves: { successes: 0, failures: 0 } });
-        setLastDeathRoll(null);
+    setIsRolling(true);
+    setLastDeathRoll(null);
+    
+    // Mimic actual dice roll wait
+    setTimeout(() => {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      setLastDeathRoll(roll);
+      setIsRolling(false);
+      
+      const currentSaves = character.deathSaves || { successes: 0, failures: 0 };
+      if (roll >= 10) {
+        const next = Math.min(3, currentSaves.successes + 1);
+        onUpdate(character.id, { deathSaves: { ...currentSaves, successes: next } });
+        if (next === 3) {
+          onUpdate(character.id, { currentHp: 1, deathSaves: { successes: 0, failures: 0 } });
+          setLastDeathRoll(null);
+        }
+      } else {
+        const next = Math.min(3, currentSaves.failures + 1);
+        onUpdate(character.id, { deathSaves: { ...currentSaves, failures: next } });
+        if (next === 3) {
+          alert(`${character.name}'s soul has shattered and returned to the void.`);
+        }
       }
-    } else {
-      const next = Math.min(3, currentSaves.failures + 1);
-      onUpdate(character.id, { deathSaves: { ...currentSaves, failures: next } });
-      if (next === 3) {
-        // Death
-        alert(`${character.name}'s soul has shattered and returned to the void.`);
-      }
-    }
+    }, 600);
   };
 
   const toggleEquip = (itemId: string) => {
     if (!onUpdate || isMentor) return;
-    const currentEquipped = character.equippedIds || [];
-    const isEquipped = currentEquipped.includes(itemId);
-    const newEquipped = isEquipped ? currentEquipped.filter(id => id !== itemId) : [...currentEquipped, itemId];
+    const isEquipped = character.equippedIds.includes(itemId);
+    const newEquipped = isEquipped ? character.equippedIds.filter(id => id !== itemId) : [...character.equippedIds, itemId];
     onUpdate(character.id, { equippedIds: newEquipped });
   };
 
@@ -95,13 +91,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const availableLevels = Object.keys(character.spellSlots).map(Number).filter(lvl => lvl >= baseLevel && character.spellSlots![lvl] > 0).sort((a, b) => a - b);
     if (availableLevels.length === 0) return;
     const consumeLevel = availableLevels[0];
-    const newSlots = { ...character.spellSlots, [consumeLevel]: character.spellSlots[consumeLevel] - 1 };
-    onUpdate(character.id, { spellSlots: newSlots });
-  };
-
-  const isInnateSoulAbility = (ability: Ability) => {
-    const innateNames = ['Living Dead', 'Sanguine Link', 'Life Tap', 'Gore Cascade'];
-    return innateNames.includes(ability.name) || character.archetype === Archetype.BloodArtist;
+    onUpdate(character.id, { spellSlots: { ...character.spellSlots, [consumeLevel]: character.spellSlots[consumeLevel] - 1 } });
   };
 
   const deathSaves = character.deathSaves || { successes: 0, failures: 0 };
@@ -111,11 +101,8 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
       <div className="p-4 border-b border-emerald-900/40 bg-emerald-900/10">
         <div className="flex justify-between items-start gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl md:text-2xl font-cinzel text-gold truncate">{character.name}</h2>
-              {character.asiPoints > 0 && <span className="bg-gold text-black text-[9px] font-bold px-1.5 rounded animate-pulse">ASI</span>}
-            </div>
-            <p className="text-[10px] md:text-xs text-emerald-500 font-cinzel uppercase tracking-[0.2em] truncate">{character.race} {character.archetype} • Lvl {character.level}</p>
+            <h2 className="text-xl md:text-2xl font-cinzel text-gold truncate font-black">{character.name}</h2>
+            <p className="text-[10px] md:text-xs text-emerald-500 font-cinzel uppercase tracking-[0.2em] truncate font-bold">{character.race} {character.archetype} • Lvl {character.level}</p>
           </div>
           <div className="text-right shrink-0">
              <p className={`text-[10px] font-bold uppercase animate-pulse ${isMentor ? 'text-amber-500' : 'text-emerald-500'}`}>{isMentor ? 'MENTOR' : 'BOUND'}</p>
@@ -126,45 +113,43 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           <div className="mt-4 p-4 bg-red-950/20 border border-red-900/40 rounded-sm animate-pulse space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-[10px] font-cinzel text-red-500 font-black tracking-widest uppercase">Thy soul flickers in the void</p>
-              {lastDeathRoll !== null && (
-                <div className="bg-black border border-red-500/40 px-3 py-1 text-gold font-mono text-lg font-black animate-in zoom-in">
-                   {lastDeathRoll}
+              {(lastDeathRoll !== null || isRolling) && (
+                <div className={`bg-black border border-red-500/40 px-4 py-1 text-gold font-mono text-xl font-black rounded shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all ${isRolling ? 'animate-bounce' : 'animate-in zoom-in'}`}>
+                   {isRolling ? '?' : lastDeathRoll}
                 </div>
               )}
             </div>
-            <div className="flex justify-around items-center">
+            <div className="flex flex-col md:flex-row justify-around items-center gap-6">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[8px] text-emerald-500 font-black uppercase tracking-tighter">Success</span>
+                <span className="text-[8px] text-emerald-500 font-black uppercase tracking-widest">Successes</span>
                 <div className="flex gap-2">
                   {[1, 2, 3].map(i => (
-                    <div 
-                      key={i} 
-                      className={`w-4 h-4 rounded-full border-2 transition-all ${i <= deathSaves.successes ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_8px_#10b981]' : 'border-emerald-900/40 bg-black/40'}`} 
-                    />
+                    <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-500 ${i <= deathSaves.successes ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_10px_#10b981]' : 'border-emerald-900/40 bg-black/40'}`} />
                   ))}
                 </div>
               </div>
               
               <button 
-                onClick={handleRollDeathSave}
-                className="px-6 py-2 bg-emerald-900 border border-gold text-white font-cinzel text-[10px] font-black uppercase hover:bg-emerald-800 transition-all shadow-xl active:scale-95"
+                onClick={handleRollDeathSave} 
+                disabled={isRolling}
+                className={`relative px-8 py-3 bg-emerald-950 border-2 border-gold text-white font-cinzel text-xs font-black uppercase hover:bg-emerald-900 transition-all shadow-2xl active:scale-95 flex items-center gap-3 ${isRolling ? 'opacity-50 grayscale' : ''}`}
               >
-                ROLL DEATH SAVE (d20)
+                <svg className="w-4 h-4 text-gold" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM13.536 14.95a1 1 0 01-1.414 0l-.707-.707a1 1 0 111.414-1.414l.707.707a1 1 0 010 1.414zM16.243 16.243a1 1 0 01-1.414 0l-.707-.707a1 1 0 111.414-1.414l.707.707a1 1 0 010 1.414z" />
+                </svg>
+                {isRolling ? 'Grasping...' : 'Roll Death Save (d20)'}
               </button>
 
               <div className="flex flex-col items-center gap-2">
-                <span className="text-[8px] text-red-500 font-black uppercase tracking-tighter">Failure</span>
+                <span className="text-[8px] text-red-500 font-black uppercase tracking-widest">Failures</span>
                 <div className="flex gap-2">
                   {[1, 2, 3].map(i => (
-                    <div 
-                      key={i} 
-                      className={`w-4 h-4 rounded-full border-2 transition-all ${i <= deathSaves.failures ? 'bg-red-500 border-red-400 shadow-[0_0_8px_#ef4444]' : 'border-red-900/40 bg-black/40'}`} 
-                    />
+                    <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-500 ${i <= deathSaves.failures ? 'bg-red-500 border-red-400 shadow-[0_0_10px_#ef4444]' : 'border-red-900/40 bg-black/40'}`} />
                   ))}
                 </div>
               </div>
             </div>
-            <p className="text-[8px] text-gray-500 text-center uppercase tracking-tighter">10+ required to stabilize. 3 failures and thy soul is lost.</p>
+            <p className="text-[9px] text-gray-500 text-center uppercase tracking-widest font-black pt-2 border-t border-red-900/10">10 or Higher to Succeed • 3 Failures and the Void Claims Thee</p>
           </div>
         ) : (
           <>
@@ -192,9 +177,9 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         )}
       </div>
 
-      <div className="flex border-b border-emerald-900/30 text-[10px] font-cinzel overflow-x-auto bg-black/40 no-scrollbar">
+      <div className="flex border-b border-emerald-900/30 text-[10px] font-cinzel bg-black/40 overflow-x-auto no-scrollbar">
         {['Stats', 'Abilities', 'Inventory', 'Lore'].map(t => (
-          <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 min-w-[80px] py-3 md:py-4 transition-all uppercase tracking-widest ${activeTab === t ? 'bg-emerald-900/20 text-gold border-b-2 border-gold font-bold' : 'text-gray-500 hover:text-gray-300'}`}>{t}</button>
+          <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 min-w-[80px] py-3 md:py-4 transition-all uppercase tracking-widest font-black ${activeTab === t ? 'bg-emerald-900/20 text-gold border-b-2 border-gold' : 'text-gray-500 hover:text-gray-300'}`}>{t}</button>
         ))}
       </div>
 
@@ -207,26 +192,17 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                  {(['Poisoned', 'Blinded', 'Stunned', 'Frightened', 'Paralyzed', 'Charmed', 'Bleeding'] as StatusEffect[]).map(status => {
                    const isActive = character.activeStatuses.includes(status);
                    return (
-                     <button 
-                       key={status} 
-                       onClick={() => toggleStatus(status)} 
-                       disabled={isMentor} 
-                       className={`px-3 py-1.5 rounded-sm border text-[8px] font-black uppercase tracking-widest transition-all ${isActive ? 'text-red-500 border-red-900/60 bg-red-900/10 shadow-[0_0_10px_currentColor] cursor-not-allowed' : 'border-white/10 text-white/20 hover:text-white/40'}`}
-                       title={isActive ? "Locked. Use reagents or spells to purge." : "Mark soul with blight."}
-                     >
-                       {status}
-                     </button>
+                     <button key={status} onClick={() => toggleStatus(status)} disabled={isMentor} className={`px-3 py-1.5 rounded-sm border text-[8px] font-black uppercase tracking-widest transition-all ${isActive ? 'text-red-500 border-red-900/60 bg-red-900/10 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-white/10 text-white/20 hover:text-white/40'}`}>{status}</button>
                    );
                  })}
                </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
-                const isRecommended = RECOMMENDED_STATS[character.archetype]?.includes(s);
                 const mod = getMod(character.stats[s]);
                 return (
-                  <div key={s} className={`p-3 border transition-all relative rounded-sm ${isRecommended ? 'border-gold/50 bg-gold/5 shadow-inner' : 'border-emerald-900/20 bg-black/40'}`}>
-                    <span className="text-[9px] font-cinzel uppercase text-gray-500 font-bold">{s}</span>
+                  <div key={s} className="p-3 border border-emerald-900/20 bg-black/40 rounded-sm shadow-inner group hover:border-gold/20 transition-all">
+                    <span className="text-[9px] font-cinzel uppercase text-gray-500 font-bold group-hover:text-gold/50">{s}</span>
                     <div className="flex justify-between items-baseline mt-1"><span className="text-2xl font-black text-gold">{character.stats[s]}</span><span className="text-xs text-emerald-500 font-black">{mod >= 0 ? '+' : ''}{mod}</span></div>
                   </div>
                 );
@@ -238,32 +214,19 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           <div className="space-y-4">
             {[...character.abilities, ...character.spells].map((a, i) => {
               const isUsable = a.levelReq <= character.level;
-              const isInnate = isInnateSoulAbility(a);
-              
               return (
                 <div key={i} className={`p-4 border-l-2 rounded-r-sm transition-all ${isUsable ? 'bg-emerald-900/5 border-emerald-900 group hover:bg-emerald-900/10' : 'bg-black/40 border-gray-800 opacity-50 grayscale'}`}>
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col">
-                      <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUsable ? (isInnate ? (character.archetype === Archetype.BloodArtist ? 'text-rose-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.4)]' : 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]') : 'text-gold') : 'text-gray-500'}`}>
-                        {a.name} {isInnate && '†'}
-                      </span>
+                      <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUsable ? 'text-gold' : 'text-gray-500'}`}>{a.name}</span>
                       {!isUsable && <span className="text-[8px] text-red-900 uppercase font-black tracking-tighter">Requires Level {a.levelReq}</span>}
-                      {isInnate && isUsable && <span className="text-[8px] text-emerald-800 uppercase font-black tracking-tighter">Soul-Innate Manifestation</span>}
                     </div>
-                    <div className="flex flex-col items-end">
-                      <span className={`text-[9px] uppercase italic font-bold ${isUsable ? 'text-emerald-500' : 'text-gray-600'}`}>{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>
-                      {a.type === 'Spell' && !isMentor && (
-                        <button 
-                          onClick={() => handleManifestSpell(a)} 
-                          disabled={!isUsable}
-                          className={`mt-2 px-3 py-1 text-[8px] font-black uppercase tracking-widest transition-all rounded-sm border ${isUsable ? 'bg-gold/10 text-gold border-gold/40 hover:bg-gold hover:text-black' : 'bg-black/40 text-gray-700 border-gray-800 cursor-not-allowed'}`}
-                        >
-                          Manifest Aether
-                        </button>
-                      )}
-                    </div>
+                    <span className={`text-[9px] uppercase italic font-bold ${isUsable ? 'text-emerald-500' : 'text-gray-600'}`}>{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>
                   </div>
                   <p className="text-[11px] text-gray-400 leading-relaxed font-medium">{a.description}</p>
+                  {a.type === 'Spell' && !isMentor && isUsable && (
+                    <button onClick={() => handleManifestSpell(a)} className="mt-3 px-4 py-1.5 text-[8px] font-black uppercase tracking-widest border border-gold/40 text-gold bg-gold/5 hover:bg-gold hover:text-black transition-all rounded shadow-lg">Manifest Aether</button>
+                  )}
                 </div>
               );
             })}
@@ -275,9 +238,17 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
               {character.inventory.map((item) => {
                 const isEquipped = character.equippedIds?.includes(item.id);
                 return (
-                  <div key={item.id} className={`p-3 border transition-all flex justify-between items-center group rounded-sm ${isEquipped ? 'border-gold bg-gold/5' : 'border-emerald-900/10 bg-black/40 hover:border-gold/20 cursor-pointer'}`}>
-                    <div className="flex gap-3 items-center min-w-0"><div className={`w-10 h-10 border-2 flex items-center justify-center text-sm font-black shrink-0 rounded-sm border-emerald-900/30 text-emerald-500`}>{item.name[0]}</div><div className="min-w-0"><p className="text-[11px] font-cinzel text-gold truncate uppercase font-black">{item.name}</p><p className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">{item.rarity} • {item.type}</p></div></div>
-                    <button onClick={(e) => { e.stopPropagation(); toggleEquip(item.id); }} disabled={isMentor} className={`px-4 py-1.5 text-[10px] font-cinzel uppercase border-2 transition-all font-black ${isEquipped ? 'bg-gold text-black border-gold shadow-lg' : 'border-emerald-900 text-emerald-500 hover:border-gold hover:text-gold'}`}>{isEquipped ? 'Equipped' : 'Equip'}</button>
+                  <div key={item.id} className={`p-3 border transition-all flex justify-between items-center rounded-sm ${isEquipped ? 'border-gold bg-gold/5 shadow-[inset_0_0_15px_rgba(212,175,55,0.05)]' : 'border-emerald-900/10 bg-black/40 hover:border-gold/20'}`}>
+                    <div className="flex gap-4 items-center min-w-0">
+                      <div className={`w-10 h-10 border-2 flex items-center justify-center text-sm font-black shrink-0 border-emerald-900/30 text-emerald-500 transition-all ${isEquipped ? 'scale-110 border-gold text-gold shadow-[0_0_10px_rgba(212,175,55,0.3)]' : ''}`}>
+                        {item.name[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-[11px] font-cinzel truncate font-black tracking-widest ${isEquipped ? 'text-gold' : 'text-gray-200'}`}>{item.name}</p>
+                        <p className="text-[9px] text-gray-500 uppercase font-bold tracking-tighter">{item.rarity} • {item.type}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => toggleEquip(item.id)} disabled={isMentor} className={`px-4 py-2 text-[9px] font-cinzel uppercase border-2 transition-all font-black tracking-widest ${isEquipped ? 'bg-gold text-black border-gold shadow-lg shadow-gold/20' : 'border-emerald-900 text-emerald-500 hover:border-gold hover:text-gold'}`}>{isEquipped ? 'Equipped' : 'Equip'}</button>
                   </div>
                 );
               })}
@@ -285,9 +256,12 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           </div>
         )}
         {activeTab === 'Lore' && (
-          <div className="p-5 bg-emerald-900/10 border-l-4 border-emerald-900 rounded-r-sm space-y-3">
-            <h4 className="text-[10px] font-cinzel text-emerald-800 uppercase tracking-[0.3em] font-black">History</h4>
-            <p className="text-xs md:text-sm text-gray-200 leading-relaxed whitespace-pre-wrap italic font-medium">{character.biography || "The Engine has not yet woven this soul's past."}</p>
+          <div className="p-5 bg-emerald-900/10 border-l-4 border-emerald-900 rounded-r-sm space-y-4">
+            <h4 className="text-[10px] font-cinzel text-emerald-800 uppercase tracking-[0.4em] font-black border-b border-emerald-900/20 pb-2">The Soul's Echo</h4>
+            <p className="text-xs md:text-sm text-gray-200 leading-relaxed whitespace-pre-wrap italic font-medium drop-shadow-sm">{character.biography || "No woven history remains."}</p>
+            <div className="pt-4 opacity-10 flex justify-center grayscale">
+               <span className="text-[8px] tracking-[0.8em] font-black">ᛟ ᚱ ᛞ ᛖ ᚱ</span>
+            </div>
           </div>
         )}
       </div>

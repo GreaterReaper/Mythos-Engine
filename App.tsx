@@ -103,14 +103,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // SOUL SCALING RITUAL:
-    // If the active campaign is the tutorial, we maintain mentor levels at 5.
     const activeCampaign = state.campaigns.find(c => c.id === state.activeCampaignId);
     const isTutorial = activeCampaign?.title === TUTORIAL_SCENARIO.title;
 
     const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
     const baselineChars = state.characters.filter(c => c.ownerName === state.userAccount.username);
     
-    // Default avgLevel for scaling
     const avgLevel = isTutorial ? 5 : (partyChars.length > 0 
       ? Math.max(5, Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length))
       : (baselineChars.length > 0 ? Math.max(5, Math.ceil(baselineChars.reduce((acc, c) => acc + c.level, 0) / baselineChars.length)) : 5));
@@ -127,8 +125,6 @@ const App: React.FC = () => {
         
         let scaledInventory: Item[] = [];
         const uniqueTemplates = MENTOR_UNIQUE_GEAR[m.id] || [];
-        
-        // Retain consumables (potions)
         const consumables = m.inventory.filter(i => i.type === 'Utility');
         
         if (uniqueTemplates.length > 0) {
@@ -170,7 +166,7 @@ const App: React.FC = () => {
           spellSlots: m.spellSlots || slots, 
           maxSpellSlots: slots, 
           activeStatuses: m.activeStatuses || [],
-          deathSaves: m.deathSaves || { successes: 0, failures: 0 }
+          deathSaves: { successes: 0, failures: 0 }
         };
       }
       return m;
@@ -186,8 +182,7 @@ const App: React.FC = () => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        const hydrated = hydrateState(parsed, { ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, username, isLoggedIn: true } });
+        const hydrated = hydrateState(JSON.parse(saved), { ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, username, isLoggedIn: true } });
         setState(hydrated);
       } catch (e) { setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } })); }
     } else { setState(p => ({ ...p, userAccount: { ...p.userAccount, username, isLoggedIn: true } })); }
@@ -205,9 +200,8 @@ const App: React.FC = () => {
   };
 
   const handleDeleteAccount = () => {
-    if (confirm("Sever all bonds? This action shall dissolve thy memories and return thy essence to the void.")) {
-      const currentUsername = state.userAccount.username;
-      localStorage.removeItem(`${STORAGE_PREFIX}${currentUsername}`);
+    if (confirm("Sever all bonds? This action shall dissolve thy memories.")) {
+      localStorage.removeItem(`${STORAGE_PREFIX}${state.userAccount.username}`);
       setState(prev => ({ ...DEFAULT_STATE, userAccount: { ...DEFAULT_STATE.userAccount, isLoggedIn: false } }));
       window.location.reload();
     }
@@ -254,7 +248,6 @@ const App: React.FC = () => {
           });
           break;
         case 'SYNC_STATE': setState(prev => ({ ...data.payload, userAccount: prev.userAccount })); break;
-        case 'ADD_CHARACTER': setState(prev => ({ ...prev, characters: [...prev.characters, data.payload] })); break;
         case 'UPDATE_CHARACTER': {
           const { id, updates } = data.payload;
           setState(prev => ({
@@ -302,9 +295,9 @@ const App: React.FC = () => {
       const char = prev.characters.find(c => c.id === id);
       const mentor = prev.mentors.find(m => m.id === id);
       
-      // Handle Death Saves Logic: Reset on heal
       const finalUpdates = { ...updates };
-      if (updates.currentHp && updates.currentHp > 0) {
+      // If healed above 0, reset death saves
+      if (updates.currentHp !== undefined && updates.currentHp > 0) {
         finalUpdates.deathSaves = { successes: 0, failures: 0 };
       }
 
@@ -322,17 +315,13 @@ const App: React.FC = () => {
 
   const handleApplyStatus = (effect: StatusEffect, targetName: string) => {
     const target = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === targetName.toLowerCase());
-    if (target) {
-      if (!target.activeStatuses.includes(effect)) {
-        updateCharacter(target.id, { activeStatuses: [...target.activeStatuses, effect] });
-      }
+    if (target && !target.activeStatuses.includes(effect)) {
+      updateCharacter(target.id, { activeStatuses: [...target.activeStatuses, effect] });
       return;
     }
     const monster = state.bestiary.find(m => m.name.toLowerCase() === targetName.toLowerCase());
-    if (monster) {
-      if (!monster.activeStatuses.includes(effect)) {
-        updateMonster(monster.id, { activeStatuses: [...monster.activeStatuses, effect] });
-      }
+    if (monster && !monster.activeStatuses.includes(effect)) {
+      updateMonster(monster.id, { activeStatuses: [...monster.activeStatuses, effect] });
     }
   };
 
@@ -373,13 +362,13 @@ const App: React.FC = () => {
           Object.keys(c.maxSpellSlots).forEach(lvlStr => {
             const lvl = Number(lvlStr);
             const max = c.maxSpellSlots![lvl];
-            // Restore half of TOTAL spell slots (rounded up) as requested
+            // Restore 50% of TOTAL spell slots (rounded up)
             newSlots[lvl] = Math.min(max, (newSlots[lvl] || 0) + Math.ceil(max / 2));
           });
         }
         return { 
           ...c, 
-          currentHp: c.maxHp, 
+          currentHp: c.maxHp, // Restore 100% HP on short rest as requested
           spellSlots: newSlots, 
           deathSaves: { successes: 0, failures: 0 } 
         };
@@ -395,12 +384,11 @@ const App: React.FC = () => {
     const hpDie = archInfo?.hpDie || 8;
     const hpGain = Math.floor(Math.random() * hpDie) + 1 + Math.floor(((char.stats.con || 10) - 10) / 2);
     const newLevel = char.level + 1;
-    const isASI = [4, 8, 12, 16, 19].includes(newLevel);
     let slots = {};
     if ([Archetype.Sorcerer, Archetype.Mage, Archetype.DarkKnight].includes(char.archetype as Archetype) || (archInfo as any)?.spells?.length > 0) {
       slots = { maxSpellSlots: SPELL_SLOT_PROGRESSION[newLevel], spellSlots: SPELL_SLOT_PROGRESSION[newLevel] };
     }
-    updateCharacter(id, { level: newLevel, exp: char.exp - (char.level * 1000), maxHp: char.maxHp + hpGain, currentHp: char.maxHp + hpGain, asiPoints: char.asiPoints + (isASI ? 2 : 0), ...slots });
+    updateCharacter(id, { level: newLevel, exp: char.exp - (char.level * 1000), maxHp: char.maxHp + hpGain, currentHp: char.maxHp + hpGain, asiPoints: char.asiPoints + ([4,8,12,16,19].includes(newLevel) ? 2 : 0), ...slots });
   };
 
   const addExpToParty = (amount: number) => state.party.forEach(id => { 
@@ -437,48 +425,38 @@ const App: React.FC = () => {
 
   const handleAwardItem = async (name: string) => {
     let item = state.armory.find(i => i.name.toLowerCase() === name.toLowerCase());
-    
     if (!item) {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       const avgLevel = partyChars.length > 0 ? partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length : 1;
-      
       try {
         const stats = await generateItemDetails(name, "Unique Reward", Math.ceil(avgLevel));
-        item = { id: safeId(), name, description: stats.description || 'A unique artifact awarded by the Engine.', type: (stats.type as any) || 'Weapon', rarity: (stats.rarity as any) || 'Legendary', stats: stats.stats || {}, archetypes: (stats.archetypes as string[]) || [], authorId: state.userAccount.id, isUnique: false };
+        item = { id: safeId(), name, description: stats.description || 'Artifact.', type: (stats.type as any) || 'Weapon', rarity: (stats.rarity as any) || 'Legendary', stats: stats.stats || {}, archetypes: [], authorId: state.userAccount.id, isUnique: false };
         setState(prev => ({ ...prev, armory: [...prev.armory, item!] }));
         broadcast('SHARE_ITEM', item);
       } catch (e) {
-        // RESILIENCE PROTOCOL: Fallback to existing armory item if Pro fails
-        const fallbackItems = state.armory.filter(i => i.rarity !== 'Common');
-        item = fallbackItems[Math.floor(Math.random() * fallbackItems.length)];
+        item = state.armory[Math.floor(Math.random() * state.armory.length)];
       }
     }
-    
     if (item && state.party.length > 0) {
-      const recipientId = state.party[0]; 
-      const character = state.characters.find(c => c.id === recipientId) || state.mentors.find(m => m.id === recipientId);
-      if (character) {
-        const hasItem = character.inventory.some(i => i.name === item!.name);
-        if (!hasItem) updateCharacter(recipientId, { inventory: [...character.inventory, item!] });
+      const character = state.characters.find(c => c.id === state.party[0]) || state.mentors.find(m => m.id === state.party[0]);
+      if (character && !character.inventory.some(i => i.name === item!.name)) {
+        updateCharacter(character.id, { inventory: [...character.inventory, item!] });
       }
     }
   };
 
   const handleAwardMonster = async (name: string) => {
     let monster = state.bestiary.find(m => m.name.toLowerCase() === name.toLowerCase());
-    
     if (!monster) {
       const partyChars = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       const avgLevel = partyChars.length > 0 ? Math.ceil(partyChars.reduce((acc, c) => acc + c.level, 0) / partyChars.length) : 1;
-      
       try {
         const gen = await generateMonsterDetails(name, "Encounter", Math.ceil(avgLevel));
         monster = { id: safeId(), name, type: (gen.type as any) || 'Humanoid', hp: gen.hp || 20, ac: gen.ac || 10, stats: gen.stats as any, cr: gen.cr || 1, description: gen.description || '', abilities: gen.abilities || [], activeStatuses: [] };
         setState(prev => ({ ...prev, bestiary: [...prev.bestiary, monster!] }));
         broadcast('SHARE_MONSTER', monster);
       } catch (e) {
-        // RESILIENCE PROTOCOL: Fallback to existing beast if Pro fails
-        monster = state.bestiary[Math.floor(Math.random() * state.bestiary.length)];
+        monster = state.bestiary[0];
       }
     }
     return monster!;
@@ -555,18 +533,7 @@ const App: React.FC = () => {
                 const updatedInventory = char.inventory.map(i => i.id === iid ? { ...i, name: newName, stats: updatedStats } : i);
                 updateCharacter(cid, { inventory: updatedInventory, currency: { aurels: char.currency.aurels - cost.aurels, shards: char.currency.shards - cost.shards, ichor: char.currency.ichor - cost.ichor } });
               }} isHost={state.multiplayer.isHost} activeRumors={state.activeRumors} onFetchRumors={handleFetchRumors} isRumorLoading={isRumorLoading} slainMonsterTypes={state.slainMonsterTypes} />}
-              {activeTab === 'Fellowship' && <FellowshipScreen 
-                characters={state.characters} 
-                onAdd={handleAddCharacter} 
-                onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
-                onUpdate={updateCharacter} 
-                mentors={state.mentors} 
-                party={state.party} 
-                setParty={p => setState(s => ({ ...s, party: p }))} 
-                customArchetypes={state.customArchetypes} 
-                onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
-                username={state.userAccount.username} 
-              />}
+              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={handleAddCharacter} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} />}
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
                 allCampaigns={state.campaigns} 
@@ -575,54 +542,34 @@ const App: React.FC = () => {
                 activeCharacter={[...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || null}
                 onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))}
                 onMessage={m => {
-                  setState(p => {
-                    const next = p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c);
-                    return { ...p, campaigns: next };
-                  });
+                  setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, history: [...c.history, m] } : c) }));
                   if (m.role === 'model' && state.multiplayer.isHost) {
                     const cmds = parseDMCommand(m.content);
                     cmds.statusesToAdd.forEach(s => handleApplyStatus(s.effect, s.target));
                     cmds.statusesToRemove.forEach(s => handleRemoveStatus(s.effect, s.target));
-                    
-                    // HANDLE MENTOR RECALL LOGIC
                     cmds.recalls.forEach(name => {
                       const mentor = state.mentors.find(m => m.name.toLowerCase() === name.toLowerCase());
-                      if (mentor) {
-                        setState(prev => ({
-                          ...prev,
-                          party: prev.party.filter(id => id !== mentor.id),
-                          mentors: prev.mentors.map(m => m.id === mentor.id ? { ...m, currentHp: 1, deathSaves: { successes: 0, failures: 0 } } : m)
-                        }));
-                      }
+                      if (mentor) setState(prev => ({ ...prev, party: prev.party.filter(id => id !== mentor.id) }));
                     });
-
-                    // HANDLE HEALING LOGIC (REVIVAL ALSO USES THIS)
                     cmds.heals.forEach(h => {
                       const char = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === h.targetName.toLowerCase());
-                      if (char) {
-                        updateCharacter(char.id, { currentHp: Math.min(char.maxHp, char.currentHp + h.amount) });
-                      }
+                      if (char) updateCharacter(char.id, { currentHp: Math.min(char.maxHp, char.currentHp + h.amount) });
                     });
-
+                    cmds.takeDamage.forEach(d => {
+                      const char = [...state.characters, ...state.mentors].find(c => c.name.toLowerCase() === d.targetName.toLowerCase());
+                      if (char) updateCharacter(char.id, { currentHp: Math.max(0, char.currentHp - d.amount) });
+                    });
                     if (cmds.shortRest) handleShortRest();
                   }
                 }} 
-                onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
-                onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id), activeCampaignId: p.activeCampaignId === id ? null : p.activeCampaignId }))}
-                onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onAwardExp={addExpToParty} 
-                onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} 
-                onShortRest={handleShortRest} onLongRest={handleLongRest} 
-                onAIRuntimeUseSlot={(l, n) => { 
+                onCreateCampaign={createCampaign} onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id), activeCampaignId: p.activeCampaignId === id ? null : p.activeCampaignId }))} onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} onAwardExp={addExpToParty} onAwardCurrency={addCurrencyToParty} onAwardItem={handleAwardItem} onAwardMonster={handleAwardMonster} onShortRest={handleShortRest} onLongRest={handleLongRest} onAIRuntimeUseSlot={(l, n) => { 
                   const t = [...state.characters, ...state.mentors].find(x => x.name.toLowerCase() === n.toLowerCase()); 
-                  if (t && t.spellSlots && t.spellSlots[l] !== undefined && t.spellSlots[l] > 0) { 
-                    const newSlots = { ...t.spellSlots, [l]: t.spellSlots[l] - 1 };
-                    updateCharacter(t.id, { spellSlots: newSlots }); 
+                  if (t && t.spellSlots && (t.spellSlots[l] || 0) > 0) { 
+                    updateCharacter(t.id, { spellSlots: { ...t.spellSlots, [l]: t.spellSlots[l] - 1 } }); 
                     return true; 
                   } 
                   return false; 
-                }} 
-                onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} 
-                isHost={state.multiplayer.isHost} isKeyboardOpen={isKeyboardOpen}
+                }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} isHost={state.multiplayer.isHost} isKeyboardOpen={isKeyboardOpen}
               />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={m => setState(p => ({ ...p, mapTokens: m }))} characters={[...state.characters, ...state.mentors]} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}

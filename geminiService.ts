@@ -298,10 +298,11 @@ export const generateDMResponse = async (
   const partySize = playerContext.party.length;
   const totalLevels = playerContext.party.reduce((acc, c) => acc + c.level, 0);
   const avgLevel = partySize > 0 ? totalLevels / partySize : 1;
-  const hiddenPartyCR = Math.max(1, (avgLevel * partySize) / 4);
 
   const activeCharInfo = playerContext.activeCharacter 
-    ? `The user is inhabiting the soul of ${playerContext.activeCharacter.name}, a ${playerContext.activeCharacter.race} ${playerContext.activeCharacter.archetype}. All user inputs are the actions or reactions of ${playerContext.activeCharacter.name}. Address them directly by name or persona.`
+    ? `The user is inhabiting the soul of ${playerContext.activeCharacter.name}, a Level ${playerContext.activeCharacter.level} ${playerContext.activeCharacter.race} ${playerContext.activeCharacter.archetype}. 
+       CRITICAL: Strictly enforce spellcasting requirements. This character can ONLY manifest spells where their Level (${playerContext.activeCharacter.level}) is >= the spell's [levelReq]. 
+       Addresses them directly by name or persona.`
     : "The user has not yet possessed a soul. Encourage them to inhabit one of their roster.";
 
   const mentorInfo = playerContext.mentors.length > 0
@@ -331,33 +332,26 @@ export const generateDMResponse = async (
   }
 
   const systemInstruction = `
-    You are the "Mythos Engine" Dungeon Master. You are NOT a simulation or a computer. You are an ancient, grim narrator of a visceral, physical world.
+    You are the "Mythos Engine" Dungeon Master. You are an ancient, grim narrator of a visceral, physical world.
 
     AESTHETICS:
     - Obsidian, Necrotic Emerald (#065f46), Gold.
-    - Archaic, grim, evocative voice.
-    - Focus on physical sensation: the spray of warm blood, the snap of bone, the heavy weight of plate armor, the smell of iron and rot.
+    - Archaic, grim voice. Focus on physical sensation: snap of bone, weight of plate, smell of rot.
 
     NARRATIVE CORE:
-    - THIS IS REALITY. Campaigns are real to the characters. 
-    - Blood is warm and life-threatening. Steel is cold and heavy. 
-    - Describe wounds, fatigue, and environmental grit vividly. 
-    - Avoid all metaphors involving "code," "simulation," "pixels," or "software."
+    - Blood is warm and lethal. Steel is heavy. Desribe wounds vividly. 
+    - Avoid metaphors involving software or code.
+
+    SPELLCASTING VALIDATION:
+    ${activeCharInfo}
+    - Validate character archetypes. A Warrior cannot cast "Fireball". 
+    - Validate Level Requirements (levelReq). A Level 1 character cannot manifest Level 5 requirements. 
+    - If a user attempts an invalid spell, narrate the failure as a mental strain or the aether rejecting their insufficient soul.
 
     PLAYER AND PARTY CONTEXT:
-    ${activeCharInfo}
     ${mentorInfo}
 
-    DICE ARBITRATION:
-    - Read [DICE] strings in history (e.g. "[DICE] Player rolled d20: 15").
-    - Calculate outcomes: Add modifiers and compare to AC/DC.
-    - Narrate hits as physical impact: "The blade bites deep into the wolf's flank, warm blood painting the obsidian floor."
-
-    CRITICAL CONSTRAINTS:
-    - MENTORS are static constants. Do NOT change their classes or gear. Lina (Mage), Miri (Fighter), Seris (Archer), Kaelen (Dark Knight), etc.
-    - FIDELITY OF ARMS: Match items to archetype (Warriors get 2H blades, Mages get Staves).
-
-    COMMANDS: [EXP: amount], [GOLD: amount], [SHARDS: amount], [ICHOR: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [CURE: effect, target], [ENTER_COMBAT], [EXIT_COMBAT].
+    COMMANDS: [EXP: amount], [GOLD: amount], [SHARDS: amount], [ICHOR: amount], [ITEM: name], [SPAWN: name], [STATUS: effect, target], [CURE: effect, target], [ENTER_COMBAT], [EXIT_COMBAT], [USE_SLOT: level, characterName].
   `;
 
   try {
@@ -492,8 +486,7 @@ export const parseDMCommand = (text: string) => {
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]): Promise<string> => {
   const ai = getAiClient();
   trackUsage();
-  const partyComp = party.map(c => `${c.name} (${c.archetype})`).join(', ');
-  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. Speak archaically. You are a man of flesh and blood. You offer safety from the brutal world outside. Describe the smell of the hearth and the taste of the ale.`;
+  const systemInstruction = `You are Barnaby, the Innkeeper of 'The Broken Cask'. Speak archaically. You offer safety from the brutal world outside.`;
   const sanitizedContents: any[] = [];
   let lastRole: 'user' | 'model' | null = null;
   history.forEach(m => {

@@ -18,9 +18,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const [editedBio, setEditedBio] = useState(character.biography || '');
   const [editedDesc, setEditedDesc] = useState(character.description || '');
   const [isWeaving, setIsWeaving] = useState(false);
-  const [arcaneMemoryActive, setArcaneMemoryActive] = useState(false);
-  const [arcaneMemoryUsed, setArcaneMemoryUsed] = useState(false);
-  const [comparingItemId, setComparingItemId] = useState<string | null>(null);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
   const dexMod = getMod(character.stats.dex);
@@ -46,27 +43,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     return baseAc + shieldBonus;
   }, [equippedItems, dexMod]);
 
-  const attacks = useMemo(() => {
-    return equippedItems.filter(i => i.type === 'Weapon').map(weapon => {
-      const isRanged = weapon.archetypes?.includes(Archetype.Archer) || weapon.name.toLowerCase().includes('bow');
-      const mod = isRanged ? dexMod : strMod;
-      const toHit = mod + (Math.floor(character.level / 4) + 2);
-      return { name: weapon.name, toHit: `+${toHit}`, damage: `${weapon.stats?.damage || '1d4'} ${mod >= 0 ? '+' : ''}${mod}`, type: isRanged ? 'Ranged' : 'Melee' };
-    });
-  }, [equippedItems, dexMod, strMod, character.level]);
-
-  const handleStatUp = (stat: keyof Stats) => {
-    if (!onUpdate || character.asiPoints <= 0) return;
-    const newStats = { ...character.stats, [stat]: character.stats[stat] + 1 };
-    let updates: Partial<Character> = { stats: newStats, asiPoints: character.asiPoints - 1 };
-    if (stat === 'con') {
-      const oldMod = getMod(character.stats.con);
-      const newMod = getMod(newStats.con);
-      if (newMod > oldMod) { updates.maxHp = character.maxHp + character.level; updates.currentHp = character.currentHp + character.level; }
-    }
-    onUpdate(character.id, updates);
-  };
-
   const toggleStatus = (effect: StatusEffect) => {
     if (!onUpdate) return;
     const nextStatuses = character.activeStatuses.includes(effect) ? character.activeStatuses.filter(s => s !== effect) : [...character.activeStatuses, effect];
@@ -79,11 +55,12 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const isEquipped = currentEquipped.includes(itemId);
     const newEquipped = isEquipped ? currentEquipped.filter(id => id !== itemId) : [...currentEquipped, itemId];
     onUpdate(character.id, { equippedIds: newEquipped });
-    setComparingItemId(null);
   };
 
   const handleManifestSpell = (spell: Ability) => {
     if (!onUpdate || !character.spellSlots || spell.type !== 'Spell' || isMentor) return;
+    if (spell.levelReq > character.level) return; // Hard level requirement check
+
     const baseLevel = spell.baseLevel || 1;
     if (spell.name === 'Exequy') {
       if ((character.spellSlots[9] || 0) <= 0) { alert("Thy wells are dry."); return; }
@@ -98,16 +75,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const consumeLevel = availableLevels[0];
     const newSlots = { ...character.spellSlots, [consumeLevel]: character.spellSlots[consumeLevel] - 1 };
     onUpdate(character.id, { spellSlots: newSlots });
-  };
-
-  const saveLore = () => { if (onUpdate) onUpdate(character.id, { biography: editedBio, description: editedDesc }); setIsEditingLore(false); };
-
-  const handleManifestNewLore = async () => {
-    setIsWeaving(true);
-    try {
-      const lore = await manifestSoulLore({ name: character.name, race: character.race as Race, archetype: character.archetype as Archetype, level: character.level, age: character.age, gender: character.gender });
-      setEditedBio(lore.biography); setEditedDesc(lore.description);
-    } catch (e) { console.error(e); } finally { setIsWeaving(false); }
   };
 
   return (
@@ -177,9 +144,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                   <div key={s} className={`p-3 border transition-all relative rounded-sm ${isRecommended ? 'border-gold/50 bg-gold/5 shadow-inner' : 'border-emerald-900/20 bg-black/40'}`}>
                     <span className="text-[9px] font-cinzel uppercase text-gray-500 font-bold">{s}</span>
                     <div className="flex justify-between items-baseline mt-1"><span className="text-2xl font-black text-gold">{character.stats[s]}</span><span className="text-xs text-emerald-500 font-black">{mod >= 0 ? '+' : ''}{mod}</span></div>
-                    {character.asiPoints > 0 && !isMentor && (
-                      <button onClick={() => handleStatUp(s)} className="absolute -top-2 -right-2 w-6 h-6 bg-gold text-black text-sm font-black rounded-full flex items-center justify-center shadow-lg">+</button>
-                    )}
                   </div>
                 );
               })}
@@ -188,20 +152,32 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         )}
         {activeTab === 'Abilities' && (
           <div className="space-y-4">
-            {[...character.abilities, ...character.spells].map((a, i) => (
-              <div key={i} className="p-4 bg-emerald-900/5 border-l-2 border-emerald-900 rounded-r-sm group hover:bg-emerald-900/10 transition-all">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-[11px] font-cinzel text-gold uppercase font-black tracking-widest">{a.name}</span>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[9px] text-emerald-500 uppercase italic font-bold">{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>
-                    {a.type === 'Spell' && !isMentor && (
-                      <button onClick={() => handleManifestSpell(a)} className="mt-2 px-3 py-1 text-[8px] font-black uppercase tracking-widest transition-all rounded-sm border bg-gold/10 text-gold border-gold/40 hover:bg-gold hover:text-black">Manifest Aether</button>
-                    )}
+            {[...character.abilities, ...character.spells].map((a, i) => {
+              const isUsable = a.levelReq <= character.level;
+              return (
+                <div key={i} className={`p-4 border-l-2 rounded-r-sm transition-all ${isUsable ? 'bg-emerald-900/5 border-emerald-900 group hover:bg-emerald-900/10' : 'bg-black/40 border-gray-800 opacity-50 grayscale'}`}>
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col">
+                      <span className={`text-[11px] font-cinzel uppercase font-black tracking-widest ${isUsable ? 'text-gold' : 'text-gray-500'}`}>{a.name}</span>
+                      {!isUsable && <span className="text-[8px] text-red-900 uppercase font-black tracking-tighter">Requires Level {a.levelReq}</span>}
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className={`text-[9px] uppercase italic font-bold ${isUsable ? 'text-emerald-500' : 'text-gray-600'}`}>{a.type === 'Spell' ? `Level ${a.baseLevel}` : a.type}</span>
+                      {a.type === 'Spell' && !isMentor && (
+                        <button 
+                          onClick={() => handleManifestSpell(a)} 
+                          disabled={!isUsable}
+                          className={`mt-2 px-3 py-1 text-[8px] font-black uppercase tracking-widest transition-all rounded-sm border ${isUsable ? 'bg-gold/10 text-gold border-gold/40 hover:bg-gold hover:text-black' : 'bg-black/40 text-gray-700 border-gray-800 cursor-not-allowed'}`}
+                        >
+                          Manifest Aether
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  <p className="text-[11px] text-gray-400 leading-relaxed font-medium">{a.description}</p>
                 </div>
-                <p className="text-[11px] text-gray-400 leading-relaxed font-medium">{a.description}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {activeTab === 'Inventory' && (

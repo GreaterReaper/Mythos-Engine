@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
 import { RULES_MANIFEST, TUTORIAL_SCENARIO } from '../constants';
@@ -60,6 +60,12 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
+
+  // Filter spells to only those usable at the current level
+  const usableSpells = useMemo(() => {
+    if (!activeCharacter) return [];
+    return (activeCharacter.spells || []).filter(s => s.levelReq <= activeCharacter.level);
+  }, [activeCharacter]);
 
   useEffect(() => { 
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
@@ -158,8 +164,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
     );
   }
 
-  const activeSpells = activeCharacter?.spells || [];
-  // Fix: Explicitly cast Object.values to number[] to resolve 'unknown' type inference issue in reduce
   const totalSlots = activeCharacter?.spellSlots 
     ? (Object.values(activeCharacter.spellSlots) as number[]).reduce((acc: number, val: number) => acc + (val || 0), 0)
     : 0;
@@ -167,7 +171,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
       {/* Mobile Grimoire Toggle */}
-      {!isKeyboardOpen && activeSpells.length > 0 && (
+      {!isKeyboardOpen && usableSpells.length > 0 && (
         <button 
           onClick={() => setShowMobileGrimoire(true)}
           className="md:hidden fixed bottom-24 right-4 w-12 h-12 bg-emerald-900 border-2 border-gold text-gold rounded-full shadow-2xl flex items-center justify-center z-[60] animate-bounce"
@@ -182,11 +186,11 @@ const DMWindow: React.FC<DMWindowProps> = ({
       {showMobileGrimoire && (
         <div className="fixed inset-0 z-[110] bg-black/95 flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
            <div className="flex justify-between items-center border-b border-emerald-900 pb-4 mb-4">
-             <h3 className="text-xl font-cinzel text-gold font-black uppercase">Thy Grimoire</h3>
+             <h3 className="text-xl font-cinzel text-gold font-black uppercase">Thy Usable Manifestations</h3>
              <button onClick={() => setShowMobileGrimoire(false)} className="text-emerald-500 text-3xl font-black">&times;</button>
            </div>
            <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar">
-             {activeSpells.map((spell, i) => (
+             {usableSpells.map((spell, i) => (
                <div key={i} className="p-4 bg-emerald-900/10 border-l-4 border-emerald-900">
                   <div className="flex justify-between items-start mb-2">
                     <p className="font-cinzel text-gold font-bold">{spell.name}</p>
@@ -267,9 +271,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
                </div>
             </div>
             
-            {activeSpells.length > 0 ? (
+            {usableSpells.length > 0 ? (
               <div className="space-y-4">
-                {activeSpells.map((spell, i) => (
+                {usableSpells.map((spell, i) => (
                   <div key={i} className="group/spell p-3 bg-black/40 border border-emerald-900/20 hover:border-gold/30 transition-all rounded-sm">
                     <div className="flex justify-between items-start mb-1">
                       <p className="text-[11px] font-cinzel text-gold font-bold leading-tight group-hover/spell:text-white transition-colors">{spell.name}</p>
@@ -287,13 +291,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
               </div>
             ) : (
               <div className="py-10 text-center opacity-30">
-                 <p className="text-[9px] font-cinzel text-gray-500 uppercase tracking-widest italic">No magical lineage detected.</p>
+                 <p className="text-[9px] font-cinzel text-gray-500 uppercase tracking-widest italic">Character level insufficient for manifestations.</p>
               </div>
             )}
           </div>
           
           <div className="p-4 bg-emerald-950/20 border-t border-emerald-900/30">
-             <p className="text-[8px] text-emerald-700 font-black uppercase text-center tracking-widest">Thy words are the catalyst for change.</p>
+             <p className="text-[8px] text-emerald-700 font-black uppercase text-center tracking-widest">Thy level dictates thy aetheric reach.</p>
           </div>
         </div>
       </div>

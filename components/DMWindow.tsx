@@ -1,14 +1,57 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Campaign, Message, Character, Item, MapToken, Monster, Currency, Rumor, Ability } from '../types';
+import { Campaign, Message, Character, Item, MapToken, Monster, Currency, Ability } from '../types';
 import { generateDMResponse, parseDMCommand } from '../geminiService';
-import { RULES_MANIFEST, MENTORS, TUTORIAL_SCENARIO } from '../constants';
+import { RULES_MANIFEST, TUTORIAL_SCENARIO } from '../constants';
 
 interface DMWindowProps {
-  campaign: Campaign | null; allCampaigns: Campaign[]; characters: Character[]; fullRoster: Character[]; bestiary: Monster[]; mapTokens: MapToken[]; activeRumors: Rumor[]; activeCharacter: Character | null; onSelectActiveCharacter: (id: string) => void; onUpdateMap: (tokens: MapToken[]) => void; onMessage: (msg: Message) => void; onCreateCampaign: (title: string, prompt: string) => void; onSelectCampaign: (id: string) => void; onDeleteCampaign: (id: string) => void; onQuitCampaign: () => void; onAwardExp: (amount: number) => void; onAwardCurrency: (curr: Partial<Currency>) => void; onAwardItem: (name: string, data?: Partial<Item>) => void; onAwardMonster: (name: string) => Promise<Monster>; onShortRest: () => void; onLongRest: () => void; onAIRuntimeUseSlot: (level: number, characterName: string) => boolean; onOpenShop: () => void; onOpenCombatMap?: () => void; onSetCombatActive: (active: boolean) => void; isHost: boolean; username: string; isKeyboardOpen?: boolean;
+  campaign: Campaign | null; 
+  allCampaigns: Campaign[]; 
+  characters: Character[]; 
+  bestiary: Monster[]; 
+  activeCharacter: Character | null; 
+  onSelectActiveCharacter: (id: string) => void; 
+  onMessage: (msg: Message) => void; 
+  onCreateCampaign: (title: string, prompt: string) => void; 
+  onSelectCampaign: (id: string) => void; 
+  onDeleteCampaign: (id: string) => void; 
+  onQuitCampaign: () => void; 
+  onAwardExp: (amount: number) => void; 
+  onAwardCurrency: (curr: Partial<Currency>) => void; 
+  onAwardItem: (name: string, data?: Partial<Item>) => void; 
+  onAwardMonster: (name: string) => Promise<Monster>; 
+  onShortRest: () => void; 
+  onLongRest: () => void; 
+  onAIRuntimeUseSlot: (level: number, characterName: string) => boolean; 
+  onOpenShop: () => void; 
+  onSetCombatActive: (active: boolean) => void; 
+  isHost: boolean; 
+  isKeyboardOpen?: boolean;
 }
 
 const DMWindow: React.FC<DMWindowProps> = ({ 
-  campaign, allCampaigns, characters, fullRoster, bestiary, mapTokens, activeRumors, activeCharacter, onSelectActiveCharacter, onUpdateMap, onMessage, onCreateCampaign, onSelectCampaign, onDeleteCampaign, onQuitCampaign, onAwardExp, onAwardCurrency, onAwardItem, onAwardMonster, onShortRest, onLongRest, onAIRuntimeUseSlot, onOpenShop, onSetCombatActive, isHost, username, onOpenCombatMap, isKeyboardOpen
+  campaign, 
+  allCampaigns, 
+  characters, 
+  bestiary, 
+  activeCharacter, 
+  onSelectActiveCharacter, 
+  onMessage, 
+  onCreateCampaign, 
+  onSelectCampaign, 
+  onDeleteCampaign, 
+  onQuitCampaign, 
+  onAwardExp, 
+  onAwardCurrency, 
+  onAwardItem, 
+  onAwardMonster, 
+  onShortRest, 
+  onLongRest, 
+  onAIRuntimeUseSlot, 
+  onOpenShop, 
+  onSetCombatActive, 
+  isHost, 
+  isKeyboardOpen
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,7 +61,10 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [campaign?.history, isLoading]);
+  useEffect(() => { 
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
+  }, [campaign?.history, isLoading]);
+
   useEffect(() => {
     let timer: any;
     if (speakCooldown > 0) timer = setInterval(() => setSpeakCooldown(prev => Math.max(0, prev - 1)), 1000);
@@ -32,7 +78,14 @@ const DMWindow: React.FC<DMWindowProps> = ({
     if (!isHost) return;
     setIsLoading(true);
     try {
-      const responseText = await generateDMResponse(campaign.history.concat(userMsg), { activeCharacter, party: characters, mentors: characters.filter(c => c.id.startsWith('mentor-')), activeRules: RULES_MANIFEST, existingItems: [], existingMonsters: bestiary });
+      const responseText = await generateDMResponse(campaign.history.concat(userMsg), { 
+        activeCharacter, 
+        party: characters, 
+        mentors: characters.filter(c => c.id.startsWith('mentor-')), 
+        activeRules: RULES_MANIFEST, 
+        existingItems: [], 
+        existingMonsters: bestiary 
+      });
       const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums silently...", timestamp: Date.now() };
       onMessage(dmMsg);
       if (responseText) {
@@ -45,7 +98,11 @@ const DMWindow: React.FC<DMWindowProps> = ({
         if (shortRest) onShortRest(); if (longRest) onLongRest(); if (openShop) onOpenShop();
         if (enterCombat) onSetCombatActive(true); if (exitCombat) onSetCombatActive(false);
       }
-    } catch (err: any) { console.error(err); } finally { setIsLoading(false); }
+    } catch (err: any) { 
+      console.error(err); 
+    } finally { 
+      setIsLoading(false); 
+    }
   };
 
   const handleManifestSpell = (spell: Ability) => {
@@ -102,9 +159,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
   }
 
   const activeSpells = activeCharacter?.spells || [];
-  // Explicitly typing reduce parameters as numbers to fix 'unknown' type errors and ensure totalSlots is inferred correctly.
+  // Robustly calculating totalSlots using Object.entries to ensure keys are treated as numbers and values are correctly summed.
   const totalSlots = activeCharacter?.spellSlots 
-    ? Object.values(activeCharacter.spellSlots).reduce((a: number, b: number) => a + b, 0) 
+    ? Object.entries(activeCharacter.spellSlots).reduce((acc: number, [_, count]: [string, number]) => acc + (count || 0), 0)
     : 0;
 
   return (

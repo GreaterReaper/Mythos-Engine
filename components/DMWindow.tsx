@@ -57,21 +57,11 @@ const VitalityMonitor: React.FC<{ character: Character, isActive: boolean, onCli
         />
       </div>
 
-      {/* Mini Floating Combat Text inside the bar container */}
       {hpChange && (
         <div key={hpChange.id} className={`absolute right-2 top-0 text-[10px] font-black animate-float-up-fast z-20 pointer-events-none ${hpChange.type === 'damage' ? 'text-red-500' : 'text-emerald-400'}`}>
           {hpChange.type === 'damage' ? '-' : '+'}{hpChange.amount}
         </div>
       )}
-
-      <style>{`
-        @keyframes float-up-fast {
-          0% { transform: translateY(5px); opacity: 0; }
-          20% { opacity: 1; }
-          100% { transform: translateY(-15px); opacity: 0; }
-        }
-        .animate-float-up-fast { animation: float-up-fast 1.5s ease-out forwards; }
-      `}</style>
     </div>
   );
 };
@@ -97,10 +87,15 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [speakCooldown, setSpeakCooldown] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const ledgerEndRef = useRef<HTMLDivElement>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
   const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
+
+  // Derive ledger logs from campaign history if we were tracking them, 
+  // but for now we'll simulate a session-based scribe log
+  const [scribeLog, setScribeLog] = useState<{id: string, text: string, type: 'info' | 'success' | 'alert'}[]>([]);
 
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
@@ -110,6 +105,10 @@ const DMWindow: React.FC<DMWindowProps> = ({
   useEffect(() => { 
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; 
   }, [campaign?.history, isLoading]);
+
+  useEffect(() => {
+    if (ledgerEndRef.current) ledgerEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }, [scribeLog]);
 
   useEffect(() => {
     let timer: any;
@@ -198,7 +197,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
-      {/* Mobile Top HUD - Locked */}
       <div className="md:hidden flex overflow-x-auto no-scrollbar gap-2 p-2 bg-black border-b border-emerald-900/40 shrink-0 z-30 shadow-lg">
          {characters.map(char => (
            <div 
@@ -224,11 +222,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
                 <p className="text-[8px] text-emerald-500/60 font-black uppercase tracking-tighter">Active Arbitration</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              {onSyncHistory && isHost && (
-                <button onClick={onSyncHistory} className="px-3 py-1 bg-emerald-950 border border-gold/40 text-gold text-[9px] font-black uppercase hover:bg-gold hover:text-black">SYNC SOUL</button>
-              )}
-            </div>
           </div>
           
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar bg-[#0c0a09] relative">
@@ -237,7 +230,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
             {campaign.history.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in relative z-10`}>
                 <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl rounded-tr-xl' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl rounded-r-xl'}`}>
-                  {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase">The Engine Speaks</p>}
+                  {msg.role === 'model' && <p className="text-[9px] font-cinzel text-emerald-500 mb-2 font-black uppercase">The Arbiter Speaks</p>}
                   <div className="leading-relaxed whitespace-pre-wrap font-medium text-sm md:text-base">
                     {renderContentWithRewards(msg.content)}
                   </div>
@@ -273,13 +266,14 @@ const DMWindow: React.FC<DMWindowProps> = ({
           </div>
         </div>
         
-        {/* Desktop Sidebar - Locked & Segmented */}
         <div className="hidden md:flex flex-col w-80 bg-[#0c0a09] border-l-2 border-emerald-900/30 overflow-hidden shrink-0 shadow-2xl">
-          {/* TOP SEGMENT: Party Health - Locked */}
           <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5 shrink-0">
              <div className="flex justify-between items-center mb-4">
                 <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase tracking-widest">Fellowship Monitor</h4>
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="flex items-center gap-1.5">
+                   <span className="text-[7px] text-emerald-700 font-black">SCRIBE:</span>
+                   <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                </div>
              </div>
              <div className="space-y-2">
               {characters.map(char => (
@@ -292,8 +286,23 @@ const DMWindow: React.FC<DMWindowProps> = ({
               ))}
             </div>
           </div>
+
+          {/* SCRIBE'S LEDGER SEGMENT */}
+          <div className="p-5 border-b border-emerald-900/20 bg-black/40 h-40 flex flex-col shrink-0">
+             <h4 className="text-[9px] font-cinzel text-emerald-800 font-black uppercase mb-3 tracking-widest">Scribe's Ledger</h4>
+             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
+                {campaign.history.filter(m => m.role === 'system' && m.content.startsWith('SCRIBE_LOG:')).map((log, i) => (
+                  <div key={i} className="text-[9px] font-mono text-emerald-500/80 leading-tight">
+                    ✧ {log.content.replace('SCRIBE_LOG:', '')}
+                  </div>
+                ))}
+                {campaign.history.filter(m => m.role === 'system' && m.content.startsWith('SCRIBE_LOG:')).length === 0 && (
+                  <p className="text-[8px] text-gray-700 italic">Ledger is silent.</p>
+                )}
+                <div ref={ledgerEndRef} />
+             </div>
+          </div>
           
-          {/* BOTTOM SEGMENT: Spells & Resources - Scrollable internally */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8 bg-black/20">
              {activeCharacter?.spellSlots && activeCharacter.maxSpellSlots && (
                <div>

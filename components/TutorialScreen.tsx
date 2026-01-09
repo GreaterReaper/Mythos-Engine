@@ -13,19 +13,23 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
   const tutorialSteps = [
     {
       title: "Welcome, Neophyte",
-      content: "You have arrived at the Mythos Engine—a dark realm where story is written in physical consequence. The Gemini Flash AI serves as your Dungeon Master and Arbiter.",
+      content: "You have arrived at the Mythos Engine—a dark realm powered by the Trinity of Aether. Unlike mortal games, the Engine processes reality through three distinct eyes.",
     },
     {
-      title: "The Arbiter's Hand",
-      content: "Dice and fate are handled by the Engine. You do not roll; the AI calculates initiative and outcomes automatically based on your intent and attributes. Focus on your path.",
+      title: "The Arbiter's Voice",
+      content: "The Arbiter (Gemini 3 Pro) is thy guide. It weaves the narrative, describes the obsidian winds, and roleplays the inhabitants of the Cask. It speaks with cinematic intent.",
+    },
+    {
+      title: "The Scribe's Audit",
+      content: "The Mechanical Scribe (Flash) listens to the Arbiter. It audits every word to synchronize thy Vitality, EXP, and Inventory. If the Arbiter says thou art struck, the Scribe seals the wound in thy data.",
+    },
+    {
+      title: "The Architect's Forge",
+      content: "The Architect (Gemini 3 Pro) manifests the unknown. When a new horror or relic is mentioned, the Architect forges its stats and lore in real-time, populating the Bestiary and Armory.",
     },
     {
       title: "The Fellowship of Five",
-      content: "The world is balanced for a complete party. You shall be bound to the legendary Trio—Lina, Miri, and Seris—alongside a specialized Path-Mentor matching thy vocation. Together, you form the Fellowship of Five.",
-    },
-    {
-      title: "The Lone Vessel",
-      content: "Should thy Fellowship fall, the Engine scales the difficulty. Solo play is a 'Heroic Trial'—harder numbers, but granted cinematic favor by the Arbiter to ensure thy legend survives.",
+      content: "Thy journey begins with the legendary Trio—Lina, Miri, and Seris—alongside a Path-Mentor. Together, you form the Fellowship of Five. Rest is rare; consequences are permanent.",
     }
   ];
 
@@ -63,14 +67,14 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
 
     const customPrompt = `Thou awakenest in the obsidian silence of the Sunken Sanctuary. A shimmering violet lattice of aetheric chains coils around thy Fellowship. 
 
-Lina (Mage), Seris (Archer), and ${mentorFlavor} lie paralyzed within the magical web, their eyes wide but limbs unresponsive, their legendary gear humming with suppressed power.
+Lina (Mage), Seris (Archer), and ${mentorFlavor} lie paralyzed within the magical web, their eyes wide but limbs unresponsive.
 
-Only thou, a fledgling ${primaryChar?.archetype || 'Soul'}, hast managed to resist the total binding. Beside thee, Miri (the Fighter) strains against the violet light, her Frontier Steel Broadsword glowing as she shatters her own chains to stand at thy side. 
+Only thou, a fledgling ${primaryChar?.archetype || 'Soul'}, hast managed to resist the total binding. Beside thee, Miri (the Fighter) strains against the violet light, her Frontier Steel Broadsword glowing. With a guttural roar, she shatters her own chains, but the backlash is severe—**Miri takes 15 damage** as the aetheric feedback scorches her armor.
 
 A pack of **Shadow Wolves** and two **Hollow Husks** emerge from the necrotic emerald mists, drawn to the flickering resonance of thy bound companions.
 
 **THE FIRST ACT: AWAKENING**
-Thou and the unbound Miri are the only barrier between thy comrades and the coming tide. How dost thou act?`;
+Thou and the wounded Miri are the only barrier between thy comrades and the coming tide. How dost thou act?`;
 
     onComplete(finalPartyIds, TUTORIAL_SCENARIO.title, customPrompt);
   };

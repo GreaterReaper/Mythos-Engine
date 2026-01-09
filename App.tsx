@@ -114,6 +114,12 @@ const App: React.FC = () => {
           
           if (Object.keys(updates).length > 0) {
             updateCharacter(target.id, updates);
+            // Log to scribe ledger
+            const logMsg: Message = { role: 'system', content: `SCRIBE_LOG: ${target.name} ${change.type === 'damage' ? '-' : '+'}${change.value} ${change.type.toUpperCase()}`, timestamp: Date.now() };
+            setState(prev => ({
+              ...prev,
+              campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+            }));
           }
         });
       }
@@ -121,6 +127,12 @@ const App: React.FC = () => {
       // 4. RUN THE ARCHITECT (Entity Forging)
       if (audit.newEntities) {
         for (const entity of audit.newEntities) {
+          const logMsg: Message = { role: 'system', content: `SCRIBE_LOG: ARCHITECT FORGING ${entity.name.toUpperCase()}...`, timestamp: Date.now() };
+          setState(prev => ({
+            ...prev,
+            campaigns: prev.campaigns.map(c => c.id === prev.activeCampaignId ? { ...c, history: [...c.history, logMsg] } : c)
+          }));
+
           if (entity.category === 'item') {
             const itemData = await generateItemDetails(entity.name, msg.content);
             const newItem: Item = {
@@ -153,6 +165,34 @@ const App: React.FC = () => {
     }
   };
 
+  const handleTutorialComplete = async (partyIds: string[], campaignTitle: string, campaignPrompt: string) => {
+    const newCampaign: Campaign = { 
+      id: safeId(), 
+      title: campaignTitle, 
+      prompt: campaignPrompt, 
+      history: [{ role: 'model', content: campaignPrompt, timestamp: Date.now() }], 
+      participants: partyIds 
+    };
+
+    setState(prev => ({ 
+      ...prev, 
+      campaigns: [...prev.campaigns, newCampaign], 
+      activeCampaignId: newCampaign.id,
+      party: partyIds,
+      userAccount: {
+        ...prev.userAccount,
+        activeCharacterId: partyIds.find(id => prev.characters.some(c => c.id === id)) || partyIds[0]
+      }
+    }));
+    
+    setShowTutorial(false);
+    setActiveTab('Chronicles');
+
+    // Manually trigger the scribe for the tutorial prompt
+    const initialMsg: Message = { role: 'model', content: campaignPrompt, timestamp: Date.now() };
+    handleMessage(initialMsg);
+  };
+
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
   const isChronicles = activeTab === 'Chronicles';
 
@@ -164,7 +204,13 @@ const App: React.FC = () => {
           {!state.userAccount.isLoggedIn && (
             <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={() => false} />
           )}
+          
+          {showTutorial && (
+            <TutorialScreen characters={state.characters} onComplete={handleTutorialComplete} />
+          )}
+
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
+          
           <main className={`relative flex-1 bg-leather ${isChronicles ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
             <div className={`mx-auto ${isChronicles ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
               {activeTab === 'Chronicles' && <DMWindow 
@@ -184,6 +230,7 @@ const App: React.FC = () => {
                     participants: state.party 
                   };
                   setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: newCampaign.id }));
+                  handleMessage({ role: 'model', content: p, timestamp: Date.now() });
                 }} 
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
                 onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} 
@@ -192,15 +239,23 @@ const App: React.FC = () => {
                 isHost={true} 
                 isKeyboardOpen={isKeyboardOpen}
               />}
+              
               {activeTab === 'Fellowship' && <FellowshipScreen 
-                characters={state.characters} onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} 
+                characters={state.characters} 
+                onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} 
                 onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
-                onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
-                customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
-                username={state.userAccount.username} hasCampaigns={state.campaigns.length > 0}
+                onUpdate={updateCharacter} 
+                mentors={state.mentors} 
+                party={state.party} 
+                setParty={p => setState(s => ({ ...s, party: p }))} 
+                customArchetypes={state.customArchetypes} 
+                onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
+                username={state.userAccount.username}
+                onStartTutorial={() => setShowTutorial(true)}
+                hasCampaigns={state.campaigns.length > 0}
               />}
-              {/* Other tabs remain identical */}
-              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} />}
+              
+              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} onBuyItem={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={t => setState(p => ({ ...p, mapTokens: t }))} characters={state.characters} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={() => {}} userId={state.userAccount.id} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onUpdateMonster={() => {}} />}

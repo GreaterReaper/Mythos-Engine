@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
@@ -569,7 +568,7 @@ const App: React.FC = () => {
                     return true; 
                   } 
                   return false; 
-                }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} isHost={state.multiplayer.isHost} isKeyboardOpen={isKeyboardOpen}
+                }} onOpenShop={handleOpenShop} onSetCombatActive={a => setState(p => ({ ...p, campaigns: p.campaigns.map(c => c.id === p.activeCampaignId ? { ...c, isCombatActive: a } : c) }))} updateCharacter={updateCharacter} isHost={state.multiplayer.isHost} isKeyboardOpen={isKeyboardOpen}
               />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={m => setState(p => ({ ...p, mapTokens: m }))} characters={[...state.characters, ...state.mentors]} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={a => broadcast('SHARE_ARCHETYPE', a)} userId={state.userAccount.id} />}

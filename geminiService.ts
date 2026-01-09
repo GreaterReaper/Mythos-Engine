@@ -3,7 +3,7 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.0.4";
+const ENGINE_VERSION = "1.0.5";
 
 // Model Constants - HARD SEPARATION
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
@@ -278,9 +278,10 @@ export const generateDMResponse = async (
         : "";
     
     const status = c.id.startsWith('mentor-') ? "VETERAN IMMORTAL MENTOR" : "FLEDGLING PLAYER VESSEL";
+    const hpStatus = c.currentHp <= 0 ? "UNCONSCIOUS (DYING)" : `${c.currentHp}/${c.maxHp} HP`;
 
     return `${c.name} [${status}] (${c.race} ${c.archetype} Lvl ${c.level})
-    - VITALITY: ${c.currentHp}/${c.maxHp} HP.
+    - VITALITY: ${hpStatus}.
     - GEAR: [${equipped || "No legendary gear"}]
     - RESOURCES: ${currentSlotsStr || "None"}
     - MANIFESTATIONS: [${usableSpells || "None"}]`;
@@ -295,15 +296,22 @@ export const generateDMResponse = async (
   const systemInstruction = `
     Thou art the "Narrative DM" (Gemini Flash). 
     
-    LAWS:
-    1. VETERAN RECOGNITION: Lina, Miri, Seris, and the assigned Path-Mentor are seasoned legends. Recognize their gear and history. Treat them with familiarity.
-    2. DICE: Calculate dice (e.g. "Roll 15 vs AC 12"). Describe results.
-    3. SPELL SLOTS: If a spell is used, verify character has a slot. If so, append [USE_SLOT: level, name].
-    4. DAMAGE: Use [TAKE_DAMAGE: amount, target] or [HEAL: amount, target].
-    5. TUTORIAL (If applicable): In Act 1 of "The Fellowship of Five", Lina, Seris, and the Path-Mentor are PARALYZED in violet chains. Only the Player and Miri are unbound.
+    LAWS OF ARBITRATION:
+    1. STRICT RESOURCE TRACKING: 
+       - SPELL SLOTS: Before a spell manifests, check the caster's Manifest Manifest. If no slot exists, the spell fails narratively. ALWAYS append [USE_SLOT: level, name] if successful.
+       - HP COSTS: Sacrificial rites (e.g. 'Dark Rite', 'Life Tap') consume the caster's vitality. Thou MUST issue [TAKE_DAMAGE: 2, casterName] alongside the effect.
+    2. DICE CALCULATIONS: Perform all rolls mentally and describe the math (e.g. "Thy strike rolls a 16 against AC 14, dealing 8 damage").
+    3. DYING BREATH: If a Player Vessel is at 0 HP, they are "Unconscious". They cannot act. Their player MUST roll Death Saves. If they roll a success or failure, acknowledge it in thy next turn.
+    4. MENTOR RECALL: If a Mentor (Lina, Miri, Seris, etc) hits 0 HP, they vanish instantly. Issue [RECALL: name].
+    5. VETERAN RECOGNITION: Treat Mentors with the reverence of legends. Recognize their legendary gear.
+    
+    TUTORIAL CONTEXT:
+    In "The Fellowship of Five" Act 1, only the Player and Miri are unbound. Lina, Seris, and the Path-Mentor are PARALYZED in violet chains until Act 2.
     
     FORMAT: 
-    Atmospheric Narrative -> Mechanical Rolls -> Commands at the VERY END.
+    1. Atmosphere & Action
+    2. Mechanical Result (Rolls/Damage)
+    3. Commands (at the VERY END): [TAKE_DAMAGE: X, name], [HEAL: X, name], [USE_SLOT: X, name], [SPAWN: name], [RECALL: name].
     
     PARTY MANIFEST:
     ${partyManifests}

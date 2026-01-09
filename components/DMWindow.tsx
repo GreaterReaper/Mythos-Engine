@@ -24,6 +24,7 @@ interface DMWindowProps {
   onAIRuntimeUseSlot: (level: number, characterName: string) => boolean; 
   onOpenShop: () => void; 
   onSetCombatActive: (active: boolean) => void; 
+  updateCharacter?: (id: string, updates: Partial<Character>) => void;
   isHost: boolean; 
   isKeyboardOpen?: boolean;
 }
@@ -49,6 +50,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   onAIRuntimeUseSlot, 
   onOpenShop, 
   onSetCombatActive, 
+  updateCharacter,
   isHost, 
   isKeyboardOpen
 }) => {
@@ -57,9 +59,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [lastError, setLastError] = useState(false);
   const [speakCooldown, setSpeakCooldown] = useState(0);
   const [showMobileGrimoire, setShowMobileGrimoire] = useState(false);
+  const [isRollingDeath, setIsRollingDeath] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
+
+  const isDying = activeCharacter && activeCharacter.currentHp <= 0;
+  const deathSaves = activeCharacter?.deathSaves || { successes: 0, failures: 0 };
 
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
@@ -143,6 +149,41 @@ const DMWindow: React.FC<DMWindowProps> = ({
     }
   };
 
+  const handleRollDeathSave = () => {
+    if (!activeCharacter || !updateCharacter || isRollingDeath) return;
+    setIsRollingDeath(true);
+    
+    setTimeout(() => {
+      const roll = Math.floor(Math.random() * 20) + 1;
+      setIsRollingDeath(false);
+      
+      const currentSaves = activeCharacter.deathSaves || { successes: 0, failures: 0 };
+      let updates: Partial<Character> = {};
+      
+      let messageContent = `[DEATH SAVE] Thy roll is ${roll}. `;
+      if (roll >= 10) {
+        const next = Math.min(3, currentSaves.successes + 1);
+        updates.deathSaves = { ...currentSaves, successes: next };
+        messageContent += `A success! Thy soul anchors itself. (${next}/3)`;
+        if (next === 3) {
+          updates.currentHp = 1;
+          updates.deathSaves = { successes: 0, failures: 0 };
+          messageContent = `[DEATH SAVE] Thy roll is ${roll}. A THIRD SUCCESS! Thou gaspest as life returns to thy vessel. Thou hast 1 HP.`;
+        }
+      } else {
+        const next = Math.min(3, currentSaves.failures + 1);
+        updates.deathSaves = { ...currentSaves, failures: next };
+        messageContent += `A failure. The void pulls harder. (${next}/3)`;
+        if (next === 3) {
+          messageContent = `[DEATH SAVE] Thy roll is ${roll}. THE THIRD FAILURE. Thy soul shatters and returns to the Great Well. Thy journey ends here.`;
+        }
+      }
+      
+      updateCharacter(activeCharacter.id, updates);
+      handleSend(messageContent);
+    }, 1000);
+  };
+
   const handleManifestSpell = (spell: Ability) => {
     const text = `I manifest the spell: ${spell.name.toUpperCase()}.`;
     setInput(text);
@@ -196,7 +237,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
-      {!isKeyboardOpen && usableManifestations.length > 0 && (
+      {!isKeyboardOpen && usableManifestations.length > 0 && !isDying && (
         <button 
           onClick={() => setShowMobileGrimoire(true)}
           className="md:hidden fixed bottom-24 right-4 w-12 h-12 bg-emerald-900 border-2 border-gold text-gold rounded-full shadow-2xl flex items-center justify-center z-[60] animate-bounce"
@@ -276,10 +317,62 @@ const DMWindow: React.FC<DMWindowProps> = ({
               </div>
             )}
           </div>
+          
+          {/* Death's Door Overlay */}
+          {isDying && (
+            <div className="bg-red-950/20 border-y-2 border-red-500/40 p-6 space-y-4 animate-in slide-in-from-bottom duration-500 backdrop-blur-sm">
+               <div className="flex justify-between items-center max-w-5xl mx-auto">
+                  <div>
+                    <h4 className="text-xl font-cinzel text-red-500 font-black uppercase tracking-widest animate-pulse">Death's Door</h4>
+                    <p className="text-xs text-red-400 italic">Thy soul flickers... Roll to anchor thyself to reality.</p>
+                  </div>
+                  <div className="flex gap-6">
+                    <div className="text-center">
+                      <span className="text-[8px] text-emerald-500 font-black uppercase">Successes</span>
+                      <div className="flex gap-1 mt-1">
+                        {[1,2,3].map(i => <div key={i} className={`w-3 h-3 rounded-full border ${i <= deathSaves.successes ? 'bg-emerald-500 border-emerald-400' : 'bg-black/40 border-emerald-900'}`} />)}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-[8px] text-red-500 font-black uppercase">Failures</span>
+                      <div className="flex gap-1 mt-1">
+                        {[1,2,3].map(i => <div key={i} className={`w-3 h-3 rounded-full border ${i <= deathSaves.failures ? 'bg-red-500 border-red-400' : 'bg-black/40 border-red-900'}`} />)}
+                      </div>
+                    </div>
+                  </div>
+               </div>
+               <div className="flex justify-center">
+                  <button 
+                    onClick={handleRollDeathSave}
+                    disabled={isRollingDeath}
+                    className={`group relative w-32 h-32 flex flex-col items-center justify-center bg-black border-4 border-gold shadow-[0_0_30px_rgba(212,175,55,0.2)] rounded-full hover:scale-105 active:scale-95 transition-all ${isRollingDeath ? 'animate-spin' : ''}`}
+                  >
+                    <svg className="w-16 h-16 text-gold group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10l8 4m8-4V7l-8-4L4 7m8 4v10M4 7l8 4m0 0l8-4" />
+                    </svg>
+                    <span className="text-[10px] font-black text-gold uppercase mt-2">{isRollingDeath ? 'WEAVING...' : 'ROLL D20'}</span>
+                  </button>
+               </div>
+            </div>
+          )}
+
           <div className={`shrink-0 z-10 bg-black border-t-2 border-emerald-900/40 transition-all ${isKeyboardOpen ? 'pb-2' : 'pb-20 md:pb-0'}`}>
             <div className={`p-3 md:p-5 flex gap-3 items-end max-w-5xl mx-auto w-full ${isKeyboardOpen ? 'p-2' : ''}`}>
-              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder="VOICE THY WILL..." className={`w-full bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm md:text-base focus:border-gold outline-none resize-none rounded-lg placeholder:text-emerald-900/20 font-cinzel transition-all ${isKeyboardOpen ? 'h-14 py-2' : 'h-16 md:h-24'}`} />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isLoading || speakCooldown > 0 || !activeCharacter} className={`w-20 md:w-28 font-cinzel font-black border-2 transition-all flex items-center justify-center uppercase tracking-widest text-[10px] rounded-lg ${isKeyboardOpen ? 'h-14' : 'h-16 md:h-24'} ${speakCooldown > 0 || !activeCharacter ? 'bg-black/50 text-emerald-900 border-emerald-900/20 opacity-50' : 'bg-emerald-900 text-white border-gold/60 shadow-xl hover:bg-emerald-800 active:scale-95'}`}>SPEAK</button>
+              <textarea 
+                value={input} 
+                onChange={e => setInput(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
+                placeholder={isDying ? "THOU ART UNCONSCIOUS..." : "VOICE THY WILL..."}
+                disabled={isDying}
+                className={`w-full bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm md:text-base focus:border-gold outline-none resize-none rounded-lg placeholder:text-emerald-900/20 font-cinzel transition-all ${isKeyboardOpen ? 'h-14 py-2' : 'h-16 md:h-24'} ${isDying ? 'opacity-20 cursor-not-allowed' : ''}`} 
+              />
+              <button 
+                onClick={() => handleSend()} 
+                disabled={!input.trim() || isLoading || speakCooldown > 0 || !activeCharacter || isDying} 
+                className={`w-20 md:w-28 font-cinzel font-black border-2 transition-all flex items-center justify-center uppercase tracking-widest text-[10px] rounded-lg ${isKeyboardOpen ? 'h-14' : 'h-16 md:h-24'} ${speakCooldown > 0 || !activeCharacter || isDying ? 'bg-black/50 text-emerald-900 border-emerald-900/20 opacity-50' : 'bg-emerald-900 text-white border-gold/60 shadow-xl hover:bg-emerald-800 active:scale-95'}`}
+              >
+                SPEAK
+              </button>
             </div>
           </div>
         </div>
@@ -346,7 +439,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
                       <span className="text-[7px] text-emerald-800 font-black">LV {spell.baseLevel}</span>
                     </div>
                     <p className="text-[10px] text-gray-500 italic line-clamp-2 leading-relaxed mb-2 font-medium">"{spell.description}"</p>
-                    <button onClick={() => handleManifestSpell(spell)} className="w-full py-1.5 bg-emerald-900/5 hover:bg-emerald-900/20 border border-emerald-900/40 text-[8px] font-black text-emerald-500 uppercase tracking-tighter transition-all">Resonate Mind</button>
+                    <button 
+                      onClick={() => handleManifestSpell(spell)} 
+                      disabled={isDying}
+                      className={`w-full py-1.5 border border-emerald-900/40 text-[8px] font-black uppercase tracking-tighter transition-all ${isDying ? 'opacity-20 bg-black' : 'bg-emerald-900/5 hover:bg-emerald-900/20 text-emerald-500'}`}
+                    >
+                      Resonate Mind
+                    </button>
                   </div>
                 ))}
               </div>

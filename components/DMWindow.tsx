@@ -64,6 +64,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
+  // Fixed type logic for props expectations
   const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
   const deathSaves = activeCharacter?.deathSaves || { successes: 0, failures: 0 };
 
@@ -190,17 +191,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
     const currentCount = char.spellSlots[level] || 0;
     const maxCount = char.maxSpellSlots?.[level] || 0;
 
-    // Determine new count: if clicked an available one, we want to consume (decrement)
-    // If clicked a spent one, we want to restore (increment)
-    // The visual logic: dots 0 to current-1 are filled. 
-    // If index < currentCount, user clicked a filled dot -> reduce count to index
-    // If index >= currentCount, user clicked an empty dot -> increase count to index + 1
-    
     let newCount = currentCount;
-    if (index < currentCount) {
-        newCount = index; // Consume slots including and after this one
+    if (isAvailable) {
+        // Spend this and all slots after it
+        newCount = index;
     } else {
-        newCount = index + 1; // Restore slots up to and including this one
+        // Restore slots up to this one
+        newCount = index + 1;
     }
     
     newCount = Math.max(0, Math.min(maxCount, newCount));
@@ -384,7 +381,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
                     <div className="text-center">
                       <span className="text-[8px] text-red-500 font-black uppercase">Failures</span>
                       <div className="flex gap-1 mt-1">
-                        {[1,2,3].map(i => <div key={i} className={`w-3 h-3 rounded-full border ${i <= deathSaves.failures ? 'bg-red-500 border-red-400' : 'bg-black/40 border-red-900'}`} />)}
+                        {[1,2,3].map(i => <div key={i} className={`w-3 h-3 rounded-full border ${i <= deathSaves.failures ? 'bg-red-500 border-red-400' : 'bg-black/40 border-emerald-900'}`} />)}
                       </div>
                     </div>
                   </div>

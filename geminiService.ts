@@ -3,7 +3,7 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.0.7";
+const ENGINE_VERSION = "1.0.8";
 
 // Model Constants - HARD SEPARATION
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
@@ -299,20 +299,18 @@ export const generateDMResponse = async (
     1. MECHANICAL PRIORITY: Before narrating, compute the math. Describe dice rolls in prose (e.g. "Thy strike rolls a 16 against AC 14, dealing 8 damage").
     2. STRICT RESOURCE TRACKING: 
        - SPELL SLOTS: If a spell is used, verify character has the slot. Append [USE_SLOT: level, name] if successful.
-       - HP COSTS: Sacrificial rites consume Vitality. Issue [TAKE_DAMAGE: amount, caster].
+       - HP COSTS: Sacrificial rites (e.g. Dark Rite, Life Tap) consume Vitality. Issue [TAKE_DAMAGE: amount, caster].
     3. DYING STATE: If a Player Vessel is at 0 HP, they are "Unconscious". They cannot act. Acknowledge their Death Save results.
     4. MENTOR RECOGNITION: Treat Lina, Miri, Seris, and the Path-Mentor with legendary reverence. Recognize their specific gear.
-    5. ENCOUNTER REWARDS: When foes fall or milestones are reached, award Experience. 
-       - State it clearly in prose as "+X EXP".
-       - ALWAYS append [EXP: X] at the end of thy response to update the engine.
-    
-    TUTORIAL CONTEXT:
-    In Act 1 of "The Fellowship of Five", only the Player and Miri are unbound. Lina, Seris, and the Path-Mentor are PARALYZED in violet chains until Act 2.
+    5. ENCOUNTER REWARDS: When foes fall, award Experience, Gold, or Items.
+       - EXP: State it clearly as "+X EXP". Append [EXP: X].
+       - GEAR: Name the item clearly. Append [ITEM: name].
+       - GOLD: Append [GOLD: X].
     
     FORMAT: 
     1. Atmosphere & Action
     2. Mechanical Result (Rolls/Damage/Rewards)
-    3. Commands (VERY END): [TAKE_DAMAGE: X, name], [HEAL: X, name], [USE_SLOT: X, name], [SPAWN: name], [RECALL: name], [EXP: amount].
+    3. Commands (VERY END): [TAKE_DAMAGE: X, name], [HEAL: X, name], [USE_SLOT: X, name], [SPAWN: name], [RECALL: name], [EXP: amount], [ITEM: name], [GOLD: amount].
     
     PARTY MANIFEST:
     ${partyManifests}

@@ -3,7 +3,7 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.1.2";
+const ENGINE_VERSION = "1.1.4";
 
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
 const ARCHITECT_MODEL = 'gemini-3-pro-preview';   
@@ -258,45 +258,54 @@ export const generateDMResponse = async (
   trackUsage();
   
   const partyManifests = playerContext.party.map(c => {
+    // CRITICAL: Only manifest abilities/spells the character has reached the level for
     const usableSpells = c.spells
         .filter(s => s.levelReq <= c.level)
         .map(s => `${s.name} [Lvl ${s.baseLevel || 1}]`)
         .join(', ');
     
-    const abilities = c.abilities.map(a => `${a.name} (${a.description})`).join(', ');
+    const unlockedAbilities = c.abilities
+        .filter(a => a.levelReq <= c.level)
+        .map(a => `${a.name} (${a.description})`)
+        .join(', ');
 
     const currentSlotsStr = c.spellSlots 
         ? ` Slots: ${Object.entries(c.spellSlots).map(([l, v]) => `L${l}:${v}`).join(', ')}` 
         : "";
     
     const status = c.id.startsWith('mentor-') ? "VETERAN IMMORTAL MENTOR" : "FLEDGLING PLAYER VESSEL";
-    const hpStatus = c.currentHp <= 0 ? "UNCONSCIOUS (DYING)" : `${c.currentHp}/${c.maxHp} HP`;
+    const hpStatus = c.currentHp <= 0 ? "UNCONSCIOUS (0 HP)" : `${c.currentHp}/${c.maxHp} HP`;
+    const deathSaveStatus = (c.deathSaves && (c.deathSaves.successes > 0 || c.deathSaves.failures > 0)) 
+      ? ` Death Saves: ${c.deathSaves.successes}S/${c.deathSaves.failures}F` : "";
 
     return `${c.name} [${status}] (${c.race} ${c.archetype} Lvl ${c.level})
-    - VITALITY: ${hpStatus}.
-    - PASSIVES/ABILITIES: [${abilities}]
+    - VITALITY: ${hpStatus}.${deathSaveStatus}
+    - UNLOCKED PASSIVES: [${unlockedAbilities || "None"}]
     - RESOURCES: ${currentSlotsStr || "None"}
-    - MANIFESTATIONS (Usable Spells): [${usableSpells || "None"}]
-    - SOUL ESSENCE: ${c.exp} EXP
+    - MANIFESTATIONS: [${usableSpells || "None"}]
     - AURELS: ${c.currency.aurels}`;
   }).join('\n\n    ');
 
   const systemInstruction = `
-    Thou art the "Narrative DM" (Gemini Flash). 
+    Thou art the "Arbiter of Mythos" (Gemini Flash). 
     
-    LAWS OF MORTALITY:
-    1. DYING SOULS: When a vessel hits 0 HP, they are UNCONSCIOUS. Narrate the struggle. Use [TAKE_DAMAGE: amount, "Name"] to reduce HP to 0.
-    2. DEATH SAVES: If a character starts their turn at 0 HP, narrate their soul flickering and instruct the player to use the "Death Save" ritual in their sheet.
-    3. LIVING DEAD (Dark Knight): Dark Knights with the "Living Dead" passive can act for 1 turn at 0 HP. Narrate this as a desperate spectral defiance before they finally fall.
-    4. RESTING: 
-       - [REST: short] restores all Vitality and half spell slots.
-       - [REST: long] restores all Vitality, all slots, and clears death saves.
+    THE LAWS OF LEVELING:
+    - Thou shalt NOT attribute powers to a vessel they have not earned. 
+    - Check the UNLOCKED PASSIVES carefully. If a Level 1 character tries to use a Level 15 ability (like Reaper's Toll), narrate their failure and the void's rejection.
     
-    MECHANICAL ACTIONS:
-    - [USE_SLOT: level, "Name"]: Deduct a spell slot when magic is manifested.
-    - [TAKE_DAMAGE: amount, "Name"]: Deduct Vitality.
-    - [HEAL: amount, "Name"]: Restore Vitality.
-    - [EXP: amount]: Award progression essence.
+    THE LAWS OF MORTALITY:
+    1. ARBITRATION LEDGER: For every combat action, thou MUST explicitly state thy mathematical logic using [DICE_ROLL: result, "Notation"]. 
+       Example: "[DICE_ROLL: 14, '1d20+STR'] hits AC 12. [TAKE_DAMAGE: 8, 'Hollow Husk']"
+    
+    2. MATHEMATICAL HP TRACKING: 
+       - Use [TAKE_DAMAGE: amount, "Target"] when a hit lands.
+       - Use [HEAL: amount, "Target"] when mending occurs.
+       - If thy ledger is out of sync with the manifest, use [SET_HP: value, "Target"].
+    
+    3. THE VOID'S GRASP (0 HP):
+       - 0 HP TRIGGER: When a character hits 0 HP, immediately use [TAKE_DAMAGE] to bring them to 0 and narrate their collapse.
+       - DEATH SAVES: Any character starting their turn at 0 HP MUST be called to perform the "Death Save Ritual". Use [ROLL_DEATH_SAVE: "Name"].
+       - DARK KNIGHT EXCEPTION (Living Dead): If a Dark Knight has "Living Dead" and hits 0 HP, they act for ONE TURN at 0 HP. During this turn, they are "Defiant". If they are not HEALED above 0 before their NEXT turn begins, they immediately collapse and must ROLL DEATH SAVES.
     
     PARTY MANIFEST:
     ${partyManifests}
@@ -393,7 +402,9 @@ export const parseDMCommand = (text: string) => {
     statusesToRemove: [] as { effect: StatusEffect, target: string }[],
     recalls: [] as string[],
     heals: [] as { amount: number, targetName: string }[],
-    takeDamage: [] as { amount: number, targetName: string }[]
+    takeDamage: [] as { amount: number, targetName: string }[],
+    setHp: [] as { amount: number, targetName: string }[],
+    rollDeathSaveFor: null as string | null
   };
 
   const expMatch = text.match(/\[EXP:\s*(\d+)\]/i);
@@ -427,6 +438,12 @@ export const parseDMCommand = (text: string) => {
 
   const damageMatches = [...text.matchAll(/\[TAKE_DAMAGE:\s*(\d+),\s*([^\]]+)\]/gi)];
   damageMatches.forEach(m => commands.takeDamage.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));
+
+  const setHpMatches = [...text.matchAll(/\[SET_HP:\s*(\d+),\s*([^\]]+)\]/gi)];
+  setHpMatches.forEach(m => commands.setHp.push({ amount: parseInt(m[1]), targetName: m[2].trim() }));
+
+  const deathSaveMatch = text.match(/\[ROLL_DEATH_SAVE:\s*"?([^"\]]+)"?\]/i);
+  if (deathSaveMatch) commands.rollDeathSaveFor = deathSaveMatch[1].trim();
 
   return commands;
 };

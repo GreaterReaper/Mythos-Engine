@@ -118,6 +118,7 @@ const App: React.FC = () => {
       if (msg.role === 'model') {
         const commands = parseDMCommand(msg.content);
 
+        // Spell Slot Deduction
         if (commands.usedSlot) {
           const { level, characterName } = commands.usedSlot;
           const applySlotUsage = (c: Character) => {
@@ -132,6 +133,7 @@ const App: React.FC = () => {
           newState.mentors = newState.mentors.map(applySlotUsage);
         }
 
+        // Rests
         if (commands.shortRest || commands.longRest) {
           const applyRest = (c: Character) => {
             if (!newState.party.includes(c.id)) return c;
@@ -154,22 +156,51 @@ const App: React.FC = () => {
           newState.mentors = newState.mentors.map(applyRest);
         }
 
+        // Hard HP Resync
+        commands.setHp.forEach(sync => {
+          const applySet = (c: Character) => c.name.toLowerCase() === sync.targetName.toLowerCase() ? { ...c, currentHp: sync.amount } : c;
+          newState.characters = newState.characters.map(applySet);
+          newState.mentors = newState.mentors.map(applySet);
+        });
+
+        // Damage & Mortality
         commands.takeDamage.forEach(dmg => {
-          const applyDmg = (c: Character) => c.name.toLowerCase() === dmg.targetName.toLowerCase() ? { ...c, currentHp: Math.max(0, c.currentHp - dmg.amount) } : c;
+          const applyDmg = (c: Character) => {
+            if (c.name.toLowerCase() === dmg.targetName.toLowerCase()) {
+              const nextHp = Math.max(0, c.currentHp - dmg.amount);
+              const updates: Partial<Character> = { currentHp: nextHp };
+              if (nextHp === 0 && (!c.deathSaves || (c.deathSaves.successes === 0 && c.deathSaves.failures === 0))) {
+                updates.deathSaves = { successes: 0, failures: 0 };
+              }
+              return { ...c, ...updates };
+            }
+            return c;
+          };
           newState.characters = newState.characters.map(applyDmg);
           newState.mentors = newState.mentors.map(applyDmg);
         });
 
+        // Healing
         commands.heals.forEach(h => {
-          const applyHeal = (c: Character) => c.name.toLowerCase() === h.targetName.toLowerCase() ? { ...c, currentHp: Math.min(c.maxHp, c.currentHp + h.amount) } : c;
+          const applyHeal = (c: Character) => {
+            if (c.name.toLowerCase() === h.targetName.toLowerCase()) {
+               const nextHp = Math.min(c.maxHp, c.currentHp + h.amount);
+               const updates: Partial<Character> = { currentHp: nextHp };
+               // Clear death saves if brought back to life
+               if (nextHp > 0) updates.deathSaves = { successes: 0, failures: 0 };
+               return { ...c, ...updates };
+            }
+            return c;
+          };
           newState.characters = newState.characters.map(applyHeal);
           newState.mentors = newState.mentors.map(applyHeal);
         });
 
+        // Currency Rewards
         commands.currencyRewards.forEach(reward => {
           if (reward.target.toLowerCase() === 'party') {
-            const activeVessels = newState.party.length || 1;
-            const perPerson = Math.floor(reward.amount / activeVessels);
+            const activeVesselsCount = newState.party.length || 1;
+            const perPerson = Math.floor(reward.amount / activeVesselsCount);
             newState.characters = newState.characters.map(c => newState.party.includes(c.id) ? { ...c, currency: { aurels: c.currency.aurels + perPerson } } : c);
             newState.mentors = newState.mentors.map(c => newState.party.includes(c.id) ? { ...c, currency: { aurels: c.currency.aurels + perPerson } } : c);
           } else {
@@ -179,9 +210,10 @@ const App: React.FC = () => {
           }
         });
 
+        // EXP Distribution
         if (commands.exp > 0) {
-          const activeVessels = newState.party.length || 1;
-          const perPerson = Math.floor(commands.exp / activeVessels);
+          const activeVesselsCount = newState.party.length || 1;
+          const perPerson = Math.floor(commands.exp / activeVesselsCount);
           const applyExp = (c: Character) => {
             if (!newState.party.includes(c.id)) return c;
             let newExp = c.exp + perPerson;

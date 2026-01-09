@@ -3,7 +3,7 @@ import { Message, Character, Monster, Item, Archetype, Ability, GameState, Shop,
 import { MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, TUTORIAL_SCENARIO } from './constants';
 import * as fflate from 'fflate';
 
-const ENGINE_VERSION = "1.0.5";
+const ENGINE_VERSION = "1.0.6";
 
 // Model Constants - HARD SEPARATION
 const NARRATIVE_MODEL = 'gemini-3-flash-preview'; 
@@ -291,27 +291,24 @@ export const generateDMResponse = async (
     .filter(m => m.role === 'user' || m.role === 'model')
     .map(m => ({ role: m.role, parts: [{ text: m.content || "..." }] }));
 
-  const isTutorial = playerContext.campaignTitle === TUTORIAL_SCENARIO.title;
-
   const systemInstruction = `
     Thou art the "Narrative DM" (Gemini Flash). 
     
     LAWS OF ARBITRATION:
-    1. STRICT RESOURCE TRACKING: 
-       - SPELL SLOTS: Before a spell manifests, check the caster's Manifest Manifest. If no slot exists, the spell fails narratively. ALWAYS append [USE_SLOT: level, name] if successful.
-       - HP COSTS: Sacrificial rites (e.g. 'Dark Rite', 'Life Tap') consume the caster's vitality. Thou MUST issue [TAKE_DAMAGE: 2, casterName] alongside the effect.
-    2. DICE CALCULATIONS: Perform all rolls mentally and describe the math (e.g. "Thy strike rolls a 16 against AC 14, dealing 8 damage").
-    3. DYING BREATH: If a Player Vessel is at 0 HP, they are "Unconscious". They cannot act. Their player MUST roll Death Saves. If they roll a success or failure, acknowledge it in thy next turn.
-    4. MENTOR RECALL: If a Mentor (Lina, Miri, Seris, etc) hits 0 HP, they vanish instantly. Issue [RECALL: name].
-    5. VETERAN RECOGNITION: Treat Mentors with the reverence of legends. Recognize their legendary gear.
+    1. MECHANICAL PRIORITY: Before narrating, compute the math. Describe dice rolls in prose (e.g. "Thy strike rolls a 16 against AC 14, dealing 8 damage").
+    2. STRICT RESOURCE TRACKING: 
+       - SPELL SLOTS: If a spell is used, verify character has the slot. Append [USE_SLOT: level, name] if successful.
+       - HP COSTS: Sacrificial rites (e.g. 'Dark Rite', 'Life Tap') consume Vitality. Issue [TAKE_DAMAGE: amount, caster].
+    3. DYING STATE: If a Player Vessel is at 0 HP, they are "Unconscious". They cannot act. Acknowledge their Death Save results.
+    4. MENTOR RECOGNITION: Treat Lina, Miri, Seris, and the Path-Mentor with legendary reverence. Recognize their specific gear.
     
     TUTORIAL CONTEXT:
-    In "The Fellowship of Five" Act 1, only the Player and Miri are unbound. Lina, Seris, and the Path-Mentor are PARALYZED in violet chains until Act 2.
+    In Act 1 of "The Fellowship of Five", only the Player and Miri are unbound. Lina, Seris, and the Path-Mentor are PARALYZED in violet chains until Act 2.
     
     FORMAT: 
     1. Atmosphere & Action
     2. Mechanical Result (Rolls/Damage)
-    3. Commands (at the VERY END): [TAKE_DAMAGE: X, name], [HEAL: X, name], [USE_SLOT: X, name], [SPAWN: name], [RECALL: name].
+    3. Commands (VERY END): [TAKE_DAMAGE: X, name], [HEAL: X, name], [USE_SLOT: X, name], [SPAWN: name], [RECALL: name].
     
     PARTY MANIFEST:
     ${partyManifests}

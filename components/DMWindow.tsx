@@ -64,7 +64,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  const isDying = activeCharacter && activeCharacter.currentHp <= 0;
+  // Use strict boolean conversion to avoid TS build errors (null vs boolean | undefined)
+  const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
   const deathSaves = activeCharacter?.deathSaves || { successes: 0, failures: 0 };
 
   const usableManifestations = useMemo(() => {
@@ -118,17 +119,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
       const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums...", timestamp: Date.now() };
       onMessage(dmMsg);
-
-      // CRITICAL: Clear loading state BEFORE processing complex secondary commands (Spawning monsters etc)
       setIsLoading(false);
       
       if (responseText && !responseText.includes("Aetheric Turbulence")) {
         const cmds = parseDMCommand(responseText);
-        // Background commands execution
         if (cmds.exp > 0) onAwardExp(cmds.exp);
         if (cmds.currency.aurels > 0) onAwardCurrency(cmds.currency);
         cmds.items.forEach(item => onAwardItem(item.name, item.data));
-        // Monsters are awaited in the background to not block future inputs
         (async () => {
           for (const mName of cmds.monstersToAdd) {
             await onAwardMonster(mName);

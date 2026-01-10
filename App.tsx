@@ -252,7 +252,20 @@ const App: React.FC = () => {
                 onShortRest={() => {}} isHost={true} isKeyboardOpen={isKeyboardOpen}
                 apiUsage={state.apiUsage}
               />}
-              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={(c, items) => setState(p => ({ ...p, characters: [...p.characters, c], armory: [...p.armory, ...items] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} />}
+              {activeTab === 'Fellowship' && <FellowshipScreen 
+                characters={state.characters} 
+                onAdd={(c: Character, items: Item[]) => setState(p => ({ ...p, characters: [...p.characters, c], armory: [...p.armory, ...items] }))} 
+                onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
+                onUpdate={updateCharacter} 
+                mentors={state.mentors} 
+                party={state.party} 
+                setParty={p => setState(s => ({ ...s, party: p }))} 
+                customArchetypes={state.customArchetypes} 
+                onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
+                username={state.userAccount.username} 
+                onStartTutorial={() => setShowTutorial(true)} 
+                hasCampaigns={state.campaigns.length > 0} 
+              />}
               {activeTab === 'Tavern' && <TavernScreen 
                 party={activePartyObjects} 
                 mentors={state.mentors} 

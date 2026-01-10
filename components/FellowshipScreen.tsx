@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Character, ArchetypeInfo } from '../types';
+import { Character, ArchetypeInfo, Item } from '../types';
 import CharacterCreator from './CharacterCreator';
 import CharacterSheet from './CharacterSheet';
 
 interface FellowshipScreenProps {
   characters: Character[];
-  onAdd: (char: Character) => void;
+  onAdd: (char: Character, items: Item[]) => void;
   onDelete: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Character>) => void;
   mentors: Character[];
@@ -131,7 +131,7 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
           customArchetypes={customArchetypes}
           onAddCustomArchetype={onAddCustomArchetype}
           onCancel={() => setIsCreating(false)} 
-          onCreate={(c) => { onAdd(c); setIsCreating(false); }} 
+          onCreate={(c, items) => { onAdd(c, items); setIsCreating(false); }} 
         />
       ) : selectedChar ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">

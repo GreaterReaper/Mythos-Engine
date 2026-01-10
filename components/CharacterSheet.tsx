@@ -94,7 +94,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const { classAbilities, customBoons } = useMemo(() => {
     const all = [...(character.abilities || []), ...(character.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
     return {
-      // ONLY SHOW UNLOCKED ON CHARACTER SHEET
       classAbilities: all.filter(a => a.levelReq > 0 && a.levelReq <= character.level),
       customBoons: all.filter(a => a.levelReq === 0)
     };
@@ -102,32 +101,52 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   const equippedItems = useMemo(() => character.inventory.filter(i => character.equippedIds?.includes(i.id)), [character.inventory, character.equippedIds]);
   
-  const acCalculation = useMemo(() => {
-    let baseAc = 10 + dexMod;
-    let shieldBonus = 0;
+  const acInfo = useMemo(() => {
+    let baseAc = 10;
     let armorAc = 0;
-    
-    equippedItems.forEach(item => {
-      if (item.type === 'Armor') {
-        const itemAc = item.stats?.ac || 0;
-        if (item.name.toLowerCase().includes('shield')) {
-          shieldBonus += itemAc;
-        } else {
-          armorAc = itemAc;
-        }
-      }
-    });
+    let shieldBonus = 0;
+    let usedDex = dexMod;
+    let armorName = "Unarmored";
+    let isHeavy = false;
 
-    if (armorAc > 0) {
-      const isHeavy = equippedItems.some(i => i.type === 'Armor' && (i.name.toLowerCase().includes('plate') || i.name.toLowerCase().includes('heavy')));
+    // Separate main armor and shield
+    const mainArmor = equippedItems.find(i => 
+      i.type === 'Armor' && !i.name.toLowerCase().includes('shield')
+    );
+    const shield = equippedItems.find(i => 
+      i.type === 'Armor' && i.name.toLowerCase().includes('shield')
+    );
+
+    if (mainArmor) {
+      armorAc = mainArmor.stats?.ac || 0;
+      armorName = mainArmor.name;
+      // Check if it is Heavy Armor
+      isHeavy = mainArmor.name.toLowerCase().includes('plate') || 
+                mainArmor.name.toLowerCase().includes('heavy') ||
+                mainArmor.description.toLowerCase().includes('heavy');
+      
       if (isHeavy) {
-        baseAc = armorAc;
+        usedDex = 0; // Heavy armor ignores Dex modifier
+        baseAc = 0;  // Base of 10 is replaced by heavy armor's high value
       } else {
-        baseAc = armorAc + dexMod;
+        baseAc = 0;  // Base of 10 is replaced by light/medium armor's base
       }
     }
 
-    return baseAc + shieldBonus;
+    if (shield) {
+      shieldBonus = shield.stats?.ac || 0;
+    }
+
+    const total = (mainArmor ? armorAc : 10) + usedDex + shieldBonus;
+
+    return {
+      total,
+      base: mainArmor ? armorAc : 10,
+      dex: usedDex,
+      shield: shieldBonus,
+      armorName,
+      isHeavy
+    };
   }, [equippedItems, dexMod]);
 
   const combatStats = useMemo(() => {
@@ -243,9 +262,35 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           </div>
         </div>
         <div className="flex gap-4">
-          <div className="text-center">
-            <p className="text-[10px] text-gray-500 uppercase font-black">AC</p>
-            <p className="text-2xl font-black text-gold">{acCalculation}</p>
+          <div className="text-center group relative cursor-help">
+            <p className="text-[10px] text-gray-500 uppercase font-black">Armor Class</p>
+            <p className="text-2xl font-black text-gold">{acInfo.total}</p>
+            {/* AC BREAKDOWN TOOLTIP */}
+            <div className="absolute top-full right-0 mt-2 p-3 bg-black border border-gold/40 rounded shadow-2xl z-[100] w-48 hidden group-hover:block animate-in fade-in zoom-in duration-200">
+               <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-gray-500 uppercase font-black">Base ({acInfo.armorName}):</span>
+                    <span className="text-white font-mono">{acInfo.base}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-gray-500 uppercase font-black">Dexterity Mod:</span>
+                    <span className={`font-mono ${acInfo.isHeavy ? 'text-red-500 line-through' : 'text-emerald-500'}`}>
+                      {acInfo.dex >= 0 ? '+' : ''}{acInfo.dex}
+                    </span>
+                  </div>
+                  {acInfo.shield > 0 && (
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-gray-500 uppercase font-black">Shield:</span>
+                      <span className="text-emerald-500 font-mono">+{acInfo.shield}</span>
+                    </div>
+                  )}
+                  <div className="pt-1.5 border-t border-emerald-900/30 flex justify-between items-center font-black text-gold text-xs">
+                    <span>TOTAL:</span>
+                    <span>{acInfo.total}</span>
+                  </div>
+                  {acInfo.isHeavy && <p className="text-[7px] text-red-500/60 uppercase font-black italic mt-1">Heavy Armor ignores Dexterity</p>}
+               </div>
+            </div>
           </div>
         </div>
       </div>
@@ -274,8 +319,14 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                 <div className="h-4 bg-gray-900 rounded-full overflow-hidden border border-emerald-900/20">
                   <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: `${(displayHp / character.maxHp) * 100}%` }} />
                 </div>
+                {/* Visual indicator for HP changes */}
+                {hpChanges.filter(c => c.type !== 'mana').map(c => (
+                  <span key={c.id} className={`absolute -top-4 right-0 font-black text-lg animate-fade-up ${c.type === 'damage' ? 'text-red-500' : 'text-emerald-500'}`}>
+                    {c.type === 'damage' ? '-' : '+'}{c.amount}
+                  </span>
+                ))}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <div className="flex justify-between items-end">
                   <span className="text-[10px] font-cinzel text-blue-500 font-black uppercase">Aether</span>
                   <span className="text-sm font-black text-white">{displayMana} / {character.maxMana}</span>
@@ -283,6 +334,11 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                 <div className="h-4 bg-gray-900 rounded-full overflow-hidden border border-emerald-900/20">
                   <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${(displayMana / character.maxMana) * 100}%` }} />
                 </div>
+                {hpChanges.filter(c => c.type === 'mana').map(c => (
+                  <span key={c.id} className="absolute -top-4 right-0 font-black text-lg text-blue-400 animate-fade-up">
+                    -{c.amount}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -300,7 +356,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
               })}
             </div>
 
-            {/* BATTLE MANIFEST SECTION */}
             <div className="space-y-4">
               <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Battle Manifest</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -431,14 +486,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                         </div>
                       );
                     })}
-
-                    {/* RESISTANCES */}
-                    {(item.stats as any)?.resistances?.map((res: string) => (
-                       <div key={res} className="px-2 py-1 bg-purple-900/20 border border-purple-500/30 rounded flex items-center gap-1">
-                         <svg className="w-2.5 h-2.5 text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z" /></svg>
-                         <span className="text-[7px] text-purple-300 font-black uppercase">{res} WARD</span>
-                       </div>
-                    ))}
                   </div>
 
                   <p className="text-[10px] text-gray-500 italic leading-relaxed line-clamp-2">"{item.description}"</p>

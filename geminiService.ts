@@ -29,11 +29,15 @@ const CLOCKWORK_RESPONSES = [
 ];
 
 const CLOCKWORK_ITEMS = [
-  { name: "Obsidian Dagger", type: "Weapon", damage: "1d4", damageType: "Piercing" },
-  { name: "Iron Plate", type: "Armor", ac: 16 },
-  { name: "Steel Longsword", type: "Weapon", damage: "1d8", damageType: "Slashing" },
-  { name: "Leather Jerkin", type: "Armor", ac: 11 },
-  { name: "Minor Vitality Flask", type: "Utility" }
+  { name: "Obsidian Dagger", type: "Weapon", damage: "1d4", damageType: "Piercing", rarity: "Common" },
+  { name: "Common Plate", type: "Armor", ac: 16, rarity: "Common" },
+  { name: "Relic Plate of Souls", type: "Armor", ac: 20, rarity: "Relic" },
+  { name: "Common Leather", type: "Armor", ac: 11, rarity: "Common" },
+  { name: "Relic Shadow Leather", type: "Armor", ac: 14, rarity: "Relic" },
+  { name: "Common Robes", type: "Armor", ac: 10, rarity: "Common" },
+  { name: "Relic Aether Robes", type: "Armor", ac: 13, rarity: "Relic" },
+  { name: "Steel Longsword", type: "Weapon", damage: "1d8", damageType: "Slashing", rarity: "Common" },
+  { name: "Minor Vitality Flask", type: "Utility", rarity: "Common" }
 ];
 
 const prepareHistory = (history: Message[]) => {
@@ -178,14 +182,20 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
       name: `Clockwork ${itemName || base.name}`,
       description: "A deterministic artifact forged without soul-resonance.",
       type: (base.type as any) || "Utility",
-      rarity: "Common",
-      stats: { damage: base.damage, ac: base.ac, damageType: base.damageType } as any
+      rarity: base.rarity as any || "Common",
+      stats: { damage: (base as any).damage, ac: (base as any).ac, damageType: (base as any).damageType } as any
     };
   }
 
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Architect's Forge", a Flash-servant. Manifest Dark Fantasy items.`;
+  const systemInstruction = `Thou art the "Architect's Forge", a Flash-servant. Manifest Dark Fantasy items.
+  ARMOR CLASS (AC) PROTOCOL:
+  - Robes: Common (10-11 AC), Relic (12-13 AC)
+  - Leather: Common (12-13 AC), Relic (14-15 AC)
+  - Heavy/Plate: Common (16-18 AC), Relic (19-21 AC)
+  Relic items are superior artifacts with enhanced stats and unique descriptions.
+  If the rarity is Relic, the AC MUST fall in the Relic band.`;
   try {
     const response = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
@@ -199,7 +209,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
             name: { type: Type.STRING },
             description: { type: Type.STRING },
             type: { type: Type.STRING, enum: ["Weapon", "Armor", "Utility", "Quest"] },
-            rarity: { type: Type.STRING, enum: ["Common", "Uncommon", "Rare", "Epic", "Legendary"] },
+            rarity: { type: Type.STRING, enum: ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Relic"] },
             stats: { 
               type: Type.OBJECT, 
               properties: { 

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Item, Archetype } from '../types';
 
@@ -14,6 +15,7 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare 
   const [sortBy, setSortBy] = useState<'rarity' | 'name'>('rarity');
 
   const rarityOrder = {
+    'Relic': 6,
     'Legendary': 5,
     'Epic': 4,
     'Rare': 3,
@@ -78,7 +80,13 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare 
               <div>
                 <h4 className="font-cinzel text-lg text-gold truncate font-bold">{item.name}</h4>
                 <div className="flex flex-wrap gap-2 items-center mt-1">
-                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${item.rarity === 'Legendary' ? 'text-orange-500 border-orange-900/50 bg-orange-900/10' : item.rarity === 'Epic' ? 'text-purple-500 border-purple-900/50 bg-purple-900/10' : item.rarity === 'Rare' ? 'text-blue-500 border-blue-900/50 bg-blue-900/10' : 'text-gray-500 border-gray-900/50 bg-gray-900/10'}`}>{item.rarity}</span>
+                  <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                    item.rarity === 'Relic' ? 'text-cyan-400 border-cyan-900/50 bg-cyan-900/10 shadow-[0_0_10px_rgba(34,211,238,0.3)]' :
+                    item.rarity === 'Legendary' ? 'text-orange-500 border-orange-900/50 bg-orange-900/10' : 
+                    item.rarity === 'Epic' ? 'text-purple-500 border-purple-900/50 bg-purple-900/10' : 
+                    item.rarity === 'Rare' ? 'text-blue-500 border-blue-900/50 bg-blue-900/10' : 
+                    'text-gray-500 border-gray-900/50 bg-gray-900/10'
+                  }`}>{item.rarity}</span>
                   <span className="text-[9px] text-emerald-600 font-cinzel uppercase font-black">{item.type}</span>
                 </div>
               </div>

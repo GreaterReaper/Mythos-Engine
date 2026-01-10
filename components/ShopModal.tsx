@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Shop, ShopItem, Character, Currency } from '../types';
 import Tooltip from './Tooltip';
@@ -21,6 +22,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
 
   const getRarityColor = (rarity: string | undefined) => {
     switch (rarity) {
+      case 'Relic': return 'text-cyan-400 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.5)]';
       case 'Legendary': return 'text-orange-500 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]';
       case 'Epic': return 'text-purple-500 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]';
       case 'Rare': return 'text-blue-500 border-blue-500';
@@ -88,6 +90,11 @@ const ShopModal: React.FC<ShopModalProps> = ({ shop, characters, onClose, onBuy 
                       </h4>
                     </Tooltip>
                     <p className="text-xs text-gray-500 truncate italic mt-1">{item.description}</p>
+                    {item.stats?.ac && (
+                      <div className="mt-2 text-[10px] font-black text-cyan-400 bg-cyan-900/20 px-2 py-0.5 inline-block rounded">
+                        DEFENSE: {item.stats.ac} AC
+                      </div>
+                    )}
                   </div>
                 </div>
 

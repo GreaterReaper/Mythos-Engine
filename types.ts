@@ -79,7 +79,7 @@ export interface Item {
   type: 'Weapon' | 'Armor' | 'Utility' | 'Quest';
   stats?: Partial<Stats> & { ac?: number; damage?: string; damageType?: string };
   imageUrl?: string;
-  rarity: 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
+  rarity: 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary' | 'Relic';
   archetypes?: Archetype[] | string[];
   authorId?: string;
   quantity?: number;

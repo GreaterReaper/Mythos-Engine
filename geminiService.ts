@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Message, Character, Monster, Item, GameState, Shop, Rumor } from './types';
+import { Message, Character, Monster, Item, GameState, Shop, Rumor, Ability } from './types';
 
 // THE CLOCKWORK ENGINE: Unified on Gemini 3 Flash
 const FLASH_MODEL = 'gemini-3-flash-preview';
@@ -40,10 +40,9 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   1. DAMAGE/HEAL: Look for "takes X damage", "loses X HP", "heals X HP", or "restores X HP".
   2. EXPERIENCE: Look for "gains X EXP" or "receives X EXP".
   3. MANA/STAMINA: Look for "expends X mana", "uses X stamina", or "loses X mana".
-  4. BLOOD MAGIC: Extract HP costs for blood-based spells even if the DM only implies them.
-  5. NEW ENTITIES: Look for NEW monsters OR items mentioned as being found, looted, or received. 
-     - Items found MUST be extracted to be added to the global Armory.
-     - Associate items with a "target" character name if the narrative implies they take it.
+  4. NEW ENTITIES: Look for NEW monsters, items, OR custom ABILITIES/FEATS mentioned as being found, looted, or RECEIVED. 
+     - "entityData" property should contain detailed stats for the new entity if it is an item or ability.
+     - For ABILITIES: Include name, description, and scaling if mentioned.
   
   CRITICAL: Return JSON only. Do NOT hallucinate values.`;
 
@@ -74,11 +73,21 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  category: { type: Type.STRING, description: "monster or item" },
+                  category: { type: Type.STRING, description: "monster, item, or ability" },
                   name: { type: Type.STRING },
-                  target: { type: Type.STRING, description: "Character receiving item" }
+                  target: { type: Type.STRING, description: "Character name" },
+                  entityData: {
+                    type: Type.OBJECT,
+                    properties: {
+                      description: { type: Type.STRING },
+                      stats: { type: Type.OBJECT, properties: { ac: { type: Type.NUMBER }, damage: { type: Type.STRING } } },
+                      manaCost: { type: Type.NUMBER },
+                      hpCost: { type: Type.NUMBER },
+                      scaling: { type: Type.STRING }
+                    }
+                  }
                 },
-                required: ["category", "name"]
+                required: ["category", "name", "target"]
               }
             }
           },
@@ -116,10 +125,7 @@ export const generateDMResponse = async (
   const activeDetail = active ? `
     CHARACTER MANIFEST [READ CAREFULLY]:
     - Identity: ${active.name} (${active.gender}), ${active.race} ${active.archetype}
-    - Level/Progress: Level ${active.level} (Current EXP: ${active.exp})
-    - Combat Stats: STR ${active.stats.str}, DEX ${active.stats.dex}, CON ${active.stats.con}, INT ${active.stats.int}, WIS ${active.stats.wis}, CHA ${active.stats.cha}
-    - Vitality: HP ${active.currentHp}/${active.maxHp}, Mana ${active.currentMana}/${active.maxMana}
-    - Inventory: ${active.inventory.map(i => `${i.name} (${i.type}, ${i.rarity})`).join(', ') || 'Only rags'}
+    - Level: Level ${active.level}
     - Manifestations: ${[...(active.abilities || []), ...(active.spells || [])].map(a => a.name).join(', ')}
   ` : 'No active soul detected in the aether.';
 
@@ -133,15 +139,14 @@ export const generateDMResponse = async (
   ${partyManifest}
   
   PROTOCOLS:
-  1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Gender, Stats, and Items.
-  2. CLASS IDENTITY: Warriors and Dark Knights are vanguards of devastation. They carrier NO shields. Narrate their actions as unrestrained offense.
+  1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Level, and current Abilities.
+  2. LEGENDARY FEATS: For truly exceptional roleplay or extreme success (Nat 20 on a high-stakes task), thou mayst grant a unique custom ABILITY or FEAT. 
+     - Example: "For thy legendary defense of the gate, thou gainest the 'Bulwark of Souls' feat: +1 AC when adjacent to allies."
+     - Tailor these to the character's class and context.
   3. DICE: Use [🎲 d20(roll)+mod=result] for all checks.
-  4. COST OF POWER: Spells cost Mana. Dark/Blood magic costs HP.
-  5. EXPERIENCE: Award EXP (50-500) based on deeds.
-  6. DETERMINISM: The world reacts to thy Stats.`;
+  4. DETERMINISM: The world reacts harshly to thy Stats.`;
 
   // Gemini requires strictly alternating roles: user -> model -> user -> model.
-  // We filter history and merge adjacent identical roles.
   const contents = [];
   let lastRole = null;
   

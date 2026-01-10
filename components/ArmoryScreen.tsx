@@ -88,14 +88,30 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare 
               </div>
             </div>
             <p className="text-xs text-gray-400 italic leading-relaxed">"{item.description}"</p>
+            
             {item.stats && (
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                {Object.entries(item.stats).map(([key, val]) => (
-                  <div key={key} className="flex justify-between text-[10px] border border-emerald-900/20 px-2 py-1 bg-emerald-900/5">
-                    <span className="uppercase text-emerald-700 font-cinzel font-black">{key}</span>
-                    <span className="text-gold font-black">{val}</span>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-emerald-900/20">
+                {item.stats.damage && (
+                  <div className="flex flex-col bg-emerald-900/5 p-2 rounded-sm border border-emerald-900/10">
+                    <span className="text-[8px] text-emerald-700 font-black uppercase">Damage</span>
+                    <span className="text-xs text-gold font-black">{item.stats.damage} {item.stats.damageType}</span>
                   </div>
-                ))}
+                )}
+                {item.stats.ac && (
+                  <div className="flex flex-col bg-emerald-900/5 p-2 rounded-sm border border-emerald-900/10">
+                    <span className="text-[8px] text-emerald-700 font-black uppercase">Armor Class</span>
+                    <span className="text-xs text-gold font-black">{item.stats.ac}</span>
+                  </div>
+                )}
+                {Object.entries(item.stats).map(([key, val]) => {
+                  if (['damage', 'ac', 'damageType', 'cost'].includes(key)) return null;
+                  return (
+                    <div key={key} className="flex justify-between text-[10px] border border-emerald-900/20 px-2 py-1 bg-emerald-900/5">
+                      <span className="uppercase text-emerald-700 font-cinzel font-black">{key}</span>
+                      <span className="text-gold font-black">{val}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

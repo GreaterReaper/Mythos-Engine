@@ -55,6 +55,8 @@ export interface Ability {
   manaCost?: number;
   hpCost?: number;
   scaling?: string;
+  damage?: string;
+  damageType?: string;
 }
 
 export interface ArchetypeInfo {
@@ -74,7 +76,7 @@ export interface Item {
   name: string;
   description: string;
   type: 'Weapon' | 'Armor' | 'Utility' | 'Quest';
-  stats?: Partial<Stats> & { ac?: number; damage?: string };
+  stats?: Partial<Stats> & { ac?: number; damage?: string; damageType?: string };
   imageUrl?: string;
   rarity: 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary';
   archetypes?: Archetype[] | string[];

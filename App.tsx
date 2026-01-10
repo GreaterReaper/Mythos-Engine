@@ -109,10 +109,15 @@ const App: React.FC = () => {
         const archInfo = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
         if (!archInfo) return c;
         
+        // Preserve any custom abilities already on the character that aren't in the class manifest
+        const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
+        const customAbilities = c.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
+        const customSpells = c.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
+
         return {
           ...c,
-          abilities: archInfo.coreAbilities.filter(a => a.levelReq <= c.level),
-          spells: (archInfo.spells || []).filter(s => s.levelReq <= c.level)
+          abilities: [...archInfo.coreAbilities.filter(a => a.levelReq <= c.level), ...customAbilities],
+          spells: [...(archInfo.spells || []).filter(s => s.levelReq <= c.level), ...customSpells]
         };
       });
 
@@ -209,10 +214,13 @@ const App: React.FC = () => {
                       updates.maxMana = target.maxMana + 10;
                       updates.currentMana = updates.maxMana;
                       
-                      const unlockedAbilities = archInfo.coreAbilities.filter(a => a.levelReq <= updates.level!);
-                      const unlockedSpells = (archInfo.spells || []).filter(s => s.levelReq <= updates.level!);
-                      updates.abilities = unlockedAbilities;
-                      updates.spells = unlockedSpells;
+                      // Filter and merge custom abilities (levelReq 0) with class progression
+                      const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
+                      const customAbilities = target.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
+                      const customSpells = target.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
+
+                      updates.abilities = [...archInfo.coreAbilities.filter(a => a.levelReq <= updates.level!), ...customAbilities];
+                      updates.spells = [...(archInfo.spells || []).filter(s => s.levelReq <= updates.level!), ...customSpells];
                     }
                     
                     logs.push({ role: 'system', content: `SCRIBE: ${target.name} ASCENDED TO LEVEL ${updates.level}!`, timestamp: Date.now() });
@@ -258,6 +266,22 @@ const App: React.FC = () => {
                       return { ...p, armory: newArmory };
                     });
                   });
+                }
+                if (entity.category === 'ability' && entity.target) {
+                  const targetName = entity.target.toLowerCase();
+                  const newAbility: Ability = {
+                    name: entity.name,
+                    description: entity.entityData?.description || "A gift from the Arbiter.",
+                    type: 'Feat',
+                    levelReq: 0, // 0 marks custom awarded abilities
+                    scaling: entity.entityData?.scaling,
+                    manaCost: entity.entityData?.manaCost,
+                    hpCost: entity.entityData?.hpCost
+                  };
+                  
+                  const updateList = (chars: Character[]) => chars.map(c => c.name.toLowerCase().includes(targetName) ? { ...c, abilities: [...c.abilities, newAbility] } : c);
+                  setState(p => ({ ...p, characters: updateList(p.characters), mentors: updateList(p.mentors) }));
+                  logs.push({ role: 'system', content: `SCRIBE: ${entity.target} Manifested unique power: ${entity.name}!`, timestamp: Date.now() });
                 }
               }
             }

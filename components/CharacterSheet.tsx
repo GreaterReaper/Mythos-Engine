@@ -64,10 +64,12 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     setDisplayMana(character.currentMana);
   }, []);
 
-  const unlockedAbilities = useMemo(() => {
-    // We strictly use the character's stored abilities and spells 
-    // which are filtered by level in App.tsx
-    return [...(character.abilities || []), ...(character.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
+  const { classAbilities, customBoons } = useMemo(() => {
+    const all = [...(character.abilities || []), ...(character.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
+    return {
+      classAbilities: all.filter(a => a.levelReq > 0),
+      customBoons: all.filter(a => a.levelReq === 0)
+    };
   }, [character.abilities, character.spells]);
 
   const equippedItems = useMemo(() => character.inventory.filter(i => character.equippedIds?.includes(i.id)), [character.inventory, character.equippedIds]);
@@ -111,24 +113,20 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     if (isEquipped) {
       newEquippedIds = newEquippedIds.filter(id => id !== itemId);
     } else {
-      // Slot management logic
       if (item.type === 'Armor') {
         const isShield = item.name.toLowerCase().includes('shield');
         if (isShield) {
-           // Remove existing shield
            newEquippedIds = newEquippedIds.filter(id => {
              const existing = character.inventory.find(inv => inv.id === id);
              return !(existing?.type === 'Armor' && existing.name.toLowerCase().includes('shield'));
            });
         } else {
-           // Remove existing body armor
            newEquippedIds = newEquippedIds.filter(id => {
              const existing = character.inventory.find(inv => inv.id === id);
              return !(existing?.type === 'Armor' && !existing.name.toLowerCase().includes('shield'));
            });
         }
       } else if (item.type === 'Weapon') {
-        // Max 2 weapons
         const weaponIds = newEquippedIds.filter(id => character.inventory.find(inv => inv.id === id)?.type === 'Weapon');
         if (weaponIds.length >= 2) {
           newEquippedIds = newEquippedIds.filter(id => id !== weaponIds[0]);
@@ -264,11 +262,27 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           </div>
         )}
         {activeTab === 'Soul Path' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {customBoons.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/30 pb-1">Legendary Boons</h4>
+                {customBoons.map((a, i) => (
+                  <div key={i} className="p-4 border-l-2 bg-gold/[0.03] border-gold rounded-sm shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                    <div className="flex justify-between">
+                      <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gold">{a.name}</span>
+                      <span className="text-[8px] bg-gold text-black px-1.5 py-0.5 rounded-sm font-black uppercase">Unique</span>
+                    </div>
+                    <p className="text-[10px] text-gray-300 mt-1 italic">"{a.description}"</p>
+                    {a.scaling && <p className="text-[9px] text-gold/60 mt-1 font-black">Resonance: {a.scaling}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="space-y-4">
               <h4 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest border-b border-emerald-900/20 pb-1">Unlocked Manifestations</h4>
-              {unlockedAbilities.map((a, i) => (
-                <div key={i} className="p-4 border-l-2 bg-emerald-900/5 border-gold rounded-sm">
+              {classAbilities.map((a, i) => (
+                <div key={i} className="p-4 border-l-2 bg-emerald-900/5 border-emerald-500 rounded-sm">
                   <div className="flex justify-between">
                     <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gold">{a.name}</span>
                     <div className="flex gap-2">
@@ -277,9 +291,13 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                     </div>
                   </div>
                   <p className="text-[10px] text-gray-400 mt-1 italic">"{a.description}"</p>
+                  <div className="flex gap-4 mt-2">
+                    {a.damage && <span className="text-[9px] text-gold font-black uppercase tracking-widest">Dmg: {a.damage} {a.damageType}</span>}
+                    {a.scaling && <span className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">Scaling: {a.scaling}</span>}
+                  </div>
                 </div>
               ))}
-              {unlockedAbilities.length === 0 && <p className="text-[10px] text-gray-600 italic">No power yet manifested.</p>}
+              {classAbilities.length === 0 && <p className="text-[10px] text-gray-600 italic">No class power yet manifested.</p>}
             </div>
           </div>
         )}
@@ -338,7 +356,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                         {item.stats.damage && (
                           <div className="flex flex-col">
                             <span className="text-[8px] text-gray-600 uppercase font-black">Damage</span>
-                            <span className="text-[10px] text-gold font-black">{item.stats.damage}</span>
+                            <span className="text-[10px] text-gold font-black">{item.stats.damage} {item.stats.damageType}</span>
                           </div>
                         )}
                         {item.stats.ac && (
@@ -348,7 +366,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                           </div>
                         )}
                         {Object.entries(item.stats).map(([key, val]) => {
-                          if (key === 'damage' || key === 'ac' || key === 'cost') return null;
+                          if (['damage', 'ac', 'damageType', 'cost'].includes(key)) return null;
                           return (
                             <div key={key} className="flex flex-col">
                               <span className="text-[8px] text-gray-600 uppercase font-black">{key}</span>

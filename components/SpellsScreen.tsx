@@ -96,20 +96,34 @@ const SpellsScreen: React.FC<SpellsScreenProps> = ({ playerCharacters, customArc
                   </div>
                   <span className="text-[10px] text-emerald-700 font-cinzel uppercase italic tracking-widest font-black">{spell.type}</span>
                 </div>
+                
                 <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-emerald-900/50 pl-4 py-1 font-medium">
                   {spell.description}
                 </p>
-                {(spell.manaCost || spell.hpCost) && (
-                   <div className="flex gap-4 mt-2">
-                     {spell.manaCost && <span className="text-[9px] text-blue-400 font-black uppercase">Cost: {spell.manaCost} MP</span>}
-                     {spell.hpCost && <span className="text-[9px] text-red-500 font-black uppercase">Cost: {spell.hpCost} HP</span>}
-                   </div>
-                )}
-                {spell.scaling && (
-                  <div className="text-[9px] text-emerald-500/60 font-mono mt-auto pt-2 border-t border-emerald-900/10">
-                    RESONANCE: {spell.scaling}
-                  </div>
-                )}
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  {spell.damage && (
+                    <div className="flex flex-col bg-emerald-900/5 p-2 rounded-sm border border-emerald-900/10">
+                      <span className="text-[8px] text-emerald-700 font-black uppercase">Manifestation</span>
+                      <span className="text-xs text-gold font-black">{spell.damage} {spell.damageType}</span>
+                    </div>
+                  )}
+                  {spell.scaling && (
+                    <div className="flex flex-col bg-gold/5 p-2 rounded-sm border border-gold/10">
+                      <span className="text-[8px] text-gold/60 font-black uppercase">Resonance</span>
+                      <span className="text-xs text-gold font-black">{spell.scaling}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-4 mt-2">
+                  {(spell.manaCost || spell.hpCost) && (
+                     <div className="flex gap-4">
+                       {spell.manaCost && <span className="text-[9px] text-blue-400 font-black uppercase tracking-tighter">Cost: {spell.manaCost} MP</span>}
+                       {spell.hpCost && <span className="text-[9px] text-red-500 font-black uppercase tracking-tighter">Cost: {spell.hpCost} HP</span>}
+                     </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

@@ -25,7 +25,7 @@ const RulesScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="p-5 bg-emerald-900/5 border border-emerald-900/20 rounded">
           <h4 className="font-cinzel text-emerald-800 uppercase text-xs mb-2 font-bold">The Arbiter</h4>
           <p className="text-[10px] text-gray-500 leading-relaxed">The Gemini 3 Flash AI serves as the ultimate arbiter of fate. Its word is law, calculating dice outcomes with high-speed tactical precision based on thy attributes.</p>
@@ -33,6 +33,10 @@ const RulesScreen: React.FC = () => {
         <div className="p-5 bg-gold/5 border border-gold/20 rounded">
           <h4 className="font-cinzel text-gold uppercase text-xs mb-2 font-bold">Ascension</h4>
           <p className="text-[10px] text-gray-500 leading-relaxed">Every 1,000 EXP times thy current level triggers Ascension. With each level, thy soul grows in power, unlocking new paths and spells in the Flash protocol.</p>
+        </div>
+        <div className="p-5 bg-emerald-950/20 border border-gold/40 rounded shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+          <h4 className="font-cinzel text-gold uppercase text-xs mb-2 font-bold">Legendary Deeds</h4>
+          <p className="text-[10px] text-gray-300 leading-relaxed">The Arbiter rarely grants unique **Legendary Boons** for high-stakes successes (Nat 20s), profound sacrificial roleplay, or class-perfect tactics. These powers are permanent and unique to thy soul's journey.</p>
         </div>
       </div>
     </div>

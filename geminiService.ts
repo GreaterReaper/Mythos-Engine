@@ -67,7 +67,7 @@ const prepareHistory = (history: Message[]) => {
 
 /**
  * THE SCRIBE: Audits narrative text for mechanical changes.
- * Fallback: Simple RegEx scanning for "damage", "heal", and numbers.
+ * Optimized for FLASH speed with 0 thinking budget.
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   if (!narrative) return { changes: [], newEntities: [] };
@@ -94,7 +94,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Mechanical Scribe" running on Flash architecture. Audit narrative for stats. Level cap is 20. Return JSON ONLY.`;
+  const systemInstruction = `Thou art the "Mechanical Scribe" running on Flash architecture. Audit narrative for stats. Level cap is 20. Return JSON ONLY. THOU ART ULTRA-FAST.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -103,6 +103,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
       config: { 
         systemInstruction, 
         responseMimeType: "application/json",
+        temperature: 0.1, // Near-deterministic for math/stats
+        thinkingConfig: { thinkingBudget: 0 }, // Maximum velocity
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -141,7 +143,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
 /**
  * THE ARBITER: The primary DM logic.
- * Fallback: Static dark fantasy prompts.
+ * Uses FLASH with thinking budget for narrative depth.
  */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
   if (isOffline()) {
@@ -155,17 +157,20 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
   RULES: 
   - Level cap is 20.
   - ${isRaid 
-      ? "RAID PROTOCOL ACTIVE: Balance all encounters for an ELITE SQUAD of 8 vessels (2 Tanks, 4 DPS, 2 Supports). Monsters must have massive HP pools, multi-attacks, and phase transitions. Environmental hazards are lethal." 
-      : "ALWAYS balance encounters for a party of 4-5 members. If the party has fewer, the world is brutal and they must use strategy or find allies. If they have more, the darkness scales up."}
+      ? "RAID PROTOCOL ACTIVE: Balance for 8 Vessels." 
+      : "Balance for 4-5 Vessels."}
   - Use [🎲 d20(roll)+mod=result] for checks. 
-  - Grant legendary feats for Nat 20 successes. 
-  - High-velocity, evocative dark fantasy prose.`;
+  - Evocative, high-velocity dark fantasy prose.`;
   const contents = prepareHistory(history);
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents,
-      config: { systemInstruction, temperature: 0.7 }
+      config: { 
+        systemInstruction, 
+        temperature: 0.8,
+        thinkingConfig: { thinkingBudget: 4096 } // Moderate thinking for creative depth
+      }
     });
     return response.text || "The void is silent.";
   } catch (error: any) { return "The Aetheric connection has been severed."; }
@@ -173,14 +178,14 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
 
 /**
  * THE ARCHITECT: Forges unique gear.
- * Fallback: Draws from a basic loot table.
+ * Strictly uses FLASH.
  */
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
   if (isOffline()) {
     const base = CLOCKWORK_ITEMS[Math.floor(Math.random() * CLOCKWORK_ITEMS.length)];
     return {
       name: `Clockwork ${itemName || base.name}`,
-      description: "A deterministic artifact forged without soul-resonance.",
+      description: "Deterministic forge artifact.",
       type: (base.type as any) || "Utility",
       rarity: base.rarity as any || "Common",
       stats: { damage: (base as any).damage, ac: (base as any).ac, damageType: (base as any).damageType } as any
@@ -194,14 +199,14 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   - Robes: Common (10-11 AC), Relic (12-13 AC)
   - Leather: Common (12-13 AC), Relic (14-15 AC)
   - Heavy/Plate: Common (16-18 AC), Relic (19-21 AC)
-  Relic items are superior artifacts with enhanced stats and unique descriptions.
-  If the rarity is Relic, the AC MUST fall in the Relic band.`;
+  Relic items are superior artifacts.`;
   try {
     const response = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
       contents: `Manifest Item: ${itemName}. Context: ${context}`, 
       config: { 
         systemInstruction,
+        temperature: 0.7,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -234,44 +239,8 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
 };
 
 /**
- * THE LORE-WEAVER: Creates character biographies.
- * Fallback: Static biography.
- */
-export const manifestSoulLore = async (char: any): Promise<any> => {
-  if (isOffline()) return { biography: "A soul forged in the clockwork void, destined for deterministic trials.", description: "A vessel of standard design." };
-  
-  const ai = getAiClient();
-  trackUsage();
-  const response = await ai.models.generateContent({ 
-    model: FLASH_MODEL, 
-    contents: `Manifest Lore for ${char.name}, a level ${char.level} ${char.race} ${char.archetype}. Return JSON with "biography" and "description".`, 
-    config: { 
-      systemInstruction: "Thou art the Lore-Weaver. Dark fantasy tone.",
-      responseMimeType: "application/json" 
-    } 
-  });
-  return JSON.parse(response.text || '{}');
-};
-
-/**
- * THE INNKEEPER: Barnaby's conversational logic.
- */
-export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
-  if (isOffline()) return "Rest thy bones. The fire burns even without the Great Well's light.";
-  
-  const ai = getAiClient();
-  trackUsage();
-  const contents = prepareHistory(history);
-  const response = await ai.models.generateContent({ 
-    model: FLASH_MODEL, 
-    contents, 
-    config: { systemInstruction: "Thou art Barnaby, one-eyed innkeeper. Dark fantasy. Flash-velocity speech." } 
-  });
-  return response.text;
-};
-
-/**
- * THE BESTIARY-CLERK: Forges new horrors.
+ * THE ARCHITECT (Bestiary Clerk): Forges horrors.
+ * Strictly uses FLASH.
  */
 export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
   if (isOffline()) {
@@ -291,11 +260,42 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
     model: FLASH_MODEL, 
     contents: `Manifest Monster: ${monsterName}. Context: ${context}. Return JSON.`, 
     config: { 
-      systemInstruction: "Thou art the Bestiary-Clerk. Forge a horrific creature.",
+      systemInstruction: "Thou art the Bestiary-Clerk (part of the Architect suite). Forge a horrific creature using Flash architecture.",
+      temperature: 0.7,
       responseMimeType: "application/json" 
     } 
   });
   return JSON.parse(response.text || '{}');
+};
+
+export const manifestSoulLore = async (char: any): Promise<any> => {
+  if (isOffline()) return { biography: "A soul forged in the clockwork void.", description: "A vessel of standard design." };
+  
+  const ai = getAiClient();
+  trackUsage();
+  const response = await ai.models.generateContent({ 
+    model: FLASH_MODEL, 
+    contents: `Manifest Lore for ${char.name}. Return JSON with "biography" and "description".`, 
+    config: { 
+      systemInstruction: "Lore-Weaver on Flash.",
+      responseMimeType: "application/json" 
+    } 
+  });
+  return JSON.parse(response.text || '{}');
+};
+
+export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
+  if (isOffline()) return "Rest thy bones.";
+  
+  const ai = getAiClient();
+  trackUsage();
+  const contents = prepareHistory(history);
+  const response = await ai.models.generateContent({ 
+    model: FLASH_MODEL, 
+    contents, 
+    config: { systemInstruction: "Barnaby on Flash." } 
+  });
+  return response.text;
 };
 
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => ({ ...defaultState, ...data });

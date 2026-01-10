@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Item, Archetype } from '../types';
+import { generateItemDetails, safeId } from '../geminiService';
 
 interface ArmoryScreenProps {
   armory: Item[];
@@ -13,6 +14,8 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare 
   const [filterClass, setFilterClass] = useState<Archetype | string | 'All'>('All');
   const [filterType, setFilterType] = useState<Item['type'] | 'All'>('All');
   const [sortBy, setSortBy] = useState<'rarity' | 'name'>('rarity');
+  const [isForging, setIsForging] = useState(false);
+  const [forgeInput, setForgeInput] = useState('');
 
   const rarityOrder = {
     'Relic': 6,
@@ -46,11 +49,51 @@ const ArmoryScreen: React.FC<ArmoryScreenProps> = ({ armory, setArmory, onShare 
     setArmory(armory.filter(i => i.id !== id));
   };
 
+  const handleForge = async () => {
+    if (!forgeInput.trim() || isForging) return;
+    setIsForging(true);
+    try {
+      const details = await generateItemDetails(forgeInput, "Architect forge command from Armory.");
+      const newItem: Item = {
+        id: safeId(),
+        name: details.name || forgeInput,
+        description: details.description || "A forged artifact.",
+        type: details.type || 'Weapon',
+        rarity: details.rarity || 'Common',
+        stats: details.stats || {},
+        archetypes: details.archetypes || []
+      };
+      setArmory([newItem, ...armory]);
+      setForgeInput('');
+    } catch (e) {
+      alert("The Aetheric forge is cold.");
+    } finally {
+      setIsForging(false);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-20 px-2">
-      <div className="border-b border-emerald-900 pb-4">
-        <h2 className="text-4xl font-cinzel text-gold">The Armory</h2>
-        <p className="text-gray-500 italic text-sm">"Obsidian blades for obsidian souls."</p>
+      <div className="border-b border-emerald-900 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h2 className="text-4xl font-cinzel text-gold">The Armory</h2>
+          <p className="text-gray-500 italic text-sm">"Obsidian blades for obsidian souls."</p>
+        </div>
+        <div className="flex w-full md:w-auto gap-2">
+           <input 
+             value={forgeInput}
+             onChange={e => setForgeInput(e.target.value)}
+             placeholder="Dream of an artifact..."
+             className="bg-black/60 border border-emerald-900/40 p-2 text-xs text-gold outline-none focus:border-gold flex-1 md:w-48"
+           />
+           <button 
+             onClick={handleForge}
+             disabled={isForging || !forgeInput.trim()}
+             className="px-4 py-2 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-700 disabled:opacity-30 whitespace-nowrap"
+           >
+             {isForging ? 'FORGING...' : 'INVOKE ARCHITECT'}
+           </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 p-4 bg-black/40 rune-border border-emerald-900/60">

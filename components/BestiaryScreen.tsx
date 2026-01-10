@@ -1,20 +1,25 @@
+
 import React, { useState, useMemo } from 'react';
 import { Monster, Stats } from '../types';
+import { generateMonsterDetails, safeId } from '../geminiService';
 
 interface BestiaryScreenProps {
   monsters: Monster[];
   onClear?: () => void;
   onUpdateMonster?: (id: string, updates: Partial<Monster>) => void;
+  onAddMonster?: (monster: Monster) => void;
 }
 
 type SortCriteria = 'cr' | 'hp' | 'ac' | 'name';
 type SortOrder = 'asc' | 'desc';
 
-const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) => {
+const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear, onAddMonster }) => {
   const [sortBy, setSortBy] = useState<SortCriteria>('cr');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [isForging, setIsForging] = useState(false);
+  const [forgeInput, setForgeInput] = useState('');
 
   const toggleExpand = (id: string) => {
     const next = new Set(expandedIds);
@@ -24,8 +29,34 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) =>
   };
 
   const handlePurge = () => {
-    if (confirm("Art thou certain? This ritual shall dissolve all monster fragments stored in the engine. This action is irreversible.")) {
+    if (confirm("Art thou certain? This ritual shall dissolve all monster fragments stored in the engine.")) {
       onClear?.();
+    }
+  };
+
+  const handleForgeHorror = async () => {
+    if (!forgeInput.trim() || isForging) return;
+    setIsForging(true);
+    try {
+      const details = await generateMonsterDetails(forgeInput, "Architect forge command from Bestiary.");
+      const newMonster: Monster = {
+        id: safeId(),
+        name: details.name || forgeInput,
+        type: details.type || 'Hybrid',
+        hp: details.hp || 50,
+        ac: details.ac || 15,
+        stats: details.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+        cr: details.cr || 1,
+        abilities: details.abilities || [],
+        activeStatuses: [],
+        description: details.description || "A horrific manifestation."
+      };
+      onAddMonster?.(newMonster);
+      setForgeInput('');
+    } catch (e) {
+      alert("The Aether is too thin to manifest horrors.");
+    } finally {
+      setIsForging(false);
     }
   };
 
@@ -51,14 +82,31 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) =>
       <div className="border-b border-emerald-900/50 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="text-4xl md:text-5xl font-cinzel text-gold tracking-tighter">Ancient Bestiary</h2>
-          <p className="text-gray-500 italic mt-2 opacity-70">"Heed the biological warnings of the fallen, and target the weakness in their flesh."</p>
+          <p className="text-gray-500 italic mt-2 opacity-70">"Heed the biological warnings of the fallen."</p>
         </div>
-        <button 
-          onClick={handlePurge}
-          className="px-6 py-3 border-2 border-red-900 text-red-500 font-cinzel text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all shadow-lg"
-        >
-          Purge Bestiary
-        </button>
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+          <div className="flex gap-2">
+            <input 
+              value={forgeInput}
+              onChange={e => setForgeInput(e.target.value)}
+              placeholder="Dream of a horror..."
+              className="bg-black/60 border border-emerald-900/40 p-2 text-xs text-gold outline-none focus:border-gold w-full"
+            />
+            <button 
+              onClick={handleForgeHorror}
+              disabled={isForging || !forgeInput.trim()}
+              className="px-4 py-2 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-700 disabled:opacity-30 whitespace-nowrap"
+            >
+              {isForging ? 'FORGING...' : 'FORGE HORROR'}
+            </button>
+          </div>
+          <button 
+            onClick={handlePurge}
+            className="px-6 py-2 border-2 border-red-900 text-red-500 font-cinzel text-[10px] font-black uppercase tracking-widest hover:bg-red-900 hover:text-white transition-all shadow-lg"
+          >
+            Purge
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 p-5 bg-black/40 rune-border items-end shadow-2xl">
@@ -91,7 +139,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) =>
           onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
           className="w-full md:w-36 h-[46px] border-2 border-emerald-900/40 text-[10px] font-cinzel text-gold hover:bg-emerald-900 hover:text-white hover:border-emerald-900 transition-all uppercase font-black tracking-widest"
         >
-          {sortOrder === 'asc' ? 'ASCENDING' : 'DESCENDING'}
+          {sortOrder === 'asc' ? 'ASC' : 'DESC'}
         </button>
       </div>
 
@@ -132,7 +180,7 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) =>
 
                 <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                   <div className="text-right shrink-0">
-                    <span className="block text-[8px] text-gold font-black uppercase opacity-60 tracking-widest">Challenge Rating</span>
+                    <span className="block text-[8px] text-gold font-black uppercase opacity-60 tracking-widest">Challenge</span>
                     <span className={`font-cinzel leading-none block ${isBoss ? 'text-2xl text-emerald-500 font-black drop-shadow-sm' : 'text-lg text-gold font-bold'}`}>
                       {monster.cr}
                     </span>
@@ -167,28 +215,6 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) =>
                           );
                         })}
                       </div>
-                      
-                      {(monster.resistances && monster.resistances.length > 0) && (
-                        <div className="space-y-1">
-                          <h4 className="text-[9px] font-cinzel text-blue-500 uppercase font-black tracking-widest">Resistances</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {monster.resistances.map((r, i) => (
-                              <span key={i} className="text-[8px] bg-blue-900/20 border border-blue-900/40 text-blue-300 px-1.5 py-0.5 rounded-sm italic">{r}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {(monster.vulnerabilities && monster.vulnerabilities.length > 0) && (
-                        <div className="space-y-1">
-                          <h4 className="text-[9px] font-cinzel text-lime-500 uppercase font-black tracking-widest">Vulnerabilities</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {monster.vulnerabilities.map((v, i) => (
-                              <span key={i} className="text-[8px] bg-lime-900/20 border border-lime-900/40 text-lime-300 px-1.5 py-0.5 rounded-sm italic">{v}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
 
                     <div className="lg:col-span-2 space-y-4">
@@ -211,11 +237,6 @@ const BestiaryScreen: React.FC<BestiaryScreenProps> = ({ monsters, onClear }) =>
             </div>
           );
         })}
-        {sortedMonsters.length === 0 && (
-          <div className="py-20 text-center opacity-30 border-2 border-dashed border-emerald-900/20">
-            <p className="text-xl font-cinzel text-gray-500 uppercase italic">The wilderness is currently empty.</p>
-          </div>
-        )}
       </div>
     </div>
   );

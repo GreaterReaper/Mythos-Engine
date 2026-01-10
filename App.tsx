@@ -108,6 +108,7 @@ const App: React.FC = () => {
       const updatedMentors = MENTORS.map(sourceMentor => {
         const existing = prev.mentors.find(m => m.id === sourceMentor.id);
         if (existing) {
+          // Keep current level/hp but sync latest manifest gear/descriptions
           return {
             ...existing,
             stats: sourceMentor.stats,
@@ -115,8 +116,9 @@ const App: React.FC = () => {
             equippedIds: sourceMentor.equippedIds,
             description: sourceMentor.description,
             biography: sourceMentor.biography,
-            abilities: sourceMentor.abilities,
-            spells: sourceMentor.spells
+            // Mentors also follow strict level-gating for abilities/spells
+            abilities: sourceMentor.abilities.filter(a => a.levelReq <= existing.level),
+            spells: sourceMentor.spells.filter(s => s.levelReq <= existing.level)
           };
         }
         return sourceMentor;
@@ -161,12 +163,12 @@ const App: React.FC = () => {
 
             if (audit.changes && audit.changes.length > 0) {
               audit.changes.forEach((change: any) => {
-                const targetIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
+                const charIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
                 const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
-                let target = targetIdx !== -1 ? newCharacters[targetIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
+                let target = charIdx !== -1 ? newCharacters[charIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
                 
                 if (!target) return;
-                const updates: any = {};
+                const updates: Partial<Character> = {};
                 if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
                 if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
                 if (change.type === 'mana') updates.currentMana = Math.max(0, target.currentMana - change.value);
@@ -178,19 +180,29 @@ const App: React.FC = () => {
                   if (newTotalExp >= expToLevel) {
                     updates.level = target.level + 1;
                     updates.exp = newTotalExp - expToLevel;
-                    const arch = ARCHETYPE_INFO[target.archetype as Archetype];
-                    const hpGain = arch ? Math.floor(arch.hpDie / 2) + 1 : 6;
-                    updates.maxHp = target.maxHp + hpGain;
-                    updates.currentHp = updates.maxHp;
-                    updates.maxMana = target.maxMana + 10;
-                    updates.currentMana = updates.maxMana;
+                    const archInfo = ARCHETYPE_INFO[target.archetype as Archetype];
+                    
+                    if (archInfo) {
+                      const hpGain = Math.floor(archInfo.hpDie / 2) + 1;
+                      updates.maxHp = target.maxHp + hpGain;
+                      updates.currentHp = updates.maxHp;
+                      updates.maxMana = target.maxMana + 10;
+                      updates.currentMana = updates.maxMana;
+                      
+                      // Sync newly unlocked manifestations
+                      const unlockedAbilities = archInfo.coreAbilities.filter(a => a.levelReq <= updates.level!);
+                      const unlockedSpells = (archInfo.spells || []).filter(s => s.levelReq <= updates.level!);
+                      updates.abilities = unlockedAbilities;
+                      updates.spells = unlockedSpells;
+                    }
+                    
                     logs.push({ role: 'system', content: `SCRIBE: ${target.name} ASCENDED TO LEVEL ${updates.level}!`, timestamp: Date.now() });
                   } else {
                     updates.exp = newTotalExp;
                   }
                 }
 
-                if (targetIdx !== -1) newCharacters[targetIdx] = { ...target, ...updates };
+                if (charIdx !== -1) newCharacters[charIdx] = { ...target, ...updates };
                 else if (mentorIdx !== -1) newMentors[mentorIdx] = { ...target, ...updates };
               });
             }
@@ -219,16 +231,10 @@ const App: React.FC = () => {
                     
                     setState(p => {
                       const newArmory = [...p.armory, newItem];
-                      
                       if (entity.target) {
                         const targetName = entity.target.toLowerCase();
-                        const updateParty = (chars: Character[]) => chars.map(c => {
-                          if (c.name.toLowerCase().includes(targetName)) {
-                            return { ...c, inventory: [...c.inventory, newItem] };
-                          }
-                          return c;
-                        });
-                        return { ...p, armory: newArmory, characters: updateParty(p.characters), mentors: updateParty(p.mentors) };
+                        const updateList = (chars: Character[]) => chars.map(c => c.name.toLowerCase().includes(targetName) ? { ...c, inventory: [...c.inventory, newItem] } : c);
+                        return { ...p, armory: newArmory, characters: updateList(p.characters), mentors: updateList(p.mentors) };
                       }
                       return { ...p, armory: newArmory };
                     });
@@ -264,7 +270,6 @@ const App: React.FC = () => {
       participants: partyIds 
     };
 
-    // Auto-select the player's character as the POV
     const primaryChar = state.characters.find(c => c.isPrimarySoul) || state.characters[0];
 
     setState(prev => ({

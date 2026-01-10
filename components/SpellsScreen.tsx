@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo } from 'react';
-import { ARCHETYPE_INFO } from '../constants';
+import { ARCHETYPE_INFO, SPELL_LIBRARY } from '../constants';
 import { Character, Ability, ArchetypeInfo } from '../types';
 
 interface SpellsScreenProps {
@@ -14,22 +13,41 @@ const SpellsScreen: React.FC<SpellsScreenProps> = ({ playerCharacters, customArc
 
   const allArchetypesWithSpells = useMemo(() => {
     const set = new Set<string>();
+    
+    // 1. Check source manifest
     Object.entries(ARCHETYPE_INFO).forEach(([key, info]) => {
       if (info.spells && info.spells.length > 0) set.add(key);
     });
+    
+    // 2. Check standalone spell library
+    Object.keys(SPELL_LIBRARY).forEach(key => set.add(key));
+    
+    // 3. Check custom creations
     customArchetypes.forEach(ca => { if (ca.spells && ca.spells.length > 0) set.add(ca.name); });
-    playerCharacters.forEach(c => { if (c.spells && c.spells.length > 0) set.add(c.archetype); });
-    return Array.from(set);
+    
+    // 4. Check active souls
+    playerCharacters.forEach(c => { 
+      const spells = getSpellsForArchetype(c.archetype);
+      if (spells.length > 0) set.add(c.archetype); 
+    });
+
+    return Array.from(set).sort();
   }, [playerCharacters, customArchetypes]);
 
-  const getSpellsForArchetype = (arch: string): Ability[] => {
+  function getSpellsForArchetype(arch: string): Ability[] {
+    // Priority 1: ARCHETYPE_INFO source
     const info = ARCHETYPE_INFO[arch];
-    if (info?.spells) return info.spells;
+    if (info?.spells && info.spells.length > 0) return info.spells;
+    
+    // Priority 2: Standalone SPELL_LIBRARY
+    if (SPELL_LIBRARY[arch]) return SPELL_LIBRARY[arch];
+    
+    // Priority 3: Custom Archetypes
     const ca = customArchetypes.find(a => a.name === arch);
-    if (ca?.spells) return ca.spells;
-    const pc = playerCharacters.find(c => c.archetype === arch);
-    return pc?.spells || [];
-  };
+    if (ca?.spells && ca.spells.length > 0) return ca.spells;
+    
+    return [];
+  }
 
   const activeArchetype = selectedArchetype || allArchetypesWithSpells[0];
 
@@ -42,7 +60,7 @@ const SpellsScreen: React.FC<SpellsScreenProps> = ({ playerCharacters, customArc
 
       {allArchetypesWithSpells.length > 0 ? (
         <>
-          <div className="flex gap-2 overflow-x-auto pb-4 custom-scrollbar no-scrollbar">
+          <div className="flex gap-2 overflow-x-auto pb-4 custom-scrollbar no-scrollbar border-b border-emerald-900/10">
             {allArchetypesWithSpells.map(arch => {
               const isCustom = customArchetypes.some(ca => ca.name === arch);
               return (
@@ -81,6 +99,12 @@ const SpellsScreen: React.FC<SpellsScreenProps> = ({ playerCharacters, customArc
                 <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-emerald-900/50 pl-4 py-1 font-medium">
                   {spell.description}
                 </p>
+                {(spell.manaCost || spell.hpCost) && (
+                   <div className="flex gap-4 mt-2">
+                     {spell.manaCost && <span className="text-[9px] text-blue-400 font-black uppercase">Cost: {spell.manaCost} MP</span>}
+                     {spell.hpCost && <span className="text-[9px] text-red-500 font-black uppercase">Cost: {spell.hpCost} HP</span>}
+                   </div>
+                )}
                 {spell.scaling && (
                   <div className="text-[9px] text-emerald-500/60 font-mono mt-auto pt-2 border-t border-emerald-900/10">
                     RESONANCE: {spell.scaling}

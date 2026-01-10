@@ -74,14 +74,16 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     if (customMatch) {
       hpDie = customMatch.hpDie;
       role = customMatch.role;
-      baseAbilities = customMatch.coreAbilities;
-      baseSpells = customMatch.spells || [];
+      // Strictly limit to Level 1
+      baseAbilities = customMatch.coreAbilities.filter(a => a.levelReq <= 1);
+      baseSpells = (customMatch.spells || []).filter(s => s.levelReq <= 1);
       starterGearNames = ['Fledgling Gear'];
     } else if (defaultMatch) {
       hpDie = defaultMatch.hpDie;
       role = defaultMatch.role;
-      baseAbilities = defaultMatch.coreAbilities;
-      baseSpells = defaultMatch.spells || [];
+      // Strictly limit to Level 1
+      baseAbilities = defaultMatch.coreAbilities.filter(a => a.levelReq <= 1);
+      baseSpells = (defaultMatch.spells || []).filter(s => s.levelReq <= 1);
       starterGearNames = defaultMatch.starterGear;
     }
 

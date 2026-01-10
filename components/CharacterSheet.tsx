@@ -64,28 +64,30 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     setDisplayMana(character.currentMana);
   }, []);
 
-  const fullSoulPath = useMemo(() => {
-    let info = ARCHETYPE_INFO[character.archetype as Archetype];
-    if (!info) {
+  const { unlockedAbilities, lockedAbilities } = useMemo(() => {
+    let archInfo = ARCHETYPE_INFO[character.archetype as Archetype];
+    if (!archInfo) {
       const customMatch = customArchetypes.find(a => a.name === character.archetype);
       if (customMatch) {
-        info = { hpDie: customMatch.hpDie, role: customMatch.role, description: customMatch.description, coreAbilities: customMatch.coreAbilities, spells: customMatch.spells, starterGear: [] };
+        archInfo = { hpDie: customMatch.hpDie, role: customMatch.role, description: customMatch.description, coreAbilities: customMatch.coreAbilities, spells: customMatch.spells, starterGear: [] };
       }
     }
-    if (!info) return [...character.abilities, ...character.spells].sort((a, b) => a.levelReq - b.levelReq);
-    const allAbilities = [...info.coreAbilities];
-    if (info.spells) allAbilities.push(...info.spells);
-    const uniqueMap = new Map<string, Ability>();
-    allAbilities.forEach(a => uniqueMap.set(a.name, a));
-    return Array.from(uniqueMap.values()).sort((a, b) => a.levelReq - b.levelReq);
-  }, [character.archetype, character.abilities, character.spells, customArchetypes]);
+
+    if (!archInfo) return { unlockedAbilities: [...character.abilities, ...character.spells], lockedAbilities: [] };
+
+    const allManifests = [...archInfo.coreAbilities, ...(archInfo.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
+    
+    return {
+      unlockedAbilities: allManifests.filter(a => a.levelReq <= character.level),
+      lockedAbilities: allManifests.filter(a => a.levelReq > character.level)
+    };
+  }, [character.archetype, character.level, customArchetypes]);
 
   const equippedItems = useMemo(() => character.inventory.filter(i => character.equippedIds?.includes(i.id)), [character.inventory, character.equippedIds]);
   
   const acCalculation = useMemo(() => {
     let baseAc = 10 + dexMod;
     let shieldBonus = 0;
-    let hasArmor = false;
     
     equippedItems.forEach(item => {
       if (item.type === 'Armor') {
@@ -93,8 +95,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         if (item.name.toLowerCase().includes('shield')) {
           shieldBonus += itemAc;
         } else {
-          hasArmor = true;
-          // Simplified: heavy armor ignores dex, others add it
           if (item.name.toLowerCase().includes('plate') || item.name.toLowerCase().includes('heavy')) {
             baseAc = itemAc;
           } else {
@@ -237,19 +237,36 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           </div>
         )}
         {activeTab === 'Soul Path' && (
-          <div className="space-y-4">
-            {fullSoulPath.map((a, i) => (
-              <div key={i} className={`p-4 border-l-2 ${a.levelReq <= character.level ? 'bg-emerald-900/5 border-gold opacity-100' : 'bg-black opacity-30'} rounded-sm`}>
-                <div className="flex justify-between">
-                  <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gold">{a.name}</span>
-                  <div className="flex gap-2">
-                    {a.manaCost && <span className="text-[8px] text-blue-400 uppercase font-black">-{a.manaCost} MP</span>}
-                    {a.hpCost && <span className="text-[8px] text-red-500 uppercase font-black">-{a.hpCost} HP</span>}
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest border-b border-emerald-900/20 pb-1">Unlocked Manifestations</h4>
+              {unlockedAbilities.map((a, i) => (
+                <div key={i} className="p-4 border-l-2 bg-emerald-900/5 border-gold rounded-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gold">{a.name}</span>
+                    <div className="flex gap-2">
+                      {a.manaCost && <span className="text-[8px] text-blue-400 uppercase font-black">-{a.manaCost} MP</span>}
+                      {a.hpCost && <span className="text-[8px] text-red-500 uppercase font-black">-{a.hpCost} HP</span>}
+                    </div>
                   </div>
+                  <p className="text-[10px] text-gray-400 mt-1 italic">"{a.description}"</p>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 italic">"{a.description}"</p>
-              </div>
-            ))}
+              ))}
+              {unlockedAbilities.length === 0 && <p className="text-[10px] text-gray-600 italic">No power yet manifested.</p>}
+            </div>
+
+            <div className="space-y-4 opacity-40">
+              <h4 className="text-[10px] font-cinzel text-gray-500 uppercase font-black tracking-widest border-b border-gray-900 pb-1">Locked Manifestations</h4>
+              {lockedAbilities.map((a, i) => (
+                <div key={i} className="p-4 border-l-2 bg-black/20 border-gray-800 rounded-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gray-600">{a.name}</span>
+                    <span className="text-[8px] text-gold/60 uppercase font-black">Requires Level {a.levelReq}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-700 mt-1 italic">"{a.description}"</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         {activeTab === 'Inventory' && (

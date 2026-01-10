@@ -39,7 +39,7 @@ const prepareHistory = (history: Message[]) => {
     if (currentRole === lastRole) {
       contents[contents.length - 1].parts[0].text += `\n\n${m.content}`;
     } else {
-      contents.push({ role: currentRole, parts: [{ text: currentRole, contents: m.content }] });
+      contents.push({ role: currentRole, parts: [{ text: m.content }] });
       lastRole = currentRole;
     }
   });

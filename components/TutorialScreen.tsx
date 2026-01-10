@@ -45,8 +45,14 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, on
   const pathMentor = useMemo(() => {
     if (!primaryChar) return mentors[0];
     const baseMentorNames = ['Lina', 'Miri', 'Seris'];
+    
+    // Attempt to find a mentor matching the player's class that is NOT one of the base 3
     const match = mentors.find(m => m.archetype === primaryChar.archetype && !baseMentorNames.includes(m.name));
-    return match || mentors.find(m => !baseMentorNames.includes(m.name)) || mentors[0];
+    if (match) return match;
+
+    // Fallback: If player is a base class, just pick a distinct mentor to fill the 5th slot if needed, 
+    // or handle the 4-man logic.
+    return mentors.find(m => !baseMentorNames.includes(m.name)) || mentors[0];
   }, [primaryChar, mentors]);
 
   const finalize = () => {
@@ -54,14 +60,24 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, on
     const boundThreeIds = mentors.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
     const finalPartyIds = [primaryChar.id, ...boundThreeIds];
     
+    // Rule: Add mentor if player is NOT one of the base three classes (Fighter, Mage, Archer)
     const playerIsBaseClass = ['Fighter', 'Mage', 'Archer'].includes(primaryChar.archetype as string);
     if (!playerIsBaseClass && pathMentor) {
       finalPartyIds.push(pathMentor.id);
     }
 
     const arch = primaryChar.archetype as string;
+    const mentorName = pathMentor?.name || "Thy Mentor";
     
+    // Support class sacrifice logic
+    const isSupportMentor = pathMentor?.role === 'Support';
+    const sacrificeText = isSupportMentor 
+      ? `[SCRIBE_COMMAND: Miri takes 15 damage.] \nMiri staggers as she shatters the shell to free ${mentorName}, her hands seared by silver fire.`
+      : `${mentorName} is freed from the shell, gasping as the necrotic cords dissolve.`;
+
     const customPrompt = `The Sunken Sanctuary groans. Thy Fellowship stands complete, and thou hast manifest thy TRUE SOUL.
+
+${sacrificeText}
 
 [LEGENDARY_MANIFEST: The Unbound's ${arch} Signature | A unique legendary action manifest from the ritual of the Sunken Sanctuary. This power defies standard vocation limits.]
 

@@ -154,41 +154,50 @@ const App: React.FC = () => {
             setState(prev => {
               let newCharacters = [...prev.characters];
               let newMentors = [...prev.mentors];
+
               audit.changes.forEach((change: any) => {
-                // Better mapping: Find by name containing or exact
-                const targetId = [...newCharacters, ...newMentors].find(c => 
-                  c.name.toLowerCase().includes(change.target.toLowerCase()) || 
-                  change.target.toLowerCase().includes(c.name.toLowerCase())
-                )?.id;
+                const targetChar = [...newCharacters, ...newMentors].find(c => 
+                  change.target && (
+                    c.name.toLowerCase().includes(change.target.toLowerCase()) || 
+                    change.target.toLowerCase().includes(c.name.toLowerCase())
+                  )
+                );
                 
-                if (!targetId) return;
+                if (!targetChar) return;
+                const targetId = targetChar.id;
                 
-                const update = (c: Character) => {
+                const updateMapper = (c: Character): Character => {
                   if (c.id !== targetId) return c;
-                  const updates: Partial<Character> = { ...c };
-                  if (change.type === 'damage') updates.currentHp = Math.max(0, (updates.currentHp || 0) - (change.value || 0));
-                  if (change.type === 'heal') updates.currentHp = Math.min(updates.maxHp || 100, (updates.currentHp || 0) + (change.value || 0));
-                  if (change.type === 'exp') updates.exp = (updates.exp || 0) + (change.value || 0);
+                  const charUpdate = { ...c };
+                  if (change.type === 'damage') charUpdate.currentHp = Math.max(0, (charUpdate.currentHp || 0) - (change.value || 0));
+                  if (change.type === 'heal') charUpdate.currentHp = Math.min(charUpdate.maxHp || 100, (charUpdate.currentHp || 0) + (change.value || 0));
+                  if (change.type === 'exp') charUpdate.exp = (charUpdate.exp || 0) + (change.value || 0);
+                  if (change.type === 'mana') charUpdate.currentMana = Math.max(0, (charUpdate.currentMana || 0) - (change.value || 0));
                   if (change.type === 'ability') {
                     const newAbility: Ability = {
-                      name: change.target,
-                      description: change.description || "A unique soul-manifestation.",
+                      name: change.description?.split('|')[0]?.trim() || "New Power",
+                      description: change.description?.split('|')[1]?.trim() || "A unique soul-manifestation.",
                       type: 'Active',
                       levelReq: 0
                     };
-                    updates.abilities = [...(updates.abilities || []), newAbility];
+                    charUpdate.abilities = [...(charUpdate.abilities || []), newAbility];
                     logs.push({ role: 'system', content: `LEGENDARY: ${c.name} has manifest a unique power: ${newAbility.name}.`, timestamp: Date.now() });
                   }
-                  return updates;
+                  return charUpdate;
                 };
-                newCharacters = newCharacters.map(update);
-                newMentors = newMentors.map(update);
+
+                newCharacters = newCharacters.map(updateMapper);
+                newMentors = newMentors.map(updateMapper);
               });
-              return { ...prev, characters: newCharacters, mentors: newMentors };
+              
+              return { 
+                ...prev, 
+                characters: newCharacters, 
+                mentors: newMentors,
+                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
+              };
             });
-          }
-          
-          if (logs.length > 0) {
+          } else if (logs.length > 0) {
             setState(prev => ({
               ...prev,
               campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
@@ -269,4 +278,5 @@ const App: React.FC = () => {
     </div>
   );
 };
+
 export default App;

@@ -56,6 +56,8 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, on
   }, [primaryChar, mentors]);
 
   const finalize = () => {
+    if (!primaryChar) return;
+
     const baseMentorNames = ['Lina', 'Miri', 'Seris'];
     const boundThreeIds = mentors.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
     const finalPartyIds = [primaryChar.id, ...boundThreeIds];

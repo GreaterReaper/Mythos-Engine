@@ -85,6 +85,7 @@ const App: React.FC = () => {
     const targetCampaignId = campaignId || state.activeCampaignId;
     if (!targetCampaignId) return;
 
+    // 1. Instantly display the DM message
     setState(prev => ({
       ...prev,
       campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, msg] } : c)
@@ -93,50 +94,53 @@ const App: React.FC = () => {
     if (msg.role === 'model') {
       const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       
+      // 2. Perform Audit
       setTimeout(async () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
+          const logs: Message[] = [];
           
-          if (audit.changes && audit.changes.length > 0) {
-            audit.changes.forEach((change: any) => {
-              // Robust matching: Check if character name contains target name or vice versa
-              const target = activePartyObjects.find(c => 
-                c.name.toLowerCase().includes(change.target.toLowerCase()) || 
-                change.target.toLowerCase().includes(c.name.toLowerCase())
-              );
-              
-              if (!target) return;
+          setState(prev => {
+            // Create mutable copies for the functional update
+            let newCharacters = [...prev.characters];
+            let newMentors = [...prev.mentors];
+            let newBestiary = [...prev.bestiary];
+            let newArmory = [...prev.armory];
 
-              const updates: Partial<Character> = {};
-              if (change.type === 'damage' && typeof change.value === 'number') {
-                updates.currentHp = Math.max(0, target.currentHp - change.value);
-              }
-              if (change.type === 'heal' && typeof change.value === 'number') {
-                updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
-              }
-              if (change.type === 'exp' && typeof change.value === 'number') {
-                updates.exp = target.exp + change.value;
-              }
-              if (change.type === 'spellSlot' && target.spellSlots) {
-                const lvl = change.level || 1;
-                updates.spellSlots = { 
-                  ...target.spellSlots, 
-                  [lvl]: Math.max(0, (target.spellSlots[lvl] || 0) - 1) 
-                };
-              }
-              
-              if (Object.keys(updates).length > 0) {
-                updateCharacter(target.id, updates);
-                const logMsg = `SCRIBE_LOG: ${target.name} ${change.type.toUpperCase()}${change.value ? ' ' + change.value : ''}${change.level ? ' (Slot Lvl '+change.level+')' : ''}`;
-                const log: Message = { role: 'system', content: logMsg, timestamp: Date.now() };
-                setState(prev => ({ 
-                  ...prev, 
-                  campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, log] } : c) 
-                }));
-              }
-            });
-          }
+            // A. Process Statistical Changes
+            if (audit.changes && audit.changes.length > 0) {
+              audit.changes.forEach((change: any) => {
+                const targetIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()) || change.target.toLowerCase().includes(c.name.toLowerCase()));
+                const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()) || change.target.toLowerCase().includes(c.name.toLowerCase()));
+                
+                let target = targetIdx !== -1 ? newCharacters[targetIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
+                if (!target) return;
 
+                const updates: any = {};
+                if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - (change.value || 0));
+                if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + (change.value || 0));
+                if (change.type === 'exp') updates.exp = target.exp + (change.value || 0);
+                if (change.type === 'spellSlot' && target.spellSlots) {
+                   const lvl = change.level || 1;
+                   updates.spellSlots = { ...target.spellSlots, [lvl]: Math.max(0, (target.spellSlots[lvl] || 0) - 1) };
+                }
+
+                if (targetIdx !== -1) newCharacters[targetIdx] = { ...target, ...updates };
+                else if (mentorIdx !== -1) newMentors[mentorIdx] = { ...target, ...updates };
+
+                logs.push({ role: 'system', content: `SCRIBE_LOG: ${target.name} ${change.type.toUpperCase()} Applied`, timestamp: Date.now() });
+              });
+            }
+
+            return {
+              ...prev,
+              characters: newCharacters,
+              mentors: newMentors,
+              campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
+            };
+          });
+
+          // B. Process Entity Forges (Sequential to avoid race conditions with LLM)
           if (audit.newEntities && audit.newEntities.length > 0) {
             for (const entity of audit.newEntities) {
               if (entity.category === 'monster') {
@@ -144,17 +148,15 @@ const App: React.FC = () => {
                 const newMon: Monster = {
                   id: safeId(),
                   name: monData.name || entity.name,
-                  description: monData.description || "A threat manifests.",
-                  hp: monData.hp || 20, 
-                  ac: monData.ac || 10, 
-                  cr: monData.cr || 1,
+                  description: monData.description || "A threat manifested from the narrative.",
+                  hp: monData.hp || 20, ac: monData.ac || 10, cr: monData.cr || 1,
                   stats: monData.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
                   type: 'Hybrid', abilities: [], activeStatuses: []
                 };
-                setState(prev => ({ 
-                  ...prev, 
-                  bestiary: [...prev.bestiary, newMon],
-                  campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, { role: 'system', content: `ARCHITECT: Forged Monster [${newMon.name}]`, timestamp: Date.now() }] } : c)
+                setState(p => ({ 
+                  ...p, 
+                  bestiary: [...p.bestiary, newMon],
+                  campaigns: p.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, { role: 'system', content: `ARCHITECT: Forged Monster [${newMon.name}]`, timestamp: Date.now() }] } : c)
                 }));
               }
               if (entity.category === 'item') {
@@ -167,18 +169,18 @@ const App: React.FC = () => {
                    rarity: (itemData.rarity as any) || 'Common',
                    stats: itemData.stats || {}
                 };
-                setState(prev => ({ 
-                  ...prev, 
-                  armory: [...prev.armory, newItem],
-                  campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, { role: 'system', content: `ARCHITECT: Forged Item [${newItem.name}]`, timestamp: Date.now() }] } : c)
+                setState(p => ({ 
+                  ...p, 
+                  armory: [...p.armory, newItem],
+                  campaigns: p.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, { role: 'system', content: `ARCHITECT: Forged Relic [${newItem.name}]`, timestamp: Date.now() }] } : c)
                 }));
               }
             }
           }
         } catch (e) {
-          console.error("Audit failure", e);
+          console.error("Audit Critical Failure", e);
         }
-      }, 100);
+      }, 200);
     }
   };
 

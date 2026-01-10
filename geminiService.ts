@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, Character, Monster, Item, GameState, Shop, Rumor } from './types';
 
-// THE CLOCKWORK ENGINE: All components unified on Gemini 3 Flash for maximum speed and efficiency.
+// THE CLOCKWORK ENGINE: Unified on Gemini 3 Flash
 const FLASH_MODEL = 'gemini-3-flash-preview';
 
 const NARRATIVE_MODEL = FLASH_MODEL; 
@@ -24,20 +24,25 @@ const trackUsage = () => {
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * THE MECHANICAL SCRIBE (FLASH TIER)
- * Audits narrative to extract state changes.
+ * THE MECHANICAL SCRIBE
+ * Audits narrative to extract state changes with high precision.
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   const ai = getAiClient();
   trackUsage();
   
-  const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP)`).join(', ');
+  const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP, Lvl ${c.level})`).join(', ');
   
-  const systemInstruction = `Thou art the "Mechanical Scribe". Extract mechanical changes for: ${manifest}.
-  RULES:
-  - Ignore [🎲 math].
-  - Extract: "takes X damage", "heals X HP", "gains X EXP", "expends level X spell slot".
-  - Extract new "item" or "monster" mentions.`;
+  const systemInstruction = `Thou art the "Mechanical Scribe". Thy duty is to audit the narrative for statistical changes.
+  Current Party: ${manifest}.
+
+  STRICT EXTRACTION RULES:
+  1. DAMAGE/HEAL: Look for "takes X damage", "loses X HP", "heals X HP", or "restores X HP".
+  2. EXPERIENCE: Look for "gains X EXP" or "receives X experience".
+  3. SPELL SLOTS: Look for "expends level X spell slot" or "uses level X slot".
+  4. NEW ENTITIES: Look for mentions of NEW monsters or items found.
+  
+  IGNORE all dice math like [🎲 d20(10)+5=15]. Only extract the FINAL narrated results.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -55,9 +60,9 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                 type: Type.OBJECT,
                 properties: {
                   type: { type: Type.STRING, description: "damage, heal, exp, or spellSlot" },
-                  target: { type: Type.STRING },
+                  target: { type: Type.STRING, description: "Full or partial name of the character" },
                   value: { type: Type.NUMBER },
-                  level: { type: Type.NUMBER }
+                  level: { type: Type.NUMBER, description: "For spellSlot type" }
                 },
                 required: ["type", "target"]
               }
@@ -78,14 +83,16 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
         }
       }
     });
-    return JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
+    const parsed = JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
+    return parsed;
   } catch (e) {
+    console.error("Scribe Failure:", e);
     return { changes: [], newEntities: [] };
   }
 };
 
 /**
- * THE ARBITER OF MYTHOS (FLASH TIER)
+ * THE ARBITER OF MYTHOS
  */
 export const generateDMResponse = async (
   history: Message[],
@@ -104,26 +111,28 @@ export const generateDMResponse = async (
   trackUsage();
 
   const partyManifest = playerContext.party.map(c => `${c.name} (${c.archetype}, HP: ${c.currentHp}/${c.maxHp})`).join(', ');
-  const enemyManifest = playerContext.existingMonsters.map(m => `${m.name} (HP: ${m.hp})`).join(', ');
-
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a DM using the high-speed Flash Engine.
+  
+  // Strict role mapping for Gemini API (must alternate user/model)
+  const filteredHistory = history.filter(m => m.role === 'user' || m.role === 'model');
+  
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM.
   Party: ${partyManifest}
-  Foes: ${enemyManifest}
   
   PROTOCOLS:
-  1. MATH: Show rolls in [🎲 d20(roll)+mod=result] format.
-  2. CLARITY: State "Name takes X damage" clearly.
-  3. TONE: Dark fantasy, cinematic, and fast-paced.`;
+  1. DICE: Use [🎲 d20(roll)+mod=result] for all checks.
+  2. STATS: Explicitly state results: "Name takes X damage", "Name expends level Y spell slot".
+  3. LORE: Grim, cinematic, and deterministic. Avoid fluff without mechanical weight.`;
 
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
-      config: { systemInstruction, temperature: 0.7 }
+      contents: filteredHistory.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      config: { systemInstruction, temperature: 0.75 }
     });
-    return response.text || "The resonance fades.";
+    return response.text || "The resonance is lost to the void.";
   } catch (error: any) {
-    return "Aetheric flicker. [System: API Error]";
+    console.error("DM Error:", error);
+    return "Aetheric disturbance detected. [System: API Error]";
   }
 };
 
@@ -133,7 +142,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({ 
       model: ARCHITECT_MODEL, 
-      contents: `Forge monster: ${monsterName}. Context: ${context}`, 
+      contents: `Manifest Monster: ${monsterName}. Found in context: ${context}. Return full statblock.`, 
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -166,7 +175,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   try {
     const response = await ai.models.generateContent({ 
       model: ARCHITECT_MODEL, 
-      contents: `Forge item: ${itemName}. Context: ${context}`, 
+      contents: `Manifest Relic: ${itemName}. Context: ${context}. Return properties.`, 
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -174,7 +183,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
           properties: {
             name: { type: Type.STRING },
             description: { type: Type.STRING },
-            type: { type: Type.STRING },
+            type: { type: Type.STRING, description: "Weapon, Armor, or Utility" },
             rarity: { type: Type.STRING },
             stats: {
               type: Type.OBJECT,
@@ -217,4 +226,4 @@ export const generateCustomClass = async (p: string): Promise<any> => {
   return JSON.parse(response.text || '{}');
 };
 export const parseDMCommand = (t: string) => ({ setHp: [], takeDamage: [], heals: [], usedSlot: null, shortRest: false, longRest: false, currencyRewards: [], exp: 0, items: [] });
-export const generateInnkeeperResponse = async (h: any, p: any) => "Stay warm, soul.";
+export const generateInnkeeperResponse = async (h: any, p: any) => "Rest well, traveler.";

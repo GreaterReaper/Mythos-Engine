@@ -141,7 +141,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Elderwood Staff', 'Clerical Robes']
   },
   [Archetype.Warrior]: {
-    hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts of the front line.',
+    hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts who forsake shields for absolute devastation.',
     coreAbilities: [
       { name: 'Charged Devastation', description: 'Put every ounce of strength into a swing.', type: 'Active', levelReq: 1, manaCost: 5 }
     ],
@@ -155,7 +155,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Soldier\'s Longsword', 'Iron Kite Shield', 'Steel Plate Armor']
   },
   [Archetype.DarkKnight]: {
-    hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain as a weapon.',
+    hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain and massive two-handed steel as a weapon. They carry no shields.',
     coreAbilities: [
       { name: 'Soul Rend', description: 'Heal for a portion of damage dealt.', type: 'Passive', levelReq: 3 }
     ],

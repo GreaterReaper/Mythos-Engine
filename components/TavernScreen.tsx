@@ -65,8 +65,17 @@ const TavernScreen: React.FC<TavernScreenProps> = ({
       const arch = activeChar.archetype as Archetype;
       const baseGear = ARCHETYPE_INFO[arch]?.starterGear || [];
       
+      // Strict offensive protocol for specific classes
+      const isAggressiveClass = arch === Archetype.Warrior || arch === Archetype.DarkKnight;
+      const classContext = isAggressiveClass 
+        ? "STRICT: Favor absolute offense and two-handed devastation. No shields or defensive items are permitted. Focus on massive damage values, aggressive enchants, and pure striking power." 
+        : `Honed armament for a Level ${activeChar.level} ${arch}`;
+
       for (const gearName of baseGear) {
-        const details = await generateItemDetails(`Superior ${gearName}`, `Honed armament for a Level ${activeChar.level} ${arch}`);
+        // Safety check to ensure we don't accidentally generate a shield for aggressive classes
+        if (isAggressiveClass && gearName.toLowerCase().includes('shield')) continue;
+
+        const details = await generateItemDetails(`Superior ${gearName}`, classContext);
         items.push({
           id: `gear-${safeId()}`,
           name: details.name || `Superior ${gearName}`,

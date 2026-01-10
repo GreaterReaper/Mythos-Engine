@@ -222,6 +222,30 @@ const App: React.FC = () => {
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
   const isChronicles = activeTab === 'Chronicles';
 
+  const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
+    const campId = safeId();
+    const newCampaign: Campaign = { 
+      id: campId, 
+      title: title, 
+      prompt: prompt, 
+      history: [], 
+      participants: partyIds 
+    };
+
+    setState(prev => ({
+      ...prev,
+      campaigns: [...prev.campaigns, newCampaign],
+      activeCampaignId: campId,
+      party: partyIds
+    }));
+
+    setShowTutorial(false);
+    setActiveTab('Chronicles');
+    
+    // Initial model message for the tutorial start
+    handleMessage({ role: 'model', content: prompt, timestamp: Date.now() }, campId);
+  };
+
   return (
     <div className="flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
       <div className="flex flex-col w-full min-h-0">
@@ -230,7 +254,7 @@ const App: React.FC = () => {
           {!state.userAccount.isLoggedIn && (
             <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={handleMigrateState} />
           )}
-          {showTutorial && <TutorialScreen characters={state.characters} onComplete={() => {}} />}
+          {showTutorial && <TutorialScreen characters={state.characters} onComplete={handleTutorialComplete} />}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
           <main className={`relative flex-1 bg-leather ${isChronicles ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
             <div className={`mx-auto ${isChronicles ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>

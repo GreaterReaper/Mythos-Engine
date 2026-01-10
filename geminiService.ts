@@ -135,10 +135,11 @@ export const generateDMResponse = async (
   
   PROTOCOLS:
   1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Gender, Stats, and Items. If the manifest says they are "Male" and have "18 STR", narrate accordingly. If they have "0 Mana", they cannot manifest spells.
-  2. DICE: Use [🎲 d20(roll)+mod=result] for all checks. Calculate the "mod" using the Stats from the Manifest (e.g., 18 STR is +4).
-  3. COST OF POWER: Spells cost Mana. Dark/Blood magic costs HP. Narrate the toll: "Name's veins blacken, losing 12 HP to manifest the rite."
-  4. EXPERIENCE: Award EXP (50-500) based on deeds. Do NOT narrate level-ups; the Engine handles the Soul's Ascension.
-  5. DETERMINISM: The world reacts to thy Stats. Low INT means cryptic puzzles are incomprehensible; high CHA makes the fearful follow thy lead.`;
+  2. CLASS IDENTITY: Warriors and Dark Knights are vanguards of devastation. They carrier NO shields. Narrate their actions as unrestrained offense—cleaving strokes and aggressive fury. Fighters are the only class that should be narrated using shields.
+  3. DICE: Use [🎲 d20(roll)+mod=result] for all checks. Calculate the "mod" using the Stats from the Manifest (e.g., 18 STR is +4).
+  4. COST OF POWER: Spells cost Mana. Dark/Blood magic costs HP. Narrate the toll: "Name's veins blacken, losing 12 HP to manifest the rite."
+  5. EXPERIENCE: Award EXP (50-500) based on deeds. Do NOT narrate level-ups; the Engine handles the Soul's Ascension.
+  6. DETERMINISM: The world reacts to thy Stats. Low INT means cryptic puzzles are incomprehensible; high CHA makes the fearful follow thy lead.`;
 
   try {
     const response = await ai.models.generateContent({

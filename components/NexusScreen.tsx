@@ -27,7 +27,9 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
   }, []);
 
   const handleManifestSignature = () => {
-    const sig = generateSoulSignature(gameState);
+    // Pure data clone to avoid symbols or non-serializable content
+    const cleanData = JSON.parse(JSON.stringify(gameState));
+    const sig = generateSoulSignature(cleanData);
     setSignature(sig);
   };
 
@@ -41,8 +43,6 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
     );
   };
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-
   return (
     <div className="space-y-8 pb-24 max-w-2xl mx-auto px-2">
       <div className="border-b border-emerald-900 pb-4">
@@ -51,7 +51,6 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* Aether Link Toggle (API vs LOCAL) */}
         <div className={`rune-border p-6 transition-all duration-500 ${isOffline ? 'bg-orange-950/10 border-orange-900/60 shadow-[0_0_20px_rgba(154,52,18,0.1)]' : 'bg-emerald-950/20 border-emerald-500/40'}`}>
            <div className="flex justify-between items-center border-b border-emerald-900/20 pb-3 mb-4">
               <h3 className={`text-xs font-cinzel uppercase tracking-[0.3em] font-black ${isOffline ? 'text-orange-500' : 'text-emerald-500'}`}>
@@ -71,22 +70,9 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
                  ? "Thou art operating under 'Clockwork Mode'. The DM uses local deterministic logic. Creative prose is sacrificed for absolute reliability and zero API strain."
                  : "Thou art connected to the 'Great Well'. The Arbiter (Gemini) provides cinematic narrative and creative world-building via the aetheric API."}
              </p>
-             {!isOffline && (
-               <div className="flex items-center gap-4 mt-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Resonating with Cloud Engine</span>
-               </div>
-             )}
-             {isOffline && (
-               <div className="flex items-center gap-4 mt-2">
-                  <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                  <span className="text-[9px] font-black text-orange-700 uppercase tracking-widest">Local Gears Grinding</span>
-               </div>
-             )}
            </div>
         </div>
 
-        {/* Migration Section */}
         <div className="rune-border p-6 bg-emerald-900/5 border-gold/40 space-y-6 animate-in fade-in duration-500">
            <div className="flex justify-between items-center border-b border-gold/20 pb-3">
               <h3 className="text-sm font-cinzel text-gold uppercase tracking-[0.2em] font-black">Ritual of Transmigration</h3>
@@ -133,7 +119,6 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
            </div>
         </div>
 
-        {/* Account Deletion */}
         <div className="rune-border p-6 bg-black/60 border-emerald-900/40 space-y-4">
            <h3 className="text-xs font-cinzel text-emerald-700 uppercase tracking-widest">Ritual of Severance</h3>
            <button 

@@ -62,6 +62,24 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
 
+  // --- AETHERIC PERSISTENCE ---
+  useEffect(() => {
+    const savedState = localStorage.getItem(STORAGE_PREFIX + 'state');
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        setState(hydrateState(parsed, DEFAULT_STATE));
+      } catch (e) {
+        console.error("Failed to rebind soul from local memory.", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_PREFIX + 'state', JSON.stringify(state));
+  }, [state]);
+  // ----------------------------
+
   useEffect(() => {
     const handleApiCall = () => {
       setState(prev => {
@@ -81,11 +99,22 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleMigrateState = (signature: string): boolean => {
+    const migrated = parseSoulSignature(signature, DEFAULT_STATE);
+    if (migrated) {
+      const fullState = hydrateState(migrated, DEFAULT_STATE);
+      // Ensure the rebind marks the user as logged in
+      fullState.userAccount.isLoggedIn = true;
+      setState(fullState);
+      return true;
+    }
+    return false;
+  };
+
   const handleMessage = async (msg: Message, campaignId?: string, overrideParty?: Character[]) => {
     const targetCampaignId = campaignId || state.activeCampaignId;
     if (!targetCampaignId) return;
 
-    // 1. Instantly display the DM message
     setState(prev => ({
       ...prev,
       campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, msg] } : c)
@@ -94,20 +123,15 @@ const App: React.FC = () => {
     if (msg.role === 'model') {
       const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       
-      // 2. Perform Audit
       setTimeout(async () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
           const logs: Message[] = [];
           
           setState(prev => {
-            // Create mutable copies for the functional update
             let newCharacters = [...prev.characters];
             let newMentors = [...prev.mentors];
-            let newBestiary = [...prev.bestiary];
-            let newArmory = [...prev.armory];
 
-            // A. Process Statistical Changes
             if (audit.changes && audit.changes.length > 0) {
               audit.changes.forEach((change: any) => {
                 const targetIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()) || change.target.toLowerCase().includes(c.name.toLowerCase()));
@@ -140,7 +164,6 @@ const App: React.FC = () => {
             };
           });
 
-          // B. Process Entity Forges (Sequential to avoid race conditions with LLM)
           if (audit.newEntities && audit.newEntities.length > 0) {
             for (const entity of audit.newEntities) {
               if (entity.category === 'monster') {
@@ -203,7 +226,7 @@ const App: React.FC = () => {
         <QuotaBanner usage={state.apiUsage} />
         <div className="flex flex-col flex-1 min-h-0 md:flex-row overflow-hidden">
           {!state.userAccount.isLoggedIn && (
-            <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={() => false} />
+            <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={handleMigrateState} />
           )}
           {showTutorial && <TutorialScreen characters={state.characters} onComplete={handleTutorialComplete} />}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
@@ -244,7 +267,12 @@ const App: React.FC = () => {
               {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} party={activePartyObjects} />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
               {activeTab === 'Rules' && <RulesScreen />}
-              {activeTab === 'Nexus' && <NexusScreen peerId="" connectedPeers={[]} isHost={true} onConnect={() => {}} username={state.userAccount.username} gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {}} />}
+              {activeTab === 'Nexus' && <NexusScreen peerId="" connectedPeers={[]} isHost={true} onConnect={() => {}} username={state.userAccount.username} gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {
+                if (confirm("Permanently dissolve thy soul in the void?")) {
+                  localStorage.removeItem(STORAGE_PREFIX + 'state');
+                  window.location.reload();
+                }
+              }} />}
             </div>
           </main>
         </div>

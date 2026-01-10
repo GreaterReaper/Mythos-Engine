@@ -199,11 +199,13 @@ const App: React.FC = () => {
                 apiUsage={state.apiUsage}
               />}
               {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} />}
-              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} onBuyItem={(item, buyerId) => {
+              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} onBuyItem={(item, buyerId, cost) => {
                 const char = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
                 if (char) {
-                   const cost = item.stats?.cost || 0; // Assume cost is in stats for simplicity here
-                   updateCharacter(buyerId, { inventory: [...char.inventory, item], currency: { aurels: Math.max(0, char.currency.aurels - (item as any).cost?.aurels || 0) } });
+                   updateCharacter(buyerId, { 
+                     inventory: [...char.inventory, item], 
+                     currency: { aurels: Math.max(0, char.currency.aurels - (cost?.aurels || 0)) } 
+                   });
                 }
               }} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={t => setState(p => ({ ...p, mapTokens: t }))} characters={activePartyObjects} monsters={state.bestiary} />}

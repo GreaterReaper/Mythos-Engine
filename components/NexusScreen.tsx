@@ -16,15 +16,8 @@ interface NexusScreenProps {
 const NexusScreen: React.FC<NexusScreenProps> = ({ 
   peerId, connectedPeers, isHost, onConnect, username, gameState, onClearFriends, onDeleteAccount 
 }) => {
-  const [targetId, setTargetId] = useState('');
-  const [isStandalone, setIsStandalone] = useState(false);
   const [signature, setSignature] = useState('');
   const [isOffline, setIsOffline] = useState((window as any).MYTHOS_OFFLINE_MODE || false);
-
-  useEffect(() => {
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
-    setIsStandalone(isPWA);
-  }, []);
 
   const handleManifestSignature = () => {
     // Pure data clone to avoid symbols or non-serializable content
@@ -38,8 +31,8 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
     (window as any).MYTHOS_OFFLINE_MODE = newState;
     setIsOffline(newState);
     alert(newState 
-      ? "Aether Link Severed. The Clockwork Arbiter is now in control. (No API usage, deterministic logic)." 
-      : "Aether Link Restored. The Great Well (AI) now guides thy path."
+      ? "Aether Link Severed." 
+      : "Aether Link Restored."
     );
   };
 
@@ -51,7 +44,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <div className={`rune-border p-6 transition-all duration-500 ${isOffline ? 'bg-orange-950/10 border-orange-900/60 shadow-[0_0_20px_rgba(154,52,18,0.1)]' : 'bg-emerald-950/20 border-emerald-500/40'}`}>
+        <div className={`rune-border p-6 transition-all duration-500 ${isOffline ? 'bg-orange-950/10 border-orange-900/60' : 'bg-emerald-950/20 border-emerald-500/40'}`}>
            <div className="flex justify-between items-center border-b border-emerald-900/20 pb-3 mb-4">
               <h3 className={`text-xs font-cinzel uppercase tracking-[0.3em] font-black ${isOffline ? 'text-orange-500' : 'text-emerald-500'}`}>
                 {isOffline ? 'Aether Link: SEVERED' : 'Aether Link: ACTIVE'}
@@ -67,8 +60,8 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
            <div className="space-y-3">
              <p className="text-[10px] text-gray-400 leading-relaxed italic">
                {isOffline 
-                 ? "Thou art operating under 'Clockwork Mode'. The DM uses local deterministic logic. Creative prose is sacrificed for absolute reliability and zero API strain."
-                 : "Thou art connected to the 'Great Well'. The Arbiter (Gemini) provides cinematic narrative and creative world-building via the aetheric API."}
+                 ? "Thy soul is in Clockwork Mode. Engine will not consume Aether."
+                 : "Thy soul is in Resonance Mode. The Great Well (AI) guides thy path."}
              </p>
            </div>
         </div>
@@ -90,7 +83,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
              <div className="space-y-2 pt-2">
                 <button 
                   onClick={handleManifestSignature}
-                  className="w-full py-4 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-800 transition-all uppercase tracking-[0.2em] shadow-lg"
+                  className="w-full py-4 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-800 transition-all uppercase tracking-[0.2em]"
                 >
                   Manifest Soul Signature
                 </button>
@@ -102,18 +95,19 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
                     <textarea 
                       readOnly 
                       value={signature} 
-                      className="w-full h-24 bg-black border border-gold/40 p-3 text-gold font-mono text-[9px] outline-none resize-none custom-scrollbar" 
+                      className="w-full h-32 bg-black border border-gold/40 p-3 text-gold font-mono text-[9px] outline-none resize-none custom-scrollbar" 
                     />
                     <button 
                       onClick={() => {
                         navigator.clipboard.writeText(signature);
                         alert("Thy Soul Essence has been bound to the clipboard.");
                       }}
-                      className="absolute bottom-2 right-2 px-3 py-1 bg-gold text-black text-[8px] font-black uppercase rounded shadow-lg hover:scale-105 active:scale-95 transition-all"
+                      className="absolute bottom-2 right-2 px-3 py-1 bg-gold text-black text-[8px] font-black uppercase rounded shadow-lg transition-all"
                     >
                       Copy Essence
                     </button>
                  </div>
+                 <p className="text-[8px] text-emerald-500/60 font-black uppercase text-center italic">Transfer this signature to rebind thy soul on another vessel.</p>
                </div>
              )}
            </div>

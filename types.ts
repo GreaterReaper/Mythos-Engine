@@ -1,4 +1,3 @@
-
 export enum Race {
   Human = 'Human',
   Elf = 'Elf',
@@ -53,6 +52,8 @@ export interface Ability {
   type: 'Passive' | 'Active' | 'Feat' | 'Spell';
   levelReq: number;
   baseLevel?: number;
+  manaCost?: number;
+  hpCost?: number;
   scaling?: string;
 }
 
@@ -114,6 +115,8 @@ export interface Character {
   exp: number;
   maxHp: number;
   currentHp: number;
+  maxMana: number;
+  currentMana: number;
   stats: Stats;
   currency: Currency;
   inventory: Item[];
@@ -121,8 +124,6 @@ export interface Character {
   spells: Ability[];
   abilities: Ability[];
   activeStatuses: StatusEffect[];
-  spellSlots?: Record<number, number>;
-  maxSpellSlots?: Record<number, number>;
   deathSaves?: { successes: number; failures: number };
   description: string;
   personality?: string;

@@ -4,7 +4,7 @@ import {
   Item, Monster, Stats, Friend, ArchetypeInfo, Ability, Currency, Shop, StatusEffect, MapToken
 } from './types';
 import { 
-  MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, SPELL_SLOT_PROGRESSION, STORAGE_PREFIX, MENTOR_UNIQUE_GEAR, TUTORIAL_SCENARIO
+  MENTORS, INITIAL_MONSTERS, INITIAL_ITEMS, RULES_MANIFEST, ARCHETYPE_INFO, STORAGE_PREFIX, TUTORIAL_SCENARIO
 } from './constants';
 import Sidebar from './components/Sidebar';
 import FellowshipScreen from './components/FellowshipScreen';
@@ -19,15 +19,12 @@ import AccountPortal from './components/AccountPortal';
 import NexusScreen from './components/NexusScreen';
 import SpellsScreen from './components/SpellsScreen';
 import RulesScreen from './components/RulesScreen';
-import ShopModal from './components/ShopModal';
 import TavernScreen from './components/TavernScreen';
 import QuotaBanner from './components/QuotaBanner';
-import { generateItemDetails, generateMonsterDetails, generateShopInventory, safeId, hydrateState, generateRumors, parseDMCommand, parseSoulSignature, auditNarrativeEffect } from './geminiService';
+import { generateItemDetails, generateMonsterDetails, safeId, hydrateState, parseSoulSignature, auditNarrativeEffect } from './geminiService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
-  const [isShopLoading, setIsShopLoading] = useState(false);
-  const [isRumorLoading, setIsRumorLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   
@@ -62,7 +59,6 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
 
-  // --- AETHERIC PERSISTENCE ---
   useEffect(() => {
     const savedState = localStorage.getItem(STORAGE_PREFIX + 'state');
     if (savedState) {
@@ -70,7 +66,7 @@ const App: React.FC = () => {
         const parsed = JSON.parse(savedState);
         setState(hydrateState(parsed, DEFAULT_STATE));
       } catch (e) {
-        console.error("Failed to rebind soul from local memory.", e);
+        console.error("Failed to rebind soul.", e);
       }
     }
   }, []);
@@ -78,7 +74,6 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_PREFIX + 'state', JSON.stringify(state));
   }, [state]);
-  // ----------------------------
 
   useEffect(() => {
     const handleApiCall = () => {
@@ -103,7 +98,6 @@ const App: React.FC = () => {
     const migrated = parseSoulSignature(signature, DEFAULT_STATE);
     if (migrated) {
       const fullState = hydrateState(migrated, DEFAULT_STATE);
-      // Ensure the rebind marks the user as logged in
       fullState.userAccount.isLoggedIn = true;
       setState(fullState);
       return true;
@@ -134,26 +128,81 @@ const App: React.FC = () => {
 
             if (audit.changes && audit.changes.length > 0) {
               audit.changes.forEach((change: any) => {
-                const targetIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()) || change.target.toLowerCase().includes(c.name.toLowerCase()));
-                const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()) || change.target.toLowerCase().includes(c.name.toLowerCase()));
-                
+                const targetIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
+                const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
                 let target = targetIdx !== -1 ? newCharacters[targetIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
+                
                 if (!target) return;
-
                 const updates: any = {};
-                if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - (change.value || 0));
-                if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + (change.value || 0));
-                if (change.type === 'exp') updates.exp = target.exp + (change.value || 0);
-                if (change.type === 'spellSlot' && target.spellSlots) {
-                   const lvl = change.level || 1;
-                   updates.spellSlots = { ...target.spellSlots, [lvl]: Math.max(0, (target.spellSlots[lvl] || 0) - 1) };
+                if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
+                if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
+                if (change.type === 'mana') updates.currentMana = Math.max(0, target.currentMana - change.value);
+                if (change.type === 'exp') {
+                  const gained = change.value;
+                  const newTotalExp = target.exp + gained;
+                  const expToLevel = target.level * 1000;
+                  
+                  if (newTotalExp >= expToLevel) {
+                    updates.level = target.level + 1;
+                    updates.exp = newTotalExp - expToLevel;
+                    const arch = ARCHETYPE_INFO[target.archetype as Archetype];
+                    const hpGain = arch ? Math.floor(arch.hpDie / 2) + 1 : 6;
+                    updates.maxHp = target.maxHp + hpGain;
+                    updates.currentHp = updates.maxHp;
+                    updates.maxMana = target.maxMana + 10;
+                    updates.currentMana = updates.maxMana;
+                    logs.push({ role: 'system', content: `SCRIBE: ${target.name} ASCENDED TO LEVEL ${updates.level}!`, timestamp: Date.now() });
+                  } else {
+                    updates.exp = newTotalExp;
+                  }
                 }
 
                 if (targetIdx !== -1) newCharacters[targetIdx] = { ...target, ...updates };
                 else if (mentorIdx !== -1) newMentors[mentorIdx] = { ...target, ...updates };
-
-                logs.push({ role: 'system', content: `SCRIBE_LOG: ${target.name} ${change.type.toUpperCase()} Applied`, timestamp: Date.now() });
               });
+            }
+
+            if (audit.newEntities && audit.newEntities.length > 0) {
+              for (const entity of audit.newEntities) {
+                if (entity.category === 'monster') {
+                  const exists = prev.bestiary.find(m => m.name.toLowerCase() === entity.name.toLowerCase());
+                  if (!exists) {
+                    generateMonsterDetails(entity.name, msg.content).then(m => {
+                      setState(p => ({ ...p, bestiary: [...p.bestiary, { ...m, id: safeId(), type: 'Hybrid', abilities: [], activeStatuses: [] } as Monster] }));
+                    });
+                  }
+                }
+                if (entity.category === 'item') {
+                  generateItemDetails(entity.name, msg.content).then(itemData => {
+                    const newItem: Item = { 
+                      id: safeId(), 
+                      name: itemData.name || entity.name, 
+                      description: itemData.description || "Found in the depths.", 
+                      type: (itemData.type as any) || 'Utility', 
+                      rarity: (itemData.rarity as any) || 'Common', 
+                      isUnique: itemData.isUnique || false, 
+                      stats: itemData.stats || {} 
+                    };
+                    
+                    setState(p => {
+                      // Always add to global armory
+                      const newArmory = [...p.armory, newItem];
+                      
+                      if (entity.target) {
+                        const targetName = entity.target.toLowerCase();
+                        const updateParty = (chars: Character[]) => chars.map(c => {
+                          if (c.name.toLowerCase().includes(targetName)) {
+                            return { ...c, inventory: [...c.inventory, newItem] };
+                          }
+                          return c;
+                        });
+                        return { ...p, armory: newArmory, characters: updateParty(p.characters), mentors: updateParty(p.mentors) };
+                      }
+                      return { ...p, armory: newArmory };
+                    });
+                  });
+                }
+              }
             }
 
             return {
@@ -163,58 +212,11 @@ const App: React.FC = () => {
               campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
             };
           });
-
-          if (audit.newEntities && audit.newEntities.length > 0) {
-            for (const entity of audit.newEntities) {
-              if (entity.category === 'monster') {
-                const monData = await generateMonsterDetails(entity.name, msg.content);
-                const newMon: Monster = {
-                  id: safeId(),
-                  name: monData.name || entity.name,
-                  description: monData.description || "A threat manifested from the narrative.",
-                  hp: monData.hp || 20, ac: monData.ac || 10, cr: monData.cr || 1,
-                  stats: monData.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-                  type: 'Hybrid', abilities: [], activeStatuses: []
-                };
-                setState(p => ({ 
-                  ...p, 
-                  bestiary: [...p.bestiary, newMon],
-                  campaigns: p.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, { role: 'system', content: `ARCHITECT: Forged Monster [${newMon.name}]`, timestamp: Date.now() }] } : c)
-                }));
-              }
-              if (entity.category === 'item') {
-                const itemData = await generateItemDetails(entity.name, msg.content);
-                const newItem: Item = {
-                   id: safeId(),
-                   name: itemData.name || entity.name,
-                   description: itemData.description || "A found relic.",
-                   type: (itemData.type as any) || 'Utility',
-                   rarity: (itemData.rarity as any) || 'Common',
-                   stats: itemData.stats || {}
-                };
-                setState(p => ({ 
-                  ...p, 
-                  armory: [...p.armory, newItem],
-                  campaigns: p.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, { role: 'system', content: `ARCHITECT: Forged Relic [${newItem.name}]`, timestamp: Date.now() }] } : c)
-                }));
-              }
-            }
-          }
         } catch (e) {
-          console.error("Audit Critical Failure", e);
+          console.error("Audit Fail", e);
         }
-      }, 200);
+      }, 300);
     }
-  };
-
-  const handleTutorialComplete = (partyIds: string[], campaignTitle: string, campaignPrompt: string) => {
-    const campId = safeId();
-    const newCampaign: Campaign = { id: campId, title: campaignTitle, prompt: campaignPrompt, history: [], participants: partyIds };
-    const activePartyObjects = [...state.characters, ...state.mentors].filter(c => partyIds.includes(c.id));
-    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: partyIds, userAccount: { ...prev.userAccount, activeCharacterId: partyIds.find(id => prev.characters.some(c => c.id === id)) || partyIds[0] } }));
-    setShowTutorial(false);
-    setActiveTab('Chronicles');
-    handleMessage({ role: 'model', content: campaignPrompt, timestamp: Date.now() }, campId, activePartyObjects);
   };
 
   const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
@@ -228,7 +230,7 @@ const App: React.FC = () => {
           {!state.userAccount.isLoggedIn && (
             <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={handleMigrateState} />
           )}
-          {showTutorial && <TutorialScreen characters={state.characters} onComplete={handleTutorialComplete} />}
+          {showTutorial && <TutorialScreen characters={state.characters} onComplete={() => {}} />}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
           <main className={`relative flex-1 bg-leather ${isChronicles ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
             <div className={`mx-auto ${isChronicles ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
@@ -250,16 +252,29 @@ const App: React.FC = () => {
                 onShortRest={() => {}} isHost={true} isKeyboardOpen={isKeyboardOpen}
                 apiUsage={state.apiUsage}
               />}
-              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={c => setState(p => ({ ...p, characters: [...p.characters, c] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} />}
-              {activeTab === 'Tavern' && <TavernScreen party={activePartyObjects} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} onOpenShop={() => {}} onUpgradeItem={() => {}} onBuyItem={(item, buyerId, cost) => {
-                const char = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
-                if (char) {
-                   updateCharacter(buyerId, { 
-                     inventory: [...char.inventory, item], 
-                     currency: { aurels: Math.max(0, char.currency.aurels - (cost?.aurels || 0)) } 
-                   });
-                }
-              }} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} />}
+              {activeTab === 'Fellowship' && <FellowshipScreen characters={state.characters} onAdd={(c, items) => setState(p => ({ ...p, characters: [...p.characters, c], armory: [...p.armory, ...items] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} />}
+              {activeTab === 'Tavern' && <TavernScreen 
+                party={activePartyObjects} 
+                mentors={state.mentors} 
+                partyIds={state.party} 
+                onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} 
+                onLongRest={() => {}} 
+                isHost={true} 
+                activeRumors={state.activeRumors} 
+                onFetchRumors={() => {}} 
+                isRumorLoading={false} 
+                isBetweenCampaigns={!state.activeCampaignId}
+                onBuyItem={(item, buyerId, cost) => {
+                  const char = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
+                  if (char) {
+                     updateCharacter(buyerId, { 
+                       inventory: [...char.inventory, item], 
+                       currency: { aurels: Math.max(0, char.currency.aurels - (cost?.aurels || 0)) } 
+                     });
+                     setState(p => ({ ...p, armory: [...p.armory, item] }));
+                  }
+                }}
+              />}
               {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={t => setState(p => ({ ...p, mapTokens: t }))} characters={activePartyObjects} monsters={state.bestiary} />}
               {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={() => {}} userId={state.userAccount.id} />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onClear={() => setState(p => ({ ...p, bestiary: [] }))} />}
@@ -268,10 +283,7 @@ const App: React.FC = () => {
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
               {activeTab === 'Rules' && <RulesScreen />}
               {activeTab === 'Nexus' && <NexusScreen peerId="" connectedPeers={[]} isHost={true} onConnect={() => {}} username={state.userAccount.username} gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {
-                if (confirm("Permanently dissolve thy soul in the void?")) {
-                  localStorage.removeItem(STORAGE_PREFIX + 'state');
-                  window.location.reload();
-                }
+                if (confirm("Dissolve soul?")) { localStorage.removeItem(STORAGE_PREFIX + 'state'); window.location.reload(); }
               }} />}
             </div>
           </main>

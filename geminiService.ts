@@ -31,18 +31,21 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   const ai = getAiClient();
   trackUsage();
   
-  const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP, Lvl ${c.level})`).join(', ');
+  const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP, ${c.currentMana}/${c.maxMana} Mana, Lvl ${c.level})`).join(', ');
   
-  const systemInstruction = `Thou art the "Mechanical Scribe". Thy duty is to audit the narrative for statistical changes.
+  const systemInstruction = `Thou art the "Mechanical Scribe". Thy duty is to audit the narrative for statistical changes and physical manifestations.
   Current Party: ${manifest}.
 
   STRICT EXTRACTION RULES:
   1. DAMAGE/HEAL: Look for "takes X damage", "loses X HP", "heals X HP", or "restores X HP".
-  2. EXPERIENCE: Look for "gains X EXP" or "receives X experience".
-  3. SPELL SLOTS: Look for "expends level X spell slot" or "uses level X slot".
-  4. NEW ENTITIES: Look for mentions of NEW monsters or items found.
+  2. EXPERIENCE: Look for "gains X EXP" or "receives X EXP".
+  3. MANA/STAMINA: Look for "expends X mana", "uses X stamina", or "loses X mana".
+  4. BLOOD MAGIC: Extract HP costs for blood-based spells even if the DM only implies them.
+  5. NEW ENTITIES: Look for NEW monsters OR items mentioned as being found, looted, or received. 
+     - Items found MUST be extracted to be added to the global Armory.
+     - Associate items with a "target" character name if the narrative implies they take it.
   
-  IGNORE all dice math like [🎲 d20(10)+5=15]. Only extract the FINAL narrated results.`;
+  CRITICAL: Return JSON only. Do NOT hallucinate values.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -59,12 +62,11 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  type: { type: Type.STRING, description: "damage, heal, exp, or spellSlot" },
-                  target: { type: Type.STRING, description: "Full or partial name of the character" },
-                  value: { type: Type.NUMBER },
-                  level: { type: Type.NUMBER, description: "For spellSlot type" }
+                  type: { type: Type.STRING, description: "damage, heal, exp, or mana" },
+                  target: { type: Type.STRING, description: "Character name" },
+                  value: { type: Type.NUMBER }
                 },
-                required: ["type", "target"]
+                required: ["type", "target", "value"]
               }
             },
             newEntities: {
@@ -73,7 +75,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                 type: Type.OBJECT,
                 properties: {
                   category: { type: Type.STRING, description: "monster or item" },
-                  name: { type: Type.STRING }
+                  name: { type: Type.STRING },
+                  target: { type: Type.STRING, description: "Character receiving item" }
                 },
                 required: ["category", "name"]
               }
@@ -83,8 +86,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
         }
       }
     });
-    const parsed = JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
-    return parsed;
+    return JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
   } catch (e) {
     console.error("Scribe Failure:", e);
     return { changes: [], newEntities: [] };
@@ -110,29 +112,43 @@ export const generateDMResponse = async (
   const ai = getAiClient();
   trackUsage();
 
-  const partyManifest = playerContext.party.map(c => `${c.name} (${c.archetype}, HP: ${c.currentHp}/${c.maxHp})`).join(', ');
-  
-  // Strict role mapping for Gemini API (must alternate user/model)
-  const filteredHistory = history.filter(m => m.role === 'user' || m.role === 'model');
+  const active = playerContext.activeCharacter;
+  // HIGH FIDELITY CHARACTER MANIFEST - The AI must read this to identify identity and power
+  const activeDetail = active ? `
+    CHARACTER MANIFEST [READ CAREFULLY]:
+    - Identity: ${active.name} (${active.gender}), ${active.race} ${active.archetype}
+    - Level/Progress: Level ${active.level} (Current EXP: ${active.exp})
+    - Combat Stats: STR ${active.stats.str}, DEX ${active.stats.dex}, CON ${active.stats.con}, INT ${active.stats.int}, WIS ${active.stats.wis}, CHA ${active.stats.cha}
+    - Vitality: HP ${active.currentHp}/${active.maxHp}, Mana ${active.currentMana}/${active.maxMana}
+    - Inventory: ${active.inventory.map(i => `${i.name} (${i.type}, ${i.rarity})`).join(', ') || 'Only rags'}
+    - Manifestations: ${[...(active.abilities || []), ...(active.spells || [])].map(a => a.name).join(', ')}
+  ` : 'No active soul detected in the aether.';
+
+  const partyManifest = playerContext.party.map(c => `${c.name} (HP:${c.currentHp}/${c.maxHp}, Mana:${c.currentMana}/${c.maxMana})`).join(', ');
   
   const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM.
-  Party: ${partyManifest}
+  
+  ${activeDetail}
+  
+  FELLOWSHIP CONTEXT:
+  ${partyManifest}
   
   PROTOCOLS:
-  1. DICE: Use [🎲 d20(roll)+mod=result] for all checks.
-  2. STATS: Explicitly state results: "Name takes X damage", "Name expends level Y spell slot".
-  3. LORE: Grim, cinematic, and deterministic. Avoid fluff without mechanical weight.`;
+  1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Gender, Stats, and Items. If the manifest says they are "Male" and have "18 STR", narrate accordingly. If they have "0 Mana", they cannot manifest spells.
+  2. DICE: Use [🎲 d20(roll)+mod=result] for all checks. Calculate the "mod" using the Stats from the Manifest (e.g., 18 STR is +4).
+  3. COST OF POWER: Spells cost Mana. Dark/Blood magic costs HP. Narrate the toll: "Name's veins blacken, losing 12 HP to manifest the rite."
+  4. EXPERIENCE: Award EXP (50-500) based on deeds. Do NOT narrate level-ups; the Engine handles the Soul's Ascension.
+  5. DETERMINISM: The world reacts to thy Stats. Low INT means cryptic puzzles are incomprehensible; high CHA makes the fearful follow thy lead.`;
 
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: filteredHistory.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
-      config: { systemInstruction, temperature: 0.75 }
+      contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      config: { systemInstruction, temperature: 0.7 }
     });
-    return response.text || "The resonance is lost to the void.";
+    return response.text || "The resonance fades into the void.";
   } catch (error: any) {
-    console.error("DM Error:", error);
-    return "Aetheric disturbance detected. [System: API Error]";
+    return "Aetheric disturbance detected. [API Error]";
   }
 };
 
@@ -142,7 +158,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   try {
     const response = await ai.models.generateContent({ 
       model: ARCHITECT_MODEL, 
-      contents: `Manifest Monster: ${monsterName}. Found in context: ${context}. Return full statblock.`, 
+      contents: `Manifest Monster Statblock: ${monsterName}. Context: ${context}. Return full stats.`, 
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -175,7 +191,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   try {
     const response = await ai.models.generateContent({ 
       model: ARCHITECT_MODEL, 
-      contents: `Manifest Relic: ${itemName}. Context: ${context}. Return properties.`, 
+      contents: `Manifest Relic Properties: ${itemName}. Context: ${context}. Return JSON. Weapon, Armor, or Utility.`, 
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -183,14 +199,12 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
           properties: {
             name: { type: Type.STRING },
             description: { type: Type.STRING },
-            type: { type: Type.STRING, description: "Weapon, Armor, or Utility" },
+            type: { type: Type.STRING },
             rarity: { type: Type.STRING },
+            isUnique: { type: Type.BOOLEAN },
             stats: {
               type: Type.OBJECT,
-              properties: {
-                ac: { type: Type.NUMBER },
-                damage: { type: Type.STRING }
-              }
+              properties: { ac: { type: Type.NUMBER }, damage: { type: Type.STRING } }
             }
           }
         }
@@ -201,29 +215,47 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
 };
 
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => ({ ...defaultState, ...data });
-export const generateSoulSignature = (state: GameState): string => btoa(JSON.stringify(state));
-export const parseSoulSignature = (sig: string, def: GameState): GameState | null => {
-  try { return JSON.parse(atob(sig)); } catch { return null; }
+
+export const generateSoulSignature = (state: GameState): string => {
+  try {
+    const json = JSON.stringify(state);
+    return btoa(encodeURIComponent(json));
+  } catch (e) { return "ERROR: Soul Corruption."; }
 };
-export const generateShopInventory = async (c: string, l: number): Promise<Shop> => ({ id: safeId(), merchantName: 'Barnaby', merchantAura: '', inventory: [] });
+
+export const parseSoulSignature = (sig: string, def: GameState): GameState | null => {
+  try { return JSON.parse(decodeURIComponent(atob(sig))); } catch { return null; }
+};
+
 export const manifestSoulLore = async (char: any): Promise<any> => {
   const ai = getAiClient();
   const response = await ai.models.generateContent({ 
     model: ARCHITECT_MODEL, 
-    contents: `Lore for ${char.name}. JSON.`, 
+    contents: `Lore for ${char.name} (${char.race} ${char.archetype}). JSON.`, 
     config: { responseMimeType: "application/json" } 
   });
   return JSON.parse(response.text || '{}');
 };
-export const generateRumors = async (l: number): Promise<Rumor[]> => [];
+
 export const generateCustomClass = async (p: string): Promise<any> => {
   const ai = getAiClient();
   const response = await ai.models.generateContent({ 
     model: ARCHITECT_MODEL, 
-    contents: `Class: ${p}. JSON.`, 
+    contents: `Class Concept: ${p}. JSON.`, 
     config: { responseMimeType: "application/json" } 
   });
   return JSON.parse(response.text || '{}');
 };
-export const parseDMCommand = (t: string) => ({ setHp: [], takeDamage: [], heals: [], usedSlot: null, shortRest: false, longRest: false, currencyRewards: [], exp: 0, items: [] });
-export const generateInnkeeperResponse = async (h: any, p: any) => "Rest well, traveler.";
+
+export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
+  const ai = getAiClient();
+  trackUsage();
+  try {
+    const response = await ai.models.generateContent({
+      model: FLASH_MODEL,
+      contents: history.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      config: { systemInstruction: "Thou art Barnaby, the one-eyed innkeeper of 'The Broken Cask'. Friendly but weary. Dark fantasy tone." }
+    });
+    return response.text;
+  } catch (e) { return "Barnaby just stares into the fire."; }
+};

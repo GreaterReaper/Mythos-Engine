@@ -31,7 +31,7 @@ const QuotaBanner: React.FC<QuotaBannerProps> = ({ usage }) => {
         setTimeUntilReset(`${pad(h)}:${pad(m)}:${pad(s)}`);
       }
 
-      // 2. Deterministic Global Calculation (Synced via UTC)
+      // 2. Deterministic Global Calculation (Simulated shared depletion)
       const secondsSinceMidnight = (now.getUTCHours() * 3600) + (now.getUTCMinutes() * 60) + now.getUTCSeconds();
       const baseConsumption = secondsSinceMidnight * 28.935; 
       const flicker = Math.sin(now.getTime() / 1000) * 15;
@@ -80,7 +80,7 @@ const QuotaBanner: React.FC<QuotaBannerProps> = ({ usage }) => {
 
       {/* Center: The Void Timer */}
       <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center z-10">
-         <span className="text-[7px] md:text-[8px] font-black font-cinzel text-gray-500 uppercase tracking-[0.5em] mb-1">Cycle Turn</span>
+         <span className="text-[7px] md:text-[8px] font-black font-cinzel text-gray-500 uppercase tracking-[0.5em] mb-1">Cycle Turn (UTC)</span>
          <div className="flex items-center gap-3 bg-black/80 px-4 py-1.5 border border-emerald-900/40 rounded shadow-2xl group">
             <span className="text-sm md:text-xl font-mono font-black text-white tracking-[0.2em] tabular-nums drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] group-hover:text-gold transition-colors">
               {timeUntilReset}

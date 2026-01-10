@@ -34,11 +34,10 @@ const getHoursUntilRefresh = () => {
 
 /**
  * THE ORACLE ENGINE (OFFLINE FALLBACK)
- * Generates deterministic TTRPG responses based on game state.
+ * Generates deterministic TTRPG responses based on game state and keywords.
  */
 const generateOracleResponse = (history: Message[], context: any): string => {
   const lastUserMsg = [...history].reverse().find(m => m.role === 'user')?.content.toLowerCase() || '';
-  const party = context.party as Character[];
   const monsters = context.existingMonsters as Monster[];
   
   if (lastUserMsg.includes('attack') || lastUserMsg.includes('fight')) {
@@ -67,7 +66,6 @@ const generateOracleResponse = (history: Message[], context: any): string => {
 };
 
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
-  // Check if we are in Offline Mode (Global variable set in Nexus)
   if ((window as any).MYTHOS_OFFLINE_MODE) {
     if (narrative.includes("damage")) {
       const match = narrative.match(/takes (\d+) damage/);
@@ -80,7 +78,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   const ai = getAiClient();
   trackUsage();
   const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP)`).join(', ');
-  const systemPrompt = `Thou art the "Mechanical Scribe". Extract mechanical changes from text. Return JSON.`;
+  const systemPrompt = `Thou art the "Mechanical Scribe". Extract mechanical changes from text for ${manifest}. Return JSON ONLY.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -107,14 +105,13 @@ export const generateDMResponse = async (
     usageCount?: number;
   }
 ) => {
-  // CHECK FOR OFFLINE MODE
   if ((window as any).MYTHOS_OFFLINE_MODE) {
     return generateOracleResponse(history, playerContext);
   }
 
   if (playerContext.usageCount !== undefined && playerContext.usageCount >= PERSONAL_LIMIT) {
     const wait = getHoursUntilRefresh();
-    return `The Arbiter's mind is clouded. I must rest for ${wait} hours. (Sever the Aether Link in the Nexus to continue in Clockwork Mode).`;
+    return `The Arbiter's mind is clouded by the heavy aetheric toll. My resonance is spent for this cycle. I must enter a state of deep meditation for the next ${wait} hours to restore my connection to the Great Well. Seek me then, when the stars turn once more (UTC Midnight). (Note: Sever the Aether Link in the Nexus to continue in Clockwork Mode).`;
   }
 
   const ai = getAiClient();
@@ -135,21 +132,25 @@ export const generateDMResponse = async (
     });
     return response.text || "The abyss stares back.";
   } catch (error: any) {
-    return generateOracleResponse(history, playerContext); // Auto-fallback on API failure
+    if (error.status === 429 || error.message?.toLowerCase().includes('quota')) {
+        const wait = getHoursUntilRefresh();
+        return `The Arbiter's mind is clouded by aetheric exhaustion. I must rest for ${wait} hours. (Sever the Aether Link in the Nexus to continue in Clockwork Mode).`;
+    }
+    return generateOracleResponse(history, playerContext);
   }
 };
 
 export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
   if ((window as any).MYTHOS_OFFLINE_MODE) return { name: monsterName, hp: 30, ac: 12, cr: 1 };
   const ai = getAiClient();
-  const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Stats for ${monsterName}`, config: { responseMimeType: "application/json" } });
+  const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Design stats for monster "${monsterName}". Context: ${context}.`, config: { responseMimeType: "application/json" } });
   return JSON.parse(response.text || '{}');
 };
 
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
   if ((window as any).MYTHOS_OFFLINE_MODE) return { name: itemName, rarity: 'Common', type: 'Utility' };
   const ai = getAiClient();
-  const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Stats for ${itemName}`, config: { responseMimeType: "application/json" } });
+  const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Design stats for item "${itemName}". Context: ${context}.`, config: { responseMimeType: "application/json" } });
   return JSON.parse(response.text || '{}');
 };
 
@@ -162,10 +163,15 @@ export const generateShopInventory = async (c: string, l: number): Promise<Shop>
 export const manifestSoulLore = async (char: any): Promise<any> => {
   if ((window as any).MYTHOS_OFFLINE_MODE) return { biography: "A soul forged in silence.", description: "Standard vessel." };
   const ai = getAiClient();
-  const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Lore for ${char.name}`, config: { responseMimeType: "application/json" } });
+  const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Lore for ${char.name}, a ${char.race} ${char.archetype}`, config: { responseMimeType: "application/json" } });
   return JSON.parse(response.text || '{"biography":"", "description":""}');
 };
 export const generateRumors = async (l: number): Promise<Rumor[]> => [];
-export const generateCustomClass = async (p: string): Promise<any> => ({});
+export const generateCustomClass = async (p: string): Promise<any> => {
+    if ((window as any).MYTHOS_OFFLINE_MODE) return {};
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({ model: ARCHITECT_MODEL, contents: `Forge class: ${p}`, config: { responseMimeType: "application/json" } });
+    return JSON.parse(response.text || '{}');
+};
 export const parseDMCommand = (t: string) => ({ setHp: [], takeDamage: [], heals: [], usedSlot: null, shortRest: false, longRest: false, currencyRewards: [], exp: 0, items: [] });
-export const generateInnkeeperResponse = async (h: any, p: any) => "The ale is bitter today.";
+export const generateInnkeeperResponse = async (h: any, p: any) => "The ale is bitter today, traveler.";

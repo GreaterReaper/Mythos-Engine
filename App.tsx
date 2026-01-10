@@ -87,22 +87,16 @@ const App: React.FC = () => {
     return [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
   }, [state.characters, state.mentors, state.party]);
 
-  /**
-   * LINEAGE REFRESH: Re-syncs character abilities/spells with core manifests and recalculates max HP.
-   */
   const refreshLineage = () => {
     setState(prev => {
       const syncCharacter = (c: Character): Character => {
         const info = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
         if (!info) return c;
-        
         const unlockedAbilities = info.coreAbilities.filter(a => a.levelReq <= c.level);
         const unlockedSpells = (info.spells || []).filter(s => s.levelReq <= c.level);
         const customBoons = (c.abilities || []).filter(a => a.levelReq === 0);
-        
         const conBonus = Math.floor((c.stats.con - 10) / 2);
         const newMaxHp = info.hpDie + conBonus + ((c.level - 1) * (Math.floor(info.hpDie / 2) + 1 + conBonus));
-
         return {
           ...c,
           abilities: [...unlockedAbilities, ...customBoons],
@@ -111,14 +105,9 @@ const App: React.FC = () => {
           currentHp: Math.min(c.currentHp || newMaxHp, newMaxHp)
         };
       };
-      return {
-        ...prev,
-        characters: prev.characters.map(syncCharacter),
-        mentors: prev.mentors.map(syncCharacter)
-      };
+      return { ...prev, characters: prev.characters.map(syncCharacter), mentors: prev.mentors.map(syncCharacter) };
     });
-    // System feedback
-    handleSystemLog("LINEAGE: Souls aligned with core resonance.");
+    if (state.activeCampaignId) handleSystemLog("LINEAGE: Souls aligned with core resonance.");
   };
 
   const handleSystemLog = (content: string) => {
@@ -140,8 +129,7 @@ const App: React.FC = () => {
   };
 
   /**
-   * CENTRAL MESSAGE HUB: Processes all roles and triggers AI DM/Auditor as needed.
-   * Hardened to handle initial campaign context.
+   * CENTRAL MESSAGE HUB: Processes all roles and triggers AI responses.
    */
   const handleMessage = async (msg: Message, campaignId?: string) => {
     const targetCampaignId = campaignId || state.activeCampaignId;
@@ -157,7 +145,6 @@ const App: React.FC = () => {
     if (msg.role === 'user') {
       setIsLoading(true);
       try {
-        // Find campaign in state, but if we just created it, we might need a manual object
         const currentCampaign = state.campaigns.find(c => c.id === targetCampaignId);
         const history = currentCampaign ? [...currentCampaign.history, msg] : [msg];
         
@@ -184,19 +171,14 @@ const App: React.FC = () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyUnits);
           const logs: Message[] = [];
-          
           if (audit.newEntities?.length > 0) {
             for (const entity of audit.newEntities) {
               if (entity.category === 'monster') {
                 const details = await generateMonsterDetails(entity.name, `Forged in ${targetCampaignId}`);
                 const newMonster: Monster = {
-                  id: safeId(),
-                  name: details.name || entity.name,
-                  hp: details.hp || 50,
-                  ac: details.ac || 15,
+                  id: safeId(), name: details.name || entity.name, hp: details.hp || 50, ac: details.ac || 15,
                   stats: details.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-                  cr: details.cr || 1,
-                  abilities: [], activeStatuses: [], type: 'Hybrid',
+                  cr: details.cr || 1, abilities: [], activeStatuses: [], type: 'Hybrid',
                   description: details.description || "A manifest horror."
                 };
                 setState(prev => ({ ...prev, bestiary: [newMonster, ...prev.bestiary] }));
@@ -204,13 +186,11 @@ const App: React.FC = () => {
               }
             }
           }
-
           if (audit.changes?.length > 0) {
             setState(prev => {
               let newCharacters = [...prev.characters];
               let newMentors = [...prev.mentors];
               let newParty = [...prev.party];
-
               audit.changes.forEach((change: any) => {
                 if (change.type === 'summon') {
                   const mentor = newMentors.find(m => m.name.toLowerCase().includes(change.target.toLowerCase()));
@@ -220,13 +200,8 @@ const App: React.FC = () => {
                   }
                   return;
                 }
-
-                const targetChar = [...newCharacters, ...newMentors].find(c => 
-                  change.target && c.name.toLowerCase().includes(change.target.toLowerCase())
-                );
-                
+                const targetChar = [...newCharacters, ...newMentors].find(c => change.target && c.name.toLowerCase().includes(change.target.toLowerCase()));
                 if (!targetChar) return;
-                
                 const updateMapper = (c: Character): Character => {
                   if (c.id !== targetChar.id) return c;
                   const charUpdate = { ...c };
@@ -234,42 +209,26 @@ const App: React.FC = () => {
                   if (change.type === 'heal') charUpdate.currentHp = Math.min(charUpdate.maxHp || 100, (charUpdate.currentHp || 0) + (change.value || 0));
                   if (change.type === 'exp') {
                     charUpdate.exp += (change.value || 0);
-                    const levelUpAt = 1000 * charUpdate.level;
-                    if (charUpdate.exp >= levelUpAt) {
+                    if (charUpdate.exp >= 1000 * charUpdate.level) {
                       charUpdate.level += 1;
                       logs.push({ role: 'system', content: `ASCENSION: ${c.name} reached Level ${charUpdate.level}.`, timestamp: Date.now() });
                     }
                   }
                   if (change.type === 'ability') {
-                    const newAbility: Ability = {
-                      name: change.description?.split('|')[0]?.trim() || "New Power",
-                      description: change.description?.split('|')[1]?.trim() || "A soul-manifestation.",
-                      type: 'Active', levelReq: 0
-                    };
+                    const newAbility: Ability = { name: change.description?.split('|')[0]?.trim() || "New Power", description: change.description?.split('|')[1]?.trim() || "A soul-manifestation.", type: 'Active', levelReq: 0 };
                     charUpdate.abilities = [...(charUpdate.abilities || []), newAbility];
                     logs.push({ role: 'system', content: `LEGENDARY: ${c.name} unlocked: ${newAbility.name}.`, timestamp: Date.now() });
                   }
                   return charUpdate;
                 };
-
                 newCharacters = newCharacters.map(updateMapper);
                 newMentors = newMentors.map(updateMapper);
               });
-              
-              return { 
-                ...prev, 
-                characters: newCharacters, 
-                mentors: newMentors,
-                party: newParty,
-                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs], participants: newParty } : c)
-              };
+              return { ...prev, characters: newCharacters, mentors: newMentors, party: newParty, campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs], participants: newParty } : c) };
             });
             setTimeout(refreshLineage, 100);
           } else if (logs.length > 0) {
-            setState(prev => ({
-              ...prev,
-              campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
-            }));
+            setState(prev => ({ ...prev, campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c) }));
           }
         } catch (e) { console.error("Audit Fail", e); }
       }, 500);
@@ -279,28 +238,19 @@ const App: React.FC = () => {
   const handleTutorialComplete = (primaryId: string, title: string, prompt: string) => {
     const campId = safeId();
     const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: [primaryId], isRaid: false };
-    
-    // Set active ID first
-    setState(prev => ({ 
-      ...prev, 
-      campaigns: [...prev.campaigns, newCampaign], 
-      activeCampaignId: campId, 
-      party: [primaryId] 
-    }));
-    
+    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: [primaryId] }));
     setShowTutorial(false);
     setActiveTab('Chronicles');
-    
-    // Explicitly send the start message to the hub
-    handleMessage({ role: 'user', content: `start ${title}. Premises: ${prompt}`, timestamp: Date.now() }, campId);
+    // Automate Arbiter opening
+    setTimeout(() => {
+      handleMessage({ role: 'user', content: `[NARRATIVE_START]: Weave the opening scene for our fellowship. Context: ${title}. Premise: ${prompt}. Describe our immediate surroundings and the atmosphere of this dark world. Speak directly to us as the Arbiter.`, timestamp: Date.now() }, campId);
+    }, 150);
   };
 
   const handleDeleteAccount = () => {
     if (confirm("RITUAL OF SEVERANCE: Art thou certain? This ritual shall dissolve all soul fragments stored in this vessel's memory. This action is irreversible.")) {
       localStorage.removeItem(STORAGE_PREFIX + 'state');
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith(STORAGE_PREFIX)) localStorage.removeItem(key);
-      });
+      Object.keys(localStorage).forEach(key => { if (key.startsWith(STORAGE_PREFIX)) localStorage.removeItem(key); });
       window.location.reload();
     }
   };
@@ -308,17 +258,11 @@ const App: React.FC = () => {
   const onCreateCampaign = (t: string, p: string, isRaid?: boolean) => {
     const campId = safeId();
     const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
-    
-    setState(prev => ({ 
-      ...prev, 
-      campaigns: [...prev.campaigns, newCampaign], 
-      activeCampaignId: campId 
-    }));
-    
-    // Delay slightly to allow state to catch up for the DM context find
+    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
+    // Automate Arbiter opening
     setTimeout(() => {
-      handleMessage({ role: 'user', content: `start campaign: ${t}. Objective: ${p}`, timestamp: Date.now() }, campId);
-    }, 50);
+      handleMessage({ role: 'user', content: `[NARRATIVE_START]: Weave the opening scene for our fellowship. Context: ${t}. Premise: ${p}. Describe our immediate surroundings and the atmosphere of this dark world. Speak directly to us as the Arbiter.`, timestamp: Date.now() }, campId);
+    }, 150);
   };
 
   return (
@@ -327,23 +271,14 @@ const App: React.FC = () => {
         <QuotaBanner usage={state.apiUsage} />
         <div className="flex flex-col flex-1 min-h-0 md:flex-row overflow-hidden">
           {!state.userAccount.isLoggedIn && (
-            <AccountPortal 
-              onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} 
-              onMigrate={sig => {
-                const migrated = parseSoulSignature(sig, DEFAULT_STATE);
-                if (migrated) { setState(migrated); return true; }
-                return false;
-              }} 
-            />
+            <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={sig => {
+              const migrated = parseSoulSignature(sig, DEFAULT_STATE);
+              if (migrated) { setState(migrated); return true; }
+              return false;
+            }} />
           )}
           {showTutorial && <TutorialScreen characters={state.characters} mentors={state.mentors} onComplete={handleTutorialComplete} />}
-          <Sidebar 
-            activeTab={activeTab} 
-            setActiveTab={setActiveTab} 
-            userAccount={state.userAccount} 
-            multiplayer={state.multiplayer} 
-            showTactics={state.activeCampaignId !== null} 
-          />
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} showTactics={state.activeCampaignId !== null} />
           <main className={`relative flex-1 bg-leather ${activeTab === 'Chronicles' || activeTab === 'Tactics' ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
             <div className={`mx-auto ${activeTab === 'Chronicles' || activeTab === 'Tactics' ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
               {activeTab === 'Chronicles' && <DMWindow 
@@ -356,42 +291,25 @@ const App: React.FC = () => {
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
                 onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} 
                 onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} 
-                onShortRest={() => {}} isHost={true} isKeyboardOpen={isKeyboardOpen}
-                apiUsage={state.apiUsage}
-                isLoadingExternally={isLoading}
+                onShortRest={() => {}} isHost={true} isKeyboardOpen={isKeyboardOpen} apiUsage={state.apiUsage} isLoadingExternally={isLoading}
               />}
               {activeTab === 'Tactics' && (
                 <div className="h-full p-4 md:p-8 overflow-y-auto custom-scrollbar">
-                  <TacticalMap 
-                    tokens={state.mapTokens} 
-                    onUpdateTokens={tokens => setState(p => ({ ...p, mapTokens: tokens }))} 
-                    characters={activePartyUnits} 
-                    monsters={state.bestiary} 
-                  />
+                  <TacticalMap tokens={state.mapTokens} onUpdateTokens={tokens => setState(p => ({ ...p, mapTokens: tokens }))} characters={activePartyUnits} monsters={state.bestiary} />
                 </div>
               )}
               {activeTab === 'Fellowship' && <FellowshipScreen 
-                characters={state.characters} 
-                onAdd={(c, items) => setState(p => ({ ...p, characters: [...p.characters, { ...c, isPrimarySoul: p.characters.length === 0 }], armory: [...p.armory, ...items] }))} 
-                onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
-                onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
-                customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
-                username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} 
-                onRefreshCharacters={refreshLineage}
+                characters={state.characters} onAdd={(c, items) => setState(p => ({ ...p, characters: [...p.characters, { ...c, isPrimarySoul: p.characters.length === 0 }], armory: [...p.armory, ...items] }))} onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
+                customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} onRefreshCharacters={refreshLineage}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
-                party={activePartyUnits} mentors={state.mentors} partyIds={state.party} 
-                onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} 
-                onLongRest={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} 
-                isBetweenCampaigns={!state.activeCampaignId}
+                party={activePartyUnits} mentors={state.mentors} partyIds={state.party} onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} onLongRest={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} isBetweenCampaigns={!state.activeCampaignId}
               />}
               {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onClear={() => setState(p => ({ ...p, bestiary: [] }))} onAddMonster={m => setState(p => ({ ...p, bestiary: [m, ...p.bestiary] }))} />}
               {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}
               {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} party={activePartyUnits} />}
               {activeTab === 'Nexus' && <NexusScreen 
-                peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} 
-                isHost={state.multiplayer.isHost} onConnect={() => {}} username={state.userAccount.username} 
-                gameState={state} onClearFriends={() => {}} onDeleteAccount={handleDeleteAccount}
+                peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} isHost={state.multiplayer.isHost} onConnect={() => {}} username={state.userAccount.username} gameState={state} onClearFriends={() => {}} onDeleteAccount={handleDeleteAccount}
               />}
               {activeTab === 'Rules' && <RulesScreen />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}

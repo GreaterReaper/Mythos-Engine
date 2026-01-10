@@ -26,7 +26,6 @@ const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * THE SCRIBE: Audits narrative text for mechanical changes.
- * Model: Gemini 3 Flash
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   if (!narrative || isOffline()) return { changes: [], newEntities: [] };
@@ -92,7 +91,6 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
 /**
  * THE ARBITER: The primary DM logic.
- * Model: Gemini 3 Flash
  */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
   if (isOffline()) return "The void is silent.";
@@ -112,10 +110,24 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
   - Archetypes: Respect the core abilities of Warriors, Mages, Dark Knights, and others.
   - Gating: Players cannot use spells above their current level.`;
 
-  const contents = history.map(m => ({
-    role: m.role === 'user' ? 'user' : 'model',
-    parts: [{ text: m.content }]
-  }));
+  // CRITICAL: Filter out 'system' messages and ensure the sequence starts with 'user'
+  const validHistory = history.filter(m => m.role !== 'system');
+  
+  // Ensure the history doesn't start with a model response (violates API rules)
+  const contents = [];
+  let foundUser = false;
+  for (const m of validHistory) {
+    if (m.role === 'user') foundUser = true;
+    if (foundUser) {
+      contents.push({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      });
+    }
+  }
+
+  // If we have no user messages yet, something is wrong
+  if (contents.length === 0) return "The void consumes thy intent. (No user context)";
 
   try {
     const response = await ai.models.generateContent({
@@ -132,7 +144,6 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
 
 /**
  * THE ARCHITECT: Item & Monster manifestation.
- * Model: Gemini 3 Flash
  */
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
   if (isOffline()) return { name: itemName, stats: {} };
@@ -224,7 +235,7 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   try {
     const response = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
-      contents: history.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })), 
+      contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })), 
       config: { systemInstruction: "Thou art Barnaby, the innkeeper of The Broken Cask. Provide rumors, rest, and atmosphere. Gritty but welcoming." } 
     });
     return response.text;
@@ -252,7 +263,7 @@ export const hydrateState = (saved: any, fallback: GameState): GameState => {
     },
     campaigns: (saved.campaigns || []).map((c: any) => ({
       ...c,
-      history: c.history || [],
+      history: (c.history || []).map((m: any) => ({ ...m })),
       participants: c.participants || []
     }))
   };

@@ -1,12 +1,9 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, Character, Monster, Item, GameState, Shop, Rumor, Ability } from './types';
 
 // THE CLOCKWORK ENGINE: Unified on Gemini 3 Flash for maximum narrative velocity
 const FLASH_MODEL = 'gemini-3-flash-preview';
-
-const NARRATIVE_MODEL = FLASH_MODEL; 
-const ARCHITECT_MODEL = FLASH_MODEL;
-const SCRIBE_MODEL = FLASH_MODEL;
 
 export const safeId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -24,33 +21,65 @@ const trackUsage = () => {
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
+ * CLEANSING PROTOCOL
+ * Gemini requires history to start with 'user' and alternate strictly.
+ */
+const prepareHistory = (history: Message[]) => {
+  if (history.length === 0) return [{ role: 'user', parts: [{ text: 'Begin the chronicle.' }] }];
+
+  const contents: any[] = [];
+  let lastRole: string | null = null;
+
+  history.forEach((m, idx) => {
+    if (m.role === 'system') return;
+    
+    let currentRole = m.role === 'user' ? 'user' : 'model';
+    
+    // If first message is from model, convert it to a user context prompt to avoid 400 error
+    if (idx === 0 && currentRole === 'model') {
+      contents.push({
+        role: 'user',
+        parts: [{ text: `The chronicle begins as follows: ${m.content}\n\nI acknowledge this. Continue.` }]
+      });
+      lastRole = 'user';
+      return;
+    }
+
+    if (currentRole === lastRole) {
+      contents[contents.length - 1].parts[0].text += `\n\n${m.content}`;
+    } else {
+      contents.push({ role: currentRole, parts: [{ text: m.content }] });
+      lastRole = currentRole;
+    }
+  });
+
+  // Final check: must end with model to receive user, or vice versa. 
+  // For generateContent, standard list is fine.
+  return contents;
+};
+
+/**
  * THE MECHANICAL SCRIBE
- * Audits narrative to extract state changes with high precision.
- * Runs under Flash Protocol.
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
+  if (!narrative) return { changes: [], newEntities: [] };
+  
   const ai = getAiClient();
   trackUsage();
   
   const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP, ${c.currentMana}/${c.maxMana} Mana, Lvl ${c.level})`).join(', ');
   
-  const systemInstruction = `Thou art the "Mechanical Scribe". Thy duty is to audit the narrative for statistical changes and physical manifestations.
-  Current Party: ${manifest}.
-
-  STRICT EXTRACTION RULES:
-  1. DAMAGE/HEAL: Look for "takes X damage", "loses X HP", "heals X HP", or "restores X HP".
-  2. EXPERIENCE: Look for "gains X EXP" or "receives X EXP".
-  3. MANA/STAMINA: Look for "expends X mana", "uses X stamina", or "loses X mana".
-  4. NEW ENTITIES: Look for NEW monsters, items, OR custom ABILITIES/FEATS mentioned as being found, looted, or RECEIVED. 
-     - "entityData" property should contain detailed stats for the new entity if it is an item or ability.
-     - For ABILITIES: Include name, description, and scaling if mentioned.
-  
-  CRITICAL: Return JSON only. Do NOT hallucinate values. Running on Flash Tier.`;
+  const systemInstruction = `Thou art the "Mechanical Scribe". Audit narrative for stats.
+  Party: ${manifest}.
+  RULES:
+  1. Look for damage/heal/exp/mana changes.
+  2. Detect new items, monsters, or bonus class abilities.
+  3. Return JSON ONLY. Flash protocol active.`;
 
   try {
     const response = await ai.models.generateContent({
-      model: SCRIBE_MODEL,
-      contents: narrative,
+      model: FLASH_MODEL,
+      contents: [{ role: 'user', parts: [{ text: `Audit this text for changes: ${narrative}` }] }],
       config: { 
         systemInstruction, 
         responseMimeType: "application/json",
@@ -63,7 +92,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                 type: Type.OBJECT,
                 properties: {
                   type: { type: Type.STRING, description: "damage, heal, exp, or mana" },
-                  target: { type: Type.STRING, description: "Character name" },
+                  target: { type: Type.STRING },
                   value: { type: Type.NUMBER }
                 },
                 required: ["type", "target", "value"]
@@ -76,7 +105,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
                 properties: {
                   category: { type: Type.STRING, description: "monster, item, or ability" },
                   name: { type: Type.STRING },
-                  target: { type: Type.STRING, description: "Character name" },
+                  target: { type: Type.STRING },
                   entityData: {
                     type: Type.OBJECT,
                     properties: {
@@ -98,25 +127,25 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
     });
     return JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
   } catch (e) {
-    console.error("Scribe Failure:", e);
+    console.error("Scribe Logic Breach:", e);
     return { changes: [], newEntities: [] };
   }
 };
 
 /**
  * THE ARBITER OF MYTHOS
- * Runs under Flash Protocol for low-latency storytelling.
  */
+// Fix: align playerContext type with caller in DMWindow.tsx to include extra metadata and fix "Object literal may only specify known properties" error
 export const generateDMResponse = async (
   history: Message[],
   playerContext: { 
     activeCharacter: Character | null;
     party: Character[]; 
-    mentors: Character[]; 
     activeRules: string;
-    existingItems: Item[];
-    existingMonsters: Monster[];
     campaignTitle: string;
+    mentors?: Character[];
+    existingItems?: Item[];
+    existingMonsters?: Monster[];
     usageCount?: number;
   }
 ) => {
@@ -125,55 +154,31 @@ export const generateDMResponse = async (
 
   const active = playerContext.activeCharacter;
   const activeDetail = active ? `
-    CHARACTER MANIFEST [READ CAREFULLY]:
-    - Identity: ${active.name} (${active.gender}), ${active.race} ${active.archetype}
-    - Level: Level ${active.level}
-    - Manifestations: ${[...(active.abilities || []), ...(active.spells || [])].map(a => a.name).join(', ')}
-  ` : 'No active soul detected in the aether.';
+    CHARACTER MANIFEST:
+    - Identity: ${active.name}, ${active.race} ${active.archetype}
+    - Level: ${active.level}
+    - Abilities: ${[...(active.abilities || []), ...(active.spells || [])].map(a => a.name).join(', ')}
+  ` : 'No active soul.';
 
-  const partyManifest = playerContext.party.map(c => `${c.name} (HP:${c.currentHp}/${c.maxHp}, Mana:${c.currentMana}/${c.maxMana})`).join(', ');
-  
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM running on the high-speed Flash Tier.
-  
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM running on Gemini 3 Flash.
   ${activeDetail}
-  
-  FELLOWSHIP CONTEXT:
-  ${partyManifest}
-  
-  PROTOCOLS:
-  1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Level, and current Abilities.
-  2. LEGENDARY FEATS: For truly exceptional roleplay or extreme success (Nat 20 on a high-stakes task), thou mayst grant a unique custom ABILITY or FEAT. 
-     - Example: "For thy legendary defense of the gate, thou gainest the 'Bulwark of Souls' feat: +1 AC when adjacent to allies."
-     - Tailor these to the character's class and context.
-  3. DICE: Use [🎲 d20(roll)+mod=result] for all checks.
-  4. DETERMINISM: The world reacts harshly to thy Stats.
-  5. VELOCITY: Deliver narrative with speed and punchy, evocative prose.`;
+  Rules:
+  1. Use [🎲 d20(roll)+mod=result] for checks.
+  2. Grant unique feats for Nat 20 legendary successes.
+  3. High-velocity, evocative dark fantasy prose.`;
 
-  // Gemini requires strictly alternating roles: user -> model -> user -> model.
-  const contents = [];
-  let lastRole = null;
-  
-  for (const m of history) {
-    if (m.role === 'system') continue;
-    const role = m.role === 'user' ? 'user' : 'model';
-    if (role === lastRole && contents.length > 0) {
-      contents[contents.length - 1].parts[0].text += `\n\n${m.content}`;
-    } else {
-      contents.push({ role, parts: [{ text: m.content }] });
-      lastRole = role;
-    }
-  }
+  const contents = prepareHistory(history);
 
   try {
     const response = await ai.models.generateContent({
-      model: NARRATIVE_MODEL,
+      model: FLASH_MODEL,
       contents,
       config: { systemInstruction, temperature: 0.7 }
     });
-    return response.text || "The resonance fades into the void.";
+    return response.text || "The void is silent.";
   } catch (error: any) {
-    console.error("Arbiter Disturbance:", error);
-    return "Aetheric disturbance detected. [API Error]";
+    console.error("Arbiter Disconnect:", error);
+    return "The Aetheric connection has been severed. [API ERROR 400: History Malformed or Key Invalid]";
   }
 };
 
@@ -182,8 +187,8 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
   trackUsage();
   try {
     const response = await ai.models.generateContent({ 
-      model: ARCHITECT_MODEL, 
-      contents: `Manifest Monster Statblock: ${monsterName}. Context: ${context}. Return full stats.`, 
+      model: FLASH_MODEL, 
+      contents: `Manifest Monster Statblock: ${monsterName}. Context: ${context}`, 
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -194,14 +199,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             hp: { type: Type.NUMBER },
             ac: { type: Type.NUMBER },
             cr: { type: Type.NUMBER },
-            type: { type: Type.STRING },
-            stats: {
-              type: Type.OBJECT,
-              properties: {
-                str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER },
-                int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER }
-              }
-            }
+            stats: { type: Type.OBJECT, properties: { str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER }, int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER } } }
           }
         }
       } 
@@ -215,8 +213,8 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   trackUsage();
   try {
     const response = await ai.models.generateContent({ 
-      model: ARCHITECT_MODEL, 
-      contents: `Manifest Relic Properties: ${itemName}. Context: ${context}. Return JSON. Weapon, Armor, or Utility.`, 
+      model: FLASH_MODEL, 
+      contents: `Manifest Item: ${itemName}. Context: ${context}`, 
       config: { 
         responseMimeType: "application/json",
         responseSchema: {
@@ -226,11 +224,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
             description: { type: Type.STRING },
             type: { type: Type.STRING },
             rarity: { type: Type.STRING },
-            isUnique: { type: Type.BOOLEAN },
-            stats: {
-              type: Type.OBJECT,
-              properties: { ac: { type: Type.NUMBER }, damage: { type: Type.STRING } }
-            }
+            stats: { type: Type.OBJECT, properties: { ac: { type: Type.NUMBER }, damage: { type: Type.STRING } } }
           }
         }
       } 
@@ -242,10 +236,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => ({ ...defaultState, ...data });
 
 export const generateSoulSignature = (state: GameState): string => {
-  try {
-    const json = JSON.stringify(state);
-    return btoa(encodeURIComponent(json));
-  } catch (e) { return "ERROR: Soul Corruption."; }
+  try { return btoa(encodeURIComponent(JSON.stringify(state))); } catch (e) { return "ERROR"; }
 };
 
 export const parseSoulSignature = (sig: string, def: GameState): GameState | null => {
@@ -255,18 +246,8 @@ export const parseSoulSignature = (sig: string, def: GameState): GameState | nul
 export const manifestSoulLore = async (char: any): Promise<any> => {
   const ai = getAiClient();
   const response = await ai.models.generateContent({ 
-    model: ARCHITECT_MODEL, 
+    model: FLASH_MODEL, 
     contents: `Lore for ${char.name} (${char.race} ${char.archetype}). JSON.`, 
-    config: { responseMimeType: "application/json" } 
-  });
-  return JSON.parse(response.text || '{}');
-};
-
-export const generateCustomClass = async (p: string): Promise<any> => {
-  const ai = getAiClient();
-  const response = await ai.models.generateContent({ 
-    model: ARCHITECT_MODEL, 
-    contents: `Class Concept: ${p}. JSON.`, 
     config: { responseMimeType: "application/json" } 
   });
   return JSON.parse(response.text || '{}');
@@ -276,10 +257,11 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   const ai = getAiClient();
   trackUsage();
   try {
+    const contents = prepareHistory(history);
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
-      contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })) as any,
-      config: { systemInstruction: "Thou art Barnaby, the one-eyed innkeeper of 'The Broken Cask'. Friendly but weary. Dark fantasy tone. Running on Flash." }
+      contents,
+      config: { systemInstruction: "Thou art Barnaby, one-eyed innkeeper. Dark fantasy. Flash tier." }
     });
     return response.text;
   } catch (e) { return "Barnaby just stares into the fire."; }

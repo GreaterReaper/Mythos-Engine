@@ -16,22 +16,40 @@ interface HpChange {
   type: 'damage' | 'heal' | 'mana';
 }
 
+interface RollResult {
+  id: number;
+  label: string;
+  formula: string;
+  result: number;
+  rolls: number[];
+}
+
+/**
+ * THE SOUL MIRROR: Detailed inspection of a bound character's statistics, 
+ * inventory, and aetheric manifestations.
+ */
 const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, isMentor, customArchetypes = [] }) => {
   const [activeTab, setActiveTab] = useState<'Stats' | 'Soul Path' | 'Inventory' | 'Lore'>('Stats');
   const [inventoryFilter, setInventoryFilter] = useState<'Gear' | 'Mundane'>('Gear');
-  const [lastDeathRoll, setLastDeathRoll] = useState<number | null>(null);
-  const [isRolling, setIsRolling] = useState(false);
   
   const [hpChanges, setHpChanges] = useState<HpChange[]>([]);
+  const [rollResults, setRollResults] = useState<RollResult[]>([]);
   const [displayHp, setDisplayHp] = useState(character.currentHp);
   const [displayMana, setDisplayMana] = useState(character.currentMana);
   const prevHpRef = useRef(character.currentHp);
   const prevManaRef = useRef(character.currentMana);
   const changeIdCounter = useRef(0);
+  const rollIdCounter = useRef(0);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
+  const strMod = getMod(character.stats.str);
   const dexMod = getMod(character.stats.dex);
+  const conMod = getMod(character.stats.con);
+  const intMod = getMod(character.stats.int);
+  const wisMod = getMod(character.stats.wis);
+  const chaMod = getMod(character.stats.cha);
 
+  // Synchronize displayed HP with actual state and trigger damage/heal animations
   useEffect(() => {
     if (prevHpRef.current !== character.currentHp) {
       const diff = character.currentHp - prevHpRef.current;
@@ -45,6 +63,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     }
   }, [character.currentHp]);
 
+  // Synchronize displayed Mana with actual state
   useEffect(() => {
     if (prevManaRef.current !== character.currentMana) {
       const diff = character.currentMana - prevManaRef.current;
@@ -59,11 +78,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     }
   }, [character.currentMana]);
 
-  useEffect(() => {
-    setDisplayHp(character.currentHp);
-    setDisplayMana(character.currentMana);
-  }, []);
-
   const { classAbilities, customBoons } = useMemo(() => {
     const all = [...(character.abilities || []), ...(character.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
     return {
@@ -77,6 +91,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const acCalculation = useMemo(() => {
     let baseAc = 10 + dexMod;
     let shieldBonus = 0;
+    let armorAc = 0;
     
     equippedItems.forEach(item => {
       if (item.type === 'Armor') {
@@ -84,16 +99,41 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         if (item.name.toLowerCase().includes('shield')) {
           shieldBonus += itemAc;
         } else {
-          if (item.name.toLowerCase().includes('plate') || item.name.toLowerCase().includes('heavy')) {
-            baseAc = itemAc;
-          } else {
-            baseAc = itemAc + dexMod;
-          }
+          armorAc = itemAc;
         }
       }
     });
+
+    if (armorAc > 0) {
+      const isHeavy = equippedItems.some(i => i.type === 'Armor' && (i.name.toLowerCase().includes('plate') || i.name.toLowerCase().includes('heavy')));
+      if (isHeavy) {
+        baseAc = armorAc;
+      } else {
+        baseAc = armorAc + dexMod;
+      }
+    }
+
     return baseAc + shieldBonus;
   }, [equippedItems, dexMod]);
+
+  const combatStats = useMemo(() => {
+    const weapons = equippedItems.filter(i => i.type === 'Weapon');
+    const isFinesseClass = character.archetype === Archetype.Thief || character.archetype === Archetype.Archer;
+    
+    return weapons.map(w => {
+      const isFinesseWeapon = w.name.toLowerCase().includes('dagger') || w.name.toLowerCase().includes('rapier') || w.name.toLowerCase().includes('bow');
+      const mod = (isFinesseClass || isFinesseWeapon) ? dexMod : strMod;
+      const attackBonus = mod + character.level;
+      return {
+        id: w.id,
+        name: w.name,
+        attackBonus,
+        damage: w.stats?.damage || '1d4',
+        damageType: w.stats?.damageType || 'Physical',
+        modName: (isFinesseClass || isFinesseWeapon) ? 'DEX' : 'STR'
+      };
+    });
+  }, [equippedItems, strMod, dexMod, character.level, character.archetype]);
 
   const filteredInventory = useMemo(() => {
     return character.inventory.filter(item => {
@@ -138,257 +178,229 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     onUpdate(character.id, { equippedIds: newEquippedIds });
   };
 
-  const handleRollDeathSave = () => {
-    if (!onUpdate || isMentor || character.currentHp > 0 || isRolling) return;
-    setIsRolling(true);
-    setTimeout(() => {
-      const roll = Math.floor(Math.random() * 20) + 1;
-      setLastDeathRoll(roll);
-      setIsRolling(false);
-      const currentSaves = character.deathSaves || { successes: 0, failures: 0 };
-      if (roll >= 10) {
-        const next = Math.min(3, currentSaves.successes + 1);
-        onUpdate(character.id, { deathSaves: { ...currentSaves, successes: next } });
-        if (next === 3) onUpdate(character.id, { currentHp: 1, deathSaves: { successes: 0, failures: 0 } });
-      } else {
-        const next = Math.min(3, currentSaves.failures + 1);
-        onUpdate(character.id, { deathSaves: { ...currentSaves, failures: next } });
-      }
-    }, 600);
+  const parseAndRoll = (formula: string, modifier: number) => {
+    const match = formula.match(/(\d+)d(\d+)([+-]\d+)?/);
+    if (!match) return { result: 0, rolls: [], formula: formula };
+
+    const count = parseInt(match[1]);
+    const sides = parseInt(match[2]);
+    const extra = match[3] ? parseInt(match[3]) : 0;
+    
+    const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+    const sum = rolls.reduce((a, b) => a + b, 0);
+    return { result: sum + extra + modifier, rolls, formula: `${count}d${sides}${extra !== 0 ? (extra > 0 ? '+' + extra : extra) : ''}${modifier !== 0 ? (modifier > 0 ? '+' + modifier : modifier) : ''}` };
   };
 
-  const expThreshold = character.level * 1000;
-  const expPercentage = Math.min(100, (character.exp / expThreshold) * 100);
-  const hpPercentage = (character.currentHp / character.maxHp) * 100;
-  const manaPercentage = (character.currentMana / character.maxMana) * 100;
+  const handleRollWeapon = (item: Item) => {
+    const dmgFormula = item.stats?.damage || '1d4';
+    const isFinesse = item.name.toLowerCase().includes('dagger') || item.name.toLowerCase().includes('rapier') || item.name.toLowerCase().includes('bow') || character.archetype === Archetype.Thief;
+    const mod = isFinesse ? dexMod : strMod;
+    
+    const { result, rolls, formula } = parseAndRoll(dmgFormula, mod);
+    const newRoll: RollResult = {
+      id: ++rollIdCounter.current,
+      label: item.name,
+      formula,
+      result,
+      rolls
+    };
+    setRollResults(prev => [newRoll, ...prev].slice(0, 3));
+    setTimeout(() => setRollResults(prev => prev.filter(r => r.id !== newRoll.id)), 4000);
+  };
 
   return (
-    <div className="rune-border bg-black/90 backdrop-blur-xl overflow-hidden flex flex-col h-full max-h-[90vh] shadow-2xl border-emerald-900/60 relative">
-      <div className="absolute top-24 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center gap-2">
-        {hpChanges.map(change => (
-          <div key={change.id} className={`font-cinzel font-black text-2xl animate-bounce-up ${change.type === 'damage' ? 'text-red-500' : change.type === 'mana' ? 'text-blue-400' : 'text-emerald-400'}`}>
-            {change.type === 'damage' || change.type === 'mana' ? '-' : '+'}{change.amount}
+    <div className="flex flex-col h-full bg-black/40 rune-border overflow-hidden relative">
+      {/* Header Section */}
+      <div className="p-6 border-b border-emerald-900/30 flex justify-between items-center bg-black/60">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-emerald-900/20 border-2 border-gold/40 flex items-center justify-center font-cinzel text-3xl font-black text-gold">
+            {character.name[0]}
           </div>
-        ))}
-      </div>
-
-      <style>{`
-        @keyframes bounce-up {
-          0% { transform: translateY(20px); opacity: 0; scale: 0.5; }
-          20% { transform: translateY(0); opacity: 1; scale: 1.2; }
-          80% { transform: translateY(-40px); opacity: 1; scale: 1; }
-          100% { transform: translateY(-60px); opacity: 0; }
-        }
-        .animate-bounce-up {
-          animation: bounce-up 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-      `}</style>
-
-      <div className="p-4 border-b border-emerald-900/40 bg-emerald-900/10">
-        <div className="flex justify-between items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl md:text-2xl font-cinzel text-gold truncate font-black">{character.name}</h2>
-              <div className="bg-black/80 border border-gold/40 px-2 py-0.5 rounded shadow-[0_0_10px_rgba(212,175,55,0.2)]">
-                <span className="text-[9px] font-cinzel text-gold font-black uppercase">AC {acCalculation}</span>
-              </div>
-            </div>
-            <p className="text-[10px] md:text-xs text-emerald-500 font-cinzel uppercase tracking-[0.2em] truncate font-bold">{character.race} {character.archetype} • Lvl {character.level}</p>
+          <div>
+            <h2 className="text-2xl md:text-3xl font-cinzel text-gold font-black uppercase tracking-tight">{character.name}</h2>
+            <p className="text-xs text-emerald-500 font-cinzel uppercase font-bold tracking-widest mt-1">
+              Level {character.level} {character.race} {character.archetype}
+            </p>
           </div>
         </div>
-
-        {character.currentHp <= 0 ? (
-          <div className="mt-4 p-4 bg-red-950/20 border border-red-900/40 rounded-sm animate-pulse text-center">
-            <button onClick={handleRollDeathSave} disabled={isRolling} className="px-8 py-3 bg-emerald-950 border-2 border-gold text-white font-cinzel text-xs font-black uppercase">Death Save</button>
+        <div className="flex gap-4">
+          <div className="text-center">
+            <p className="text-[10px] text-gray-500 uppercase font-black">AC</p>
+            <p className="text-2xl font-black text-gold">{acCalculation}</p>
           </div>
-        ) : (
-          <div className="mt-5 space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-cinzel text-emerald-500 w-12 font-black uppercase">HP</span>
-              <div className="flex-1 h-3 bg-gray-950 rounded-full overflow-hidden border border-emerald-900/20">
-                <div className={`h-full transition-all duration-500 ${character.currentHp < character.maxHp * 0.25 ? 'bg-red-600 animate-pulse' : 'bg-emerald-700'}`} style={{ width: `${hpPercentage}%` }} />
-              </div>
-              <span className="text-[10px] text-white min-w-[50px] text-right font-black">{character.currentHp}/{character.maxHp}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-cinzel text-blue-500 w-12 font-black uppercase">MANA</span>
-              <div className="flex-1 h-3 bg-gray-950 rounded-full overflow-hidden border border-blue-900/20">
-                <div className="h-full bg-blue-600 shadow-[0_0_8px_#3b82f6] transition-all duration-500" style={{ width: `${manaPercentage}%` }} />
-              </div>
-              <span className="text-[10px] text-white min-w-[50px] text-right font-black">{character.currentMana}/{character.maxMana}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-cinzel text-gold w-12 font-black uppercase">EXP</span>
-              <div className="flex-1 h-1.5 bg-gray-950 rounded-full overflow-hidden">
-                <div className="h-full bg-gold/60" style={{ width: `${expPercentage}%` }} />
-              </div>
-              <span className="text-[10px] text-white min-w-[50px] text-right font-black">{character.exp}/{expThreshold}</span>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex border-b border-emerald-900/30 text-[10px] font-cinzel bg-black/40">
-        {['Stats', 'Soul Path', 'Inventory', 'Lore'].map(t => (
-          <button key={t} onClick={() => setActiveTab(t as any)} className={`flex-1 py-3 transition-all uppercase tracking-widest font-black ${activeTab === t ? 'bg-emerald-900/20 text-gold border-b-2 border-gold' : 'text-gray-500'}`}>{t}</button>
+      {/* Primary Tabs */}
+      <div className="flex border-b border-emerald-900/20 bg-black/40 shrink-0">
+        {(['Stats', 'Soul Path', 'Inventory', 'Lore'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 py-3 text-[10px] font-cinzel font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'text-gold bg-emerald-900/20 border-b-2 border-gold' : 'text-gray-500 hover:text-emerald-500'}`}
+          >
+            {tab}
+          </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
+      {/* Tab Content Display */}
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         {activeTab === 'Stats' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {(Object.keys(character.stats) as Array<keyof Stats>).map(s => (
-                <div key={s} className="p-3 border border-emerald-900/20 bg-black/40 rounded-sm">
-                  <span className="text-[9px] font-cinzel uppercase text-gray-500 font-bold">{s}</span>
-                  <div className="flex justify-between items-baseline mt-1"><span className="text-2xl font-black text-gold">{character.stats[s]}</span><span className="text-xs text-emerald-500 font-black">{getMod(character.stats[s]) >= 0 ? '+' : ''}{getMod(character.stats[s])}</span></div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-4 bg-emerald-900/5 border border-emerald-900/20 rounded-sm">
-               <h3 className="text-[10px] font-cinzel text-gold uppercase tracking-[0.2em] font-black border-b border-gold/10 pb-2 mb-3">Defensive Profile</h3>
-               <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-[9px] text-gray-500 uppercase font-black">Armor Class</span>
-                    <p className="text-2xl font-black text-white">{acCalculation}</p>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-gray-500 uppercase font-black">Reflex Mod</span>
-                    <p className="text-2xl font-black text-white">{dexMod >= 0 ? '+' : ''}{dexMod}</p>
-                  </div>
-               </div>
-            </div>
-          </div>
-        )}
-        {activeTab === 'Soul Path' && (
           <div className="space-y-8">
-            {customBoons.length > 0 && (
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/30 pb-1">Legendary Boons</h4>
-                {customBoons.map((a, i) => (
-                  <div key={i} className="p-4 border-l-2 bg-gold/[0.03] border-gold rounded-sm shadow-[0_0_15px_rgba(212,175,55,0.1)]">
-                    <div className="flex justify-between">
-                      <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gold">{a.name}</span>
-                      <span className="text-[8px] bg-gold text-black px-1.5 py-0.5 rounded-sm font-black uppercase">Unique</span>
-                    </div>
-                    <p className="text-[10px] text-gray-300 mt-1 italic">"{a.description}"</p>
-                    {a.scaling && <p className="text-[9px] text-gold/60 mt-1 font-black">Resonance: {a.scaling}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2 relative">
+                <div className="flex justify-between items-end">
+                  <span className="text-[10px] font-cinzel text-emerald-500 font-black uppercase">Vitality</span>
+                  <span className="text-sm font-black text-white">{displayHp} / {character.maxHp}</span>
+                </div>
+                <div className="h-4 bg-gray-900 rounded-full overflow-hidden border border-emerald-900/20">
+                  <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: `${(displayHp / character.maxHp) * 100}%` }} />
+                </div>
+                {hpChanges.map(change => (
+                  <div key={change.id} className={`absolute -top-4 right-0 font-black text-lg animate-bounce ${change.type === 'damage' ? 'text-red-500' : change.type === 'heal' ? 'text-emerald-500' : 'text-blue-500'}`}>
+                    {change.type === 'damage' ? '-' : '+'}{change.amount}
                   </div>
                 ))}
               </div>
-            )}
-
-            <div className="space-y-4">
-              <h4 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest border-b border-emerald-900/20 pb-1">Unlocked Manifestations</h4>
-              {classAbilities.map((a, i) => (
-                <div key={i} className="p-4 border-l-2 bg-emerald-900/5 border-emerald-500 rounded-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gold">{a.name}</span>
-                    <div className="flex gap-2">
-                      {a.manaCost && <span className="text-[8px] text-blue-400 uppercase font-black">-{a.manaCost} MP</span>}
-                      {a.hpCost && <span className="text-[8px] text-red-500 uppercase font-black">-{a.hpCost} HP</span>}
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-1 italic">"{a.description}"</p>
-                  <div className="flex gap-4 mt-2">
-                    {a.damage && <span className="text-[9px] text-gold font-black uppercase tracking-widest">Dmg: {a.damage} {a.damageType}</span>}
-                    {a.scaling && <span className="text-[9px] text-emerald-500 font-black uppercase tracking-widest">Scaling: {a.scaling}</span>}
-                  </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-end">
+                  <span className="text-[10px] font-cinzel text-blue-500 font-black uppercase">Aether</span>
+                  <span className="text-sm font-black text-white">{displayMana} / {character.maxMana}</span>
                 </div>
-              ))}
-              {classAbilities.length === 0 && <p className="text-[10px] text-gray-600 italic">No class power yet manifested.</p>}
+                <div className="h-4 bg-gray-900 rounded-full overflow-hidden border border-emerald-900/20">
+                  <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${(displayMana / character.maxMana) * 100}%` }} />
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-        {activeTab === 'Inventory' && (
-          <div className="space-y-4">
-            <div className="flex gap-2 border-b border-emerald-900/20 pb-2">
-              <button 
-                onClick={() => setInventoryFilter('Gear')}
-                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${inventoryFilter === 'Gear' ? 'bg-gold text-black' : 'text-gray-500'}`}
-              >
-                GEAR
-              </button>
-              <button 
-                onClick={() => setInventoryFilter('Mundane')}
-                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${inventoryFilter === 'Mundane' ? 'bg-gold text-black' : 'text-gray-500'}`}
-              >
-                MUNDANE
-              </button>
-            </div>
-            <div className="space-y-3">
-              {filteredInventory.map(item => {
-                const isEquipped = character.equippedIds?.includes(item.id);
+
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+              {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
+                const val = character.stats[s];
+                const mod = getMod(val);
                 return (
-                  <div key={item.id} className={`p-4 border transition-all flex flex-col gap-3 group bg-black/40 ${isEquipped ? 'border-gold shadow-[0_0_15px_rgba(212,175,55,0.1)]' : 'border-emerald-900/10'}`}>
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <span className="text-[11px] font-cinzel font-black text-gray-200 group-hover:text-gold transition-colors">{item.name}</span>
-                        <div className="flex gap-2 mt-1">
-                          <span className="text-[8px] text-emerald-900 uppercase italic font-bold tracking-widest">{item.type}</span>
-                          <span className={`text-[8px] uppercase font-black px-1 ${
-                            item.rarity === 'Legendary' ? 'text-orange-500' :
-                            item.rarity === 'Epic' ? 'text-purple-500' :
-                            item.rarity === 'Rare' ? 'text-blue-500' : 'text-gray-500'
-                          }`}>{item.rarity}</span>
-                        </div>
-                      </div>
-                      
-                      {!isMentor && (item.type === 'Weapon' || item.type === 'Armor') && (
-                        <button 
-                          onClick={() => handleToggleEquip(item.id)}
-                          className={`px-3 py-1 text-[9px] font-cinzel font-black uppercase border transition-all ${
-                            isEquipped 
-                            ? 'bg-red-900/20 border-red-500 text-red-500 hover:bg-red-500 hover:text-white' 
-                            : 'bg-emerald-900/20 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white'
-                          }`}
-                        >
-                          {isEquipped ? 'UNEQUIP' : 'EQUIP'}
-                        </button>
-                      )}
-                    </div>
-                    
-                    <p className="text-[10px] text-gray-500 italic leading-relaxed">"{item.description}"</p>
-                    
-                    {item.stats && (
-                      <div className="flex flex-wrap gap-3 py-2 border-t border-emerald-900/10">
-                        {item.stats.damage && (
-                          <div className="flex flex-col">
-                            <span className="text-[8px] text-gray-600 uppercase font-black">Damage</span>
-                            <span className="text-[10px] text-gold font-black">{item.stats.damage} {item.stats.damageType}</span>
-                          </div>
-                        )}
-                        {item.stats.ac && (
-                          <div className="flex flex-col">
-                            <span className="text-[8px] text-gray-600 uppercase font-black">Defense (AC)</span>
-                            <span className="text-[10px] text-gold font-black">+{item.stats.ac}</span>
-                          </div>
-                        )}
-                        {Object.entries(item.stats).map(([key, val]) => {
-                          if (['damage', 'ac', 'damageType', 'cost'].includes(key)) return null;
-                          return (
-                            <div key={key} className="flex flex-col">
-                              <span className="text-[8px] text-gray-600 uppercase font-black">{key}</span>
-                              <span className="text-[10px] text-gold font-black">+{val}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                  <div key={s} className="bg-black/60 border border-emerald-900/20 p-3 text-center rounded hover:border-gold transition-colors">
+                    <p className="text-[8px] font-cinzel text-gray-500 uppercase font-black">{s}</p>
+                    <p className="text-xl font-black text-gold my-1">{val}</p>
+                    <p className="text-xs text-emerald-500 font-black">{mod >= 0 ? '+' : ''}{mod}</p>
                   </div>
                 );
               })}
-              {filteredInventory.length === 0 && <p className="text-[10px] text-gray-700 italic text-center py-8">Thy inventory is silent.</p>}
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Combat Stance</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {combatStats.map(cs => (
+                  <div key={cs.id} onClick={() => handleRollWeapon(character.inventory.find(i => i.id === cs.id)!)} className="p-4 bg-emerald-900/5 border border-emerald-900/20 rounded group hover:border-gold transition-all cursor-pointer">
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-cinzel text-gold font-bold">{cs.name}</p>
+                      <p className="text-xs text-emerald-500 font-black">+{cs.attackBonus} to hit</p>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <p className="text-xs text-gray-400">{cs.damage} {cs.damageType}</p>
+                      <p className="text-[8px] text-gray-600 font-black uppercase">{cs.modName} Based</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
+
+        {activeTab === 'Soul Path' && (
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Class Manifestations</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {classAbilities.map((ab, i) => (
+                  <div key={i} className="p-4 bg-black/60 border border-emerald-900/20 rounded">
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-sm font-cinzel text-gold font-bold">{ab.name}</p>
+                      <span className="text-[8px] bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-400 font-black uppercase">Lvl {ab.levelReq}</span>
+                    </div>
+                    <p className="text-xs text-gray-400 italic leading-relaxed">"{ab.description}"</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {customBoons.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest border-b border-emerald-500/20 pb-1">Legendary Boons</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {customBoons.map((ab, i) => (
+                    <div key={i} className="p-4 bg-emerald-950/20 border border-gold/40 rounded shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                      <div className="flex justify-between items-start mb-2">
+                        <p className="text-sm font-cinzel text-gold font-bold">{ab.name}</p>
+                        <span className="text-[8px] bg-gold/20 px-1.5 py-0.5 rounded text-gold font-black uppercase">Unique</span>
+                      </div>
+                      <p className="text-xs text-gray-200 leading-relaxed font-medium">"{ab.description}"</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'Inventory' && (
+          <div className="space-y-6">
+            <div className="flex gap-4">
+              <button onClick={() => setInventoryFilter('Gear')} className={`px-4 py-1.5 text-[10px] font-cinzel font-black uppercase border transition-all ${inventoryFilter === 'Gear' ? 'bg-emerald-900 border-gold text-white' : 'border-emerald-900/30 text-gray-500'}`}>Combat Gear</button>
+              <button onClick={() => setInventoryFilter('Mundane')} className={`px-4 py-1.5 text-[10px] font-cinzel font-black uppercase border transition-all ${inventoryFilter === 'Mundane' ? 'bg-emerald-900 border-gold text-white' : 'border-emerald-900/30 text-gray-500'}`}>Possessions</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredInventory.map(item => (
+                <div key={item.id} className={`p-4 border transition-all ${character.equippedIds?.includes(item.id) ? 'bg-gold/10 border-gold' : 'bg-black/40 border-emerald-900/20'}`}>
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-cinzel text-gold font-bold">{item.name}</p>
+                    {onUpdate && !isMentor && (
+                      <button onClick={() => handleToggleEquip(item.id)} className="text-[8px] font-black uppercase border border-emerald-900/30 px-2 py-1 hover:bg-emerald-900 transition-all">
+                        {character.equippedIds?.includes(item.id) ? 'Unequip' : 'Equip'}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{item.description}"</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'Lore' && (
-          <div className="p-5 bg-emerald-900/10 border-l-4 border-emerald-900">
-            <p className="text-xs text-gray-200 italic leading-relaxed">{character.biography || "Silence from the void."}</p>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Soul History</h3>
+              <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-medium">{character.biography || "No history recorded in the obsidian archives."}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Appearance</h3>
+              <p className="text-sm text-gray-400 italic leading-relaxed">{character.description || "A nondescript vessel of flesh and aether."}</p>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Ephemeral Roll Results Display */}
+      {rollResults.length > 0 && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-50">
+          {rollResults.map(res => (
+            <div key={res.id} className="bg-[#0c0a09] border-2 border-gold p-4 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 min-w-[200px]">
+              <p className="text-[8px] font-cinzel text-gold uppercase font-black tracking-widest mb-1">{res.label}</p>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-2xl font-black text-white">{res.result}</p>
+                  <p className="text-[8px] font-mono text-gray-500">[{res.rolls.join(' + ')}] {res.formula.includes('+') ? `+ ${res.formula.split('+')[1]}` : ''}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] font-black text-emerald-500 uppercase">Resonance Success</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

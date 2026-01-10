@@ -24,10 +24,6 @@ interface RollResult {
   rolls: number[];
 }
 
-/**
- * THE SOUL MIRROR: Detailed inspection of a bound character's statistics, 
- * inventory, and aetheric manifestations.
- */
 const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, isMentor, customArchetypes = [] }) => {
   const [activeTab, setActiveTab] = useState<'Stats' | 'Soul Path' | 'Inventory' | 'Lore'>('Stats');
   const [inventoryFilter, setInventoryFilter] = useState<'Gear' | 'Mundane'>('Gear');
@@ -49,7 +45,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const wisMod = getMod(character.stats.wis);
   const chaMod = getMod(character.stats.cha);
 
-  // Synchronize displayed HP with actual state and trigger damage/heal animations
   useEffect(() => {
     if (prevHpRef.current !== character.currentHp) {
       const diff = character.currentHp - prevHpRef.current;
@@ -63,7 +58,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     }
   }, [character.currentHp]);
 
-  // Synchronize displayed Mana with actual state
   useEffect(() => {
     if (prevManaRef.current !== character.currentMana) {
       const diff = character.currentMana - prevManaRef.current;
@@ -181,11 +175,9 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const parseAndRoll = (formula: string, modifier: number) => {
     const match = formula.match(/(\d+)d(\d+)([+-]\d+)?/);
     if (!match) return { result: 0, rolls: [], formula: formula };
-
     const count = parseInt(match[1]);
     const sides = parseInt(match[2]);
     const extra = match[3] ? parseInt(match[3]) : 0;
-    
     const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
     const sum = rolls.reduce((a, b) => a + b, 0);
     return { result: sum + extra + modifier, rolls, formula: `${count}d${sides}${extra !== 0 ? (extra > 0 ? '+' + extra : extra) : ''}${modifier !== 0 ? (modifier > 0 ? '+' + modifier : modifier) : ''}` };
@@ -195,7 +187,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     const dmgFormula = item.stats?.damage || '1d4';
     const isFinesse = item.name.toLowerCase().includes('dagger') || item.name.toLowerCase().includes('rapier') || item.name.toLowerCase().includes('bow') || character.archetype === Archetype.Thief;
     const mod = isFinesse ? dexMod : strMod;
-    
     const { result, rolls, formula } = parseAndRoll(dmgFormula, mod);
     const newRoll: RollResult = {
       id: ++rollIdCounter.current,
@@ -210,7 +201,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
   return (
     <div className="flex flex-col h-full bg-black/40 rune-border overflow-hidden relative">
-      {/* Header Section */}
       <div className="p-6 border-b border-emerald-900/30 flex justify-between items-center bg-black/60">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-emerald-900/20 border-2 border-gold/40 flex items-center justify-center font-cinzel text-3xl font-black text-gold">
@@ -231,7 +221,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         </div>
       </div>
 
-      {/* Primary Tabs */}
       <div className="flex border-b border-emerald-900/20 bg-black/40 shrink-0">
         {(['Stats', 'Soul Path', 'Inventory', 'Lore'] as const).map(tab => (
           <button
@@ -244,7 +233,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         ))}
       </div>
 
-      {/* Tab Content Display */}
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         {activeTab === 'Stats' && (
           <div className="space-y-8">
@@ -257,11 +245,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                 <div className="h-4 bg-gray-900 rounded-full overflow-hidden border border-emerald-900/20">
                   <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: `${(displayHp / character.maxHp) * 100}%` }} />
                 </div>
-                {hpChanges.map(change => (
-                  <div key={change.id} className={`absolute -top-4 right-0 font-black text-lg animate-bounce ${change.type === 'damage' ? 'text-red-500' : change.type === 'heal' ? 'text-emerald-500' : 'text-blue-500'}`}>
-                    {change.type === 'damage' ? '-' : '+'}{change.amount}
-                  </div>
-                ))}
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
@@ -287,60 +270,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                 );
               })}
             </div>
-
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Combat Stance</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {combatStats.map(cs => (
-                  <div key={cs.id} onClick={() => handleRollWeapon(character.inventory.find(i => i.id === cs.id)!)} className="p-4 bg-emerald-900/5 border border-emerald-900/20 rounded group hover:border-gold transition-all cursor-pointer">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-cinzel text-gold font-bold">{cs.name}</p>
-                      <p className="text-xs text-emerald-500 font-black">+{cs.attackBonus} to hit</p>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <p className="text-xs text-gray-400">{cs.damage} {cs.damageType}</p>
-                      <p className="text-[8px] text-gray-600 font-black uppercase">{cs.modName} Based</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'Soul Path' && (
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Class Manifestations</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {classAbilities.map((ab, i) => (
-                  <div key={i} className="p-4 bg-black/60 border border-emerald-900/20 rounded">
-                    <div className="flex justify-between items-start mb-2">
-                      <p className="text-sm font-cinzel text-gold font-bold">{ab.name}</p>
-                      <span className="text-[8px] bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-400 font-black uppercase">Lvl {ab.levelReq}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 italic leading-relaxed">"{ab.description}"</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {customBoons.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest border-b border-emerald-500/20 pb-1">Legendary Boons</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {customBoons.map((ab, i) => (
-                    <div key={i} className="p-4 bg-emerald-950/20 border border-gold/40 rounded shadow-[0_0_15px_rgba(212,175,55,0.1)]">
-                      <div className="flex justify-between items-start mb-2">
-                        <p className="text-sm font-cinzel text-gold font-bold">{ab.name}</p>
-                        <span className="text-[8px] bg-gold/20 px-1.5 py-0.5 rounded text-gold font-black uppercase">Unique</span>
-                      </div>
-                      <p className="text-xs text-gray-200 leading-relaxed font-medium">"{ab.description}"</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -352,16 +281,59 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredInventory.map(item => (
-                <div key={item.id} className={`p-4 border transition-all ${character.equippedIds?.includes(item.id) ? 'bg-gold/10 border-gold' : 'bg-black/40 border-emerald-900/20'}`}>
+                <div key={item.id} className={`p-4 border transition-all flex flex-col gap-3 ${character.equippedIds?.includes(item.id) ? 'bg-gold/10 border-gold' : 'bg-black/40 border-emerald-900/20'}`}>
                   <div className="flex justify-between items-start">
-                    <p className="text-sm font-cinzel text-gold font-bold">{item.name}</p>
+                    <div>
+                      <p className="text-sm font-cinzel text-gold font-bold">{item.name}</p>
+                      <p className="text-[8px] text-emerald-500/60 uppercase font-black tracking-widest">{item.type} • {item.rarity}</p>
+                    </div>
                     {onUpdate && !isMentor && (
                       <button onClick={() => handleToggleEquip(item.id)} className="text-[8px] font-black uppercase border border-emerald-900/30 px-2 py-1 hover:bg-emerald-900 transition-all">
                         {character.equippedIds?.includes(item.id) ? 'Unequip' : 'Equip'}
                       </button>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{item.description}"</p>
+
+                  {/* STAT DISPLAY SECTION */}
+                  <div className="flex flex-wrap gap-2">
+                    {item.stats?.ac && (
+                      <div className="px-2 py-1 bg-blue-900/20 border border-blue-500/30 rounded flex items-center gap-1.5 shadow-sm">
+                        <span className="text-[7px] text-blue-400 font-black uppercase">AC</span>
+                        <span className="text-xs text-white font-black">{item.stats.ac}</span>
+                      </div>
+                    )}
+                    {item.stats?.damage && (
+                      <div className="px-2 py-1 bg-red-950/20 border border-red-500/30 rounded flex flex-col shadow-sm">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[7px] text-red-400 font-black uppercase">DMG</span>
+                          <span className="text-xs text-white font-black">{item.stats.damage}</span>
+                        </div>
+                        {item.stats.damageType && <span className="text-[8px] text-red-500/60 font-black uppercase tracking-tighter">{item.stats.damageType}</span>}
+                      </div>
+                    )}
+                    
+                    {/* ATTRIBUTE BONUSES */}
+                    {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
+                      const val = (item.stats as any)?.[stat];
+                      if (!val) return null;
+                      return (
+                        <div key={stat} className="px-2 py-1 bg-emerald-950/20 border border-emerald-500/30 rounded flex items-center gap-1">
+                          <span className="text-[7px] text-emerald-500 font-black uppercase">{stat}</span>
+                          <span className="text-xs text-white font-black">+{val}</span>
+                        </div>
+                      );
+                    })}
+
+                    {/* RESISTANCES */}
+                    {(item.stats as any)?.resistances?.map((res: string) => (
+                       <div key={res} className="px-2 py-1 bg-purple-900/20 border border-purple-500/30 rounded flex items-center gap-1">
+                         <svg className="w-2.5 h-2.5 text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6z" /></svg>
+                         <span className="text-[7px] text-purple-300 font-black uppercase">{res} WARD</span>
+                       </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] text-gray-500 italic leading-relaxed line-clamp-2">"{item.description}"</p>
                 </div>
               ))}
             </div>
@@ -370,37 +342,11 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
         {activeTab === 'Lore' && (
           <div className="space-y-6">
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Soul History</h3>
-              <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-medium">{character.biography || "No history recorded in the obsidian archives."}</p>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Appearance</h3>
-              <p className="text-sm text-gray-400 italic leading-relaxed">{character.description || "A nondescript vessel of flesh and aether."}</p>
-            </div>
+            <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Soul History</h3>
+            <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap font-medium">{character.biography || "No history recorded."}</p>
           </div>
         )}
       </div>
-
-      {/* Ephemeral Roll Results Display */}
-      {rollResults.length > 0 && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-50">
-          {rollResults.map(res => (
-            <div key={res.id} className="bg-[#0c0a09] border-2 border-gold p-4 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 min-w-[200px]">
-              <p className="text-[8px] font-cinzel text-gold uppercase font-black tracking-widest mb-1">{res.label}</p>
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-2xl font-black text-white">{res.result}</p>
-                  <p className="text-[8px] font-mono text-gray-500">[{res.rolls.join(' + ')}] {res.formula.includes('+') ? `+ ${res.formula.split('+')[1]}` : ''}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[8px] font-black text-emerald-500 uppercase">Resonance Success</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

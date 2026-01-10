@@ -286,6 +286,10 @@ const App: React.FC = () => {
     }
   };
 
+  const activePartyUnits = useMemo(() => {
+    return [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+  }, [state.characters, state.mentors, state.party]);
+
   return (
     <div className="flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
       <div className="flex flex-col w-full min-h-0">
@@ -309,7 +313,7 @@ const App: React.FC = () => {
             <div className={`mx-auto ${activeTab === 'Chronicles' ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
-                allCampaigns={state.campaigns} characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))} bestiary={state.bestiary} 
+                allCampaigns={state.campaigns} characters={activePartyUnits} bestiary={state.bestiary} 
                 activeCharacter={[...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || null} 
                 onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} 
                 onMessage={handleMessage} 
@@ -335,10 +339,28 @@ const App: React.FC = () => {
                 onRefreshCharacters={handleRefreshCharacters}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
-                party={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))} mentors={state.mentors} partyIds={state.party} 
+                party={activePartyUnits} mentors={state.mentors} partyIds={state.party} 
                 onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} 
                 onLongRest={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} 
                 isBetweenCampaigns={!state.activeCampaignId}
+              />}
+              {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onClear={() => setState(p => ({ ...p, bestiary: [] }))} />}
+              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}
+              {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} party={activePartyUnits} />}
+              {activeTab === 'Nexus' && <NexusScreen 
+                peerId={state.userAccount.peerId || ''} 
+                connectedPeers={state.multiplayer.connectedPeers} 
+                isHost={state.multiplayer.isHost} 
+                onConnect={() => {}} 
+                username={state.userAccount.username} 
+                gameState={state} 
+                onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))}
+                onDeleteAccount={() => {
+                   if(confirm("Art thou certain? This ritual shall dissolve all soul fragments stored in this vessel's memory. This action is irreversible.")) {
+                      localStorage.removeItem(STORAGE_PREFIX + 'state');
+                      window.location.reload();
+                   }
+                }}
               />}
               {activeTab === 'Rules' && <RulesScreen />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}

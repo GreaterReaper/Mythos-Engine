@@ -81,20 +81,19 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
     const startHp = hpDie + conMod;
     const startMana = (archetype === Archetype.Mage || archetype === Archetype.Sorcerer) ? 50 : 30;
 
-    // Define Gear Generation Logic
-    const gearTemplates: Record<string, { weapon: string, armor: string, context: string }> = {
-      [Archetype.Warrior]: { weapon: 'Greataxe or Greatsword', armor: 'Heavy Plate', context: 'Heavy martial, strictly 2-Handed, no shields.' },
-      [Archetype.DarkKnight]: { weapon: 'Obsidian Zweihander', armor: 'Heavy Obsidian Plate', context: 'Heavy martial, 2-Handed, soul-bound steel, no shields.' },
-      [Archetype.Fighter]: { weapon: 'Longsword and Shield', armor: 'Steel Plate', context: 'Heavy martial, 1-Handed weapon and a sturdy shield.' },
-      [Archetype.Thief]: { weapon: 'Twin Daggers', armor: 'Leather Jerkin', context: 'Skirmisher, lithe and fast, stealthy leather.' },
-      [Archetype.Archer]: { weapon: 'Hunting Bow', armor: 'Leather Tunic', context: 'Skirmisher, ranged focus, light leather.' },
-      [Archetype.Alchemist]: { weapon: 'Weighted Shortsword', armor: 'Leather Apron', context: 'Skirmisher, tactical shortsword, reagent-resistant leather.' },
-      [Archetype.Mage]: { weapon: 'Aether Staff', armor: 'Ritual Robes', context: 'Caster, focuses on channeled healing/support energy through a staff.' },
-      [Archetype.Sorcerer]: { weapon: 'Primal Staff', armor: 'Chaos-Woven Robes', context: 'Caster, focuses on raw destructive power through a staff.' },
-      [Archetype.BloodArtist]: { weapon: 'Ritual Sickle', armor: 'Silk Robes', context: 'DPS, uses ritualistic sickles and fine silk robes for blood arts.' }
+    const gearTemplates: Record<string, { weapon: string, armor: string, context: string, fallbackAc: number }> = {
+      [Archetype.Warrior]: { weapon: 'Double-Headed Greataxe', armor: 'Heavy Iron Plate', context: 'Heavy martial, 2-Handed.', fallbackAc: 16 },
+      [Archetype.DarkKnight]: { weapon: 'Obsidian Zweihander', armor: 'Obsidian Heavy Plate', context: 'Heavy martial, soul-bound steel.', fallbackAc: 18 },
+      [Archetype.Fighter]: { weapon: 'Soldier\'s Longsword', armor: 'Steel Plate Armor', context: 'Heavy martial with shield.', fallbackAc: 17 },
+      [Archetype.Thief]: { weapon: 'Twin Daggers', armor: 'Leather Jerkin', context: 'Fast, stealthy leather.', fallbackAc: 12 },
+      [Archetype.Archer]: { weapon: 'Hunting Bow', armor: 'Leather Tunic', context: 'Ranged focus, light leather.', fallbackAc: 11 },
+      [Archetype.Alchemist]: { weapon: 'Weighted Shortsword', armor: 'Leather Apron', context: 'Tactical reagent-resistant leather.', fallbackAc: 12 },
+      [Archetype.Mage]: { weapon: 'Elderwood Staff', armor: 'Ritual Robes', context: 'Caster, support energy.', fallbackAc: 10 },
+      [Archetype.Sorcerer]: { weapon: 'Aetheric Staff', armor: 'Shadow Robes', context: 'Caster, raw destruction.', fallbackAc: 10 },
+      [Archetype.BloodArtist]: { weapon: 'Ritual Sickle', armor: 'Crimson Robes', context: 'DPS, ritualistic silk robes.', fallbackAc: 11 }
     };
 
-    const template = gearTemplates[archetype as Archetype] || { weapon: 'Simple Weapon', armor: 'Traveling Garb', context: 'Standard adventurer gear.' };
+    const template = gearTemplates[archetype as Archetype] || { weapon: 'Simple Weapon', armor: 'Traveling Garb', context: 'Standard gear.', fallbackAc: 10 };
     const loreContext = `Character Name: ${name}. Bio: ${biography}. Appearance: ${description}.`;
 
     try {
@@ -108,7 +107,7 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
           description: weaponDetails.description || "A reliable starter weapon.",
           type: 'Weapon',
           rarity: 'Common',
-          stats: weaponDetails.stats || {}
+          stats: weaponDetails.stats || { damage: '1d8', damageType: 'Physical' }
         },
         {
           id: safeId(),
@@ -116,7 +115,9 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
           description: armorDetails.description || "A reliable set of protection.",
           type: 'Armor',
           rarity: 'Common',
-          stats: armorDetails.stats || {}
+          stats: armorDetails.stats && armorDetails.stats.ac !== undefined 
+            ? armorDetails.stats 
+            : { ...armorDetails.stats, ac: template.fallbackAc }
         }
       ];
 
@@ -165,7 +166,6 @@ const CharacterCreator: React.FC<CharacterCreatorProps> = ({ onCancel, onCreate,
                     onChange={e => setAge(parseInt(e.target.value) || 18)} 
                     className="w-full bg-black/40 border border-emerald-900/30 p-3 text-gold font-cinzel text-sm focus:border-gold outline-none transition-all" 
                   />
-                  <p className="text-[8px] text-emerald-900 font-bold uppercase">Mentors have seen at least 19 winters.</p>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-cinzel text-emerald-500 uppercase tracking-widest font-black">Vessel Gender</label>

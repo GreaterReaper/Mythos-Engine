@@ -134,26 +134,67 @@ const App: React.FC = () => {
   };
 
   const handleRefreshCharacters = () => {
+    const getFallbackAc = (archetype: string, itemName: string): number => {
+      const name = itemName.toLowerCase();
+      if (name.includes('plate') || name.includes('heavy') || name.includes('iron')) return 16;
+      if (name.includes('leather') || name.includes('hide') || name.includes('jerkin')) return 12;
+      if (name.includes('robe') || name.includes('tunic') || name.includes('garb') || name.includes('silk')) return 10;
+      if (name.includes('shield')) return 2;
+      
+      // Class based fallback if name is ambiguous
+      if (['Warrior', 'Fighter', 'Dark Knight'].includes(archetype)) return 16;
+      if (['Thief', 'Archer', 'Alchemist'].includes(archetype)) return 12;
+      return 10;
+    };
+
     setState(prev => {
       const syncList = (list: Character[]) => list.map(c => {
         const archInfo = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
         if (!archInfo) return c;
+        
+        // Re-align abilities and spells
         const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
         const customAbilities = c.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
         const customSpells = c.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
+        
+        // Audit inventory for missing AC values
+        const updatedInventory = c.inventory.map(item => {
+          if (item.type === 'Armor' && (!item.stats || !item.stats.ac)) {
+            return {
+              ...item,
+              stats: { ...(item.stats || {}), ac: getFallbackAc(c.archetype as string, item.name) }
+            };
+          }
+          return item;
+        });
+
         return {
           ...c,
+          inventory: updatedInventory,
           abilities: [...archInfo.coreAbilities.filter(a => a.levelReq <= c.level), ...customAbilities],
           spells: [...(archInfo.spells || []).filter(s => s.levelReq <= c.level), ...customSpells]
         };
       });
+
+      // Also audit the shared armory
+      const updatedArmory = prev.armory.map(item => {
+        if (item.type === 'Armor' && (!item.stats || !item.stats.ac)) {
+          return {
+            ...item,
+            stats: { ...(item.stats || {}), ac: 10 } // Use base 10 for shared unassigned armory
+          };
+        }
+        return item;
+      });
+
       return {
         ...prev,
         characters: syncList(prev.characters),
-        mentors: syncList(prev.mentors)
+        mentors: syncList(prev.mentors),
+        armory: updatedArmory
       };
     });
-    alert("The Engine has realigned thy Fellowship's power.");
+    alert("The Engine has realigned thy Fellowship's power and repaired thy broken equipment.");
   };
 
   const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {

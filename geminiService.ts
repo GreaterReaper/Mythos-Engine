@@ -67,7 +67,6 @@ const prepareHistory = (history: Message[]) => {
 
 /**
  * THE SCRIBE: Audits narrative text for mechanical changes.
- * Optimized for FLASH speed with 0 thinking budget.
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   if (!narrative) return { changes: [], newEntities: [] };
@@ -94,7 +93,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Mechanical Scribe" running on Flash architecture. Audit narrative for stats. Level cap is 20. Return JSON ONLY. THOU ART ULTRA-FAST.`;
+  const systemInstruction = `Thou art the "Mechanical Scribe" running on Flash architecture. Audit narrative for stats. Return JSON ONLY.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -103,8 +102,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
       config: { 
         systemInstruction, 
         responseMimeType: "application/json",
-        temperature: 0.1, // Near-deterministic for math/stats
-        thinkingConfig: { thinkingBudget: 0 }, // Maximum velocity
+        temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -143,24 +142,21 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
 /**
  * THE ARBITER: The primary DM logic.
- * Uses FLASH with thinking budget for narrative depth.
  */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
   if (isOffline()) {
-    return CLOCKWORK_RESPONSES[Math.floor(Math.random() * CLOCKWORK_RESPONSES.length)] + "\n\n(Note: Thou art in Clockwork Mode. Narrative depth is limited.)";
+    return CLOCKWORK_RESPONSES[Math.floor(Math.random() * CLOCKWORK_RESPONSES.length)] + "\n\n(Note: Clockwork Mode Active.)";
   }
 
   const ai = getAiClient();
   trackUsage();
   const isRaid = playerContext.isRaid;
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM powered by Flash-resonance. 
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM. 
   RULES: 
   - Level cap is 20.
-  - ${isRaid 
-      ? "RAID PROTOCOL ACTIVE: Balance for 8 Vessels." 
-      : "Balance for 4-5 Vessels."}
+  - ${isRaid ? "RAID PROTOCOL ACTIVE: Balance for 8 Vessels." : "Balance for 4-5 Vessels."}
   - Use [🎲 d20(roll)+mod=result] for checks. 
-  - Evocative, high-velocity dark fantasy prose.`;
+  - High-velocity dark fantasy prose.`;
   const contents = prepareHistory(history);
   try {
     const response = await ai.models.generateContent({
@@ -169,7 +165,7 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
       config: { 
         systemInstruction, 
         temperature: 0.8,
-        thinkingConfig: { thinkingBudget: 4096 } // Moderate thinking for creative depth
+        thinkingConfig: { thinkingBudget: 4096 }
       }
     });
     return response.text || "The void is silent.";
@@ -178,7 +174,6 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
 
 /**
  * THE ARCHITECT: Forges unique gear.
- * Strictly uses FLASH.
  */
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
   if (isOffline()) {
@@ -188,18 +183,25 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
       description: "Deterministic forge artifact.",
       type: (base.type as any) || "Utility",
       rarity: base.rarity as any || "Common",
-      stats: { damage: (base as any).damage, ac: (base as any).ac, damageType: (base as any).damageType } as any
+      stats: { 
+        damage: (base as any).damage, 
+        ac: (base as any).ac, 
+        damageType: (base as any).damageType 
+      } as any
     };
   }
 
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Architect's Forge", a Flash-servant. Manifest Dark Fantasy items.
+  const systemInstruction = `Thou art the "Architect's Forge". Manifest Dark Fantasy items.
+  CRITICAL: If the item is Armor, you MUST include a numeric 'ac' property inside the 'stats' object.
   ARMOR CLASS (AC) PROTOCOL:
   - Robes: Common (10-11 AC), Relic (12-13 AC)
   - Leather: Common (12-13 AC), Relic (14-15 AC)
   - Heavy/Plate: Common (16-18 AC), Relic (19-21 AC)
-  Relic items are superior artifacts.`;
+  - Shields: +2 to +4 AC.
+  If Weapon, you MUST include 'damage' (e.g., '1d8') and 'damageType' inside 'stats'.`;
+
   try {
     const response = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
@@ -234,23 +236,29 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
         }
       } 
     });
-    return JSON.parse(response.text || '{}');
-  } catch (e) { return { name: itemName }; }
+    
+    const data = JSON.parse(response.text || '{}');
+    
+    // SOUL SANITIZATION: Force properties into stats if hallucinated at root
+    if (!data.stats) data.stats = {};
+    if (data.ac !== undefined && data.stats.ac === undefined) data.stats.ac = data.ac;
+    if (data.damage !== undefined && data.stats.damage === undefined) data.stats.damage = data.damage;
+    if (data.damageType !== undefined && data.stats.damageType === undefined) data.stats.damageType = data.damageType;
+
+    return data;
+  } catch (e) { 
+    return { name: itemName, stats: {} }; 
+  }
 };
 
 /**
  * THE ARCHITECT (Bestiary Clerk): Forges horrors.
- * Strictly uses FLASH.
  */
 export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
   if (isOffline()) {
     return {
       name: `Clockwork ${monsterName || "Scrap-Beast"}`,
-      type: "Beast",
-      hp: 20,
-      ac: 12,
-      cr: 1,
-      description: "A predictable horror of gears and iron."
+      type: "Beast", hp: 20, ac: 12, cr: 1, description: "Predictable horror."
     };
   }
 
@@ -260,7 +268,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
     model: FLASH_MODEL, 
     contents: `Manifest Monster: ${monsterName}. Context: ${context}. Return JSON.`, 
     config: { 
-      systemInstruction: "Thou art the Bestiary-Clerk (part of the Architect suite). Forge a horrific creature using Flash architecture.",
+      systemInstruction: "Bestiary-Clerk on Flash.",
       temperature: 0.7,
       responseMimeType: "application/json" 
     } 
@@ -269,8 +277,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
 };
 
 export const manifestSoulLore = async (char: any): Promise<any> => {
-  if (isOffline()) return { biography: "A soul forged in the clockwork void.", description: "A vessel of standard design." };
-  
+  if (isOffline()) return { biography: "Soul forged in void.", description: "Standard design." };
   const ai = getAiClient();
   trackUsage();
   const response = await ai.models.generateContent({ 
@@ -286,7 +293,6 @@ export const manifestSoulLore = async (char: any): Promise<any> => {
 
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
   if (isOffline()) return "Rest thy bones.";
-  
   const ai = getAiClient();
   trackUsage();
   const contents = prepareHistory(history);

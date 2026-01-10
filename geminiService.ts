@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, Character, Monster, Item, GameState, Shop, Rumor, Ability } from './types';
 
-// THE CLOCKWORK ENGINE: Unified on Gemini 3 Flash
+// THE CLOCKWORK ENGINE: Unified on Gemini 3 Flash for maximum narrative velocity
 const FLASH_MODEL = 'gemini-3-flash-preview';
 
 const NARRATIVE_MODEL = FLASH_MODEL; 
@@ -26,6 +26,7 @@ const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 /**
  * THE MECHANICAL SCRIBE
  * Audits narrative to extract state changes with high precision.
+ * Runs under Flash Protocol.
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   const ai = getAiClient();
@@ -44,7 +45,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
      - "entityData" property should contain detailed stats for the new entity if it is an item or ability.
      - For ABILITIES: Include name, description, and scaling if mentioned.
   
-  CRITICAL: Return JSON only. Do NOT hallucinate values.`;
+  CRITICAL: Return JSON only. Do NOT hallucinate values. Running on Flash Tier.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -104,6 +105,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
 /**
  * THE ARBITER OF MYTHOS
+ * Runs under Flash Protocol for low-latency storytelling.
  */
 export const generateDMResponse = async (
   history: Message[],
@@ -131,7 +133,7 @@ export const generateDMResponse = async (
 
   const partyManifest = playerContext.party.map(c => `${c.name} (HP:${c.currentHp}/${c.maxHp}, Mana:${c.currentMana}/${c.maxMana})`).join(', ');
   
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM.
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM running on the high-speed Flash Tier.
   
   ${activeDetail}
   
@@ -144,7 +146,8 @@ export const generateDMResponse = async (
      - Example: "For thy legendary defense of the gate, thou gainest the 'Bulwark of Souls' feat: +1 AC when adjacent to allies."
      - Tailor these to the character's class and context.
   3. DICE: Use [🎲 d20(roll)+mod=result] for all checks.
-  4. DETERMINISM: The world reacts harshly to thy Stats.`;
+  4. DETERMINISM: The world reacts harshly to thy Stats.
+  5. VELOCITY: Deliver narrative with speed and punchy, evocative prose.`;
 
   // Gemini requires strictly alternating roles: user -> model -> user -> model.
   const contents = [];
@@ -276,7 +279,7 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })) as any,
-      config: { systemInstruction: "Thou art Barnaby, the one-eyed innkeeper of 'The Broken Cask'. Friendly but weary. Dark fantasy tone." }
+      config: { systemInstruction: "Thou art Barnaby, the one-eyed innkeeper of 'The Broken Cask'. Friendly but weary. Dark fantasy tone. Running on Flash." }
     });
     return response.text;
   } catch (e) { return "Barnaby just stares into the fire."; }

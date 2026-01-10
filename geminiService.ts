@@ -22,14 +22,11 @@ const trackUsage = () => {
   if (!isOffline()) window.dispatchEvent(new CustomEvent('mythos_api_call'));
 };
 
-/**
- * Ensures the engine always uses the most current API key from the execution context.
- */
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * THE SCRIBE: Audits narrative text for mechanical changes.
- * Scans for SCRIBE_COMMAND, ARCHITECT_COMMAND, and LEGENDARY_MANIFEST triggers.
+ * Model: Gemini 3 Flash
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   if (!narrative || isOffline()) return { changes: [], newEntities: [] };
@@ -94,7 +91,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 };
 
 /**
- * THE ARBITER: The primary DM logic utilizing Flash for rapid response.
+ * THE ARBITER: The primary DM logic.
+ * Model: Gemini 3 Flash
  */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
   if (isOffline()) return "The void is silent.";
@@ -102,12 +100,13 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
   const ai = getAiClient();
   trackUsage();
   
-  const partyContext = playerContext.party.map((p: Character) => 
+  const partyContext = (playerContext.party || []).map((p: Character) => 
     `${p.name} (Lvl ${p.level} ${p.archetype})`
   ).join(", ");
 
   const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
   - Context: Party is [${partyContext}].
+  - Current Chronicle: ${playerContext.campaignTitle || "A New Path"}.
   - Prose: Gritty, visceral, lethal.
   - Mechanics: Use "SCRIBE_COMMAND: [Name] takes [X] damage" for HP changes.
   - Archetypes: Respect the core abilities of Warriors, Mages, Dark Knights, and others.
@@ -131,6 +130,10 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
   }
 };
 
+/**
+ * THE ARCHITECT: Item & Monster manifestation.
+ * Model: Gemini 3 Flash
+ */
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
   if (isOffline()) return { name: itemName, stats: {} };
   const ai = getAiClient();
@@ -230,9 +233,6 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   }
 };
 
-/**
- * REBINDING: Hydrates a saved state into the engine, ensuring structural integrity.
- */
 export const hydrateState = (saved: any, fallback: GameState): GameState => {
   if (!saved) return fallback;
   return {
@@ -258,9 +258,6 @@ export const hydrateState = (saved: any, fallback: GameState): GameState => {
   };
 };
 
-/**
- * TRANSMIGRATION: Encodes the state into a base64 Soul Signature.
- */
 export const generateSoulSignature = (state: GameState): string => {
   try {
     const str = JSON.stringify(state);
@@ -271,9 +268,6 @@ export const generateSoulSignature = (state: GameState): string => {
   }
 };
 
-/**
- * TRANSMIGRATION: Decodes a Soul Signature back into a GameState.
- */
 export const parseSoulSignature = (signature: string, fallback: GameState): GameState | null => {
   try {
     const str = decodeURIComponent(atob(signature));

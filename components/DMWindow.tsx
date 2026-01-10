@@ -22,6 +22,7 @@ interface DMWindowProps {
   isHost: boolean; 
   isKeyboardOpen?: boolean;
   apiUsage?: ApiUsage;
+  isLoadingExternally?: boolean;
 }
 
 const VitalityMonitor: React.FC<{ character: Character, isActive: boolean, onClick: () => void }> = ({ character, isActive, onClick }) => {
@@ -47,17 +48,15 @@ const VitalityMonitor: React.FC<{ character: Character, isActive: boolean, onCli
 };
 
 const DMWindow: React.FC<DMWindowProps> = ({ 
-  campaign, allCampaigns, characters, bestiary, activeCharacter, onSelectActiveCharacter, onMessage, onCreateCampaign, onSelectCampaign, onDeleteCampaign, onQuitCampaign, onShortRest, onSyncHistory, isHost, isKeyboardOpen, apiUsage
+  campaign, allCampaigns, characters, bestiary, activeCharacter, onSelectActiveCharacter, onMessage, onCreateCampaign, onSelectCampaign, onDeleteCampaign, onQuitCampaign, onShortRest, onSyncHistory, isHost, isKeyboardOpen, apiUsage, isLoadingExternally
 }) => {
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ledgerEndRef = useRef<HTMLDivElement>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
   const [isRaidManifest, setIsRaidManifest] = useState(false);
 
-  // Auto-select POV if missing
   useEffect(() => {
     if (!activeCharacter && characters.length > 0) {
       onSelectActiveCharacter(characters[0].id);
@@ -73,48 +72,15 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   const isDying = !!(activeCharacter && activeCharacter.currentHp <= 0);
 
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [campaign?.history, isLoading]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [campaign?.history, isLoadingExternally]);
   useEffect(() => { if (ledgerEndRef.current) ledgerEndRef.current.scrollIntoView({ behavior: 'smooth' }); }, [campaign?.history]);
 
-  const handleSend = async (retryContent?: string) => {
-    const messageContent = retryContent || input;
-    if (!campaign || (!retryContent && !messageContent.trim()) || isLoading) return;
+  const handleSend = async () => {
+    if (!campaign || !input.trim() || isLoadingExternally) return;
     
-    // Fallback if still no active character
-    const effectivePOV = activeCharacter || characters[0];
-    if (!effectivePOV) {
-      alert("Thou must bind a Soul to thy Fellowship before speaking to the Arbiter.");
-      return;
-    }
-
-    if (!retryContent) {
-      const userMsg: Message = { role: 'user', content: messageContent, timestamp: Date.now() };
-      onMessage(userMsg);
-      setInput('');
-    }
-    
-    if (!isHost) return;
-    setIsLoading(true);
-    
-    try {
-      const currentHistory: Message[] = retryContent ? campaign.history : [...campaign.history, { role: 'user', content: messageContent, timestamp: Date.now() } as Message];
-      const responseText = await generateDMResponse(currentHistory, { 
-        activeCharacter: effectivePOV, 
-        party: characters, 
-        mentors: characters.filter(c => c.id.startsWith('mentor-')), 
-        activeRules: RULES_MANIFEST, 
-        existingItems: [], 
-        existingMonsters: bestiary, 
-        campaignTitle: campaign.title, 
-        usageCount: apiUsage?.count,
-        isRaid: campaign.isRaid
-      });
-      onMessage({ role: 'model', content: responseText || "The Engine hums...", timestamp: Date.now() });
-      setIsLoading(false);
-    } catch (error: any) { 
-      setIsLoading(false);
-      onMessage({ role: 'system', content: "SYSTEM_ALERT: Aetheric connection flickering.", timestamp: Date.now() });
-    }
+    const userMsg: Message = { role: 'user', content: input, timestamp: Date.now() };
+    onMessage(userMsg);
+    setInput('');
   };
 
   const renderContent = (content: string) => {
@@ -222,12 +188,12 @@ const DMWindow: React.FC<DMWindowProps> = ({
                 </div>
               </div>
             ))}
-            {isLoading && <div className="flex justify-start relative z-10"><div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl rounded-xl animate-pulse text-emerald-500 text-xs font-black">WEAVING FATE...</div></div>}
+            {isLoadingExternally && <div className="flex justify-start relative z-10"><div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl rounded-xl animate-pulse text-emerald-500 text-xs font-black">WEAVING FATE...</div></div>}
           </div>
           <div className="shrink-0 bg-black border-t-2 border-emerald-900/40 p-4 pb-20 md:pb-4 z-20">
             <div className="flex gap-3 items-end max-w-5xl mx-auto w-full">
-              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder={isDying ? "UNCONSCIOUS..." : !effectivePOV ? "SELECT A SOUL..." : "SPEAK..."} disabled={isDying || isLoading || !effectivePOV} className="flex-1 bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm h-20 outline-none resize-none rounded-lg" />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isLoading || !effectivePOV || isDying} className={`w-20 md:w-28 font-cinzel font-black border-2 h-20 text-white shadow-xl disabled:opacity-30 ${campaign.isRaid ? 'bg-red-900 border-red-500' : 'bg-emerald-900 border-gold/60'}`}>SPEAK</button>
+              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder={isDying ? "UNCONSCIOUS..." : !effectivePOV ? "SELECT A SOUL..." : "SPEAK..."} disabled={isDying || isLoadingExternally || !effectivePOV} className="flex-1 bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm h-20 outline-none resize-none rounded-lg" />
+              <button onClick={() => handleSend()} disabled={!input.trim() || isLoadingExternally || !effectivePOV || isDying} className={`w-20 md:w-28 font-cinzel font-black border-2 h-20 text-white shadow-xl disabled:opacity-30 ${campaign.isRaid ? 'bg-red-900 border-red-500' : 'bg-emerald-900 border-gold/60'}`}>SPEAK</button>
             </div>
           </div>
         </div>

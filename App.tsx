@@ -22,12 +22,13 @@ import RulesScreen from './components/RulesScreen';
 import TavernScreen from './components/TavernScreen';
 import QuotaBanner from './components/QuotaBanner';
 import TacticalMap from './components/TacticalMap';
-import { generateItemDetails, generateMonsterDetails, safeId, hydrateState, parseSoulSignature, auditNarrativeEffect } from './geminiService';
+import { generateItemDetails, generateMonsterDetails, generateDMResponse, safeId, hydrateState, parseSoulSignature, auditNarrativeEffect } from './geminiService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('Fellowship');
   const [showTutorial, setShowTutorial] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const DEFAULT_STATE: GameState = {
     characters: [],
@@ -82,6 +83,10 @@ const App: React.FC = () => {
     return () => window.removeEventListener('mythos_api_call', handleApiCall);
   }, []);
 
+  const activePartyUnits = useMemo(() => {
+    return [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+  }, [state.characters, state.mentors, state.party]);
+
   /**
    * LINEAGE REFRESH: Re-syncs character abilities/spells with core manifests and recalculates max HP.
    */
@@ -93,11 +98,8 @@ const App: React.FC = () => {
         
         const unlockedAbilities = info.coreAbilities.filter(a => a.levelReq <= c.level);
         const unlockedSpells = (info.spells || []).filter(s => s.levelReq <= c.level);
-        
-        // Preserve narrative-granted boons (abilities with levelReq 0 or unique tags)
         const customBoons = (c.abilities || []).filter(a => a.levelReq === 0);
         
-        // D&D Style Max HP calculation
         const conBonus = Math.floor((c.stats.con - 10) / 2);
         const newMaxHp = info.hpDie + conBonus + ((c.level - 1) * (Math.floor(info.hpDie / 2) + 1 + conBonus));
 
@@ -106,8 +108,7 @@ const App: React.FC = () => {
           abilities: [...unlockedAbilities, ...customBoons],
           spells: unlockedSpells,
           maxHp: newMaxHp,
-          // Ensure current HP doesn't exceed new max
-          currentHp: Math.min(c.currentHp, newMaxHp)
+          currentHp: Math.min(c.currentHp || newMaxHp, newMaxHp)
         };
       };
       return {
@@ -116,13 +117,17 @@ const App: React.FC = () => {
         mentors: prev.mentors.map(syncCharacter)
       };
     });
-    // Visual feedback for the refresh action
+    // System feedback
     handleSystemLog("LINEAGE: Souls aligned with core resonance.");
   };
 
   const handleSystemLog = (content: string) => {
     if (!state.activeCampaignId) return;
-    onMessage({ role: 'system', content, timestamp: Date.now() });
+    const sysMsg: Message = { role: 'system', content, timestamp: Date.now() };
+    setState(prev => ({
+      ...prev,
+      campaigns: prev.campaigns.map(c => c.id === state.activeCampaignId ? { ...c, history: [...c.history, sysMsg] } : c)
+    }));
   };
 
   const updateCharacter = (id: string, updates: Partial<Character>) => {
@@ -134,31 +139,50 @@ const App: React.FC = () => {
     setTimeout(refreshLineage, 50);
   };
 
-  const handleTutorialComplete = (primaryId: string, title: string, prompt: string) => {
-    const campId = safeId();
-    setState(prev => {
-      const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: [primaryId], isRaid: false };
-      return { ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: [primaryId] };
-    });
-    setShowTutorial(false);
-    setActiveTab('Chronicles');
-    handleMessage({ role: 'user', content: `start ${title}`, timestamp: Date.now() }, campId);
-  };
-
+  /**
+   * CENTRAL MESSAGE HUB: Processes all roles and triggers AI DM/Auditor as needed.
+   * Hardened to handle initial campaign context.
+   */
   const handleMessage = async (msg: Message, campaignId?: string) => {
     const targetCampaignId = campaignId || state.activeCampaignId;
     if (!targetCampaignId) return;
 
+    // 1. Add Message to State
     setState(prev => ({
       ...prev,
       campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, msg] } : c)
     }));
 
+    // 2. Trigger AI Response if User Sent Message
+    if (msg.role === 'user') {
+      setIsLoading(true);
+      try {
+        // Find campaign in state, but if we just created it, we might need a manual object
+        const currentCampaign = state.campaigns.find(c => c.id === targetCampaignId);
+        const history = currentCampaign ? [...currentCampaign.history, msg] : [msg];
+        
+        const responseText = await generateDMResponse(history, { 
+          activeCharacter: [...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || activePartyUnits[0], 
+          party: activePartyUnits, 
+          existingMonsters: state.bestiary, 
+          campaignTitle: currentCampaign?.title || "A New Chronicle",
+          isRaid: currentCampaign?.isRaid
+        });
+
+        const modelMsg: Message = { role: 'model', content: responseText || "The engine hums in the void.", timestamp: Date.now() };
+        handleMessage(modelMsg, targetCampaignId); 
+      } catch (e) {
+        console.error("Arbiter failure:", e);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // 3. Trigger Auditor (The Scribe) if Model Sent Message
     if (msg.role === 'model') {
-      const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       setTimeout(async () => {
         try {
-          const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
+          const audit = await auditNarrativeEffect(msg.content, activePartyUnits);
           const logs: Message[] = [];
           
           if (audit.newEntities?.length > 0) {
@@ -252,18 +276,28 @@ const App: React.FC = () => {
     }
   };
 
-  const onMessage = (msg: Message) => {
-    if (!state.activeCampaignId) return;
-    setState(prev => ({
-      ...prev,
-      campaigns: prev.campaigns.map(c => c.id === state.activeCampaignId ? { ...c, history: [...c.history, msg] } : c)
+  const handleTutorialComplete = (primaryId: string, title: string, prompt: string) => {
+    const campId = safeId();
+    const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: [primaryId], isRaid: false };
+    
+    // Set active ID first
+    setState(prev => ({ 
+      ...prev, 
+      campaigns: [...prev.campaigns, newCampaign], 
+      activeCampaignId: campId, 
+      party: [primaryId] 
     }));
+    
+    setShowTutorial(false);
+    setActiveTab('Chronicles');
+    
+    // Explicitly send the start message to the hub
+    handleMessage({ role: 'user', content: `start ${title}. Premises: ${prompt}`, timestamp: Date.now() }, campId);
   };
 
   const handleDeleteAccount = () => {
-    if (confirm("RITUAL OF SEVERANCE: Art thou certain? This ritual shall dissolve all soul fragments stored in this vessel's memory. All characters, chronicles, and paths shall be unmade. This action is irreversible.")) {
+    if (confirm("RITUAL OF SEVERANCE: Art thou certain? This ritual shall dissolve all soul fragments stored in this vessel's memory. This action is irreversible.")) {
       localStorage.removeItem(STORAGE_PREFIX + 'state');
-      // Clear specific storage keys if any others exist
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith(STORAGE_PREFIX)) localStorage.removeItem(key);
       });
@@ -271,9 +305,21 @@ const App: React.FC = () => {
     }
   };
 
-  const activePartyUnits = useMemo(() => {
-    return [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-  }, [state.characters, state.mentors, state.party]);
+  const onCreateCampaign = (t: string, p: string, isRaid?: boolean) => {
+    const campId = safeId();
+    const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
+    
+    setState(prev => ({ 
+      ...prev, 
+      campaigns: [...prev.campaigns, newCampaign], 
+      activeCampaignId: campId 
+    }));
+    
+    // Delay slightly to allow state to catch up for the DM context find
+    setTimeout(() => {
+      handleMessage({ role: 'user', content: `start campaign: ${t}. Objective: ${p}`, timestamp: Date.now() }, campId);
+    }, 50);
+  };
 
   return (
     <div className="flex flex-col h-[var(--visual-height)] w-full bg-[#0c0a09] text-[#d6d3d1] overflow-hidden md:flex-row relative">
@@ -306,17 +352,13 @@ const App: React.FC = () => {
                 activeCharacter={[...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || null} 
                 onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} 
                 onMessage={handleMessage} 
-                onCreateCampaign={(t, p, isRaid) => {
-                  const campId = safeId();
-                  const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
-                  setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
-                  handleMessage({ role: 'user', content: `start ${t}`, timestamp: Date.now() }, campId);
-                }} 
+                onCreateCampaign={onCreateCampaign} 
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
                 onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} 
                 onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} 
                 onShortRest={() => {}} isHost={true} isKeyboardOpen={isKeyboardOpen}
                 apiUsage={state.apiUsage}
+                isLoadingExternally={isLoading}
               />}
               {activeTab === 'Tactics' && (
                 <div className="h-full p-4 md:p-8 overflow-y-auto custom-scrollbar">

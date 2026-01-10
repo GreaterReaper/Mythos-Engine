@@ -2,6 +2,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, Character, Monster, Item, GameState, Shop, Rumor, Ability } from './types';
 
+/**
+ * THE CORE ENGINE: Utilizing Gemini 3 Flash for low-latency, high-precision procedural generation.
+ */
 const FLASH_MODEL = 'gemini-3-flash-preview';
 
 export const isOffline = () => (window as any).MYTHOS_OFFLINE_MODE === true;
@@ -19,10 +22,14 @@ const trackUsage = () => {
   if (!isOffline()) window.dispatchEvent(new CustomEvent('mythos_api_call'));
 };
 
+/**
+ * Ensures the engine always uses the most current API key from the execution context.
+ */
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * THE SCRIBE: Audits narrative text for mechanical changes.
+ * Scans for SCRIBE_COMMAND, ARCHITECT_COMMAND, and LEGENDARY_MANIFEST triggers.
  */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   if (!narrative || isOffline()) return { changes: [], newEntities: [] };
@@ -33,12 +40,11 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   DETECTION PROTOCOLS:
   1. COMMAND SCAN: Prioritize "SCRIBE_COMMAND:", "ARCHITECT_COMMAND:", and "LEGENDARY_MANIFEST:".
   2. PARTY UPDATE: Look for "SCRIBE_COMMAND: Summon [Name]". This adds a Mentor to the active party.
-  3. SOLO FEAT CHECK: If a vessel vanquishes a Boss alone, ensure a "LEGENDARY_MANIFEST:" or Relic is generated.
-  4. STAT SHIFTS: Look for damage, healing, exp, or mana changes.
-  5. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
-  6. LEVEL LOCK: Reject any "SCRIBE_COMMAND" that attempts to grant or use an ability for which the target's level is insufficient.
+  3. STAT SHIFTS: Look for damage, healing, exp, or mana changes. Format: [Name] takes [X] damage.
+  4. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
+  5. LEVEL LOCK: Reject any "SCRIBE_COMMAND" that attempts to grant an ability for which the target's level is insufficient.
   
-  Return JSON ONLY with 'changes' and 'newEntities'.`;
+  Return valid JSON matching the provided schema.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -81,11 +87,14 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
       }
     });
     return JSON.parse(response.text || '{"changes":[], "newEntities":[]}');
-  } catch (e) { return { changes: [], newEntities: [] }; }
+  } catch (e) { 
+    console.error("Scribe failure:", e);
+    return { changes: [], newEntities: [] }; 
+  }
 };
 
 /**
- * THE ARBITER: The primary DM logic.
+ * THE ARBITER: The primary DM logic utilizing Flash for rapid response.
  */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
   if (isOffline()) return "The void is silent.";
@@ -99,17 +108,10 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
 
   const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
   - Context: Party is [${partyContext}].
-  - TUTORIAL MODE: If the party has only one member, the player is in the "Sunken Sanctuary". 
-    Goal: Guide them to free Miri (Fighter), Lina (Mage), and Seris (Archer) from their kinetic shells.
-    When a mentor is freed, thou MUST use "SCRIBE_COMMAND: Summon [Name]".
-  - LEVEL GATING: Players cannot use spells or abilities above their current level.
-  - REJECTION PROTOCOL: If a player attempts an action they haven't unlocked yet, thou MUST describe the failure.
   - Prose: Gritty, visceral, lethal.
-  - Command: 
-    Use "SCRIBE_COMMAND: [Name] takes [X] damage"
-    Use "ARCHITECT_COMMAND: Forge [Name] (cr [X])"
-    Use "LEGENDARY_MANIFEST: [Ability Name] | [Ability Description]" to grant a permanent unique power.
-  - Rule 5: Reward solo boss-kills with Relic gear or Legendary Boons.`;
+  - Mechanics: Use "SCRIBE_COMMAND: [Name] takes [X] damage" for HP changes.
+  - Archetypes: Respect the core abilities of Warriors, Mages, Dark Knights, and others.
+  - Gating: Players cannot use spells above their current level.`;
 
   const contents = history.map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
@@ -123,7 +125,10 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
       config: { systemInstruction, temperature: 0.8 }
     });
     return response.text || "The engine hums in the dark.";
-  } catch (error: any) { return "Aetheric connection severed."; }
+  } catch (error: any) { 
+    console.error("Arbiter failure:", error);
+    return "Aetheric connection severed. The void consumes thy words."; 
+  }
 };
 
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
@@ -135,7 +140,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
       model: FLASH_MODEL, 
       contents: [{ role: 'user', parts: [{ text: `Manifest Item: ${itemName}. Context: ${context}` }] }], 
       config: { 
-        systemInstruction: "Manifest artifacts. Enforce FIDELITY OF ARMS.",
+        systemInstruction: "Manifest artifacts in the Mythos Engine. Return valid JSON.",
         temperature: 0.7,
         responseMimeType: "application/json",
         responseSchema: {
@@ -147,15 +152,20 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
             rarity: { type: Type.STRING, enum: ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Relic"] },
             stats: { 
               type: Type.OBJECT, 
-              properties: { ac: { type: Type.NUMBER }, damage: { type: Type.STRING }, damageType: { type: Type.STRING } } 
+              properties: { 
+                ac: { type: Type.NUMBER }, 
+                damage: { type: Type.STRING }, 
+                damageType: { type: Type.STRING } 
+              } 
             }
-          },
-          required: ["name", "description", "type", "rarity", "stats"]
+          }
         }
       } 
     });
     return JSON.parse(response.text || '{}');
-  } catch (e) { return { name: itemName, stats: {} }; }
+  } catch (e) { 
+    return { name: itemName, stats: {} }; 
+  }
 };
 
 export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
@@ -167,7 +177,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
       model: FLASH_MODEL, 
       contents: [{ role: 'user', parts: [{ text: `Manifest Monster: ${monsterName}. Context: ${context}.` }] }], 
       config: { 
-        systemInstruction: "Forge a horrific monster balanced for CR.",
+        systemInstruction: "Forge a horrific monster balanced for its Challenge Rating. Return valid JSON.",
         temperature: 0.7,
         responseMimeType: "application/json",
         responseSchema: {
@@ -178,39 +188,99 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
             ac: { type: Type.NUMBER },
             cr: { type: Type.NUMBER },
             description: { type: Type.STRING }
-          },
-          required: ["name", "hp", "ac", "cr"]
+          }
         }
       } 
     });
     return JSON.parse(response.text || '{}');
-  } catch (e) { return { name: monsterName, hp: 30, ac: 13, cr: 1 }; }
+  } catch (e) { 
+    return { name: monsterName, hp: 30, ac: 13, cr: 1 }; 
+  }
 };
 
 export const manifestSoulLore = async (char: any): Promise<any> => {
   if (isOffline()) return { biography: "Soul forged in void.", description: "Standard." };
   const ai = getAiClient();
   trackUsage();
-  const response = await ai.models.generateContent({ 
-    model: FLASH_MODEL, 
-    contents: [{ role: 'user', parts: [{ text: `Manifest Lore for ${char.name}. Return JSON with 'biography' and 'description'.` }] }], 
-    config: { systemInstruction: "Lore-Weaver on Flash.", responseMimeType: "application/json" } 
-  });
-  return JSON.parse(response.text || '{}');
+  try {
+    const response = await ai.models.generateContent({ 
+      model: FLASH_MODEL, 
+      contents: [{ role: 'user', parts: [{ text: `Manifest Lore for ${char.name}, a ${char.race} ${char.archetype}. Return JSON with 'biography' and 'description'.` }] }], 
+      config: { systemInstruction: "Thou art the Lore-Weaver. Return valid JSON.", responseMimeType: "application/json" } 
+    });
+    return JSON.parse(response.text || '{}');
+  } catch (e) {
+    return { biography: "A story lost to the obsidian mists.", description: "Standard vessel." };
+  }
 };
 
 export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
   if (isOffline()) return "Rest thy bones.";
   const ai = getAiClient();
   trackUsage();
-  const response = await ai.models.generateContent({ 
-    model: FLASH_MODEL, 
-    contents: history.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })), 
-    config: { systemInstruction: "Barnaby, the innkeeper. Provide rumors and rest." } 
-  });
-  return response.text;
+  try {
+    const response = await ai.models.generateContent({ 
+      model: FLASH_MODEL, 
+      contents: history.map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })), 
+      config: { systemInstruction: "Thou art Barnaby, the innkeeper of The Broken Cask. Provide rumors, rest, and atmosphere. Gritty but welcoming." } 
+    });
+    return response.text;
+  } catch (e) {
+    return "Barnaby is busy cleaning the counter. He nods in silence.";
+  }
 };
 
-export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => ({ ...defaultState, ...data });
-export const generateSoulSignature = (state: GameState): string => { try { return btoa(encodeURIComponent(JSON.stringify(state))); } catch (e) { return "ERROR"; } };
-export const parseSoulSignature = (sig: string, def: GameState): GameState | null => { try { return JSON.parse(decodeURIComponent(atob(sig))); } catch { return null; } };
+/**
+ * REBINDING: Hydrates a saved state into the engine, ensuring structural integrity.
+ */
+export const hydrateState = (saved: any, fallback: GameState): GameState => {
+  if (!saved) return fallback;
+  return {
+    ...fallback,
+    ...saved,
+    characters: (saved.characters || []).map((c: any) => ({
+      ...c,
+      inventory: c.inventory || [],
+      abilities: c.abilities || [],
+      spells: c.spells || [],
+      activeStatuses: c.activeStatuses || []
+    })),
+    userAccount: {
+      ...fallback.userAccount,
+      ...(saved.userAccount || {}),
+      friends: saved.userAccount?.friends || []
+    },
+    campaigns: (saved.campaigns || []).map((c: any) => ({
+      ...c,
+      history: c.history || [],
+      participants: c.participants || []
+    }))
+  };
+};
+
+/**
+ * TRANSMIGRATION: Encodes the state into a base64 Soul Signature.
+ */
+export const generateSoulSignature = (state: GameState): string => {
+  try {
+    const str = JSON.stringify(state);
+    return btoa(encodeURIComponent(str));
+  } catch (e) {
+    console.error("Transmigration failed", e);
+    return '';
+  }
+};
+
+/**
+ * TRANSMIGRATION: Decodes a Soul Signature back into a GameState.
+ */
+export const parseSoulSignature = (signature: string, fallback: GameState): GameState | null => {
+  try {
+    const str = decodeURIComponent(atob(signature));
+    const parsed = JSON.parse(str);
+    return hydrateState(parsed, fallback);
+  } catch (e) {
+    console.error("Signature corruption detected", e);
+    return null;
+  }
+};

@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Character, Role } from '../types';
-import { TUTORIAL_SCENARIO } from '../constants';
+import { Character, Role, Archetype } from '../types';
 
 interface TutorialScreenProps {
   characters: Character[];
@@ -15,27 +14,27 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, on
   const tutorialSteps = [
     {
       title: "The Sunken Sanctuary",
-      content: "Thou awakenest in a chamber of weeping obsidian. Beside thee stand Miri, Lina, and Seris—the 'Bound Three'. Thy Path Mentor is missing, held by the void cords.",
+      content: "Thou awakenest in a cathedral of weeping obsidian. Beside thee stand Miri, Lina, and Seris—the 'Bound Three'. They are held in spectral chains, unable to act without thy guidance.",
+    },
+    {
+      title: "The Unbound Soul",
+      content: "Thou art the only soul here without chains. This makes thee the catalyst. Thy own Path Mentor is held deep within the sanctuary, trapped in a Negation Shell that feeds on their essence.",
+    },
+    {
+      title: "The Fellowship of Five",
+      content: "Once thy Mentor is freed, thy Fellowship shall be complete. Thou must lead Miri's shield, Lina's light, and Seris's arrows toward the heart of the void.",
     },
     {
       title: "The Arbiter's Pulse",
       content: "The Arbiter (Gemini 3 Flash) balances all challenges for thy Fellowship. The world reacts to thy presence. Every shadow holds a sensory detail; every footfall echoes with lore.",
     },
     {
-      title: "Exploration & Discovery",
-      content: "Between the blood and iron of combat, thou shalt explore the world's ruins. The Scribe audits thy discoveries, automatically manifestion gear or lore from the Architect's forge.",
+      title: "Automated Resonance",
+      content: "The Scribe is always listening. If the Arbiter speaks of damage, death, or discovery, the Scribe audits thy stats in zero-latency Flash time using [SCRIBE_COMMAND] tags.",
     },
     {
-      title: "The Scribe's Audit",
-      content: "The Scribe is always listening. If the Arbiter speaks of damage, death, or discovery, the Scribe audits thy stats in zero-latency Flash time.",
-    },
-    {
-      title: "The Architect's Forge",
-      content: "When horrors appear, the Architect manifests their anatomy (Stat Blocks) from the void in real-time, scaling their cruelty to thy party's strength.",
-    },
-    {
-      title: "The Final Ascent",
-      content: "Thou must fight through the Sanctuary to free thy Mentor and destroy the Sentinel. Thy resonance shall leap to Level 5 upon the boss's dissolution.",
+      title: "The Sentinel Awaits",
+      content: "The 'Void-Sent Sentinel' guards the final gate. To free thy Mentor, thou must survive the climb. Thy resonance shall leap to Level 5 upon victory.",
     }
   ];
 
@@ -49,6 +48,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, on
       const match = mentors.find(m => m.archetype === primaryChar.archetype && !baseMentorNames.includes(m.name));
       if (match) return match;
     }
+    // Fallback if player is one of the base 3 classes: Pick a unique mentor anyway for a 5-man party
     return mentors.find(m => !baseMentorNames.includes(m.name)) || mentors[0];
   }, [characters, mentors]);
 
@@ -63,38 +63,41 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, on
 
   const finalize = () => {
     const mentorName = pathMentor?.name || "Thy Mentor";
-    const isSupportMentor = pathMentor?.role === 'Support';
+    const isSupportMentor = pathMentor?.role === 'Support' || pathMentor?.archetype === Archetype.Mage || pathMentor?.archetype === Archetype.Alchemist || pathMentor?.archetype === Archetype.BloodArtist;
 
     let branchText = "";
     if (isSupportMentor) {
-      branchText = `Seeing ${mentorName} fading within the Negation Shell, Miri lets out a guttural roar. She strikes the crystalline prison with her bare gauntlets, shattering the geometry of the void. The feedback is absolute. 
+      branchText = `Seeing ${mentorName} fading within the Negation Shell, Miri lets out a guttural roar. "Thy light shall not go out while I still stand!" 
+      
+      She strikes the crystalline prison with her bare gauntlets, shattering the geometry of the void through sheer martial will. The feedback of necrotic energy is absolute. 
       
       [SCRIBE_COMMAND: Miri takes 15 damage.]
       
-      ${mentorName} is freed, though Miri's hands bleed a thick, silver fluid. The fellowship is complete.`;
+      ${mentorName} is freed, gasping as the void-cords dissolve. Miri staggers, her hands seared by silver flame, but she holds her shield high. The fellowship is complete.`;
     } else {
-      branchText = `With a combined effort of blade and spell, the Negation Shell shatters into a thousand shards of silence. ${mentorName} stumbles forward, gasping as the void-cords dissolve. Thy fellowship is complete.`;
+      branchText = `With a combined effort of blade and spell, the Negation Shell shatters into a thousand shards of silence. ${mentorName} stumbles forward, gasping as the void-cords dissolve. "Thy timing is... adequate, Vessel." Thy fellowship is complete.`;
     }
 
-    const customPrompt = `The air in the Sunken Sanctuary is cold enough to crack bone. Beside thee stand Miri, Lina, and Seris. 
+    const customPrompt = `The air in the heart of the Sunken Sanctuary is thick with the smell of iron and ozone. Beside thee stand Miri, Lina, and Seris. They look to thee, the only Unbound Soul, to lead.
 
 Ahead, thy mentor ${mentorName} is suspended in a flickering prism of shadow.
 
 ${branchText}
 
 [EXPLORATION_BEAT]
-Environment: The chamber is a cathedral of ribs, the ceiling lost in a soup of green mist.
-Sensory: A smell of copper and old wet stone fills thy lungs. The ribs hum with a low, necrotic frequency.
-Hook: A massive set of iron doors etched with runes of 'The Sentinel' stands locked before thee.
+Environment: The grand staircase ahead is carved from the ribs of an ancient dragon, ascending toward a gate of white fire.
+Sensory: The sound of a thousand weeping voices echoes from the walls. A low hum vibrates in thy marrow.
+Hook: A massive set of iron doors etched with runes of 'The Sentinel' stands locked.
 
-Suddenly, the green mist thickens. **VOID-THRALLS** (cr 1) manifest from the very air! They guard the path to the **VOID-SENT SENTINEL** (cr 6).
+Suddenly, the green mist thickens. **VOID-THRALLS** (cr 1) manifest from the very air to block thy ascent! Beyond them, the silhouette of the **VOID-SENT SENTINEL** (cr 6) begins to stir.
 
 [ARCHITECT_COMMAND: Forge 3 Void-Thralls for the encounter.]
 
 The first battle of thy chronicle begins now. How dost thou strike?`;
 
+    // Final party includes the freed mentor
     const finalParty = [...initialPartyIds];
-    if (pathMentor) finalParty.push(pathMentor.id);
+    if (pathMentor && !finalParty.includes(pathMentor.id)) finalParty.push(pathMentor.id);
     
     onComplete(finalParty, "Ascension: The Sunken Sanctuary", customPrompt);
   };

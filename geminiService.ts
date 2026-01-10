@@ -76,10 +76,12 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   trackUsage();
   const systemInstruction = `Thou art the "Mechanical Scribe". Thy duty is to audit the Arbiter's narrative for mechanical shifts.
   DETECTION PROTOCOLS:
-  1. DAMAGE/HEAL/EXP: Look for phrases like "takes X damage" or "gains X exp".
-  2. ENTITY MANIFESTATION: Look for "ARCHITECT_COMMAND: Forge [Name] (cr [Value])".
-  3. EXPLORATION: Look for mentions of loot or environmental discoveries.
-  Return JSON ONLY.`;
+  1. COMMAND SCAN: Prioritize text within "SCRIBE_COMMAND:" or "ARCHITECT_COMMAND:".
+  2. DAMAGE/HEAL/EXP: Look for phrases like "takes X damage", "heals X vitality", or "gains X exp".
+  3. ENTITY MANIFESTATION: Look for "Forge [Name] (cr [Value])" or "Manifest [Item Name]".
+  4. MANA CONSUMPTION: Look for "consumes X mana" or "mana drains by X".
+  
+  Return JSON ONLY with 'changes' (stat shifts) and 'newEntities' (monsters/items to forge).`;
 
   try {
     const response = await ai.models.generateContent({
@@ -135,19 +137,24 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
   const ai = getAiClient();
   trackUsage();
   const isRaid = playerContext.isRaid;
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
-  EXPLORATION PROTOCOL:
-  - Between combat, focus on environmental storytelling, sensory details (smell of ozone, cold damp walls), and ancient lore.
-  - Describe the world in "Exploration Beats": [Environment Description] -> [Sensory Detail] -> [Interactive Hook].
-  - Provide meaningful choices: "The path splits: a staircase of teeth or a corridor of weeping obsidian."
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM running on Flash.
   
-  MECHANICAL WEIGHT:
-  - Use [🎲 d20(roll)+mod=result] for checks.
-  - Harm characters with "SCRIBE_COMMAND: [Name] takes [X] damage."
-  - Summon horrors with "ARCHITECT_COMMAND: Forge [Name] (cr [X])."
-  - Reward the party with "ARCHITECT_COMMAND: Manifest [Item Name]."
+  MECHANICAL WEIGHT PROTOCOL:
+  - If thou wishest to deal damage, use: "SCRIBE_COMMAND: [Name] takes [X] damage."
+  - If thou wishest to restore vitality, use: "SCRIBE_COMMAND: [Name] heals [X] vitality."
+  - If thou wishest to manifest a monster, use: "ARCHITECT_COMMAND: Forge [Name] (cr [X])."
+  - If thou wishest to grant gear, use: "ARCHITECT_COMMAND: Manifest [Item Name]."
   
-  PROSE: Grim, visceral, high-velocity dark fantasy. Use the term "Vessels" for characters.`;
+  FIDELITY OF ARMS RULES:
+  - Martials (Warrior, Fighter, Dark Knight): Must wear HEAVY IRON PLATE. Warriors/DK wield 2H weapons.
+  - Skirmishers (Thief, Archer, Alchemist): Must wear LEATHER. 
+  - Casters (Mage, Sorcerer, Blood Artist): Must wear ROBES.
+  
+  NARRATIVE GUIDELINES:
+  - prose: Gritty, visceral, lethal. Focus on the impact of steel on bone.
+  - Atmosphere: Thick with dread and ancient lore.
+  
+  The Fellowship consists of "Vessels". Balance for ${isRaid ? '8' : '4-5'} Vessels.`;
 
   const contents = prepareHistory(history);
   try {
@@ -156,7 +163,7 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
       contents,
       config: { 
         systemInstruction, 
-        temperature: 0.8,
+        temperature: 0.85,
         thinkingConfig: { thinkingBudget: 4096 }
       }
     });
@@ -179,7 +186,12 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
       model: FLASH_MODEL, 
       contents: `Manifest Item: ${itemName}. Context: ${context}`, 
       config: { 
-        systemInstruction: "Thou art the Architect's Forge. Manifest Dark Fantasy artifacts.",
+        systemInstruction: `Thou art the Architect's Forge. 
+        FIDELITY RULES:
+        - Martials = Heavy Armor/2H Steel.
+        - Skirmishers = Leather/Daggers/Shortswords.
+        - Casters = Robes/Staffs/Sickles.
+        If Armor, provide AC. If Weapon, provide damage string like '2d8'.`,
         temperature: 0.7,
         responseMimeType: "application/json",
         responseSchema: {
@@ -194,17 +206,25 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
               properties: { 
                 ac: { type: Type.NUMBER }, 
                 damage: { type: Type.STRING }, 
-                damageType: { type: Type.STRING }
+                damageType: { type: Type.STRING },
+                str: { type: Type.NUMBER },
+                dex: { type: Type.NUMBER },
+                con: { type: Type.NUMBER },
+                int: { type: Type.NUMBER },
+                wis: { type: Type.NUMBER },
+                cha: { type: Type.NUMBER }
               } 
-            }
-          }
+            },
+            archetypes: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["name", "description", "type", "rarity", "stats"]
         }
       } 
     });
     const data = JSON.parse(response.text || '{}');
-    if (data.ac !== undefined && !data.stats?.ac) {
+    if ((data as any).ac !== undefined && !data.stats?.ac) {
       if (!data.stats) data.stats = {};
-      data.stats.ac = data.ac;
+      data.stats.ac = (data as any).ac;
     }
     return data;
   } catch (e) { return { name: itemName, stats: {} }; }
@@ -224,7 +244,7 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
     model: FLASH_MODEL, 
     contents: `Manifest Monster: ${monsterName}. Context: ${context}.`, 
     config: { 
-      systemInstruction: "Forge a horrific monster with complete stats.",
+      systemInstruction: "Forge a horrific monster with complete stats. CR must be balanced for a level 5 party of 4 vessels.",
       temperature: 0.7,
       responseMimeType: "application/json",
       responseSchema: {
@@ -236,9 +256,28 @@ export const generateMonsterDetails = async (monsterName: string, context: strin
           ac: { type: Type.NUMBER },
           cr: { type: Type.NUMBER },
           description: { type: Type.STRING },
-          stats: { type: Type.OBJECT },
-          abilities: { type: Type.ARRAY, items: { type: Type.OBJECT } }
-        }
+          stats: { 
+            type: Type.OBJECT,
+            properties: {
+              str: { type: Type.NUMBER }, dex: { type: Type.NUMBER }, con: { type: Type.NUMBER },
+              int: { type: Type.NUMBER }, wis: { type: Type.NUMBER }, cha: { type: Type.NUMBER }
+            }
+          },
+          abilities: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                description: { type: Type.STRING },
+                type: { type: Type.STRING },
+                damage: { type: Type.STRING },
+                damageType: { type: Type.STRING }
+              }
+            } 
+          }
+        },
+        required: ["name", "hp", "ac", "cr", "stats", "abilities"]
       }
     } 
   });
@@ -251,7 +290,7 @@ export const manifestSoulLore = async (char: any): Promise<any> => {
   trackUsage();
   const response = await ai.models.generateContent({ 
     model: FLASH_MODEL, 
-    contents: `Manifest Lore for ${char.name}.`, 
+    contents: `Manifest Lore for ${char.name}, a ${char.race} ${char.archetype}. Return JSON with 'biography' and 'description'.`, 
     config: { systemInstruction: "Lore-Weaver on Flash.", responseMimeType: "application/json" } 
   });
   return JSON.parse(response.text || '{}');
@@ -264,7 +303,7 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   const response = await ai.models.generateContent({ 
     model: FLASH_MODEL, 
     contents: prepareHistory(history), 
-    config: { systemInstruction: "Barnaby, the weary innkeeper." } 
+    config: { systemInstruction: "Barnaby, the weary innkeeper. Provide rumors and rest." } 
   });
   return response.text;
 };

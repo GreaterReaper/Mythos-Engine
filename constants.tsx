@@ -113,7 +113,7 @@ export const SPELL_LIBRARY: Record<string, Ability[]> = {
 
 export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; description: string; coreAbilities: Ability[]; spells?: Ability[]; starterGear: string[] }> = {
   [Archetype.Archer]: {
-    hpDie: 8, role: 'DPS', description: 'Lithe hunters who strike from the shadows.',
+    hpDie: 8, role: 'DPS', description: 'Lithe hunters who strike from the shadows. Bound to Leather Armor.',
     coreAbilities: [
       { name: 'Sky-Splitter', description: 'Thy precision ignores half-cover and range penalties.', type: 'Passive', levelReq: 1 },
       { name: 'Rain of Arrows', description: 'Barrage a 10ft area with spectral arrows.', type: 'Active', levelReq: 5, manaCost: 10, damage: '4d6', damageType: 'Piercing' },
@@ -121,10 +121,10 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
       { name: 'Shadow-Pinnacle', description: 'Grand: Manifest 3 spectral duplicates that attack when thou dost.', type: 'Active', levelReq: 15, manaCost: 30 },
       { name: 'Void Arrow', description: 'Capstone: Fire an arrow that collapses into a singularity. Target is erased from existence if they fail a CON save.', type: 'Active', levelReq: 20, manaCost: 50 }
     ],
-    starterGear: ['Hunting Bow', 'Leather Tunic']
+    starterGear: ['Hunting Bow', 'Leather Jerkin']
   },
   [Archetype.Thief]: {
-    hpDie: 8, role: 'DPS', description: 'Masters of the quick blade and unseen step.',
+    hpDie: 8, role: 'DPS', description: 'Masters of the quick blade and unseen step. Bound to Leather Armor.',
     coreAbilities: [
       { name: 'Lethal Ambush', description: 'Deal extra 2d6 damage when thou hast advantage.', type: 'Passive', levelReq: 1 },
       { name: 'Evasion', description: 'Avoid damage from area effects entirely on successful saves.', type: 'Passive', levelReq: 7 },
@@ -134,7 +134,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Twin Daggers', 'Leather Jerkin']
   },
   [Archetype.Warrior]: {
-    hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts who forsake shields for absolute devastation.',
+    hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts who forsake shields for absolute devastation. Bound to Heavy Iron Plate.',
     coreAbilities: [
       { name: 'Charged Devastation', description: 'Every third successful hit deals double damage.', type: 'Passive', levelReq: 1 },
       { name: 'Execute', description: 'Instantly slay a foe below 20% HP.', type: 'Active', levelReq: 11, manaCost: 15 },
@@ -144,7 +144,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Double-Headed Greataxe', 'Heavy Iron Plate']
   },
   [Archetype.Fighter]: {
-    hpDie: 10, role: 'Tank', description: 'Unyielding guardians with blade and bulwark.',
+    hpDie: 10, role: 'Tank', description: 'Unyielding guardians with blade and bulwark. Bound to Steel Plate.',
     coreAbilities: [
       { name: 'Shield Bash', description: 'Force a foe to drop their guard; +2 to next attack.', type: 'Active', levelReq: 1, manaCost: 3 },
       { name: 'Unbreakable', description: 'Once per day, survive a lethal hit with 1 HP.', type: 'Passive', levelReq: 11 },
@@ -153,7 +153,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Soldier\'s Longsword', 'Iron Kite Shield', 'Steel Plate Armor']
   },
   [Archetype.DarkKnight]: {
-    hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain and massive two-handed steel as a weapon.',
+    hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain and massive two-handed steel as a weapon. Bound to Obsidian Plate.',
     coreAbilities: [
       { name: 'Soul Rend', description: 'Heal for 25% of all necrotic damage dealt.', type: 'Passive', levelReq: 3 },
       { name: 'Blackest Night', description: 'Manifest a shadow-shield that explodes when broken.', type: 'Active', levelReq: 7, manaCost: 15 },
@@ -164,16 +164,16 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Vile Zweihander', 'Obsidian Heavy Plate']
   },
   [Archetype.Alchemist]: {
-    hpDie: 8, role: 'Support', description: 'Brewers of tonics and volatile acids.',
+    hpDie: 8, role: 'Support', description: 'Brewers of tonics and volatile acids. Bound to Leather Armor.',
     coreAbilities: [
       { name: 'Quick Mix', description: 'Apply a tonic as a minor action.', type: 'Passive', levelReq: 3 },
       { name: 'Grand Discovery', description: 'Craft a legendary elixir that restores any soul to full resonance.', type: 'Passive', levelReq: 11 },
       { name: 'Philosopher\'s Stone', description: 'Capstone: Convert any material into mana. Gain infinite mana for 3 turns once per day.', type: 'Active', levelReq: 20 }
     ],
-    starterGear: ['Weighted Shortsword', 'Alchemy Kit']
+    starterGear: ['Weighted Shortsword', 'Leather Apron']
   },
   [Archetype.Sorcerer]: {
-    hpDie: 6, role: 'DPS', description: 'Conduits of raw power.',
+    hpDie: 6, role: 'DPS', description: 'Conduits of raw power. Bound to Shadow Robes.',
     coreAbilities: [
       { name: 'Arcane Memory', description: 'Recall a manifestation once per day without mana.', type: 'Passive', levelReq: 1 }
     ],
@@ -181,7 +181,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Aetheric Staff', 'Shadow Robes']
   },
   [Archetype.Mage]: {
-    hpDie: 6, role: 'Support', description: 'Healers of the fellowship.',
+    hpDie: 6, role: 'Support', description: 'Healers of the fellowship. Bound to Ritual Robes.',
     coreAbilities: [
       { name: 'Harmonized Aether', description: 'Thy blessings reach one additional ally.', type: 'Passive', levelReq: 1 }
     ],
@@ -189,7 +189,7 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
     starterGear: ['Elderwood Staff', 'Clerical Robes']
   },
   [Archetype.BloodArtist]: {
-    hpDie: 10, role: 'DPS', description: 'Collectors of life-force.',
+    hpDie: 10, role: 'DPS', description: 'Collectors of life-force. Bound to Crimson Robes.',
     coreAbilities: [
       { name: 'Sanguine Link', description: 'Bind two hearts; damage to one affects both.', type: 'Active', levelReq: 1, manaCost: 10 }
     ],
@@ -212,28 +212,58 @@ export const MENTORS: Character[] = [
   {
     id: 'mentor-lina', name: 'Lina', age: 24, gender: 'Female', race: Race.Human, archetype: Archetype.Mage, role: 'Support', level: 5, exp: 0, maxHp: 35, currentHp: 35, maxMana: 50, currentMana: 50, stats: { str: 8, dex: 12, con: 12, int: 14, wis: 18, cha: 14 },
     currency: { aurels: 100 }, personality: 'A timid but focused healer.', inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
-    description: 'Serene priestess.', biography: 'She guided the first Fellowship.', asiPoints: 0, activeStatuses: []
+    description: 'Serene priestess of the Aether. (Staff + Robes)', biography: 'She guided the first Fellowship through the obsidian mists.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, maxMana: 30, currentMana: 30, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
-    currency: { aurels: 50 }, personality: 'Energetic.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
-    description: 'Brave guardian.', biography: 'A soldier who refused to retreat.', asiPoints: 0, activeStatuses: []
+    currency: { aurels: 50 }, personality: 'Energetic and unyielding.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
+    description: 'Brave guardian of the gate. (Longsword + Shield + Plate)', biography: 'A soldier who refused to retreat when the sky turned green.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, maxMana: 40, currentMana: 40, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
-    currency: { aurels: 150 }, personality: 'Aloof.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
-    description: 'Reserved marksman.', biography: 'Sentinel of the canopy.', asiPoints: 0, activeStatuses: []
+    currency: { aurels: 150 }, personality: 'Aloof and precise.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
+    description: 'Reserved marksman of the mists. (Bow + Leather)', biography: 'Sentinel of the canopy, he sees the void before it arrives.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-kaelen', name: 'Kaelen', age: 34, gender: 'Male', race: Race.Orc, archetype: Archetype.Warrior, role: 'Tank', level: 5, exp: 0, maxHp: 65, currentHp: 65, maxMana: 30, currentMana: 30, stats: { str: 20, dex: 10, con: 18, int: 8, wis: 10, cha: 10 },
+    currency: { aurels: 100 }, personality: 'Stoic and blunt.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
+    description: 'A mountain of steel. (Greataxe + Plate)', biography: 'He shattered the First Pillar with a single swing.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-vane', name: 'Vane', age: 45, gender: 'Male', race: Race.Tiefling, archetype: Archetype.DarkKnight, role: 'Tank', level: 5, exp: 0, maxHp: 58, currentHp: 58, maxMana: 45, currentMana: 45, stats: { str: 16, dex: 10, con: 14, int: 12, wis: 12, cha: 18 },
+    currency: { aurels: 80 }, personality: 'Cynical.', inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
+    description: 'Wielder of forbidden steel. (Zweihander + Plate)', biography: 'A knight who fed his own soul to the void to save his king.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-lyra', name: 'Lyra', age: 26, gender: 'Female', race: Race.Vesperian, archetype: Archetype.Thief, role: 'DPS', level: 5, exp: 0, maxHp: 42, currentHp: 42, maxMana: 40, currentMana: 40, stats: { str: 10, dex: 20, con: 12, int: 14, wis: 10, cha: 16 },
+    currency: { aurels: 300 }, personality: 'Playful but lethal.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
+    description: 'Ghost of the shadows. (Daggers + Leather)', biography: 'She stole the breath from a dragon while it slept.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-elias', name: 'Elias', age: 52, gender: 'Male', race: Race.Dwarf, archetype: Archetype.Alchemist, role: 'Support', level: 5, exp: 0, maxHp: 48, currentHp: 48, maxMana: 50, currentMana: 50, stats: { str: 12, dex: 14, con: 16, int: 18, wis: 14, cha: 8 },
+    currency: { aurels: 200 }, personality: 'Eccentric.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
+    description: 'Master of volatile reagents. (Shortsword + Leather)', biography: 'Inventor of the Cinder-Draft.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-xarth', name: 'Xarth', age: 150, gender: 'Male', race: Race.Elf, archetype: Archetype.Sorcerer, role: 'DPS', level: 5, exp: 0, maxHp: 32, currentHp: 32, maxMana: 80, currentMana: 80, stats: { str: 8, dex: 14, con: 10, int: 20, wis: 14, cha: 16 },
+    currency: { aurels: 150 }, personality: 'Arrogant.', inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.Sorcerer] || [], abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
+    description: 'Channel of destruction. (Staff + Robes)', biography: 'He unmade a city to prove a mathematical theory.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-malphas', name: 'Malphas', age: 31, gender: 'Male', race: Race.Human, archetype: Archetype.BloodArtist, role: 'DPS', level: 5, exp: 0, maxHp: 55, currentHp: 55, maxMana: 40, currentMana: 40, stats: { str: 10, dex: 14, con: 20, int: 10, wis: 10, cha: 18 },
+    currency: { aurels: 90 }, personality: 'Melancholic.', inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.BloodArtist] || [], abilities: ARCHETYPE_INFO[Archetype.BloodArtist].coreAbilities,
+    description: 'Sculptor of vitals. (Sickle + Robes)', biography: 'He believes pain is the only true medium of art.', asiPoints: 0, activeStatuses: []
   }
 ];
 
 export const RULES_MANIFEST = `
 1. **THE ARBITER**: Gemini AI is the ultimate judge of fate.
-2. **SOUL ASCENSION**: Level cap is 20. Exp = 1000 * Level.
-3. **BALANCED LEGION**: The Arbiter balances all challenges for a party of 4 vessels. Smaller parties must rely on tactics; larger parties will find the void grows more aggressive.
-4. **SOUL SYNC**: Mentors scale automatically to match the Fellowship's average level once they exceed Level 5.
-5. **VOID LAW**: High-level magic (Tier 7+) can permanently scar the environment or the caster's soul.
-6. **LEGENDARY DEEDS**: Capstones (Lvl 20) are the peak of existence.
-7. **RAID MANIFESTATIONS**: For groups of 8 vessels, scaling is exponential. Requires 2 Tanks, 4 DPS, 2 Supports.
+2. **FIDELITY OF ARMS**: Vessels must wear gear aligned with their essence. (Martials: Plate, Skirmishers: Leather, Casters: Robes).
+3. **SOUL ASCENSION**: Level cap is 20. Exp = 1000 * Level.
+4. **BALANCED LEGION**: The Arbiter balances all challenges for a party of 4-5 vessels.
+5. **SOUL SYNC**: Mentors scale automatically to match the Fellowship's average level once they exceed Level 5.
+6. **VOID LAW**: High-level magic (Tier 7+) can permanently scar the environment or the caster's soul.
+7. **LEGENDARY DEEDS**: Capstones (Lvl 20) are the peak of existence.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `The air is thick with iron. Thy Fellowship stands before 'The Broken Cask'. What is thy move?`;

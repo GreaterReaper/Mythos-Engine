@@ -235,9 +235,11 @@ const App: React.FC = () => {
                 const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
                 let target = charIdx !== -1 ? newCharacters[charIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
                 if (!target) return;
+                
                 const updates: Partial<Character> = {};
                 if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
                 if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
+                if (change.type === 'mana') updates.currentMana = Math.max(0, target.currentMana - change.value);
                 if (change.type === 'exp') {
                   const gained = change.value;
                   const newTotalExp = target.exp + gained;
@@ -245,11 +247,21 @@ const App: React.FC = () => {
                   if (newTotalExp >= expToLevel && target.level < 20) {
                     updates.level = target.level + 1;
                     updates.exp = newTotalExp - expToLevel;
-                    logs.push({ role: 'system', content: `SCRIBE: ${target.name} ascended to Level ${updates.level}!`, timestamp: Date.now() });
+                    // Class appropriate HP gain
+                    const archInfo = ARCHETYPE_INFO[target.archetype as Archetype];
+                    if (archInfo) {
+                       const hpGain = Math.floor(archInfo.hpDie / 2) + 1;
+                       updates.maxHp = target.maxHp + hpGain;
+                       updates.currentHp = updates.maxHp;
+                       updates.maxMana = target.maxMana + 10;
+                       updates.currentMana = updates.maxMana;
+                    }
+                    logs.push({ role: 'system', content: `SCRIBE: ${target.name} ascended to Level ${updates.level}! Resonance restores their Vitality.`, timestamp: Date.now() });
                   } else {
                     updates.exp = newTotalExp;
                   }
                 }
+                
                 if (charIdx !== -1) newCharacters[charIdx] = { ...target, ...updates };
                 else if (mentorIdx !== -1) newMentors[mentorIdx] = { ...target, ...updates };
               });

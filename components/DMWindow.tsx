@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Campaign, Message, Character, Item, Monster, Currency, Ability } from '../types';
+import { Campaign, Message, Character, Item, Monster, Currency, Ability, ApiUsage } from '../types';
 import { generateDMResponse } from '../geminiService';
 import { RULES_MANIFEST } from '../constants';
 import SpellSlotManager from './SpellSlotManager';
@@ -22,6 +21,7 @@ interface DMWindowProps {
   updateCharacter?: (id: string, updates: Partial<Character>) => void;
   isHost: boolean; 
   isKeyboardOpen?: boolean;
+  apiUsage?: ApiUsage;
 }
 
 // Sub-component for individual party HP bar with reaction animations
@@ -82,7 +82,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
   onShortRest, 
   onSyncHistory,
   isHost, 
-  isKeyboardOpen
+  isKeyboardOpen,
+  apiUsage
 }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +93,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
-  // Fix: Defined usableManifestations to resolve "Cannot find name 'usableManifestations'" errors
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
     return [...(activeCharacter.abilities || []), ...(activeCharacter.spells || [])]
@@ -142,7 +142,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
         activeRules: RULES_MANIFEST, 
         existingItems: [], 
         existingMonsters: bestiary,
-        campaignTitle: campaign.title
+        campaignTitle: campaign.title,
+        usageCount: apiUsage?.count
       });
 
       const dmMsg: Message = { role: 'model', content: responseText || "The Engine hums...", timestamp: Date.now() };
@@ -246,7 +247,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
             <div className="absolute inset-0 bg-leather opacity-20 pointer-events-none" />
             
             {campaign.history.map((msg, idx) => {
-              const isError = msg.content.includes("voice is lost to the void") || msg.content.includes("flickers");
+              const isError = msg.content.includes("voice is lost to the void") || msg.content.includes("flickers") || msg.content.includes("meditation");
               return (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in relative z-10`}>
                   <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 text-white p-4 rounded-l-xl rounded-tr-xl' : isError ? 'bg-red-950/10 border-l-4 border-red-900 text-red-200 p-5 rounded-r-xl' : 'bg-black border-l-4 border-emerald-900 text-[#e7e5e4] p-5 shadow-xl rounded-r-xl'}`}>
@@ -307,7 +308,6 @@ const DMWindow: React.FC<DMWindowProps> = ({
             </div>
           </div>
 
-          {/* SCRIBE'S LEDGER SEGMENT */}
           <div className="p-5 border-b border-emerald-900/20 bg-black/40 h-40 flex flex-col shrink-0">
              <h4 className="text-[9px] font-cinzel text-emerald-800 font-black uppercase mb-3 tracking-widest">Scribe's Ledger</h4>
              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">

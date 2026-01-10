@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GameState, Friend } from '../types';
 import { generateSoulSignature } from '../geminiService';
@@ -20,6 +19,7 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
   const [targetId, setTargetId] = useState('');
   const [isStandalone, setIsStandalone] = useState(false);
   const [signature, setSignature] = useState('');
+  const [isOffline, setIsOffline] = useState((window as any).MYTHOS_OFFLINE_MODE || false);
 
   useEffect(() => {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
@@ -29,6 +29,16 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
   const handleManifestSignature = () => {
     const sig = generateSoulSignature(gameState);
     setSignature(sig);
+  };
+
+  const toggleOfflineMode = () => {
+    const newState = !isOffline;
+    (window as any).MYTHOS_OFFLINE_MODE = newState;
+    setIsOffline(newState);
+    alert(newState 
+      ? "Aether Link Severed. The Clockwork Arbiter is now in control. (No API usage, deterministic logic)." 
+      : "Aether Link Restored. The Great Well (AI) now guides thy path."
+    );
   };
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -41,17 +51,38 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {/* Global Aether State */}
-        <div className="rune-border p-6 bg-emerald-950/20 border-emerald-500/40 space-y-4 animate-in fade-in duration-700">
-           <h3 className="text-xs font-cinzel text-emerald-500 uppercase tracking-[0.3em] font-black">Global Aetheric Equilibrium</h3>
-           <div className="p-4 bg-black/60 border border-emerald-900/30 rounded-sm">
-              <p className="text-xs text-gray-300 leading-relaxed italic">
-                "The Aether is not infinite. Every soul that awakens, every spell that manifests, draws from the Great Well. Should the Convergence reach zero, the Engine enters a state of high turbulence until the Turning of the Stars (UTC Midnight)."
-              </p>
-              <div className="mt-4 flex items-center gap-4">
-                 <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
-                 <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Spectral Connection: STABLE</span>
+        {/* Aether Link Toggle (API vs LOCAL) */}
+        <div className={`rune-border p-6 transition-all duration-500 ${isOffline ? 'bg-orange-950/10 border-orange-900/60 shadow-[0_0_20px_rgba(154,52,18,0.1)]' : 'bg-emerald-950/20 border-emerald-500/40'}`}>
+           <div className="flex justify-between items-center border-b border-emerald-900/20 pb-3 mb-4">
+              <h3 className={`text-xs font-cinzel uppercase tracking-[0.3em] font-black ${isOffline ? 'text-orange-500' : 'text-emerald-500'}`}>
+                {isOffline ? 'Aether Link: SEVERED' : 'Aether Link: ACTIVE'}
+              </h3>
+              <div 
+                onClick={toggleOfflineMode}
+                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${isOffline ? 'bg-orange-900' : 'bg-emerald-600'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isOffline ? 'translate-x-6' : 'translate-x-0'}`} />
               </div>
+           </div>
+           
+           <div className="space-y-3">
+             <p className="text-[10px] text-gray-400 leading-relaxed italic">
+               {isOffline 
+                 ? "Thou art operating under 'Clockwork Mode'. The DM uses local deterministic logic. Creative prose is sacrificed for absolute reliability and zero API strain."
+                 : "Thou art connected to the 'Great Well'. The Arbiter (Gemini) provides cinematic narrative and creative world-building via the aetheric API."}
+             </p>
+             {!isOffline && (
+               <div className="flex items-center gap-4 mt-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Resonating with Cloud Engine</span>
+               </div>
+             )}
+             {isOffline && (
+               <div className="flex items-center gap-4 mt-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                  <span className="text-[9px] font-black text-orange-700 uppercase tracking-widest">Local Gears Grinding</span>
+               </div>
+             )}
            </div>
         </div>
 
@@ -68,11 +99,9 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
                <div className="p-3 bg-black/60 border border-emerald-900/30 font-mono text-gold text-lg text-center tracking-[0.5em] rounded-sm">
                   {gameState.userAccount.id}
                </div>
-               <p className="text-[8px] text-gray-600 italic">This 10-character key uniquely identifies thy vessel within the Engine.</p>
              </div>
 
              <div className="space-y-2 pt-2">
-                <p className="text-[10px] text-gray-400 leading-relaxed font-medium">To migrate thy soul to another device (PC or Mobile), thou must manifest thy complete **Soul Signature**.</p>
                 <button 
                   onClick={handleManifestSignature}
                   className="w-full py-4 bg-emerald-900 text-white font-cinzel text-[10px] font-black border border-gold hover:bg-emerald-800 transition-all uppercase tracking-[0.2em] shadow-lg"
@@ -83,7 +112,6 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
 
              {signature && (
                <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                 <label className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest">Encoded Soul Essence</label>
                  <div className="relative">
                     <textarea 
                       readOnly 
@@ -100,62 +128,14 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
                       Copy Essence
                     </button>
                  </div>
-                 <p className="text-[8px] text-red-900 font-black uppercase text-center animate-pulse tracking-tighter">Warning: This signature contains all thy memories. Keep it secret.</p>
                </div>
              )}
            </div>
         </div>
 
-        {/* Multiplayer Section */}
-        <div className="rune-border p-6 bg-black/60 backdrop-blur space-y-6 border-emerald-900/60">
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-emerald-500 uppercase tracking-widest">Thy Resonance Signature (Session Code)</label>
-              <div className="flex gap-2">
-                <input 
-                  readOnly 
-                  value={peerId || 'Manifesting...'} 
-                  className="flex-1 bg-black/40 border border-emerald-900/30 p-3 text-gold font-mono text-xs outline-none" 
-                />
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(peerId);
-                    alert('Signature Bound to Clipboard');
-                  }}
-                  className="px-4 bg-emerald-900/20 border border-emerald-900 text-[10px] font-cinzel text-gold hover:bg-emerald-900/40 transition-all"
-                >
-                  COPY
-                </button>
-              </div>
-              <p className="text-[9px] text-gray-600 italic">Share this code for multiplayer soul-binding in the current session.</p>
-            </div>
-
-            <div className="h-px bg-emerald-900/20" />
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-cinzel text-emerald-500 uppercase tracking-widest">Bind to External Engine</label>
-              <div className="flex gap-2">
-                <input 
-                  value={targetId} 
-                  onChange={e => setTargetId(e.target.value)} 
-                  placeholder="ENTER SESSION CODE..."
-                  className="flex-1 bg-black/40 border border-emerald-900/30 p-3 text-gold font-mono text-xs outline-none focus:border-gold transition-all" 
-                />
-                <button 
-                  onClick={() => targetId && onConnect(targetId)}
-                  className="px-6 py-2 bg-emerald-900 text-white font-cinzel text-xs border border-gold hover:bg-emerald-800 disabled:opacity-30 transition-all"
-                >
-                  BIND
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Account Deletion */}
         <div className="rune-border p-6 bg-black/60 border-emerald-900/40 space-y-4">
            <h3 className="text-xs font-cinzel text-emerald-700 uppercase tracking-widest">Ritual of Severance</h3>
-           <p className="text-[10px] text-gray-500 leading-relaxed italic">"Abandon thy vessel and let thy fragments return to the void."</p>
            <button 
              onClick={onDeleteAccount}
              className="w-full py-3 border border-emerald-900/50 text-emerald-900 hover:bg-emerald-900 hover:text-white transition-all font-cinzel text-[10px] font-black uppercase tracking-widest"
@@ -163,29 +143,6 @@ const NexusScreen: React.FC<NexusScreenProps> = ({
              SEVER ALL BONDS (DELETE ACCOUNT)
            </button>
         </div>
-
-        {/* Installation Instructions */}
-        {!isStandalone && (
-          <div className="rune-border p-5 bg-gold/5 border-gold/30 space-y-3">
-            <h3 className="text-xs font-cinzel text-gold uppercase tracking-widest flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-              Manifestation Ritual (Install)
-            </h3>
-            <p className="text-[10px] text-gray-400 leading-relaxed">
-              Manifest the Mythos Engine directly to thy home screen for a full-screen, immersive experience.
-            </p>
-            <div className="p-3 bg-black/40 border border-gold/10 rounded">
-              <p className="text-[10px] font-bold text-emerald-500 uppercase mb-1">
-                {isIOS ? 'On iOS Safari:' : 'On Android Chrome:'}
-              </p>
-              <p className="text-[10px] text-gray-300">
-                {isIOS 
-                  ? 'Tap the Share icon (square with arrow) and select "Add to Home Screen".' 
-                  : 'Tap the three dots (⋮) and select "Install App" or "Add to Home Screen".'}
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -91,7 +91,6 @@ const App: React.FC = () => {
     const targetCampaignId = campaignId || state.activeCampaignId;
     if (!targetCampaignId) return;
 
-    // 1. Log message immediately for UI
     setState(prev => ({
       ...prev,
       campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, msg] } : c)
@@ -100,7 +99,6 @@ const App: React.FC = () => {
     if (msg.role === 'model') {
       const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       
-      // Delay audit slightly to ensure state is caught up
       setTimeout(async () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
@@ -207,6 +205,7 @@ const App: React.FC = () => {
                 onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} 
                 onQuitCampaign={() => setState(p => ({ ...p, activeCampaignId: null }))} 
                 onShortRest={() => {}} isHost={true} isKeyboardOpen={isKeyboardOpen}
+                apiUsage={state.apiUsage}
               />}
               
               {activeTab === 'Fellowship' && <FellowshipScreen 

@@ -13,23 +13,23 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
   const tutorialSteps = [
     {
       title: "Welcome, Neophyte",
-      content: "You have arrived at the Mythos Engine—a dark realm powered by the Trinity of Aether. Unlike mortal games, the Engine processes reality through three distinct eyes.",
+      content: "You have arrived at the Mythos Engine—a dark realm powered by the Trinity of Aether. The Engine processes reality through three high-speed Flash protocols.",
     },
     {
-      title: "The Arbiter's Voice",
-      content: "The Arbiter (Gemini 3 Pro) is thy guide. It weaves the narrative, describes the obsidian winds, and roleplays the inhabitants of the Cask. It speaks with cinematic intent.",
+      title: "The Arbiter's Pulse",
+      content: "The Arbiter (Flash) is thy guide. Optimized for rapid narrative delivery, it weaves the story, roleplays inhabitants, and judges thy actions with cinematic speed.",
     },
     {
       title: "The Scribe's Audit",
-      content: "The Mechanical Scribe (Flash) listens to the Arbiter. It audits every word to synchronize thy Vitality, EXP, and Inventory. If the Arbiter says thou art struck, the Scribe seals the wound in thy data.",
+      content: "The Mechanical Scribe (Flash) listens to the Arbiter. It audits narrative flow in milliseconds to synchronize thy Vitality, EXP, and Inventory data.",
     },
     {
       title: "The Architect's Forge",
-      content: "The Architect (Gemini 3 Pro) manifests the unknown. When a new horror or relic is mentioned, the Architect forges its stats and lore in real-time, populating the Bestiary and Armory.",
+      content: "The Architect (Flash) manifests the unknown. When new horrors or relics are mentioned, the Architect forges their stats and lore with tactical precision.",
     },
     {
       title: "The Fellowship of Five",
-      content: "Thy journey begins with the legendary Trio—Lina, Miri, and Seris—alongside a Path-Mentor. Together, you form the Fellowship of Five. Rest is rare; consequences are permanent.",
+      content: "Thy journey begins with the legendary Trio—Lina, Miri, and Seris—alongside a Path-Mentor. Rest is rare; consequences are permanent. Fate moves fast in the Flash tier.",
     }
   ];
 

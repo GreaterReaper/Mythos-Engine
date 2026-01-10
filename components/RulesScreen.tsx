@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { RULES_MANIFEST } from '../constants';
 
@@ -29,11 +28,11 @@ const RulesScreen: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="p-5 bg-emerald-900/5 border border-emerald-900/20 rounded">
           <h4 className="font-cinzel text-emerald-800 uppercase text-xs mb-2 font-bold">The Arbiter</h4>
-          <p className="text-[10px] text-gray-500 leading-relaxed">The Gemini 3 Pro AI serves as the ultimate arbiter of fate. Its word is law, calculating dice outcomes based on character attributes and the Engine's laws.</p>
+          <p className="text-[10px] text-gray-500 leading-relaxed">The Gemini 3 Flash AI serves as the ultimate arbiter of fate. Its word is law, calculating dice outcomes with high-speed tactical precision based on thy attributes.</p>
         </div>
         <div className="p-5 bg-gold/5 border border-gold/20 rounded">
           <h4 className="font-cinzel text-gold uppercase text-xs mb-2 font-bold">Ascension</h4>
-          <p className="text-[10px] text-gray-500 leading-relaxed">Every 1,000 EXP times thy current level triggers Ascension. With each level, thy soul grows in power, unlocking new paths and spells.</p>
+          <p className="text-[10px] text-gray-500 leading-relaxed">Every 1,000 EXP times thy current level triggers Ascension. With each level, thy soul grows in power, unlocking new paths and spells in the Flash protocol.</p>
         </div>
       </div>
     </div>

@@ -21,31 +21,6 @@ const trackUsage = () => {
 
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const prepareHistory = (history: Message[]) => {
-  if (history.length === 0) return [{ role: 'user', parts: [{ text: 'Begin the chronicle.' }] }];
-  const contents: any[] = [];
-  let lastRole: string | null = null;
-  history.forEach((m, idx) => {
-    if (m.role === 'system') return;
-    let currentRole = m.role === 'user' ? 'user' : 'model';
-    if (idx === 0 && currentRole === 'model') {
-      contents.push({
-        role: 'user',
-        parts: [{ text: `The chronicle begins: ${m.content}\n\nContinue.` }]
-      });
-      lastRole = 'user';
-      return;
-    }
-    if (currentRole === lastRole) {
-      contents[contents.length - 1].parts[0].text += `\n\n${m.content}`;
-    } else {
-      contents.push({ role: currentRole, parts: [{ text: m.content }] });
-      lastRole = currentRole;
-    }
-  });
-  return contents;
-};
-
 /**
  * THE SCRIBE: Audits narrative text for mechanical changes.
  */
@@ -60,6 +35,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   2. SOLO FEAT CHECK: If a vessel vanquishes a Boss alone, ensure a "LEGENDARY_MANIFEST:" or Relic is generated.
   3. STAT SHIFTS: Look for damage, healing, exp, or mana changes.
   4. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
+  5. LEVEL LOCK: Reject any "SCRIBE_COMMAND" that attempts to grant or use an ability for which the target's level is insufficient.
   
   Return JSON ONLY with 'changes' and 'newEntities'.`;
 
@@ -115,7 +91,15 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
 
   const ai = getAiClient();
   trackUsage();
+  
+  const partyContext = playerContext.party.map((p: Character) => 
+    `${p.name} (Lvl ${p.level} ${p.archetype})`
+  ).join(", ");
+
   const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM running on Flash.
+  - Context: Party is [${partyContext}].
+  - LEVEL GATING: Players cannot use spells or abilities above their current level.
+  - REJECTION PROTOCOL: If a player attempts an action they haven't unlocked yet, thou MUST describe the failure (aetheric fizzle, muscle lock) and state they are not yet "Mature" enough for such power.
   - Prose: Gritty, visceral, lethal.
   - High Stakes: If a player performs an act of extreme heroism, rolls a Nat 20, OR CLEARS A BOSS SOLO, thou MUST manifest a unique power.
   - Command: 
@@ -124,7 +108,6 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
     Use "LEGENDARY_MANIFEST: [Ability Name] | [Ability Description]" to grant a permanent unique power.
   - Rule 5: Reward solo boss-kills with Relic gear or Legendary Boons.`;
 
-  // Standardize history for the SDK
   const contents = history.map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }]

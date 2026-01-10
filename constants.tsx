@@ -78,87 +78,136 @@ export const RACIAL_BONUSES: Record<Race, Partial<Stats>> = {
 
 export const SPELL_LIBRARY: Record<string, Ability[]> = {
   [Archetype.Sorcerer]: [
-    { name: 'Chaos Bolt', description: 'Fire a bolt of unpredictable energy.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, damage: '1d12', damageType: 'Psychic' },
-    { name: 'Shield of Aether', description: 'A barrier of shimmering force (+5 AC).', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 8 },
-    { name: 'Fireball', description: 'A massive explosion of heat.', type: 'Spell', levelReq: 5, baseLevel: 3, manaCost: 20, damage: '8d6', damageType: 'Fire' }
+    { name: 'Chaos Bolt', description: 'Fire a bolt of unpredictable energy via Aether Staff.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, damage: '1d12', damageType: 'Psychic' },
+    { name: 'Shield of Aether', description: 'A barrier of shimmering force (+5 AC). Requires Staff.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 8 },
+    { name: 'Fireball', description: 'A massive explosion of heat. Requires Staff.', type: 'Spell', levelReq: 5, baseLevel: 3, manaCost: 20, damage: '8d6', damageType: 'Fire' },
+    { name: 'Disintegrate', description: 'A green ray that turns foes to ash. Requires Staff.', type: 'Spell', levelReq: 11, baseLevel: 6, manaCost: 35, damage: '10d6+40', damageType: 'Force' },
+    { name: 'Chain Lightning', description: 'Lightning arcs to 3 additional targets. Requires Staff.', type: 'Spell', levelReq: 15, baseLevel: 7, manaCost: 45, damage: '10d8', damageType: 'Lightning' },
+    { name: 'Meteor Swarm', description: 'Blazing orbs of fire crash from the sky. Requires Staff.', type: 'Spell', levelReq: 19, baseLevel: 9, manaCost: 80, damage: '20d6/20d6', damageType: 'Fire/Bludgeoning' },
+    { name: 'Wish', description: 'Capstone: Alter reality itself. Duplicate any 8th level spell or reshape the chronicle.', type: 'Spell', levelReq: 20, baseLevel: 9, manaCost: 100 }
   ],
   [Archetype.Mage]: [
-    { name: 'Cure Wounds', description: 'Seal wounds and restore vitality.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, damage: '1d8+WIS', damageType: 'Healing' },
-    { name: 'Bless', description: 'Fortify spirits (Add 1d4 to attack/saves).', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5 }
+    { name: 'Cure Wounds', description: 'Seal wounds and restore vitality via Ritual Robes.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, damage: '1d8+WIS', damageType: 'Healing' },
+    { name: 'Bless', description: 'Fortify spirits (Add 1d4 to attack/saves). Requires Robes.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5 },
+    { name: 'Revivify', description: 'Recall a soul that fell in the last minute. Requires Staff.', type: 'Spell', levelReq: 5, baseLevel: 3, manaCost: 25 },
+    { name: 'Spirit Guardians', description: 'Angelic spirits circle and protect. Requires Robes.', type: 'Spell', levelReq: 5, baseLevel: 3, manaCost: 15, damage: '3d8', damageType: 'Radiant' },
+    { name: 'Heal', description: 'A massive flood of vitality restores health. Requires Staff.', type: 'Spell', levelReq: 11, baseLevel: 6, manaCost: 35, damage: '70', damageType: 'Healing' },
+    { name: 'True Resurrection', description: 'Restore a soul even if the body is ash. Requires Staff.', type: 'Spell', levelReq: 17, baseLevel: 9, manaCost: 60 },
+    { name: 'Divine Intervention', description: 'Capstone: Thy deity directly manifests to aid the Fellowship.', type: 'Spell', levelReq: 20, baseLevel: 9, manaCost: 80 }
   ],
   [Archetype.DarkKnight]: [
-    { name: 'Dark Rite', description: 'Sacrifice vitality for necrotic damage.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, hpCost: 10, damage: '3d10', damageType: 'Necrotic' },
-    { name: 'Hex', description: 'Curse a target to take extra necrotic damage.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, damage: '1d6', damageType: 'Necrotic' }
+    { name: 'Dark Rite', description: 'Sacrifice vitality for necrotic damage via 2H Steel.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 5, hpCost: 10, damage: '3d10', damageType: 'Necrotic' },
+    { name: 'Hex', description: 'Curse a target to take extra necrotic damage.', type: 'Spell', levelReq: 3, baseLevel: 1, manaCost: 5, damage: '1d6', damageType: 'Necrotic' },
+    { name: 'Vampiric Touch', description: 'Siphon health from a touched foe. Requires Obsidian Plate.', type: 'Spell', levelReq: 11, baseLevel: 3, manaCost: 15, damage: '3d6', damageType: 'Necrotic' },
+    { name: 'Abyssal Reap', description: 'A horizontal sweep of void energy. Requires 2H Weapon.', type: 'Spell', levelReq: 15, baseLevel: 7, manaCost: 40, damage: '10d10', damageType: 'Necrotic' }
   ],
   [Archetype.BloodArtist]: [
-    { name: 'Life Tap', description: 'Drain a foe to replenish thy own wells.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 0, hpCost: 5, damage: '1d10', damageType: 'Necrotic' }
+    { name: 'Life Tap', description: 'Drain a foe to replenish thy wells via Sickle.', type: 'Spell', levelReq: 1, baseLevel: 1, manaCost: 0, hpCost: 5, damage: '1d10', damageType: 'Necrotic' },
+    { name: 'Transfusion', description: 'Sacrifice thy HP to heal an ally double. Requires Sickle.', type: 'Spell', levelReq: 5, baseLevel: 2, manaCost: 5, hpCost: 15, damage: '30', damageType: 'Healing' },
+    { name: 'Exsanguinate', description: 'Directly draw the vitals out of a target. Requires Robes.', type: 'Spell', levelReq: 11, baseLevel: 6, manaCost: 25, hpCost: 20, damage: '10d8', damageType: 'Necrotic' }
   ]
 };
 
 export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; description: string; coreAbilities: Ability[]; spells?: Ability[]; starterGear: string[] }> = {
   [Archetype.Archer]: {
-    hpDie: 8, role: 'DPS', description: 'Lithe hunters who strike from the shadows. Bound to Leather Armor.',
+    hpDie: 8, role: 'DPS', description: 'Lithe hunters who strike from the shadows. Bound to Leather Armor and Bows.',
     coreAbilities: [
-      { name: 'Sky-Splitter', description: 'Thy precision ignores half-cover and range penalties.', type: 'Passive', levelReq: 1 }
+      { name: 'Sky-Splitter', description: 'Thy precision ignores half-cover and range penalties.', type: 'Passive', levelReq: 1 },
+      { name: 'Rain of Arrows', description: 'Barrage a 10ft area with spectral arrows.', type: 'Active', levelReq: 5, manaCost: 10, damage: '4d6', damageType: 'Piercing' },
+      { name: 'Heart-Seeker', description: 'A shot that ignores all armor and criticals on 18-20.', type: 'Active', levelReq: 11, manaCost: 20 },
+      { name: 'Volley of Souls', description: 'Fire at every visible enemy simultaneously.', type: 'Active', levelReq: 15, manaCost: 35, damage: '3d8', damageType: 'Force' },
+      { name: 'Void Arrow', description: 'Capstone: Fire an arrow that collapses into a singularity. Target is erased if they fail a CON save.', type: 'Active', levelReq: 20, manaCost: 50 }
     ],
     starterGear: ['Hunting Bow', 'Leather Jerkin']
   },
   [Archetype.Thief]: {
-    hpDie: 8, role: 'DPS', description: 'Masters of the quick blade and unseen step. Bound to Leather Armor.',
+    hpDie: 8, role: 'DPS', description: 'Masters of the quick blade and unseen step. Bound to Leather Armor and Daggers.',
     coreAbilities: [
-      { name: 'Lethal Ambush', description: 'Deal extra 2d6 damage when thou hast advantage.', type: 'Passive', levelReq: 1 }
+      { name: 'Lethal Ambush', description: 'Deal extra 2d6 damage when thou hast advantage.', type: 'Passive', levelReq: 1 },
+      { name: 'Cunning Step', description: 'Dash or Disengage as a minor action.', type: 'Active', levelReq: 3, manaCost: 2 },
+      { name: 'Evasion', description: 'Avoid damage from area effects entirely on successful saves.', type: 'Passive', levelReq: 7 },
+      { name: 'Assassinate', description: 'Any hit against a surprised creature is a critical hit.', type: 'Passive', levelReq: 11 },
+      { name: 'Blurring Reflexes', description: 'Thou hast two reactions per turn.', type: 'Passive', levelReq: 15 },
+      { name: 'Soul-Rip', description: 'Capstone: Instantly slay any non-boss creature with a successful sneak attack.', type: 'Active', levelReq: 20, manaCost: 30 }
     ],
     starterGear: ['Twin Daggers', 'Leather Jerkin']
   },
   [Archetype.Warrior]: {
-    hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts who forsake shields for absolute devastation. Bound to Heavy Iron Plate.',
+    hpDie: 12, role: 'Tank', description: 'Steel-clad juggernauts who forsake shields for absolute devastation. Bound to Heavy Plate and 2H Steel.',
     coreAbilities: [
-      { name: 'Charged Devastation', description: 'Every third successful hit deals double damage.', type: 'Passive', levelReq: 1 }
+      { name: 'Charged Devastation', description: 'Every third successful hit deals double damage.', type: 'Passive', levelReq: 1 },
+      { name: 'Berserker Roar', description: 'Taunt all enemies within 15ft. Gain 15 Temp HP.', type: 'Active', levelReq: 3, manaCost: 5 },
+      { name: 'Iron Will', description: 'Thou art immune to the Frightened condition.', type: 'Passive', levelReq: 7 },
+      { name: 'Execute', description: 'Instantly slay a foe below 20% HP.', type: 'Active', levelReq: 11, manaCost: 15 },
+      { name: 'Bloodstorm', description: 'A whirlwind of steel that hits all adjacent enemies twice.', type: 'Active', levelReq: 15, manaCost: 20, damage: '4d12', damageType: 'Slashing' },
+      { name: 'The Eternal Juggernaut', description: 'Capstone: Thou cannot fall below 1 HP as long as thou art attacking.', type: 'Passive', levelReq: 20 }
     ],
     starterGear: ['Double-Headed Greataxe', 'Heavy Iron Plate']
   },
   [Archetype.Fighter]: {
-    hpDie: 10, role: 'Tank', description: 'Unyielding guardians with blade and bulwark. Bound to Steel Plate.',
+    hpDie: 10, role: 'Tank', description: 'Unyielding guardians with blade and bulwark. Bound to Steel Plate and Shields.',
     coreAbilities: [
-      { name: 'Shield Bash', description: 'Force a foe to drop their guard; +2 to next attack.', type: 'Active', levelReq: 1, manaCost: 3 }
+      { name: 'Shield Bash', description: 'Force a foe to drop their guard; +2 to next attack.', type: 'Active', levelReq: 1, manaCost: 3 },
+      { name: 'Sentinel Strike', description: 'Enemies hit by AoO have their movement reduced to 0.', type: 'Passive', levelReq: 3 },
+      { name: 'Bastion', description: 'Grant +5 AC to an adjacent ally for 1 turn.', type: 'Active', levelReq: 7, manaCost: 8 },
+      { name: 'Unbreakable', description: 'Once per day, survive a lethal hit with 1 HP.', type: 'Passive', levelReq: 11 },
+      { name: 'Phalanx Manifest', description: 'Summon spectral shields to protect the entire party (+3 AC).', type: 'Active', levelReq: 15, manaCost: 20 },
+      { name: 'Indomitable Legion', description: 'Capstone: All allies within 15ft cannot be frightened or charmed.', type: 'Passive', levelReq: 20 }
     ],
     starterGear: ['Soldier\'s Longsword', 'Iron Kite Shield', 'Steel Plate Armor']
   },
   [Archetype.DarkKnight]: {
-    hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain as a weapon. Bound to Obsidian Plate.',
+    hpDie: 10, role: 'Tank', description: 'Warriors who use their own pain as a weapon. Bound to Obsidian Plate and 2H Steel.',
     coreAbilities: [
-      { name: 'Soul Rend', description: 'Heal for 25% of all necrotic damage dealt.', type: 'Passive', levelReq: 3 }
+      { name: 'Soul Rend', description: 'Heal for 25% of all necrotic damage dealt.', type: 'Passive', levelReq: 1 },
+      { name: 'Blackest Night', description: 'Manifest a shadow-shield that explodes when broken.', type: 'Active', levelReq: 7, manaCost: 15 },
+      { name: 'Living Dead', description: "Survive for 2 extra turns at 0 HP. Healing received is tripled.", type: 'Passive', levelReq: 11 },
+      { name: 'Avatar of Oblivion', description: 'Capstone: Aura of Fear (30ft). Enemies have disadvantage on all checks.', type: 'Passive', levelReq: 20 }
     ],
     spells: SPELL_LIBRARY[Archetype.DarkKnight],
     starterGear: ['Vile Zweihander', 'Obsidian Heavy Plate']
   },
   [Archetype.Alchemist]: {
-    hpDie: 8, role: 'Support', description: 'Brewers of tonics and volatile acids. Bound to Leather Armor.',
+    hpDie: 8, role: 'Support', description: 'Brewers of tonics and volatile acids. Bound to Leather Armor and Shortswords.',
     coreAbilities: [
-      { name: 'Quick Mix', description: 'Apply a tonic as a minor action.', type: 'Passive', levelReq: 3 }
+      { name: 'Volatile Catalyst', description: 'All utility items deal 1d6 extra acid damage.', type: 'Passive', levelReq: 1 },
+      { name: 'Quick Mix', description: 'Apply or use a tonic as a minor action.', type: 'Passive', levelReq: 3 },
+      { name: 'Noxious Cloud', description: 'Create a 15ft cloud of poison (1d4 damage/turn).', type: 'Active', levelReq: 7, manaCost: 10 },
+      { name: 'Grand Discovery', description: 'Craft a legendary elixir that restores all HP/Mana.', type: 'Passive', levelReq: 11 },
+      { name: 'Transmutation Ray', description: 'Turn an enemy into a harmless toad for 1 turn.', type: 'Active', levelReq: 15, manaCost: 25 },
+      { name: 'Philosopher\'s Stone', description: 'Capstone: Convert any material into mana. Gain infinite mana for 3 turns.', type: 'Active', levelReq: 20 }
     ],
     starterGear: ['Weighted Shortsword', 'Leather Jerkin']
   },
   [Archetype.Sorcerer]: {
-    hpDie: 6, role: 'DPS', description: 'Conduits of raw power. Bound to Shadow Robes.',
+    hpDie: 6, role: 'DPS', description: 'Conduits of raw power. Bound to Shadow Robes and Aether Staffs.',
     coreAbilities: [
-      { name: 'Arcane Memory', description: 'Recall a manifestation once per day without mana.', type: 'Passive', levelReq: 1 }
+      { name: 'Arcane Memory', description: 'Recall a manifest spell once per day without mana.', type: 'Passive', levelReq: 1 },
+      { name: 'Twinned Manifest', description: 'Cast a single-target spell on two targets for 1.5x cost.', type: 'Passive', levelReq: 5 },
+      { name: 'Empowered Soul', description: 'Add thy INT modifier to all spell damage.', type: 'Passive', levelReq: 11 },
+      { name: 'Reality Warp', description: 'Swap positions with any creature within 60ft.', type: 'Active', levelReq: 15, manaCost: 20 }
     ],
     spells: SPELL_LIBRARY[Archetype.Sorcerer],
     starterGear: ['Aetheric Staff', 'Shadow Robes']
   },
   [Archetype.Mage]: {
-    hpDie: 6, role: 'Support', description: 'Healers of the fellowship. Bound to Ritual Robes.',
+    hpDie: 6, role: 'Support', description: 'Healers of the fellowship. Bound to Ritual Robes and Aether Staffs.',
     coreAbilities: [
-      { name: 'Harmonized Aether', description: 'Thy blessings reach one additional ally.', type: 'Passive', levelReq: 1 }
+      { name: 'Harmonized Aether', description: 'Thy blessings reach one additional ally.', type: 'Passive', levelReq: 1 },
+      { name: 'Sanctuary', description: 'Protect an ally; enemies must save to attack them.', type: 'Active', levelReq: 3, manaCost: 5 },
+      { name: 'Sacred Flame', description: 'A ray of light that ignores cover.', type: 'Active', levelReq: 7, manaCost: 5, damage: '2d8', damageType: 'Radiant' },
+      { name: 'Aura of Purity', description: 'Allies within 30ft are immune to poison and disease.', type: 'Passive', levelReq: 15 }
     ],
     spells: SPELL_LIBRARY[Archetype.Mage],
     starterGear: ['Elderwood Staff', 'Ritual Robes']
   },
   [Archetype.BloodArtist]: {
-    hpDie: 10, role: 'DPS', description: 'Collectors of life-force. Bound to Crimson Robes.',
+    hpDie: 10, role: 'DPS', description: 'Collectors of life-force. Bound to Crimson Robes and Sickles.',
     coreAbilities: [
-      { name: 'Sanguine Link', description: 'Bind two hearts; damage to one affects both.', type: 'Active', levelReq: 1, manaCost: 10 }
+      { name: 'Sanguine Link', description: 'Bind two hearts; damage to one affects both.', type: 'Active', levelReq: 1, manaCost: 10 },
+      { name: 'Hemorrhage', description: 'Dealing necrotic damage causes 1d4 bleed for 2 turns.', type: 'Passive', levelReq: 5 },
+      { name: 'Blood Puppet', description: 'Control a creature’s physical movement for 1 turn.', type: 'Active', levelReq: 15, manaCost: 30 },
+      { name: 'Blood God', description: 'Capstone: Every drop of blood spilt (ally or foe) grants thou 5 Mana.', type: 'Passive', levelReq: 20 }
     ],
     spells: SPELL_LIBRARY[Archetype.BloodArtist],
     starterGear: ['Serrated Sickle', 'Crimson Robes']
@@ -219,6 +268,7 @@ export const RULES_MANIFEST = `
 3. **SOUL ASCENSION**: Level cap is 20. Exp = 1000 * Level.
 4. **BALANCED LEGION**: The Arbiter balances all challenges for a party of 4-5 vessels.
 5. **THE LONE VANGUARD**: Should a Vessel vanquish a Boss-Class horror (CR 10+) without the assistance of others, the Arbiter MUST manifest a Relic or Legendary Boon.
+6. **AETHERIC MATURITY**: Spells and manifestations are gated by a Vessel's Level. Premature attempts at high-level manifestations result in aetheric failure.
 `;
 
 export const STARTER_CAMPAIGN_PROMPT = `The air is thick with iron. Thy Fellowship stands before 'The Broken Cask'. What is thy move?`;

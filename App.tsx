@@ -81,12 +81,42 @@ const App: React.FC = () => {
     return () => window.removeEventListener('mythos_api_call', handleApiCall);
   }, []);
 
+  const refreshLineage = () => {
+    setState(prev => {
+      const syncCharacter = (c: Character): Character => {
+        const info = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
+        if (!info) return c;
+        
+        // Ensure abilities and spells are filtered by level
+        const unlockedAbilities = info.coreAbilities.filter(a => a.levelReq <= c.level);
+        const unlockedSpells = (info.spells || []).filter(s => s.levelReq <= c.level);
+        
+        // Preserve level 0 (legendary) boons
+        const customBoons = (c.abilities || []).filter(a => a.levelReq === 0);
+        
+        return {
+          ...c,
+          abilities: [...unlockedAbilities, ...customBoons],
+          spells: unlockedSpells
+        };
+      };
+
+      return {
+        ...prev,
+        characters: prev.characters.map(syncCharacter),
+        mentors: prev.mentors.map(syncCharacter)
+      };
+    });
+  };
+
   const updateCharacter = (id: string, updates: Partial<Character>) => {
     setState(prev => ({
       ...prev,
       characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c),
       mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
     }));
+    // Trigger sync after updates to ensure level gates are active
+    setTimeout(refreshLineage, 100);
   };
 
   const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
@@ -197,6 +227,7 @@ const App: React.FC = () => {
                 campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
               };
             });
+            setTimeout(refreshLineage, 100);
           } else if (logs.length > 0) {
             setState(prev => ({
               ...prev,
@@ -253,6 +284,7 @@ const App: React.FC = () => {
                 onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
                 customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
                 username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} 
+                onRefreshCharacters={refreshLineage}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
                 party={activePartyUnits} mentors={state.mentors} partyIds={state.party} 

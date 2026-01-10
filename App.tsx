@@ -146,6 +146,7 @@ const App: React.FC = () => {
       setIsLoading(true);
       try {
         const currentCampaign = state.campaigns.find(c => c.id === targetCampaignId);
+        // Ensure atomic history even if state hasn't flushed yet
         const history = currentCampaign ? [...currentCampaign.history, msg] : [msg];
         
         const responseText = await generateDMResponse(history, { 
@@ -241,10 +242,15 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: [primaryId] }));
     setShowTutorial(false);
     setActiveTab('Chronicles');
-    // Automate Arbiter opening
+    
+    // Silence immediate silent genesis
     setTimeout(() => {
-      handleMessage({ role: 'user', content: `[NARRATIVE_START]: Weave the opening scene for our fellowship. Context: ${title}. Premise: ${prompt}. Describe our immediate surroundings and the atmosphere of this dark world. Speak directly to us as the Arbiter.`, timestamp: Date.now() }, campId);
-    }, 150);
+      handleMessage({ 
+        role: 'user', 
+        content: `[NARRATIVE_START]: Weave the opening scene. Atmosphere for ${title}. Premise: ${prompt}.`, 
+        timestamp: Date.now() 
+      }, campId);
+    }, 200);
   };
 
   const handleDeleteAccount = () => {
@@ -259,10 +265,15 @@ const App: React.FC = () => {
     const campId = safeId();
     const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
     setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
-    // Automate Arbiter opening
+    
+    // Silence immediate silent genesis
     setTimeout(() => {
-      handleMessage({ role: 'user', content: `[NARRATIVE_START]: Weave the opening scene for our fellowship. Context: ${t}. Premise: ${p}. Describe our immediate surroundings and the atmosphere of this dark world. Speak directly to us as the Arbiter.`, timestamp: Date.now() }, campId);
-    }, 150);
+      handleMessage({ 
+        role: 'user', 
+        content: `[NARRATIVE_START]: Weave the opening scene. Atmosphere for ${t}. Premise: ${p}.`, 
+        timestamp: Date.now() 
+      }, campId);
+    }, 200);
   };
 
   return (

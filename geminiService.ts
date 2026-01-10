@@ -102,18 +102,19 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
     `${p.name} (Lvl ${p.level} ${p.archetype})`
   ).join(", ");
 
+  const isGenesis = history.some(m => m.content.includes("[NARRATIVE_START]"));
+
   const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
   - Context: Party is [${partyContext}].
   - Current Chronicle: ${playerContext.campaignTitle || "A New Path"}.
-  - Prose: Gritty, visceral, lethal.
+  - Style: Visceral, sensory, lethal.
+  ${isGenesis ? "- TASK: This is the GENESIS of the campaign. Ignore technical tokens and weave a grand opening description of the surroundings, sensory details (smell of rot, chill of stone), and the immediate atmosphere. Set the tone for a dark, lethal journey." : ""}
   - Mechanics: Use "SCRIBE_COMMAND: [Name] takes [X] damage" for HP changes.
-  - Archetypes: Respect the core abilities of Warriors, Mages, Dark Knights, and others.
+  - Archetypes: Respect core abilities.
   - Gating: Players cannot use spells above their current level.`;
 
-  // CRITICAL: Filter out 'system' messages and ensure the sequence starts with 'user'
+  // Filter out system logs and ensure first message is User
   const validHistory = history.filter(m => m.role !== 'system');
-  
-  // Ensure the history doesn't start with a model response (violates API rules)
   const contents = [];
   let foundUser = false;
   for (const m of validHistory) {
@@ -126,14 +127,16 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
     }
   }
 
-  // If we have no user messages yet, something is wrong
   if (contents.length === 0) return "The void consumes thy intent. (No user context)";
 
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
       contents,
-      config: { systemInstruction, temperature: 0.8 }
+      config: { 
+        systemInstruction, 
+        temperature: isGenesis ? 0.9 : 0.8 // Higher temperature for the opening prose
+      }
     });
     return response.text || "The engine hums in the dark.";
   } catch (error: any) { 

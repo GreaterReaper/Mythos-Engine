@@ -60,10 +60,8 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
 
-  // SOUL SYNC: Mentors scale to average player level
   useEffect(() => {
     if (state.characters.length === 0) return;
-    
     const avgLevel = Math.floor(state.characters.reduce((acc, c) => acc + c.level, 0) / state.characters.length);
     if (avgLevel > 5) {
       setState(prev => ({
@@ -136,14 +134,10 @@ const App: React.FC = () => {
   const handleRefreshCharacters = () => {
     const getFallbackAc = (archetype: string, itemName: string): number => {
       const name = itemName.toLowerCase();
-      if (name.includes('plate') || name.includes('heavy') || name.includes('iron')) return 16;
-      if (name.includes('leather') || name.includes('hide') || name.includes('jerkin')) return 12;
-      if (name.includes('robe') || name.includes('tunic') || name.includes('garb') || name.includes('silk')) return 10;
+      if (name.includes('plate') || name.includes('heavy')) return 16;
+      if (name.includes('leather') || name.includes('jerkin')) return 12;
+      if (name.includes('robe') || name.includes('silk')) return 10;
       if (name.includes('shield')) return 2;
-      
-      // Class based fallback if name is ambiguous
-      if (['Warrior', 'Fighter', 'Dark Knight'].includes(archetype)) return 16;
-      if (['Thief', 'Archer', 'Alchemist'].includes(archetype)) return 12;
       return 10;
     };
 
@@ -151,101 +145,31 @@ const App: React.FC = () => {
       const syncList = (list: Character[]) => list.map(c => {
         const archInfo = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
         if (!archInfo) return c;
-        
-        // Re-align abilities and spells
         const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
-        const customAbilities = c.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
-        const customSpells = c.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
-        
-        // Audit inventory for missing AC values
         const updatedInventory = c.inventory.map(item => {
           if (item.type === 'Armor' && (!item.stats || !item.stats.ac)) {
-            return {
-              ...item,
-              stats: { ...(item.stats || {}), ac: getFallbackAc(c.archetype as string, item.name) }
-            };
+            return { ...item, stats: { ...(item.stats || {}), ac: getFallbackAc(c.archetype as string, item.name) } };
           }
           return item;
         });
-
         return {
           ...c,
           inventory: updatedInventory,
-          abilities: [...archInfo.coreAbilities.filter(a => a.levelReq <= c.level), ...customAbilities],
-          spells: [...(archInfo.spells || []).filter(s => s.levelReq <= c.level), ...customSpells]
+          abilities: [...archInfo.coreAbilities.filter(a => a.levelReq <= c.level), ...c.abilities.filter(a => a.levelReq === 0)],
+          spells: [...(archInfo.spells || []).filter(s => s.levelReq <= c.level), ...c.spells.filter(a => a.levelReq === 0)]
         };
       });
-
-      // Also audit the shared armory
-      const updatedArmory = prev.armory.map(item => {
-        if (item.type === 'Armor' && (!item.stats || !item.stats.ac)) {
-          return {
-            ...item,
-            stats: { ...(item.stats || {}), ac: 10 } // Use base 10 for shared unassigned armory
-          };
-        }
-        return item;
-      });
-
-      return {
-        ...prev,
-        characters: syncList(prev.characters),
-        mentors: syncList(prev.mentors),
-        armory: updatedArmory
-      };
+      return { ...prev, characters: syncList(prev.characters), mentors: syncList(prev.mentors) };
     });
-    alert("The Engine has realigned thy Fellowship's power and repaired thy broken equipment.");
+    alert("Souls realigned and equipment repaired.");
   };
 
   const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
     const campId = safeId();
-    
-    // BOOST TO LEVEL 5
     setState(prev => {
-      const boostedCharacters = prev.characters.map(c => {
-        if (partyIds.includes(c.id)) {
-          const archInfo = ARCHETYPE_INFO[c.archetype as Archetype];
-          const levelDiff = 5 - c.level;
-          const hpGain = levelDiff * (Math.floor((archInfo?.hpDie || 10) / 2) + 1);
-          return {
-            ...c,
-            level: 5,
-            exp: 0,
-            maxHp: c.maxHp + hpGain,
-            currentHp: c.maxHp + hpGain,
-            maxMana: c.maxMana + (levelDiff * 10),
-            currentMana: c.maxMana + (levelDiff * 10),
-            abilities: archInfo?.coreAbilities.filter(a => a.levelReq <= 5) || [],
-            spells: archInfo?.spells?.filter(s => s.levelReq <= 5) || []
-          };
-        }
-        return c;
-      });
-
-      const boostedMentors = prev.mentors.map(m => {
-        if (partyIds.includes(m.id)) {
-          return { ...m, level: 5 }; // Mentors in tutorial are already lvl 5 by default but ensure sync
-        }
-        return m;
-      });
-
-      const newCampaign: Campaign = { 
-        id: campId, title, prompt, history: [], participants: partyIds, isRaid: false 
-      };
-
-      const primaryChar = boostedCharacters.find(c => c.isPrimarySoul) || boostedCharacters[0];
-
-      return {
-        ...prev,
-        characters: boostedCharacters,
-        mentors: boostedMentors,
-        campaigns: [...prev.campaigns, newCampaign],
-        activeCampaignId: campId,
-        party: partyIds,
-        userAccount: { ...prev.userAccount, activeCharacterId: primaryChar?.id || partyIds[0] }
-      };
+      const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: partyIds, isRaid: false };
+      return { ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: partyIds };
     });
-
     setShowTutorial(false);
     setActiveTab('Chronicles');
     handleMessage({ role: 'model', content: prompt, timestamp: Date.now() }, campId);
@@ -262,13 +186,45 @@ const App: React.FC = () => {
 
     if (msg.role === 'model') {
       const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      const targetCampaign = state.campaigns.find(c => c.id === targetCampaignId);
-
       setTimeout(async () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
           const logs: Message[] = [];
           
+          if (audit.newEntities && audit.newEntities.length > 0) {
+            for (const entity of audit.newEntities) {
+              if (entity.category === 'monster') {
+                const details = await generateMonsterDetails(entity.name, `Forged by Arbiter command in ${targetCampaignId}.`);
+                const newMonster: Monster = {
+                  id: safeId(),
+                  name: details.name || entity.name,
+                  type: details.type || 'Hybrid',
+                  hp: details.hp || 50,
+                  ac: details.ac || 15,
+                  stats: details.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+                  cr: details.cr || entity.cr || 1,
+                  abilities: details.abilities || [],
+                  activeStatuses: [],
+                  description: details.description || "A horrific manifestation."
+                };
+                setState(prev => ({ ...prev, bestiary: [newMonster, ...prev.bestiary] }));
+                logs.push({ role: 'system', content: `ARCHITECT: ${newMonster.name} manifest from the void.`, timestamp: Date.now() });
+              } else if (entity.category === 'item') {
+                const details = await generateItemDetails(entity.name, `Found during exploration in ${targetCampaignId}.`);
+                const newItem: Item = {
+                  id: safeId(),
+                  name: details.name || entity.name,
+                  description: details.description || "A discovered relic.",
+                  type: details.type || 'Utility',
+                  rarity: details.rarity || 'Uncommon',
+                  stats: details.stats || {}
+                };
+                setState(prev => ({ ...prev, armory: [newItem, ...prev.armory] }));
+                logs.push({ role: 'system', content: `ARCHITECT: ${newItem.name} discovery manifest in Armory.`, timestamp: Date.now() });
+              }
+            }
+          }
+
           setState(prev => {
             let newCharacters = [...prev.characters];
             let newMentors = [...prev.mentors];
@@ -278,35 +234,18 @@ const App: React.FC = () => {
                 const charIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
                 const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
                 let target = charIdx !== -1 ? newCharacters[charIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
-                
                 if (!target) return;
                 const updates: Partial<Character> = {};
                 if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
                 if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
-                if (change.type === 'mana') updates.currentMana = Math.max(0, target.currentMana - change.value);
                 if (change.type === 'exp') {
                   const gained = change.value;
                   const newTotalExp = target.exp + gained;
                   const expToLevel = target.level * 1000;
-                  
                   if (newTotalExp >= expToLevel && target.level < 20) {
                     updates.level = target.level + 1;
                     updates.exp = newTotalExp - expToLevel;
-                    const archInfo = ARCHETYPE_INFO[target.archetype as Archetype];
-                    
-                    if (archInfo) {
-                      const hpGain = Math.floor(archInfo.hpDie / 2) + 1;
-                      updates.maxHp = target.maxHp + hpGain;
-                      updates.currentHp = updates.maxHp;
-                      updates.maxMana = target.maxMana + 10;
-                      updates.currentMana = updates.maxMana;
-                      const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
-                      const customAbilities = target.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
-                      const customSpells = target.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
-                      updates.abilities = [...archInfo.coreAbilities.filter(a => a.levelReq <= updates.level!), ...customAbilities];
-                      updates.spells = [...(archInfo.spells || []).filter(s => s.levelReq <= updates.level!), ...customSpells];
-                    }
-                    logs.push({ role: 'system', content: `SCRIBE: ${target.name} ASCENDED TO LEVEL ${updates.level}!`, timestamp: Date.now() });
+                    logs.push({ role: 'system', content: `SCRIBE: ${target.name} ascended to Level ${updates.level}!`, timestamp: Date.now() });
                   } else {
                     updates.exp = newTotalExp;
                   }
@@ -397,7 +336,7 @@ const App: React.FC = () => {
                 gameState={state} 
                 onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))}
                 onDeleteAccount={() => {
-                   if(confirm("Art thou certain? This ritual shall dissolve all soul fragments stored in this vessel's memory. This action is irreversible.")) {
+                   if(confirm("Art thou certain? Reset all local data?")) {
                       localStorage.removeItem(STORAGE_PREFIX + 'state');
                       window.location.reload();
                    }

@@ -28,18 +28,6 @@ const CLOCKWORK_RESPONSES = [
   "The mechanisms of the world grind with a metallic screech. Something ancient has been disturbed."
 ];
 
-const CLOCKWORK_ITEMS = [
-  { name: "Obsidian Dagger", type: "Weapon", damage: "1d4", damageType: "Piercing", rarity: "Common" },
-  { name: "Common Plate", type: "Armor", ac: 16, rarity: "Common" },
-  { name: "Relic Plate of Souls", type: "Armor", ac: 20, rarity: "Relic" },
-  { name: "Common Leather", type: "Armor", ac: 11, rarity: "Common" },
-  { name: "Relic Shadow Leather", type: "Armor", ac: 14, rarity: "Relic" },
-  { name: "Common Robes", type: "Armor", ac: 10, rarity: "Common" },
-  { name: "Relic Aether Robes", type: "Armor", ac: 13, rarity: "Relic" },
-  { name: "Steel Longsword", type: "Weapon", damage: "1d8", damageType: "Slashing", rarity: "Common" },
-  { name: "Minor Vitality Flask", type: "Utility", rarity: "Common" }
-];
-
 const prepareHistory = (history: Message[]) => {
   if (history.length === 0) return [{ role: 'user', parts: [{ text: 'Begin the chronicle.' }] }];
   const contents: any[] = [];
@@ -74,18 +62,11 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   if (isOffline()) {
     const changes: any[] = [];
     const lowNar = narrative.toLowerCase();
-    
     party.forEach(char => {
       const name = char.name.toLowerCase();
       if (lowNar.includes(name)) {
         const damageMatch = lowNar.match(new RegExp(`${name}.*?takes.*?(\\d+)`));
         if (damageMatch) changes.push({ type: 'damage', target: char.name, value: parseInt(damageMatch[1]) });
-        
-        const healMatch = lowNar.match(new RegExp(`${name}.*?heals.*?(\\d+)`));
-        if (healMatch) changes.push({ type: 'heal', target: char.name, value: parseInt(healMatch[1]) });
-
-        const expMatch = lowNar.match(new RegExp(`${name}.*?gains.*?(\\d+).*?exp`));
-        if (expMatch) changes.push({ type: 'exp', target: char.name, value: parseInt(expMatch[1]) });
       }
     });
     return { changes, newEntities: [] };
@@ -93,17 +74,21 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
 
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Mechanical Scribe" running on Flash architecture. Audit narrative for stats. Return JSON ONLY.`;
+  const systemInstruction = `Thou art the "Mechanical Scribe". Thy duty is to audit the Arbiter's narrative for mechanical shifts.
+  DETECTION PROTOCOLS:
+  1. DAMAGE/HEAL/EXP: Look for phrases like "takes X damage" or "gains X exp".
+  2. ENTITY MANIFESTATION: Look for "ARCHITECT_COMMAND: Forge [Name] (cr [Value])".
+  3. EXPLORATION: Look for mentions of loot or environmental discoveries.
+  Return JSON ONLY.`;
 
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
-      contents: [{ role: 'user', parts: [{ text: `Audit this text for changes: ${narrative}` }] }],
+      contents: [{ role: 'user', parts: [{ text: `Audit narrative for changes: ${narrative}` }] }],
       config: { 
         systemInstruction, 
         responseMimeType: "application/json",
         temperature: 0.1,
-        thinkingConfig: { thinkingBudget: 0 },
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -112,7 +97,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  type: { type: Type.STRING },
+                  type: { type: Type.STRING, enum: ["damage", "heal", "exp", "mana"] },
                   target: { type: Type.STRING },
                   value: { type: Type.NUMBER }
                 },
@@ -124,12 +109,11 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  category: { type: Type.STRING },
+                  category: { type: Type.STRING, enum: ["monster", "item"] },
                   name: { type: Type.STRING },
-                  target: { type: Type.STRING },
-                  entityData: { type: Type.OBJECT }
+                  cr: { type: Type.NUMBER }
                 },
-                required: ["category", "name", "target"]
+                required: ["category", "name"]
               }
             }
           }
@@ -145,18 +129,26 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
  */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
   if (isOffline()) {
-    return CLOCKWORK_RESPONSES[Math.floor(Math.random() * CLOCKWORK_RESPONSES.length)] + "\n\n(Note: Clockwork Mode Active.)";
+    return CLOCKWORK_RESPONSES[Math.floor(Math.random() * CLOCKWORK_RESPONSES.length)];
   }
 
   const ai = getAiClient();
   trackUsage();
   const isRaid = playerContext.isRaid;
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM. 
-  RULES: 
-  - Level cap is 20.
-  - ${isRaid ? "RAID PROTOCOL ACTIVE: Balance for 8 Vessels." : "Balance for 4-5 Vessels."}
-  - Use [🎲 d20(roll)+mod=result] for checks. 
-  - High-velocity dark fantasy prose.`;
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
+  EXPLORATION PROTOCOL:
+  - Between combat, focus on environmental storytelling, sensory details (smell of ozone, cold damp walls), and ancient lore.
+  - Describe the world in "Exploration Beats": [Environment Description] -> [Sensory Detail] -> [Interactive Hook].
+  - Provide meaningful choices: "The path splits: a staircase of teeth or a corridor of weeping obsidian."
+  
+  MECHANICAL WEIGHT:
+  - Use [🎲 d20(roll)+mod=result] for checks.
+  - Harm characters with "SCRIBE_COMMAND: [Name] takes [X] damage."
+  - Summon horrors with "ARCHITECT_COMMAND: Forge [Name] (cr [X])."
+  - Reward the party with "ARCHITECT_COMMAND: Manifest [Item Name]."
+  
+  PROSE: Grim, visceral, high-velocity dark fantasy. Use the term "Vessels" for characters.`;
+
   const contents = prepareHistory(history);
   try {
     const response = await ai.models.generateContent({
@@ -168,7 +160,7 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
         thinkingConfig: { thinkingBudget: 4096 }
       }
     });
-    return response.text || "The void is silent.";
+    return response.text || "The void consumes thy words.";
   } catch (error: any) { return "The Aetheric connection has been severed."; }
 };
 
@@ -177,37 +169,17 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
  */
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
   if (isOffline()) {
-    const base = CLOCKWORK_ITEMS[Math.floor(Math.random() * CLOCKWORK_ITEMS.length)];
-    return {
-      name: `Clockwork ${itemName || base.name}`,
-      description: "Deterministic forge artifact.",
-      type: (base.type as any) || "Utility",
-      rarity: base.rarity as any || "Common",
-      stats: { 
-        damage: (base as any).damage, 
-        ac: (base as any).ac, 
-        damageType: (base as any).damageType 
-      } as any
-    };
+    return { name: itemName, type: 'Weapon', rarity: 'Common', stats: { damage: '1d6' } };
   }
 
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Architect's Forge". Manifest Dark Fantasy items.
-  CRITICAL: If the item is Armor, you MUST include a numeric 'ac' property inside the 'stats' object.
-  ARMOR CLASS (AC) PROTOCOL:
-  - Robes: Common (10-11 AC), Relic (12-13 AC)
-  - Leather: Common (12-13 AC), Relic (14-15 AC)
-  - Heavy/Plate: Common (16-18 AC), Relic (19-21 AC)
-  - Shields: +2 to +4 AC.
-  If Weapon, you MUST include 'damage' (e.g., '1d8') and 'damageType' inside 'stats'.`;
-
   try {
     const response = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
       contents: `Manifest Item: ${itemName}. Context: ${context}`, 
       config: { 
-        systemInstruction,
+        systemInstruction: "Thou art the Architect's Forge. Manifest Dark Fantasy artifacts.",
         temperature: 0.7,
         responseMimeType: "application/json",
         responseSchema: {
@@ -222,33 +194,20 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
               properties: { 
                 ac: { type: Type.NUMBER }, 
                 damage: { type: Type.STRING }, 
-                damageType: { type: Type.STRING },
-                str: { type: Type.NUMBER },
-                dex: { type: Type.NUMBER },
-                con: { type: Type.NUMBER },
-                int: { type: Type.NUMBER },
-                wis: { type: Type.NUMBER },
-                cha: { type: Type.NUMBER }
+                damageType: { type: Type.STRING }
               } 
             }
-          },
-          required: ["name", "description", "type", "rarity", "stats"]
+          }
         }
       } 
     });
-    
     const data = JSON.parse(response.text || '{}');
-    
-    // SOUL SANITIZATION: Force properties into stats if hallucinated at root
-    if (!data.stats) data.stats = {};
-    if (data.ac !== undefined && data.stats.ac === undefined) data.stats.ac = data.ac;
-    if (data.damage !== undefined && data.stats.damage === undefined) data.stats.damage = data.damage;
-    if (data.damageType !== undefined && data.stats.damageType === undefined) data.stats.damageType = data.damageType;
-
+    if (data.ac !== undefined && !data.stats?.ac) {
+      if (!data.stats) data.stats = {};
+      data.stats.ac = data.ac;
+    }
     return data;
-  } catch (e) { 
-    return { name: itemName, stats: {} }; 
-  }
+  } catch (e) { return { name: itemName, stats: {} }; }
 };
 
 /**
@@ -256,21 +215,31 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
  */
 export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
   if (isOffline()) {
-    return {
-      name: `Clockwork ${monsterName || "Scrap-Beast"}`,
-      type: "Beast", hp: 20, ac: 12, cr: 1, description: "Predictable horror."
-    };
+    return { name: monsterName, hp: 30, ac: 13, cr: 1 };
   }
 
   const ai = getAiClient();
   trackUsage();
   const response = await ai.models.generateContent({ 
     model: FLASH_MODEL, 
-    contents: `Manifest Monster: ${monsterName}. Context: ${context}. Return JSON.`, 
+    contents: `Manifest Monster: ${monsterName}. Context: ${context}.`, 
     config: { 
-      systemInstruction: "Bestiary-Clerk on Flash.",
+      systemInstruction: "Forge a horrific monster with complete stats.",
       temperature: 0.7,
-      responseMimeType: "application/json" 
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          type: { type: Type.STRING },
+          hp: { type: Type.NUMBER },
+          ac: { type: Type.NUMBER },
+          cr: { type: Type.NUMBER },
+          description: { type: Type.STRING },
+          stats: { type: Type.OBJECT },
+          abilities: { type: Type.ARRAY, items: { type: Type.OBJECT } }
+        }
+      }
     } 
   });
   return JSON.parse(response.text || '{}');
@@ -282,11 +251,8 @@ export const manifestSoulLore = async (char: any): Promise<any> => {
   trackUsage();
   const response = await ai.models.generateContent({ 
     model: FLASH_MODEL, 
-    contents: `Manifest Lore for ${char.name}. Return JSON with "biography" and "description".`, 
-    config: { 
-      systemInstruction: "Lore-Weaver on Flash.",
-      responseMimeType: "application/json" 
-    } 
+    contents: `Manifest Lore for ${char.name}.`, 
+    config: { systemInstruction: "Lore-Weaver on Flash.", responseMimeType: "application/json" } 
   });
   return JSON.parse(response.text || '{}');
 };
@@ -295,11 +261,10 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   if (isOffline()) return "Rest thy bones.";
   const ai = getAiClient();
   trackUsage();
-  const contents = prepareHistory(history);
   const response = await ai.models.generateContent({ 
     model: FLASH_MODEL, 
-    contents, 
-    config: { systemInstruction: "Barnaby on Flash." } 
+    contents: prepareHistory(history), 
+    config: { systemInstruction: "Barnaby, the weary innkeeper." } 
   });
   return response.text;
 };

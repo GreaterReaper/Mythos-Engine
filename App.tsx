@@ -10,7 +10,6 @@ import {
 import Sidebar from './components/Sidebar';
 import FellowshipScreen from './components/FellowshipScreen';
 import DMWindow from './components/DMWindow';
-import TacticalMap from './components/TacticalMap';
 import BestiaryScreen from './components/BestiaryScreen';
 import ArmoryScreen from './components/ArmoryScreen';
 import AlchemyScreen from './components/AlchemyScreen';
@@ -37,10 +36,7 @@ const App: React.FC = () => {
     armory: INITIAL_ITEMS,
     bestiary: INITIAL_MONSTERS,
     customArchetypes: [],
-    mapTokens: [
-      { id: 'mentor-lina', name: 'Lina', x: 5, y: 5, color: 'border-blue-500', type: 'Hero' },
-      { id: 'monster-shadow-wolf', name: 'Shadow Wolf', x: 10, y: 10, color: 'border-red-500', type: 'Enemy' }
-    ],
+    mapTokens: [],
     party: [],
     slainMonsterTypes: [],
     activeRumors: [],
@@ -61,50 +57,12 @@ const App: React.FC = () => {
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
 
   useEffect(() => {
-    if (state.characters.length === 0) return;
-    const avgLevel = Math.floor(state.characters.reduce((acc, c) => acc + c.level, 0) / state.characters.length);
-    if (avgLevel > 5) {
-      setState(prev => ({
-        ...prev,
-        mentors: prev.mentors.map(m => {
-          if (m.level < avgLevel) {
-            const archInfo = ARCHETYPE_INFO[m.archetype as Archetype];
-            const levelDiff = avgLevel - m.level;
-            const hpGain = levelDiff * (Math.floor((archInfo?.hpDie || 10) / 2) + 1);
-            return {
-              ...m,
-              level: avgLevel,
-              maxHp: m.maxHp + hpGain,
-              currentHp: m.maxHp + hpGain,
-              maxMana: m.maxMana + (levelDiff * 10),
-              currentMana: m.maxMana + (levelDiff * 10),
-              abilities: archInfo?.coreAbilities.filter(a => a.levelReq <= avgLevel) || [],
-              spells: archInfo?.spells?.filter(s => s.levelReq <= avgLevel) || []
-            };
-          }
-          return m;
-        })
-      }));
-    }
-  }, [state.characters]);
-
-  useEffect(() => {
     const savedState = localStorage.getItem(STORAGE_PREFIX + 'state');
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
-        setState(prev => {
-          const hydrated = hydrateState(parsed, DEFAULT_STATE);
-          const existingIds = new Set(hydrated.mentors.map(m => m.id));
-          const missingMentors = MENTORS.filter(m => !existingIds.has(m.id));
-          if (missingMentors.length > 0) {
-            hydrated.mentors = [...hydrated.mentors, ...missingMentors];
-          }
-          return hydrated;
-        });
-      } catch (e) {
-        console.error("Failed to rebind soul.", e);
-      }
+        setState(prev => hydrateState(parsed, DEFAULT_STATE));
+      } catch (e) { console.error("Rebind failed", e); }
     }
   }, []);
 
@@ -131,39 +89,6 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleRefreshCharacters = () => {
-    const getFallbackAc = (archetype: string, itemName: string): number => {
-      const name = itemName.toLowerCase();
-      if (name.includes('plate') || name.includes('heavy')) return 16;
-      if (name.includes('leather') || name.includes('jerkin')) return 12;
-      if (name.includes('robe') || name.includes('silk')) return 10;
-      if (name.includes('shield')) return 2;
-      return 10;
-    };
-
-    setState(prev => {
-      const syncList = (list: Character[]) => list.map(c => {
-        const archInfo = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
-        if (!archInfo) return c;
-        const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
-        const updatedInventory = c.inventory.map(item => {
-          if (item.type === 'Armor' && (!item.stats || !item.stats.ac)) {
-            return { ...item, stats: { ...(item.stats || {}), ac: getFallbackAc(c.archetype as string, item.name) } };
-          }
-          return item;
-        });
-        return {
-          ...c,
-          inventory: updatedInventory,
-          abilities: [...archInfo.coreAbilities.filter(a => a.levelReq <= c.level), ...c.abilities.filter(a => a.levelReq === 0)],
-          spells: [...(archInfo.spells || []).filter(s => s.levelReq <= c.level), ...c.spells.filter(a => a.levelReq === 0)]
-        };
-      });
-      return { ...prev, characters: syncList(prev.characters), mentors: syncList(prev.mentors) };
-    });
-    alert("Souls realigned and equipment repaired.");
-  };
-
   const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
     const campId = safeId();
     setState(prev => {
@@ -172,10 +97,10 @@ const App: React.FC = () => {
     });
     setShowTutorial(false);
     setActiveTab('Chronicles');
-    handleMessage({ role: 'model', content: prompt, timestamp: Date.now() }, campId);
+    handleMessage({ role: 'user', content: `start ${title}`, timestamp: Date.now() }, campId);
   };
 
-  const handleMessage = async (msg: Message, campaignId?: string, overrideParty?: Character[]) => {
+  const handleMessage = async (msg: Message, campaignId?: string) => {
     const targetCampaignId = campaignId || state.activeCampaignId;
     if (!targetCampaignId) return;
 
@@ -185,7 +110,7 @@ const App: React.FC = () => {
     }));
 
     if (msg.role === 'model') {
-      const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
+      const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
       setTimeout(async () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
@@ -194,87 +119,83 @@ const App: React.FC = () => {
           if (audit.newEntities && audit.newEntities.length > 0) {
             for (const entity of audit.newEntities) {
               if (entity.category === 'monster') {
-                const details = await generateMonsterDetails(entity.name, `Forged by Arbiter command in ${targetCampaignId}.`);
+                const details = await generateMonsterDetails(entity.name, `Forged in ${targetCampaignId}`);
                 const newMonster: Monster = {
                   id: safeId(),
                   name: details.name || entity.name,
-                  type: details.type || 'Hybrid',
                   hp: details.hp || 50,
                   ac: details.ac || 15,
-                  stats: details.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-                  cr: details.cr || entity.cr || 1,
-                  abilities: details.abilities || [],
+                  stats: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+                  cr: details.cr || 1,
+                  abilities: [],
                   activeStatuses: [],
-                  description: details.description || "A horrific manifestation."
+                  description: details.description || "A manifest horror.",
+                  type: 'Hybrid'
                 };
                 setState(prev => ({ ...prev, bestiary: [newMonster, ...prev.bestiary] }));
                 logs.push({ role: 'system', content: `ARCHITECT: ${newMonster.name} manifest from the void.`, timestamp: Date.now() });
               } else if (entity.category === 'item') {
-                const details = await generateItemDetails(entity.name, `Found during exploration in ${targetCampaignId}.`);
+                const details = await generateItemDetails(entity.name, `Discovered in ${targetCampaignId}`);
                 const newItem: Item = {
                   id: safeId(),
                   name: details.name || entity.name,
-                  description: details.description || "A discovered relic.",
+                  description: details.description || "A relic discovered.",
                   type: details.type || 'Utility',
                   rarity: details.rarity || 'Uncommon',
                   stats: details.stats || {}
                 };
                 setState(prev => ({ ...prev, armory: [newItem, ...prev.armory] }));
-                logs.push({ role: 'system', content: `ARCHITECT: ${newItem.name} discovery manifest in Armory.`, timestamp: Date.now() });
+                logs.push({ role: 'system', content: `ARCHITECT: ${newItem.name} manifested in thy Armory.`, timestamp: Date.now() });
               }
             }
           }
 
-          setState(prev => {
-            let newCharacters = [...prev.characters];
-            let newMentors = [...prev.mentors];
-
-            if (audit.changes && audit.changes.length > 0) {
+          if (audit.changes && audit.changes.length > 0) {
+            setState(prev => {
+              let newCharacters = [...prev.characters];
+              let newMentors = [...prev.mentors];
               audit.changes.forEach((change: any) => {
-                const charIdx = newCharacters.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
-                const mentorIdx = newMentors.findIndex(c => c.name.toLowerCase().includes(change.target.toLowerCase()));
-                let target = charIdx !== -1 ? newCharacters[charIdx] : mentorIdx !== -1 ? newMentors[mentorIdx] : null;
-                if (!target) return;
+                // Better mapping: Find by name containing or exact
+                const targetId = [...newCharacters, ...newMentors].find(c => 
+                  c.name.toLowerCase().includes(change.target.toLowerCase()) || 
+                  change.target.toLowerCase().includes(c.name.toLowerCase())
+                )?.id;
                 
-                const updates: Partial<Character> = {};
-                if (change.type === 'damage') updates.currentHp = Math.max(0, target.currentHp - change.value);
-                if (change.type === 'heal') updates.currentHp = Math.min(target.maxHp, target.currentHp + change.value);
-                if (change.type === 'mana') updates.currentMana = Math.max(0, target.currentMana - change.value);
-                if (change.type === 'exp') {
-                  const gained = change.value;
-                  const newTotalExp = target.exp + gained;
-                  const expToLevel = target.level * 1000;
-                  if (newTotalExp >= expToLevel && target.level < 20) {
-                    updates.level = target.level + 1;
-                    updates.exp = newTotalExp - expToLevel;
-                    // Class appropriate HP gain
-                    const archInfo = ARCHETYPE_INFO[target.archetype as Archetype];
-                    if (archInfo) {
-                       const hpGain = Math.floor(archInfo.hpDie / 2) + 1;
-                       updates.maxHp = target.maxHp + hpGain;
-                       updates.currentHp = updates.maxHp;
-                       updates.maxMana = target.maxMana + 10;
-                       updates.currentMana = updates.maxMana;
-                    }
-                    logs.push({ role: 'system', content: `SCRIBE: ${target.name} ascended to Level ${updates.level}! Resonance restores their Vitality.`, timestamp: Date.now() });
-                  } else {
-                    updates.exp = newTotalExp;
+                if (!targetId) return;
+                
+                const update = (c: Character) => {
+                  if (c.id !== targetId) return c;
+                  const updates: Partial<Character> = { ...c };
+                  if (change.type === 'damage') updates.currentHp = Math.max(0, (updates.currentHp || 0) - (change.value || 0));
+                  if (change.type === 'heal') updates.currentHp = Math.min(updates.maxHp || 100, (updates.currentHp || 0) + (change.value || 0));
+                  if (change.type === 'exp') updates.exp = (updates.exp || 0) + (change.value || 0);
+                  if (change.type === 'ability') {
+                    const newAbility: Ability = {
+                      name: change.target,
+                      description: change.description || "A unique soul-manifestation.",
+                      type: 'Active',
+                      levelReq: 0
+                    };
+                    updates.abilities = [...(updates.abilities || []), newAbility];
+                    logs.push({ role: 'system', content: `LEGENDARY: ${c.name} has manifest a unique power: ${newAbility.name}.`, timestamp: Date.now() });
                   }
-                }
-                
-                if (charIdx !== -1) newCharacters[charIdx] = { ...target, ...updates };
-                else if (mentorIdx !== -1) newMentors[mentorIdx] = { ...target, ...updates };
+                  return updates;
+                };
+                newCharacters = newCharacters.map(update);
+                newMentors = newMentors.map(update);
               });
-            }
-            return {
+              return { ...prev, characters: newCharacters, mentors: newMentors };
+            });
+          }
+          
+          if (logs.length > 0) {
+            setState(prev => ({
               ...prev,
-              characters: newCharacters,
-              mentors: newMentors,
               campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
-            };
-          });
+            }));
+          }
         } catch (e) { console.error("Audit Fail", e); }
-      }, 300);
+      }, 500);
     }
   };
 
@@ -290,12 +211,7 @@ const App: React.FC = () => {
           {!state.userAccount.isLoggedIn && (
             <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={sig => {
               const migrated = parseSoulSignature(sig, DEFAULT_STATE);
-              if (migrated) {
-                const fullState = hydrateState(migrated, DEFAULT_STATE);
-                fullState.userAccount.isLoggedIn = true;
-                setState(fullState);
-                return true;
-              }
+              if (migrated) { setState(migrated); return true; }
               return false;
             }} />
           )}
@@ -313,7 +229,7 @@ const App: React.FC = () => {
                   const campId = safeId();
                   const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
                   setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
-                  handleMessage({ role: 'model', content: p, timestamp: Date.now() }, campId);
+                  handleMessage({ role: 'user', content: `start ${t}`, timestamp: Date.now() }, campId);
                 }} 
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
                 onDeleteCampaign={id => setState(p => ({ ...p, campaigns: p.campaigns.filter(c => c.id !== id) }))} 
@@ -328,7 +244,6 @@ const App: React.FC = () => {
                 onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
                 customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
                 username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} 
-                onRefreshCharacters={handleRefreshCharacters}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
                 party={activePartyUnits} mentors={state.mentors} partyIds={state.party} 
@@ -340,19 +255,9 @@ const App: React.FC = () => {
               {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}
               {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} party={activePartyUnits} />}
               {activeTab === 'Nexus' && <NexusScreen 
-                peerId={state.userAccount.peerId || ''} 
-                connectedPeers={state.multiplayer.connectedPeers} 
-                isHost={state.multiplayer.isHost} 
-                onConnect={() => {}} 
-                username={state.userAccount.username} 
-                gameState={state} 
-                onClearFriends={() => setState(p => ({ ...p, userAccount: { ...p.userAccount, friends: [] } }))}
-                onDeleteAccount={() => {
-                   if(confirm("Art thou certain? Reset all local data?")) {
-                      localStorage.removeItem(STORAGE_PREFIX + 'state');
-                      window.location.reload();
-                   }
-                }}
+                peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} 
+                isHost={state.multiplayer.isHost} onConnect={() => {}} username={state.userAccount.username} 
+                gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {}}
               />}
               {activeTab === 'Rules' && <RulesScreen />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}

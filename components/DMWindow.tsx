@@ -161,6 +161,9 @@ const DMWindow: React.FC<DMWindowProps> = ({
   }
 
   const effectivePOV = activeCharacter || characters[0];
+  
+  // CRITICAL: Filter out technical genesis prompts from the visual history
+  const visibleHistory = campaign.history.filter(m => !m.content.startsWith('[NARRATIVE_START]'));
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
@@ -181,14 +184,14 @@ const DMWindow: React.FC<DMWindowProps> = ({
           </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar relative">
             <div className="absolute inset-0 bg-leather opacity-20 pointer-events-none" />
-            {campaign.history.map((msg, idx) => (
+            {visibleHistory.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in relative z-10`}>
                 <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-gold/[0.08] border border-gold/30 p-4 rounded-xl' : 'bg-black border-l-4 border-emerald-900 p-5 shadow-xl rounded-xl'}`}>
                   {renderContent(msg.content)}
                 </div>
               </div>
             ))}
-            {isLoadingExternally && <div className="flex justify-start relative z-10"><div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl rounded-xl animate-pulse text-emerald-500 text-xs font-black">WEAVING FATE...</div></div>}
+            {isLoadingExternally && <div className="flex justify-start relative z-10"><div className="bg-black border-l-4 border-emerald-900 p-5 shadow-xl rounded-xl animate-pulse text-emerald-500 text-xs font-black uppercase tracking-widest">WEAVING FATE...</div></div>}
           </div>
           <div className="shrink-0 bg-black border-t-2 border-emerald-900/40 p-4 pb-20 md:pb-4 z-20">
             <div className="flex gap-3 items-end max-w-5xl mx-auto w-full">

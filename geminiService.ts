@@ -32,10 +32,11 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   const systemInstruction = `Thou art the "Mechanical Scribe". Audit the Arbiter's narrative for mechanical shifts.
   DETECTION PROTOCOLS:
   1. COMMAND SCAN: Prioritize "SCRIBE_COMMAND:", "ARCHITECT_COMMAND:", and "LEGENDARY_MANIFEST:".
-  2. SOLO FEAT CHECK: If a vessel vanquishes a Boss alone, ensure a "LEGENDARY_MANIFEST:" or Relic is generated.
-  3. STAT SHIFTS: Look for damage, healing, exp, or mana changes.
-  4. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
-  5. LEVEL LOCK: Reject any "SCRIBE_COMMAND" that attempts to grant or use an ability for which the target's level is insufficient.
+  2. PARTY UPDATE: Look for "SCRIBE_COMMAND: Summon [Name]". This adds a Mentor to the active party.
+  3. SOLO FEAT CHECK: If a vessel vanquishes a Boss alone, ensure a "LEGENDARY_MANIFEST:" or Relic is generated.
+  4. STAT SHIFTS: Look for damage, healing, exp, or mana changes.
+  5. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
+  6. LEVEL LOCK: Reject any "SCRIBE_COMMAND" that attempts to grant or use an ability for which the target's level is insufficient.
   
   Return JSON ONLY with 'changes' and 'newEntities'.`;
 
@@ -55,7 +56,7 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  type: { type: Type.STRING, enum: ["damage", "heal", "exp", "mana", "ability"] },
+                  type: { type: Type.STRING, enum: ["damage", "heal", "exp", "mana", "ability", "summon"] },
                   target: { type: Type.STRING },
                   value: { type: Type.NUMBER },
                   description: { type: Type.STRING } 
@@ -96,12 +97,14 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
     `${p.name} (Lvl ${p.level} ${p.archetype})`
   ).join(", ");
 
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM running on Flash.
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
   - Context: Party is [${partyContext}].
+  - TUTORIAL MODE: If the party has only one member, the player is in the "Sunken Sanctuary". 
+    Goal: Guide them to free Miri (Fighter), Lina (Mage), and Seris (Archer) from their kinetic shells.
+    When a mentor is freed, thou MUST use "SCRIBE_COMMAND: Summon [Name]".
   - LEVEL GATING: Players cannot use spells or abilities above their current level.
-  - REJECTION PROTOCOL: If a player attempts an action they haven't unlocked yet, thou MUST describe the failure (aetheric fizzle, muscle lock) and state they are not yet "Mature" enough for such power.
+  - REJECTION PROTOCOL: If a player attempts an action they haven't unlocked yet, thou MUST describe the failure.
   - Prose: Gritty, visceral, lethal.
-  - High Stakes: If a player performs an act of extreme heroism, rolls a Nat 20, OR CLEARS A BOSS SOLO, thou MUST manifest a unique power.
   - Command: 
     Use "SCRIBE_COMMAND: [Name] takes [X] damage"
     Use "ARCHITECT_COMMAND: Forge [Name] (cr [X])"

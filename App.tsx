@@ -86,21 +86,15 @@ const App: React.FC = () => {
       const syncCharacter = (c: Character): Character => {
         const info = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
         if (!info) return c;
-        
-        // Ensure abilities and spells are filtered by level
         const unlockedAbilities = info.coreAbilities.filter(a => a.levelReq <= c.level);
         const unlockedSpells = (info.spells || []).filter(s => s.levelReq <= c.level);
-        
-        // Preserve level 0 (legendary) boons
         const customBoons = (c.abilities || []).filter(a => a.levelReq === 0);
-        
         return {
           ...c,
           abilities: [...unlockedAbilities, ...customBoons],
           spells: unlockedSpells
         };
       };
-
       return {
         ...prev,
         characters: prev.characters.map(syncCharacter),
@@ -115,15 +109,14 @@ const App: React.FC = () => {
       characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c),
       mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
     }));
-    // Trigger sync after updates to ensure level gates are active
     setTimeout(refreshLineage, 100);
   };
 
-  const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
+  const handleTutorialComplete = (primaryId: string, title: string, prompt: string) => {
     const campId = safeId();
     setState(prev => {
-      const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: partyIds, isRaid: false };
-      return { ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: partyIds };
+      const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: [primaryId], isRaid: false };
+      return { ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: [primaryId] };
     });
     setShowTutorial(false);
     setActiveTab('Chronicles');
@@ -184,8 +177,19 @@ const App: React.FC = () => {
             setState(prev => {
               let newCharacters = [...prev.characters];
               let newMentors = [...prev.mentors];
+              let newParty = [...prev.party];
 
               audit.changes.forEach((change: any) => {
+                // SPECIAL CASE: Summoning a Mentor
+                if (change.type === 'summon') {
+                  const mentor = newMentors.find(m => m.name.toLowerCase().includes(change.target.toLowerCase()));
+                  if (mentor && !newParty.includes(mentor.id)) {
+                    newParty.push(mentor.id);
+                    logs.push({ role: 'system', content: `FELLOWSHIP: ${mentor.name} has joined thy resonance.`, timestamp: Date.now() });
+                  }
+                  return;
+                }
+
                 const targetChar = [...newCharacters, ...newMentors].find(c => 
                   change.target && (
                     c.name.toLowerCase().includes(change.target.toLowerCase()) || 
@@ -224,7 +228,8 @@ const App: React.FC = () => {
                 ...prev, 
                 characters: newCharacters, 
                 mentors: newMentors,
-                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
+                party: newParty,
+                campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs], participants: newParty } : c)
               };
             });
             setTimeout(refreshLineage, 100);

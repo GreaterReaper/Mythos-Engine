@@ -1,134 +1,73 @@
 
-import React, { useState, useMemo } from 'react';
-import { Character, Role, Archetype } from '../types';
+import React, { useMemo } from 'react';
+import { Character } from '../types';
 
 interface TutorialScreenProps {
   characters: Character[];
   mentors: Character[];
-  onComplete: (partyIds: string[], campaignTitle: string, campaignPrompt: string) => void;
+  onComplete: (primaryId: string, campaignTitle: string, campaignPrompt: string) => void;
 }
 
-const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, onComplete }) => {
-  const [step, setStep] = useState(0);
-
-  const tutorialSteps = [
-    {
-      title: "Solitary Awakening",
-      content: "Thou awakenest in the obsidian heart of the Sunken Sanctuary. Thy breath is the only sound; thy heartbeat the only rhythm. Thou art 'Unbound'—the only soul the void failed to chain.",
-      action: "Step into the Dark"
-    },
-    {
-      title: "The Kinetic Drain (Miri)",
-      content: "Before thee, Miri is suspended in a web of silver needles. Her vitality is being siphoned to power the sanctuary's gates. Thou must reach into the mesh and shatter the needles with thy bare hands.",
-      action: "Shatter the Kinetic Web"
-    },
-    {
-      title: "The Gordian Knot (Lina & Seris)",
-      content: "Lina and Seris are bound back-to-back by a coil of necrotic smoke. As thy resonance touches them, the smoke screams. Thou feelest the Scribe auditing thy very soul as thou severest the connection.",
-      action: "Sever the Smoke-Cords"
-    },
-    {
-      title: "The Negation Shell",
-      content: "Thy Path Mentor lies ahead, encased in a Negation Shell. The air vibrates with the Architect's presence, ready to manifest the horrors that guard this final prism.",
-      action: "Initiate Resonance"
-    },
-    {
-      title: "The Soul-Forge",
-      content: "As the shells shatter, thy own soul reaches its zenith. A unique manifestation of power—a Legendary Action—ignites within thy marrow. Describe thy soul's ultimate form to the Arbiter.",
-      action: "Manifest Thy Power"
-    }
-  ];
-
-  const current = tutorialSteps[step];
+const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete }) => {
   const primaryChar = useMemo(() => characters.find(c => c.isPrimarySoul) || characters[0], [characters]);
 
-  const pathMentor = useMemo(() => {
-    if (!primaryChar) return mentors[0];
-    const baseMentorNames = ['Lina', 'Miri', 'Seris'];
-    
-    // Attempt to find a mentor matching the player's class that is NOT one of the base 3
-    const match = mentors.find(m => m.archetype === primaryChar.archetype && !baseMentorNames.includes(m.name));
-    if (match) return match;
-
-    // Fallback: If player is a base class, just pick a distinct mentor to fill the 5th slot if needed, 
-    // or handle the 4-man logic.
-    return mentors.find(m => !baseMentorNames.includes(m.name)) || mentors[0];
-  }, [primaryChar, mentors]);
-
-  const finalize = () => {
+  const handleAwaken = () => {
     if (!primaryChar) return;
 
-    const baseMentorNames = ['Lina', 'Miri', 'Seris'];
-    const boundThreeIds = mentors.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
-    const finalPartyIds = [primaryChar.id, ...boundThreeIds];
-    
-    // Rule: Add mentor if player is NOT one of the base three classes (Fighter, Mage, Archer)
-    const playerIsBaseClass = ['Fighter', 'Mage', 'Archer'].includes(primaryChar.archetype as string);
-    if (!playerIsBaseClass && pathMentor) {
-      finalPartyIds.push(pathMentor.id);
-    }
+    const prologuePrompt = `Thou awakenest in total darkness. The air is cold, tasting of ancient dust and copper. Thy breath echoes against obsidian walls.
 
-    const arch = primaryChar.archetype as string;
-    const mentorName = pathMentor?.name || "Thy Mentor";
-    
-    // Support class sacrifice logic
-    const isSupportMentor = pathMentor?.role === 'Support';
-    const sacrificeText = isSupportMentor 
-      ? `[SCRIBE_COMMAND: Miri takes 15 damage.] \nMiri staggers as she shatters the shell to free ${mentorName}, her hands seared by silver fire.`
-      : `${mentorName} is freed from the shell, gasping as the necrotic cords dissolve.`;
+Thou art in the Sunken Sanctuary. Thy companions are nowhere to be found. Somewhere in the gloom, thou hearest the rhythmic hum of a 'Kinetic Web'.
 
-    const customPrompt = `The Sunken Sanctuary groans. Thy Fellowship stands complete, and thou hast manifest thy TRUE SOUL.
+Thou art the Unbound. Thy first objective: Survive. Thy second: Find the others.
 
-${sacrificeText}
+[TUTORIAL_PROTOCOL: Thou art alone. To free thy companions, thou must locate their shells. Miri, Lina, and Seris are trapped nearby.]
 
-[LEGENDARY_MANIFEST: The Unbound's ${arch} Signature | A unique legendary action manifest from the ritual of the Sunken Sanctuary. This power defies standard vocation limits.]
+Describe thy first movement into the void.`;
 
-[EXPLORATION_BEAT]
-Environment: The grand staircase ahead is carved from the ribs of an ancient dragon, ascending toward a gate of white fire.
-Sensory: The sound of a thousand weeping voices echoes from the walls. A low hum vibrates in thy marrow.
-Hook: A massive set of iron doors etched with runes of 'The Sentinel' stands locked.
-
-Suddenly, the green mist thickens. **VOID-THRALLS** manifest from the very air to block thy ascent! Beyond them, the silhouette of the **VOID-SENT SENTINEL** (cr 6) begins to stir.
-
-[ARCHITECT_COMMAND: Forge 3 Void-Thralls for the encounter.]
-
-The first battle of thy chronicle begins now. How dost thou strike?`;
-
-    onComplete(finalPartyIds, "Ascension: The Sunken Sanctuary", customPrompt);
+    onComplete(primaryChar.id, "Ascension: The Sunken Sanctuary", prologuePrompt);
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black/98 flex items-center justify-center p-4">
-      <div className="max-w-xl w-full rune-border border-emerald-900/60 bg-black shadow-[0_0_60px_rgba(16,185,129,0.2)] p-10 space-y-10 flex flex-col items-center">
-        <div className="space-y-4 text-center">
-          <div className="flex items-center gap-4 justify-center">
-             <div className="h-px w-8 bg-gold/30" />
-             <h2 className="text-3xl font-cinzel text-gold uppercase font-black tracking-tighter">{current.title}</h2>
-             <div className="h-px w-8 bg-gold/30" />
-          </div>
-          <p className="text-gray-400 text-sm leading-relaxed min-h-[100px] flex items-center italic font-medium">"{current.content}"</p>
+    <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center p-6 md:p-12 overflow-hidden">
+      {/* Immersive Background Particles */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-900 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gold/20 rounded-full blur-[120px] animate-pulse delay-1000" />
+      </div>
+
+      <div className="max-w-2xl w-full space-y-12 relative z-10 text-center">
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+           <h1 className="text-5xl md:text-7xl font-cinzel text-gold font-black tracking-tighter drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+             PROLOGUE
+           </h1>
+           <div className="h-px w-24 bg-emerald-900 mx-auto" />
         </div>
 
-        <div className="w-full space-y-6">
-           <div className="flex justify-between items-center text-[8px] font-cinzel text-emerald-900 font-black tracking-widest uppercase">
-              <span>Resonance Progress</span>
-              <span>Stage {step + 1} / 5</span>
-           </div>
-           <div className="h-1 w-full bg-emerald-950 rounded-full overflow-hidden">
-              <div className="h-full bg-gold transition-all duration-700 shadow-[0_0_10px_#d4af37]" style={{ width: `${((step + 1) / 5) * 100}%` }} />
-           </div>
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-500">
+          <p className="text-gray-400 font-cinzel text-sm md:text-lg leading-relaxed italic">
+            "The Sunken Sanctuary was never meant for the living. It is a tomb for resonance, where souls are siphoned to feed the Engine's hunger."
+          </p>
+          <p className="text-emerald-500 font-cinzel text-xs font-black uppercase tracking-[0.4em] animate-pulse">
+            Thy resonance is flickering...
+          </p>
         </div>
 
-        <div className="flex flex-col gap-4 w-full">
-           <button 
-             onClick={() => step < tutorialSteps.length - 1 ? setStep(step + 1) : finalize()}
-             className="px-8 py-4 bg-emerald-900 text-white font-cinzel text-[11px] font-black border-2 border-gold hover:bg-emerald-700 transition-all uppercase tracking-widest shadow-xl active:scale-95"
-           >
-             {current.action}
-           </button>
+        <div className="pt-10 animate-in fade-in zoom-in duration-1000 delay-1000">
+          <button 
+            onClick={handleAwaken}
+            className="group relative px-12 py-5 bg-transparent border-2 border-gold text-gold font-cinzel font-black uppercase tracking-[0.3em] overflow-hidden transition-all hover:text-black"
+          >
+            <div className="absolute inset-0 bg-gold translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <span className="relative z-10">AWAKEN</span>
+          </button>
+        </div>
+
+        <div className="pt-20 opacity-20 animate-in fade-in duration-1000 delay-1500">
+           <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.5em]">ᛟ ᚱ ᛞ ᛖ ᚱ • ᚺ ᚨ ᛟ ᛊ</p>
         </div>
       </div>
     </div>
   );
 };
+
 export default TutorialScreen;

@@ -64,7 +64,16 @@ const App: React.FC = () => {
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
-        setState(hydrateState(parsed, DEFAULT_STATE));
+        setState(prev => {
+          const hydrated = hydrateState(parsed, DEFAULT_STATE);
+          // Auto-sync missing mentors on load for convenience
+          const existingIds = new Set(hydrated.mentors.map(m => m.id));
+          const missingMentors = MENTORS.filter(m => !existingIds.has(m.id));
+          if (missingMentors.length > 0) {
+            hydrated.mentors = [...hydrated.mentors, ...missingMentors];
+          }
+          return hydrated;
+        });
       } catch (e) {
         console.error("Failed to rebind soul.", e);
       }
@@ -92,6 +101,32 @@ const App: React.FC = () => {
       characters: prev.characters.map(c => c.id === id ? { ...c, ...updates } : c),
       mentors: prev.mentors.map(m => m.id === id ? { ...m, ...updates } : m)
     }));
+  };
+
+  const handleSummonMentors = () => {
+    setState(prev => {
+      const updatedMentors = MENTORS.map(sourceMentor => {
+        const existing = prev.mentors.find(m => m.id === sourceMentor.id);
+        if (existing) {
+          // Sync existing mentors with latest manifest gear and stats
+          // But preserve their current HP/Mana and Progress
+          return {
+            ...existing,
+            stats: sourceMentor.stats,
+            inventory: sourceMentor.inventory,
+            equippedIds: sourceMentor.equippedIds,
+            description: sourceMentor.description,
+            biography: sourceMentor.biography,
+            abilities: sourceMentor.abilities,
+            spells: sourceMentor.spells
+          };
+        }
+        return sourceMentor;
+      });
+
+      alert(`The Ritual is complete. ${MENTORS.length} souls have been realigned with the latest manifest.`);
+      return { ...prev, mentors: updatedMentors };
+    });
   };
 
   const handleMigrateState = (signature: string): boolean => {
@@ -254,7 +289,7 @@ const App: React.FC = () => {
           {!state.userAccount.isLoggedIn && (
             <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={handleMigrateState} />
           )}
-          {showTutorial && <TutorialScreen characters={state.characters} onComplete={handleTutorialComplete} />}
+          {showTutorial && <TutorialScreen characters={state.characters} mentors={state.mentors} onComplete={handleTutorialComplete} />}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
           <main className={`relative flex-1 bg-leather ${isChronicles ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
             <div className={`mx-auto ${isChronicles ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
@@ -289,6 +324,7 @@ const App: React.FC = () => {
                 username={state.userAccount.username} 
                 onStartTutorial={() => setShowTutorial(true)} 
                 hasCampaigns={state.campaigns.length > 0} 
+                onSummonMentors={handleSummonMentors}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
                 party={activePartyObjects} 

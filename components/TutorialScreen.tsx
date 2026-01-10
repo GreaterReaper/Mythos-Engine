@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { MENTORS, TUTORIAL_SCENARIO } from '../constants';
 import { Character } from '../types';
+// Add missing import for TUTORIAL_SCENARIO
+import { TUTORIAL_SCENARIO } from '../constants';
 
 interface TutorialScreenProps {
   characters: Character[];
+  mentors: Character[];
   onComplete: (partyIds: string[], campaignTitle: string, campaignPrompt: string) => void;
 }
 
-const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete }) => {
+const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, mentors, onComplete }) => {
   const [step, setStep] = useState(0);
 
   const tutorialSteps = [
@@ -39,17 +41,19 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
     const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
     const baseMentorNames = ['Lina', 'Miri', 'Seris'];
     
-    if (!primaryChar) return MENTORS.find(m => !baseMentorNames.includes(m.name)) || MENTORS[0];
+    // First, try to find a mentor matching the player's archetype
+    if (primaryChar) {
+      const match = mentors.find(m => m.archetype === primaryChar.archetype && !baseMentorNames.includes(m.name));
+      if (match) return match;
+    }
     
-    return MENTORS.find(m => 
-      m.archetype === primaryChar.archetype && 
-      !baseMentorNames.includes(m.name)
-    ) || MENTORS.find(m => !baseMentorNames.includes(m.name)) || MENTORS[0];
-  }, [characters]);
+    // Fallback to any non-trio mentor
+    return mentors.find(m => !baseMentorNames.includes(m.name)) || mentors[0];
+  }, [characters, mentors]);
 
   const finalPartyIds = useMemo(() => {
     const baseMentorNames = ['Lina', 'Miri', 'Seris'];
-    const baseIds = MENTORS.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
+    const baseIds = mentors.filter(m => baseMentorNames.includes(m.name)).map(m => m.id);
     const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
 
     const partySet = new Set([...baseIds]);
@@ -57,7 +61,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
     if (primaryChar) partySet.add(primaryChar.id);
 
     return Array.from(partySet).slice(0, 5);
-  }, [characters, pathMentor]);
+  }, [characters, mentors, pathMentor]);
 
   const finalize = () => {
     const primaryChar = characters.find(c => c.isPrimarySoul) || characters[0];
@@ -67,7 +71,7 @@ const TutorialScreen: React.FC<TutorialScreenProps> = ({ characters, onComplete 
 
     const customPrompt = `Thou awakenest in the obsidian silence of the Sunken Sanctuary. A shimmering violet lattice of aetheric chains coils around thy Fellowship. 
 
-Lina (Mage), Seris (Archer), and ${mentorFlavor} lie paralyzed within the magical web, their eyes wide but limbs unresponsive.
+Lina (Mage), Seris (Archer), and ${mentorFlavor} lie paralyzed within the magical web, their eyes wide but limbs unresponsive—bound by the same void ritual that brought thee here.
 
 Only thou, a fledgling ${primaryChar?.archetype || 'Soul'}, hast managed to resist the total binding. Beside thee, Miri (the Fighter) strains against the violet light, her Frontier Steel Broadsword glowing. With a guttural roar, she shatters her own chains, but the backlash is severe—**Miri takes 15 damage** as the aetheric feedback scorches her armor.
 

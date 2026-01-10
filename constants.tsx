@@ -179,7 +179,6 @@ export const ARCHETYPE_INFO: Record<string, { hpDie: number; role: Role; descrip
   }
 };
 
-// Fix: Added missing INITIAL_MONSTERS export to resolve import error in App.tsx
 export const INITIAL_MONSTERS: Monster[] = [];
 
 export const INITIAL_ITEMS: Item[] = [];
@@ -187,18 +186,77 @@ export const INITIAL_ITEMS: Item[] = [];
 export const MENTORS: Character[] = [
   {
     id: 'mentor-lina', name: 'Lina', age: 24, gender: 'Female', race: Race.Human, archetype: Archetype.Mage, role: 'Support', level: 5, exp: 0, maxHp: 35, currentHp: 35, maxMana: 50, currentMana: 50, stats: { str: 8, dex: 12, con: 12, int: 14, wis: 18, cha: 14 },
-    currency: { aurels: 100 }, personality: 'A timid mage.', inventory: [], equippedIds: [], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
-    description: 'Serene priestess.', biography: 'Guardian.', asiPoints: 0, activeStatuses: []
+    currency: { aurels: 100 }, personality: 'A timid but focused healer.', inventory: [
+      { id: 'lina-staff', name: 'Elderwood Staff', description: 'A staff for casting.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6' } },
+      { id: 'lina-robe', name: 'Clerical Robes', description: 'Simple robes.', type: 'Armor', rarity: 'Common', stats: { ac: 11 } }
+    ], equippedIds: ['lina-staff', 'lina-robe'], spells: SPELL_LIBRARY[Archetype.Mage] || [], abilities: ARCHETYPE_INFO[Archetype.Mage].coreAbilities,
+    description: 'Serene priestess of the Sunken Sanctuary.', biography: 'She guided the first Fellowship through the emerald mists.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-miri', name: 'Miri', age: 22, gender: 'Female', race: Race.Human, archetype: Archetype.Fighter, role: 'Tank', level: 5, exp: 0, maxHp: 52, currentHp: 52, maxMana: 30, currentMana: 30, stats: { str: 18, dex: 12, con: 16, int: 8, wis: 10, cha: 12 },
-    currency: { aurels: 50 }, personality: 'Energetic.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
-    description: 'Energetic fighter.', biography: 'Protector.', asiPoints: 0, activeStatuses: []
+    currency: { aurels: 50 }, personality: 'Energetic and unyielding.', inventory: [
+      { id: 'miri-sword', name: 'Soldier\'s Longsword', description: 'Standard blade.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8' } },
+      { id: 'miri-shield', name: 'Iron Kite Shield', description: 'Sturdy shield.', type: 'Armor', rarity: 'Common', stats: { ac: 2 } },
+      { id: 'miri-plate', name: 'Steel Plate Armor', description: 'Heavy protection.', type: 'Armor', rarity: 'Common', stats: { ac: 18 } }
+    ], equippedIds: ['miri-sword', 'miri-shield', 'miri-plate'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Fighter].coreAbilities,
+    description: 'Brave guardian with an iron kite shield.', biography: 'A soldier who refused to retreat from the Shadow Wolves.', asiPoints: 0, activeStatuses: []
   },
   {
     id: 'mentor-seris', name: 'Seris', age: 112, gender: 'Male', race: Race.Elf, archetype: Archetype.Archer, role: 'DPS', level: 5, exp: 0, maxHp: 38, currentHp: 38, maxMana: 40, currentMana: 40, stats: { str: 10, dex: 18, con: 12, int: 14, wis: 14, cha: 10 },
-    currency: { aurels: 150 }, personality: 'Aloof.', inventory: [], equippedIds: [], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
-    description: 'Reserved elf.', biography: 'Master.', asiPoints: 0, activeStatuses: []
+    currency: { aurels: 150 }, personality: 'Aloof and analytical.', inventory: [
+      { id: 'seris-bow', name: 'Hunting Bow', description: 'Elven craftsmanship.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d8' } },
+      { id: 'seris-tunic', name: 'Leather Tunic', description: 'Lithe protection.', type: 'Armor', rarity: 'Common', stats: { ac: 12 } }
+    ], equippedIds: ['seris-bow', 'seris-tunic'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Archer].coreAbilities,
+    description: 'Reserved elven marksman.', biography: 'A sentinel from the canopy of the Silent Woods.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-kaelen', name: 'Kaelen', age: 35, gender: 'Male', race: Race.Orc, archetype: Archetype.DarkKnight, role: 'Tank', level: 5, exp: 0, maxHp: 65, currentHp: 65, maxMana: 30, currentMana: 30, stats: { str: 20, dex: 10, con: 18, int: 8, wis: 10, cha: 14 },
+    currency: { aurels: 80 }, personality: 'Stoic and aggressive.', inventory: [
+      { id: 'kaelen-sword', name: 'Vile Zweihander', description: 'A jagged black blade.', type: 'Weapon', rarity: 'Common', stats: { damage: '2d6' } },
+      { id: 'kaelen-plate', name: 'Obsidian Heavy Plate', description: 'Dark metal.', type: 'Armor', rarity: 'Common', stats: { ac: 18 } }
+    ], equippedIds: ['kaelen-sword', 'kaelen-plate'], spells: SPELL_LIBRARY[Archetype.DarkKnight] || [], abilities: ARCHETYPE_INFO[Archetype.DarkKnight].coreAbilities,
+    description: 'An Orc who embraced the void. Wields a soul-consuming Zweihander; holds no shield.', biography: 'Kaelen found the darkness within the iron pits of his home. He now commands the very shadows he once feared.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-malakor', name: 'Malakor', age: 48, gender: 'Male', race: Race.Tiefling, archetype: Archetype.Warrior, role: 'Tank', level: 5, exp: 0, maxHp: 55, currentHp: 55, maxMana: 45, currentMana: 45, stats: { str: 18, dex: 10, con: 14, int: 12, wis: 10, cha: 12 },
+    currency: { aurels: 120 }, personality: 'Grim and fatalistic.', inventory: [
+      { id: 'malakor-axe', name: 'Double-Headed Greataxe', description: 'Massive cleaver.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d12' } },
+      { id: 'malakor-plate', name: 'Heavy Iron Plate', description: 'Thick metal.', type: 'Armor', rarity: 'Common', stats: { ac: 18 } }
+    ], equippedIds: ['malakor-axe', 'malakor-plate'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Warrior].coreAbilities,
+    description: 'A Tiefling brutalist who rejected his heritage for the weight of a massive Double-Headed Greataxe. No shield.', biography: 'Malakor believes that iron speaks louder than any infernal pact. He stands at the front, a mountain of horns and cold steel.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-elara', name: 'Elara', age: 29, gender: 'Female', race: Race.Vesperian, archetype: Archetype.Sorcerer, role: 'DPS', level: 5, exp: 0, maxHp: 32, currentHp: 32, maxMana: 60, currentMana: 60, stats: { str: 8, dex: 14, con: 12, int: 20, wis: 12, cha: 14 },
+    currency: { aurels: 200 }, personality: 'Vibrant and dangerous.', inventory: [
+      { id: 'elara-staff', name: 'Aetheric Staff', description: 'Glows with power.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6' } },
+      { id: 'elara-robes', name: 'Shadow-Woven Robes', description: 'Dark silk.', type: 'Armor', rarity: 'Common', stats: { ac: 11 } }
+    ], equippedIds: ['elara-staff', 'elara-robes'], spells: SPELL_LIBRARY[Archetype.Sorcerer] || [], abilities: ARCHETYPE_INFO[Archetype.Sorcerer].coreAbilities,
+    description: 'A conduit of raw arcane fire.', biography: 'Her power burned her home to ash; now she seeks redemption.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-jax', name: 'Jax', age: 26, gender: 'Male', race: Race.Halfling, archetype: Archetype.Thief, role: 'DPS', level: 5, exp: 0, maxHp: 36, currentHp: 36, maxMana: 30, currentMana: 30, stats: { str: 10, dex: 20, con: 14, int: 12, wis: 10, cha: 14 },
+    currency: { aurels: 300 }, personality: 'Playful and deceptive.', inventory: [
+      { id: 'jax-dagger1', name: 'Quick Dagger', description: 'Sharp and light.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4' } },
+      { id: 'jax-dagger2', name: 'Hidden Blade', description: 'Balanced.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d4' } },
+      { id: 'jax-jerkin', name: 'Leather Jerkin', description: 'Quiet.', type: 'Armor', rarity: 'Common', stats: { ac: 12 } }
+    ], equippedIds: ['jax-dagger1', 'jax-dagger2', 'jax-jerkin'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Thief].coreAbilities,
+    description: 'A ghost in the shadows of the Nexus.', biography: 'No lock can hold him, no pocket is safe from his reach.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-silas', name: 'Silas', age: 41, gender: 'Male', race: Race.Gnome, archetype: Archetype.Alchemist, role: 'Support', level: 5, exp: 0, maxHp: 40, currentHp: 40, maxMana: 40, currentMana: 40, stats: { str: 8, dex: 16, con: 14, int: 20, wis: 12, cha: 10 },
+    currency: { aurels: 180 }, personality: 'Obsessive and twitchy.', inventory: [
+      { id: 'silas-sword', name: 'Weighted Shortsword', description: 'Functional.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6' } },
+      { id: 'silas-apron', name: 'Reinforced Leather Apron', description: 'Acid resistant.', type: 'Armor', rarity: 'Common', stats: { ac: 12 } }
+    ], equippedIds: ['silas-sword', 'silas-apron'], spells: [], abilities: ARCHETYPE_INFO[Archetype.Alchemist].coreAbilities,
+    description: 'Master of volatile reagents.', biography: 'He seeks the Philosopher\'s Stone, or something that explodes like it.', asiPoints: 0, activeStatuses: []
+  },
+  {
+    id: 'mentor-valerius', name: 'Valerius', age: 150, gender: 'Male', race: Race.Aasimar, archetype: Archetype.BloodArtist, role: 'DPS', level: 5, exp: 0, maxHp: 48, currentHp: 48, maxMana: 50, currentMana: 50, stats: { str: 12, dex: 14, con: 16, int: 10, wis: 12, cha: 18 },
+    currency: { aurels: 250 }, personality: 'Elegant and cruel.', inventory: [
+      { id: 'valerius-sickle', name: 'Serrated Ritual Sickle', description: 'For drawing blood.', type: 'Weapon', rarity: 'Common', stats: { damage: '1d6' } },
+      { id: 'valerius-robes', name: 'Crimson Silk Robes', description: 'Fine and dark.', type: 'Armor', rarity: 'Common', stats: { ac: 11 } }
+    ], equippedIds: ['valerius-sickle', 'valerius-robes'], spells: SPELL_LIBRARY[Archetype.BloodArtist] || [], abilities: ARCHETYPE_INFO[Archetype.BloodArtist].coreAbilities,
+    description: 'A weaver of sanguine threads.', biography: 'He paints his masterpieces on the skin of his foes.', asiPoints: 0, activeStatuses: []
   }
 ];
 

@@ -69,7 +69,6 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     if (!info) {
       const customMatch = customArchetypes.find(a => a.name === character.archetype);
       if (customMatch) {
-        // Fix: Added starterGear: [] to satisfy the type requirement of info which matches ARCHETYPE_INFO values
         info = { hpDie: customMatch.hpDie, role: customMatch.role, description: customMatch.description, coreAbilities: customMatch.coreAbilities, spells: customMatch.spells, starterGear: [] };
       }
     }
@@ -82,14 +81,26 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   }, [character.archetype, character.abilities, character.spells, customArchetypes]);
 
   const equippedItems = useMemo(() => character.inventory.filter(i => character.equippedIds?.includes(i.id)), [character.inventory, character.equippedIds]);
+  
   const acCalculation = useMemo(() => {
     let baseAc = 10 + dexMod;
     let shieldBonus = 0;
+    let hasArmor = false;
+    
     equippedItems.forEach(item => {
       if (item.type === 'Armor') {
         const itemAc = item.stats?.ac || 0;
-        if (item.name.toLowerCase().includes('shield')) shieldBonus += itemAc;
-        else baseAc = (item.name.toLowerCase().includes('plate') || item.name.toLowerCase().includes('heavy')) ? itemAc : itemAc + dexMod;
+        if (item.name.toLowerCase().includes('shield')) {
+          shieldBonus += itemAc;
+        } else {
+          hasArmor = true;
+          // Simplified: heavy armor ignores dex, others add it
+          if (item.name.toLowerCase().includes('plate') || item.name.toLowerCase().includes('heavy')) {
+            baseAc = itemAc;
+          } else {
+            baseAc = itemAc + dexMod;
+          }
+        }
       }
     });
     return baseAc + shieldBonus;
@@ -151,7 +162,12 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
       <div className="p-4 border-b border-emerald-900/40 bg-emerald-900/10">
         <div className="flex justify-between items-start gap-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl md:text-2xl font-cinzel text-gold truncate font-black">{character.name}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl md:text-2xl font-cinzel text-gold truncate font-black">{character.name}</h2>
+              <div className="bg-black/80 border border-gold/40 px-2 py-0.5 rounded shadow-[0_0_10px_rgba(212,175,55,0.2)]">
+                <span className="text-[9px] font-cinzel text-gold font-black uppercase">AC {acCalculation}</span>
+              </div>
+            </div>
             <p className="text-[10px] md:text-xs text-emerald-500 font-cinzel uppercase tracking-[0.2em] truncate font-bold">{character.race} {character.archetype} • Lvl {character.level}</p>
           </div>
         </div>
@@ -195,13 +211,29 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
         {activeTab === 'Stats' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {(Object.keys(character.stats) as Array<keyof Stats>).map(s => (
-              <div key={s} className="p-3 border border-emerald-900/20 bg-black/40 rounded-sm">
-                <span className="text-[9px] font-cinzel uppercase text-gray-500 font-bold">{s}</span>
-                <div className="flex justify-between items-baseline mt-1"><span className="text-2xl font-black text-gold">{character.stats[s]}</span><span className="text-xs text-emerald-500 font-black">{getMod(character.stats[s]) >= 0 ? '+' : ''}{getMod(character.stats[s])}</span></div>
-              </div>
-            ))}
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {(Object.keys(character.stats) as Array<keyof Stats>).map(s => (
+                <div key={s} className="p-3 border border-emerald-900/20 bg-black/40 rounded-sm">
+                  <span className="text-[9px] font-cinzel uppercase text-gray-500 font-bold">{s}</span>
+                  <div className="flex justify-between items-baseline mt-1"><span className="text-2xl font-black text-gold">{character.stats[s]}</span><span className="text-xs text-emerald-500 font-black">{getMod(character.stats[s]) >= 0 ? '+' : ''}{getMod(character.stats[s])}</span></div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 bg-emerald-900/5 border border-emerald-900/20 rounded-sm">
+               <h3 className="text-[10px] font-cinzel text-gold uppercase tracking-[0.2em] font-black border-b border-gold/10 pb-2 mb-3">Defensive Profile</h3>
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[9px] text-gray-500 uppercase font-black">Armor Class</span>
+                    <p className="text-2xl font-black text-white">{acCalculation}</p>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-gray-500 uppercase font-black">Reflex Mod</span>
+                    <p className="text-2xl font-black text-white">{dexMod >= 0 ? '+' : ''}{dexMod}</p>
+                  </div>
+               </div>
+            </div>
           </div>
         )}
         {activeTab === 'Soul Path' && (
@@ -223,9 +255,21 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
         {activeTab === 'Inventory' && (
           <div className="space-y-3">
             {filteredInventory.map(item => (
-              <div key={item.id} className="p-3 border border-emerald-900/10 bg-black/40 flex justify-between items-center">
-                <span className="text-[11px] font-cinzel font-black text-gray-200">{item.name}</span>
-                <span className="text-[8px] text-emerald-900 uppercase italic">{item.type}</span>
+              <div key={item.id} className="p-3 border border-emerald-900/10 bg-black/40 flex justify-between items-center group hover:border-gold transition-colors">
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-cinzel font-black text-gray-200 group-hover:text-gold">{item.name}</span>
+                  {item.stats && (item.stats.damage || item.stats.ac) && (
+                    <span className="text-[8px] text-gold uppercase font-black mt-0.5">
+                      {item.stats.damage && `DMG: ${item.stats.damage}`} {item.stats.ac && `AC: +${item.stats.ac}`}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[8px] text-emerald-900 uppercase italic font-bold">{item.type}</span>
+                  {character.equippedIds?.includes(item.id) && (
+                    <span className="text-[8px] bg-gold text-black px-1 font-black">EQUIPPED</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

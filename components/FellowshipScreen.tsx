@@ -16,10 +16,11 @@ interface FellowshipScreenProps {
   username: string;
   onStartTutorial?: () => void;
   hasCampaigns?: boolean;
+  onSummonMentors?: () => void;
 }
 
 const FellowshipScreen: React.FC<FellowshipScreenProps> = ({ 
-  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username, onStartTutorial, hasCampaigns
+  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username, onStartTutorial, hasCampaigns, onSummonMentors
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
@@ -109,6 +110,14 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
           <p className="text-xs text-emerald-500 uppercase tracking-[0.4em] font-black opacity-80 mt-2">Bonded by Blood and Aether</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
+          {viewingMentors && onSummonMentors && (
+            <button 
+              onClick={onSummonMentors}
+              className="flex-1 md:flex-none px-5 py-3 border-2 border-gold text-gold font-black font-cinzel text-[10px] tracking-widest hover:bg-gold hover:text-black transition-all"
+            >
+              RITUAL OF MANIFESTATION
+            </button>
+          )}
           <button 
             onClick={() => { setViewingMentors(!viewingMentors); setSelectedCharId(null); }}
             className={`flex-1 md:flex-none px-5 py-3 border-2 font-black font-cinzel text-[10px] tracking-widest transition-all ${viewingMentors ? 'bg-emerald-900/20 border-gold text-gold shadow-lg shadow-emerald-900/30' : 'border-emerald-900/50 text-gray-500 hover:text-gold hover:border-gold'}`}

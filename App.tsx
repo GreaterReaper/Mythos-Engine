@@ -105,7 +105,9 @@ const App: React.FC = () => {
           ...c,
           abilities: [...unlockedAbilities, ...customBoons],
           spells: unlockedSpells,
-          maxHp: newMaxHp
+          maxHp: newMaxHp,
+          // Ensure current HP doesn't exceed new max
+          currentHp: Math.min(c.currentHp, newMaxHp)
         };
       };
       return {
@@ -114,6 +116,13 @@ const App: React.FC = () => {
         mentors: prev.mentors.map(syncCharacter)
       };
     });
+    // Visual feedback for the refresh action
+    handleSystemLog("LINEAGE: Souls aligned with core resonance.");
+  };
+
+  const handleSystemLog = (content: string) => {
+    if (!state.activeCampaignId) return;
+    onMessage({ role: 'system', content, timestamp: Date.now() });
   };
 
   const updateCharacter = (id: string, updates: Partial<Character>) => {
@@ -243,6 +252,25 @@ const App: React.FC = () => {
     }
   };
 
+  const onMessage = (msg: Message) => {
+    if (!state.activeCampaignId) return;
+    setState(prev => ({
+      ...prev,
+      campaigns: prev.campaigns.map(c => c.id === state.activeCampaignId ? { ...c, history: [...c.history, msg] } : c)
+    }));
+  };
+
+  const handleDeleteAccount = () => {
+    if (confirm("RITUAL OF SEVERANCE: Art thou certain? This ritual shall dissolve all soul fragments stored in this vessel's memory. All characters, chronicles, and paths shall be unmade. This action is irreversible.")) {
+      localStorage.removeItem(STORAGE_PREFIX + 'state');
+      // Clear specific storage keys if any others exist
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(STORAGE_PREFIX)) localStorage.removeItem(key);
+      });
+      window.location.reload();
+    }
+  };
+
   const activePartyUnits = useMemo(() => {
     return [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
   }, [state.characters, state.mentors, state.party]);
@@ -321,7 +349,7 @@ const App: React.FC = () => {
               {activeTab === 'Nexus' && <NexusScreen 
                 peerId={state.userAccount.peerId || ''} connectedPeers={state.multiplayer.connectedPeers} 
                 isHost={state.multiplayer.isHost} onConnect={() => {}} username={state.userAccount.username} 
-                gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {}}
+                gameState={state} onClearFriends={() => {}} onDeleteAccount={handleDeleteAccount}
               />}
               {activeTab === 'Rules' && <RulesScreen />}
               {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}

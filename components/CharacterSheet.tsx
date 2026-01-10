@@ -64,24 +64,11 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     setDisplayMana(character.currentMana);
   }, []);
 
-  const { unlockedAbilities, lockedAbilities } = useMemo(() => {
-    let archInfo = ARCHETYPE_INFO[character.archetype as Archetype];
-    if (!archInfo) {
-      const customMatch = customArchetypes.find(a => a.name === character.archetype);
-      if (customMatch) {
-        archInfo = { hpDie: customMatch.hpDie, role: customMatch.role, description: customMatch.description, coreAbilities: customMatch.coreAbilities, spells: customMatch.spells, starterGear: [] };
-      }
-    }
-
-    if (!archInfo) return { unlockedAbilities: [...character.abilities, ...character.spells], lockedAbilities: [] };
-
-    const allManifests = [...archInfo.coreAbilities, ...(archInfo.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
-    
-    return {
-      unlockedAbilities: allManifests.filter(a => a.levelReq <= character.level),
-      lockedAbilities: allManifests.filter(a => a.levelReq > character.level)
-    };
-  }, [character.archetype, character.level, customArchetypes]);
+  const unlockedAbilities = useMemo(() => {
+    // We strictly use the character's stored abilities and spells 
+    // which are filtered by level in App.tsx
+    return [...(character.abilities || []), ...(character.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
+  }, [character.abilities, character.spells]);
 
   const equippedItems = useMemo(() => character.inventory.filter(i => character.equippedIds?.includes(i.id)), [character.inventory, character.equippedIds]);
   
@@ -112,6 +99,46 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
       return item.type === 'Utility' || item.type === 'Quest';
     });
   }, [character.inventory, inventoryFilter]);
+
+  const handleToggleEquip = (itemId: string) => {
+    if (!onUpdate) return;
+    const item = character.inventory.find(i => i.id === itemId);
+    if (!item) return;
+
+    let newEquippedIds = [...(character.equippedIds || [])];
+    const isEquipped = newEquippedIds.includes(itemId);
+
+    if (isEquipped) {
+      newEquippedIds = newEquippedIds.filter(id => id !== itemId);
+    } else {
+      // Slot management logic
+      if (item.type === 'Armor') {
+        const isShield = item.name.toLowerCase().includes('shield');
+        if (isShield) {
+           // Remove existing shield
+           newEquippedIds = newEquippedIds.filter(id => {
+             const existing = character.inventory.find(inv => inv.id === id);
+             return !(existing?.type === 'Armor' && existing.name.toLowerCase().includes('shield'));
+           });
+        } else {
+           // Remove existing body armor
+           newEquippedIds = newEquippedIds.filter(id => {
+             const existing = character.inventory.find(inv => inv.id === id);
+             return !(existing?.type === 'Armor' && !existing.name.toLowerCase().includes('shield'));
+           });
+        }
+      } else if (item.type === 'Weapon') {
+        // Max 2 weapons
+        const weaponIds = newEquippedIds.filter(id => character.inventory.find(inv => inv.id === id)?.type === 'Weapon');
+        if (weaponIds.length >= 2) {
+          newEquippedIds = newEquippedIds.filter(id => id !== weaponIds[0]);
+        }
+      }
+      newEquippedIds.push(itemId);
+    }
+
+    onUpdate(character.id, { equippedIds: newEquippedIds });
+  };
 
   const handleRollDeathSave = () => {
     if (!onUpdate || isMentor || character.currentHp > 0 || isRolling) return;
@@ -254,41 +281,88 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
               ))}
               {unlockedAbilities.length === 0 && <p className="text-[10px] text-gray-600 italic">No power yet manifested.</p>}
             </div>
-
-            <div className="space-y-4 opacity-40">
-              <h4 className="text-[10px] font-cinzel text-gray-500 uppercase font-black tracking-widest border-b border-gray-900 pb-1">Locked Manifestations</h4>
-              {lockedAbilities.map((a, i) => (
-                <div key={i} className="p-4 border-l-2 bg-black/20 border-gray-800 rounded-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[11px] font-cinzel uppercase font-black tracking-widest text-gray-600">{a.name}</span>
-                    <span className="text-[8px] text-gold/60 uppercase font-black">Requires Level {a.levelReq}</span>
-                  </div>
-                  <p className="text-[10px] text-gray-700 mt-1 italic">"{a.description}"</p>
-                </div>
-              ))}
-            </div>
           </div>
         )}
         {activeTab === 'Inventory' && (
-          <div className="space-y-3">
-            {filteredInventory.map(item => (
-              <div key={item.id} className="p-3 border border-emerald-900/10 bg-black/40 flex justify-between items-center group hover:border-gold transition-colors">
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-cinzel font-black text-gray-200 group-hover:text-gold">{item.name}</span>
-                  {item.stats && (item.stats.damage || item.stats.ac) && (
-                    <span className="text-[8px] text-gold uppercase font-black mt-0.5">
-                      {item.stats.damage && `DMG: ${item.stats.damage}`} {item.stats.ac && `AC: +${item.stats.ac}`}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[8px] text-emerald-900 uppercase italic font-bold">{item.type}</span>
-                  {character.equippedIds?.includes(item.id) && (
-                    <span className="text-[8px] bg-gold text-black px-1 font-black">EQUIPPED</span>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="space-y-4">
+            <div className="flex gap-2 border-b border-emerald-900/20 pb-2">
+              <button 
+                onClick={() => setInventoryFilter('Gear')}
+                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${inventoryFilter === 'Gear' ? 'bg-gold text-black' : 'text-gray-500'}`}
+              >
+                GEAR
+              </button>
+              <button 
+                onClick={() => setInventoryFilter('Mundane')}
+                className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest ${inventoryFilter === 'Mundane' ? 'bg-gold text-black' : 'text-gray-500'}`}
+              >
+                MUNDANE
+              </button>
+            </div>
+            <div className="space-y-3">
+              {filteredInventory.map(item => {
+                const isEquipped = character.equippedIds?.includes(item.id);
+                return (
+                  <div key={item.id} className={`p-4 border transition-all flex flex-col gap-3 group bg-black/40 ${isEquipped ? 'border-gold shadow-[0_0_15px_rgba(212,175,55,0.1)]' : 'border-emerald-900/10'}`}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <span className="text-[11px] font-cinzel font-black text-gray-200 group-hover:text-gold transition-colors">{item.name}</span>
+                        <div className="flex gap-2 mt-1">
+                          <span className="text-[8px] text-emerald-900 uppercase italic font-bold tracking-widest">{item.type}</span>
+                          <span className={`text-[8px] uppercase font-black px-1 ${
+                            item.rarity === 'Legendary' ? 'text-orange-500' :
+                            item.rarity === 'Epic' ? 'text-purple-500' :
+                            item.rarity === 'Rare' ? 'text-blue-500' : 'text-gray-500'
+                          }`}>{item.rarity}</span>
+                        </div>
+                      </div>
+                      
+                      {!isMentor && (item.type === 'Weapon' || item.type === 'Armor') && (
+                        <button 
+                          onClick={() => handleToggleEquip(item.id)}
+                          className={`px-3 py-1 text-[9px] font-cinzel font-black uppercase border transition-all ${
+                            isEquipped 
+                            ? 'bg-red-900/20 border-red-500 text-red-500 hover:bg-red-500 hover:text-white' 
+                            : 'bg-emerald-900/20 border-emerald-500 text-emerald-500 hover:bg-emerald-500 hover:text-white'
+                          }`}
+                        >
+                          {isEquipped ? 'UNEQUIP' : 'EQUIP'}
+                        </button>
+                      )}
+                    </div>
+                    
+                    <p className="text-[10px] text-gray-500 italic leading-relaxed">"{item.description}"</p>
+                    
+                    {item.stats && (
+                      <div className="flex flex-wrap gap-3 py-2 border-t border-emerald-900/10">
+                        {item.stats.damage && (
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-gray-600 uppercase font-black">Damage</span>
+                            <span className="text-[10px] text-gold font-black">{item.stats.damage}</span>
+                          </div>
+                        )}
+                        {item.stats.ac && (
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-gray-600 uppercase font-black">Defense (AC)</span>
+                            <span className="text-[10px] text-gold font-black">+{item.stats.ac}</span>
+                          </div>
+                        )}
+                        {Object.entries(item.stats).map(([key, val]) => {
+                          if (key === 'damage' || key === 'ac' || key === 'cost') return null;
+                          return (
+                            <div key={key} className="flex flex-col">
+                              <span className="text-[8px] text-gray-600 uppercase font-black">{key}</span>
+                              <span className="text-[10px] text-gold font-black">+{val}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {filteredInventory.length === 0 && <p className="text-[10px] text-gray-700 italic text-center py-8">Thy inventory is silent.</p>}
+            </div>
           </div>
         )}
         {activeTab === 'Lore' && (

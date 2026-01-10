@@ -103,12 +103,33 @@ const App: React.FC = () => {
     }));
   };
 
+  const handleRefreshCharacters = () => {
+    setState(prev => {
+      const syncList = (list: Character[]) => list.map(c => {
+        const archInfo = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
+        if (!archInfo) return c;
+        
+        return {
+          ...c,
+          abilities: archInfo.coreAbilities.filter(a => a.levelReq <= c.level),
+          spells: (archInfo.spells || []).filter(s => s.levelReq <= c.level)
+        };
+      });
+
+      return {
+        ...prev,
+        characters: syncList(prev.characters),
+        mentors: syncList(prev.mentors)
+      };
+    });
+    alert("The Engine has realigned thy Fellowship's power. All manifestations now strictly obey thy Level.");
+  };
+
   const handleSummonMentors = () => {
     setState(prev => {
       const updatedMentors = MENTORS.map(sourceMentor => {
         const existing = prev.mentors.find(m => m.id === sourceMentor.id);
         if (existing) {
-          // Keep current level/hp but sync latest manifest gear/descriptions
           return {
             ...existing,
             stats: sourceMentor.stats,
@@ -116,7 +137,6 @@ const App: React.FC = () => {
             equippedIds: sourceMentor.equippedIds,
             description: sourceMentor.description,
             biography: sourceMentor.biography,
-            // Mentors also follow strict level-gating for abilities/spells
             abilities: sourceMentor.abilities.filter(a => a.levelReq <= existing.level),
             spells: sourceMentor.spells.filter(s => s.levelReq <= existing.level)
           };
@@ -189,7 +209,6 @@ const App: React.FC = () => {
                       updates.maxMana = target.maxMana + 10;
                       updates.currentMana = updates.maxMana;
                       
-                      // Sync newly unlocked manifestations
                       const unlockedAbilities = archInfo.coreAbilities.filter(a => a.levelReq <= updates.level!);
                       const unlockedSpells = (archInfo.spells || []).filter(s => s.levelReq <= updates.level!);
                       updates.abilities = unlockedAbilities;
@@ -338,6 +357,7 @@ const App: React.FC = () => {
                 onStartTutorial={() => setShowTutorial(true)} 
                 hasCampaigns={state.campaigns.length > 0} 
                 onSummonMentors={handleSummonMentors}
+                onRefreshCharacters={handleRefreshCharacters}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
                 party={activePartyObjects} 

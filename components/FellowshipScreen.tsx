@@ -17,10 +17,11 @@ interface FellowshipScreenProps {
   onStartTutorial?: () => void;
   hasCampaigns?: boolean;
   onSummonMentors?: () => void;
+  onRefreshCharacters?: () => void;
 }
 
 const FellowshipScreen: React.FC<FellowshipScreenProps> = ({ 
-  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username, onStartTutorial, hasCampaigns, onSummonMentors
+  characters, onAdd, onDelete, onUpdate, mentors, party, setParty, customArchetypes, onAddCustomArchetype, username, onStartTutorial, hasCampaigns, onSummonMentors, onRefreshCharacters
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
@@ -109,7 +110,16 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
           <h2 className="text-4xl md:text-5xl font-cinzel text-gold font-black tracking-tight">The Hall of Souls</h2>
           <p className="text-xs text-emerald-500 uppercase tracking-[0.4em] font-black opacity-80 mt-2">Bonded by Blood and Aether</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          {!viewingMentors && onRefreshCharacters && (
+            <button 
+              onClick={onRefreshCharacters}
+              className="flex-1 md:flex-none px-5 py-3 border-2 border-emerald-900 text-emerald-500 font-black font-cinzel text-[10px] tracking-widest hover:bg-emerald-900 hover:text-white transition-all"
+              title="Align souls with latest level logic"
+            >
+              REFRESH LINEAGE
+            </button>
+          )}
           {viewingMentors && onSummonMentors && (
             <button 
               onClick={onSummonMentors}
@@ -151,7 +161,7 @@ const FellowshipScreen: React.FC<FellowshipScreenProps> = ({
           <div className="h-[75vh]">
             <CharacterSheet 
               character={selectedChar} 
-              onUpdate={viewingMentors || selectedChar.ownerName !== username ? undefined : onUpdate} 
+              onUpdate={viewingMentors || (selectedChar.ownerName && selectedChar.ownerName !== username) ? undefined : onUpdate} 
               isMentor={viewingMentors}
               customArchetypes={customArchetypes}
             />

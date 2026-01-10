@@ -113,7 +113,6 @@ export const generateDMResponse = async (
   trackUsage();
 
   const active = playerContext.activeCharacter;
-  // HIGH FIDELITY CHARACTER MANIFEST - The AI must read this to identify identity and power
   const activeDetail = active ? `
     CHARACTER MANIFEST [READ CAREFULLY]:
     - Identity: ${active.name} (${active.gender}), ${active.race} ${active.archetype}
@@ -134,21 +133,38 @@ export const generateDMResponse = async (
   ${partyManifest}
   
   PROTOCOLS:
-  1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Gender, Stats, and Items. If the manifest says they are "Male" and have "18 STR", narrate accordingly. If they have "0 Mana", they cannot manifest spells.
-  2. CLASS IDENTITY: Warriors and Dark Knights are vanguards of devastation. They carrier NO shields. Narrate their actions as unrestrained offense—cleaving strokes and aggressive fury. Fighters are the only class that should be narrated using shields.
-  3. DICE: Use [🎲 d20(roll)+mod=result] for all checks. Calculate the "mod" using the Stats from the Manifest (e.g., 18 STR is +4).
-  4. COST OF POWER: Spells cost Mana. Dark/Blood magic costs HP. Narrate the toll: "Name's veins blacken, losing 12 HP to manifest the rite."
-  5. EXPERIENCE: Award EXP (50-500) based on deeds. Do NOT narrate level-ups; the Engine handles the Soul's Ascension.
-  6. DETERMINISM: The world reacts to thy Stats. Low INT means cryptic puzzles are incomprehensible; high CHA makes the fearful follow thy lead.`;
+  1. OMNISCIENCE: Thou MUST correctly identify the character's Name, Gender, Stats, and Items.
+  2. CLASS IDENTITY: Warriors and Dark Knights are vanguards of devastation. They carrier NO shields. Narrate their actions as unrestrained offense.
+  3. DICE: Use [🎲 d20(roll)+mod=result] for all checks.
+  4. COST OF POWER: Spells cost Mana. Dark/Blood magic costs HP.
+  5. EXPERIENCE: Award EXP (50-500) based on deeds.
+  6. DETERMINISM: The world reacts to thy Stats.`;
+
+  // Gemini requires strictly alternating roles: user -> model -> user -> model.
+  // We filter history and merge adjacent identical roles.
+  const contents = [];
+  let lastRole = null;
+  
+  for (const m of history) {
+    if (m.role === 'system') continue;
+    const role = m.role === 'user' ? 'user' : 'model';
+    if (role === lastRole && contents.length > 0) {
+      contents[contents.length - 1].parts[0].text += `\n\n${m.content}`;
+    } else {
+      contents.push({ role, parts: [{ text: m.content }] });
+      lastRole = role;
+    }
+  }
 
   try {
     const response = await ai.models.generateContent({
       model: NARRATIVE_MODEL,
-      contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      contents,
       config: { systemInstruction, temperature: 0.7 }
     });
     return response.text || "The resonance fades into the void.";
   } catch (error: any) {
+    console.error("Arbiter Disturbance:", error);
     return "Aetheric disturbance detected. [API Error]";
   }
 };
@@ -254,7 +270,7 @@ export const generateInnkeeperResponse = async (history: Message[], party: Chara
   try {
     const response = await ai.models.generateContent({
       model: FLASH_MODEL,
-      contents: history.map(m => ({ role: m.role, parts: [{ text: m.content }] })) as any,
+      contents: history.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] })) as any,
       config: { systemInstruction: "Thou art Barnaby, the one-eyed innkeeper of 'The Broken Cask'. Friendly but weary. Dark fantasy tone." }
     });
     return response.text;

@@ -108,8 +108,6 @@ const App: React.FC = () => {
       const updatedMentors = MENTORS.map(sourceMentor => {
         const existing = prev.mentors.find(m => m.id === sourceMentor.id);
         if (existing) {
-          // Sync existing mentors with latest manifest gear and stats
-          // But preserve their current HP/Mana and Progress
           return {
             ...existing,
             stats: sourceMentor.stats,
@@ -220,7 +218,6 @@ const App: React.FC = () => {
                     };
                     
                     setState(p => {
-                      // Always add to global armory
                       const newArmory = [...p.armory, newItem];
                       
                       if (entity.target) {
@@ -267,17 +264,22 @@ const App: React.FC = () => {
       participants: partyIds 
     };
 
+    // Auto-select the player's character as the POV
+    const primaryChar = state.characters.find(c => c.isPrimarySoul) || state.characters[0];
+
     setState(prev => ({
       ...prev,
       campaigns: [...prev.campaigns, newCampaign],
       activeCampaignId: campId,
-      party: partyIds
+      party: partyIds,
+      userAccount: {
+        ...prev.userAccount,
+        activeCharacterId: primaryChar ? primaryChar.id : partyIds[0]
+      }
     }));
 
     setShowTutorial(false);
     setActiveTab('Chronicles');
-    
-    // Initial model message for the tutorial start
     handleMessage({ role: 'model', content: prompt, timestamp: Date.now() }, campId);
   };
 
@@ -296,13 +298,19 @@ const App: React.FC = () => {
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
                 allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} 
-                activeCharacter={activePartyObjects.find(c => c.id === state.userAccount.activeCharacterId) || null} 
+                activeCharacter={activePartyObjects.find(c => c.id === state.userAccount.activeCharacterId) || activePartyObjects[0] || null} 
                 onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} 
                 onMessage={handleMessage} 
                 onCreateCampaign={(t, p) => {
                   const campId = safeId();
                   const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party };
-                  setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
+                  const primaryChar = state.characters.find(c => c.isPrimarySoul) || state.characters[0];
+                  setState(prev => ({ 
+                    ...prev, 
+                    campaigns: [...prev.campaigns, newCampaign], 
+                    activeCampaignId: campId,
+                    userAccount: { ...prev.userAccount, activeCharacterId: primaryChar?.id || state.party[0] }
+                  }));
                   handleMessage({ role: 'model', content: p, timestamp: Date.now() }, campId);
                 }} 
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
@@ -313,7 +321,7 @@ const App: React.FC = () => {
               />}
               {activeTab === 'Fellowship' && <FellowshipScreen 
                 characters={state.characters} 
-                onAdd={(c: Character, items: Item[]) => setState(p => ({ ...p, characters: [...p.characters, c], armory: [...p.armory, ...items] }))} 
+                onAdd={(c: Character, items: Item[]) => setState(p => ({ ...p, characters: [...p.characters, { ...c, isPrimarySoul: p.characters.length === 0 }], armory: [...p.armory, ...items] }))} 
                 onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
                 onUpdate={updateCharacter} 
                 mentors={state.mentors} 

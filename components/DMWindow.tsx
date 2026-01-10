@@ -55,6 +55,13 @@ const DMWindow: React.FC<DMWindowProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newPrompt, setNewPrompt] = useState('');
 
+  // Auto-select POV if missing
+  useEffect(() => {
+    if (!activeCharacter && characters.length > 0) {
+      onSelectActiveCharacter(characters[0].id);
+    }
+  }, [characters, activeCharacter, onSelectActiveCharacter]);
+
   const usableManifestations = useMemo(() => {
     if (!activeCharacter) return [];
     return [...(activeCharacter.abilities || []), ...(activeCharacter.spells || [])]
@@ -69,8 +76,15 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   const handleSend = async (retryContent?: string) => {
     const messageContent = retryContent || input;
-    if (!campaign || (!retryContent && !messageContent.trim()) || isLoading || !activeCharacter) return;
+    if (!campaign || (!retryContent && !messageContent.trim()) || isLoading) return;
     
+    // Fallback if still no active character
+    const effectivePOV = activeCharacter || characters[0];
+    if (!effectivePOV) {
+      alert("Thou must bind a Soul to thy Fellowship before speaking to the Arbiter.");
+      return;
+    }
+
     if (!retryContent) {
       const userMsg: Message = { role: 'user', content: messageContent, timestamp: Date.now() };
       onMessage(userMsg);
@@ -82,7 +96,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
     
     try {
       const currentHistory: Message[] = retryContent ? campaign.history : [...campaign.history, { role: 'user', content: messageContent, timestamp: Date.now() } as Message];
-      const responseText = await generateDMResponse(currentHistory, { activeCharacter, party: characters, mentors: characters.filter(c => c.id.startsWith('mentor-')), activeRules: RULES_MANIFEST, existingItems: [], existingMonsters: bestiary, campaignTitle: campaign.title, usageCount: apiUsage?.count });
+      const responseText = await generateDMResponse(currentHistory, { activeCharacter: effectivePOV, party: characters, mentors: characters.filter(c => c.id.startsWith('mentor-')), activeRules: RULES_MANIFEST, existingItems: [], existingMonsters: bestiary, campaignTitle: campaign.title, usageCount: apiUsage?.count });
       onMessage({ role: 'model', content: responseText || "The Engine hums...", timestamp: Date.now() });
       setIsLoading(false);
     } catch (error: any) { 
@@ -141,6 +155,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
     );
   }
 
+  const effectivePOV = activeCharacter || characters[0];
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">
       <div className="flex flex-1 min-h-0 relative">
@@ -150,6 +166,11 @@ const DMWindow: React.FC<DMWindowProps> = ({
               <button onClick={onQuitCampaign} className="text-emerald-900 hover:text-emerald-500 font-black text-2xl">×</button>
               <h3 className="font-cinzel text-gold text-[10px] md:text-sm font-black tracking-[0.1em] truncate">{campaign.title}</h3>
             </div>
+            {effectivePOV && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-gold/10 border border-gold/30 rounded-full">
+                <span className="text-[8px] font-black font-cinzel text-gold uppercase tracking-tighter">POV: {effectivePOV.name}</span>
+              </div>
+            )}
           </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:px-12 md:py-8 space-y-6 custom-scrollbar relative">
             <div className="absolute inset-0 bg-leather opacity-20 pointer-events-none" />
@@ -164,15 +185,15 @@ const DMWindow: React.FC<DMWindowProps> = ({
           </div>
           <div className="shrink-0 bg-black border-t-2 border-emerald-900/40 p-4 pb-20 md:pb-4 z-20">
             <div className="flex gap-3 items-end max-w-5xl mx-auto w-full">
-              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder={isDying ? "UNCONSCIOUS..." : "SPEAK..."} disabled={isDying || isLoading} className="flex-1 bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm h-20 outline-none resize-none rounded-lg" />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isLoading || !activeCharacter || isDying} className="w-20 md:w-28 font-cinzel font-black border-2 h-20 bg-emerald-900 text-white border-gold/60 shadow-xl">SPEAK</button>
+              <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} placeholder={isDying ? "UNCONSCIOUS..." : !effectivePOV ? "SELECT A SOUL..." : "SPEAK..."} disabled={isDying || isLoading || !effectivePOV} className="flex-1 bg-[#1c1917] border-2 border-emerald-900/20 p-3 text-gold text-sm h-20 outline-none resize-none rounded-lg" />
+              <button onClick={() => handleSend()} disabled={!input.trim() || isLoading || !effectivePOV || isDying} className="w-20 md:w-28 font-cinzel font-black border-2 h-20 bg-emerald-900 text-white border-gold/60 shadow-xl disabled:opacity-30">SPEAK</button>
             </div>
           </div>
         </div>
         <div className="hidden md:flex flex-col w-80 bg-[#0c0a09] border-l-2 border-emerald-900/30 overflow-hidden shrink-0 shadow-2xl">
           <div className="p-5 border-b border-emerald-900/20 bg-emerald-900/5 shrink-0">
              <h4 className="text-[10px] font-cinzel text-emerald-500 font-black uppercase mb-4 tracking-widest">Aetheric Monitor</h4>
-             <div className="space-y-2">{characters.map(char => <VitalityMonitor key={char.id} character={char} isActive={char.id === activeCharacter?.id} onClick={() => onSelectActiveCharacter(char.id)} />)}</div>
+             <div className="space-y-2">{characters.map(char => <VitalityMonitor key={char.id} character={char} isActive={char.id === effectivePOV?.id} onClick={() => onSelectActiveCharacter(char.id)} />)}</div>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8 bg-black/20">
              <div>
@@ -187,6 +208,7 @@ const DMWindow: React.FC<DMWindowProps> = ({
                         <p className="text-[9px] text-gray-500 italic mt-1 leading-relaxed line-clamp-2">"{spell.description}"</p>
                     </div>
                   ))}
+                  {usableManifestations.length === 0 && <p className="text-[9px] text-gray-600 italic">No focused power manifested.</p>}
                 </div>
              </div>
           </div>

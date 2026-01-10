@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Character, Race, Archetype, GameState, Message, Campaign, 
@@ -59,6 +60,36 @@ const App: React.FC = () => {
 
   const [state, setState] = useState<GameState>(DEFAULT_STATE);
 
+  // SOUL SYNC: Mentors scale to average player level
+  useEffect(() => {
+    if (state.characters.length === 0) return;
+    
+    const avgLevel = Math.floor(state.characters.reduce((acc, c) => acc + c.level, 0) / state.characters.length);
+    if (avgLevel > 5) {
+      setState(prev => ({
+        ...prev,
+        mentors: prev.mentors.map(m => {
+          if (m.level < avgLevel) {
+            const archInfo = ARCHETYPE_INFO[m.archetype as Archetype];
+            const levelDiff = avgLevel - m.level;
+            const hpGain = levelDiff * (Math.floor((archInfo?.hpDie || 10) / 2) + 1);
+            return {
+              ...m,
+              level: avgLevel,
+              maxHp: m.maxHp + hpGain,
+              currentHp: m.maxHp + hpGain,
+              maxMana: m.maxMana + (levelDiff * 10),
+              currentMana: m.maxMana + (levelDiff * 10),
+              abilities: archInfo?.coreAbilities.filter(a => a.levelReq <= avgLevel) || [],
+              spells: archInfo?.spells?.filter(s => s.levelReq <= avgLevel) || []
+            };
+          }
+          return m;
+        })
+      }));
+    }
+  }, [state.characters]);
+
   useEffect(() => {
     const savedState = localStorage.getItem(STORAGE_PREFIX + 'state');
     if (savedState) {
@@ -66,7 +97,6 @@ const App: React.FC = () => {
         const parsed = JSON.parse(savedState);
         setState(prev => {
           const hydrated = hydrateState(parsed, DEFAULT_STATE);
-          // Auto-sync missing mentors on load for convenience
           const existingIds = new Set(hydrated.mentors.map(m => m.id));
           const missingMentors = MENTORS.filter(m => !existingIds.has(m.id));
           if (missingMentors.length > 0) {
@@ -108,61 +138,76 @@ const App: React.FC = () => {
       const syncList = (list: Character[]) => list.map(c => {
         const archInfo = ARCHETYPE_INFO[c.archetype as Archetype] || prev.customArchetypes.find(a => a.name === c.archetype);
         if (!archInfo) return c;
-        
-        // Preserve any custom abilities already on the character that aren't in the class manifest
         const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
         const customAbilities = c.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
         const customSpells = c.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
-
         return {
           ...c,
           abilities: [...archInfo.coreAbilities.filter(a => a.levelReq <= c.level), ...customAbilities],
           spells: [...(archInfo.spells || []).filter(s => s.levelReq <= c.level), ...customSpells]
         };
       });
-
       return {
         ...prev,
         characters: syncList(prev.characters),
         mentors: syncList(prev.mentors)
       };
     });
-    alert("The Engine has realigned thy Fellowship's power. All manifestations now strictly obey thy Level.");
+    alert("The Engine has realigned thy Fellowship's power.");
   };
 
-  const handleSummonMentors = () => {
+  const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
+    const campId = safeId();
+    
+    // BOOST TO LEVEL 5
     setState(prev => {
-      const updatedMentors = MENTORS.map(sourceMentor => {
-        const existing = prev.mentors.find(m => m.id === sourceMentor.id);
-        if (existing) {
+      const boostedCharacters = prev.characters.map(c => {
+        if (partyIds.includes(c.id)) {
+          const archInfo = ARCHETYPE_INFO[c.archetype as Archetype];
+          const levelDiff = 5 - c.level;
+          const hpGain = levelDiff * (Math.floor((archInfo?.hpDie || 10) / 2) + 1);
           return {
-            ...existing,
-            stats: sourceMentor.stats,
-            inventory: sourceMentor.inventory,
-            equippedIds: sourceMentor.equippedIds,
-            description: sourceMentor.description,
-            biography: sourceMentor.biography,
-            abilities: sourceMentor.abilities.filter(a => a.levelReq <= existing.level),
-            spells: sourceMentor.spells.filter(s => s.levelReq <= existing.level)
+            ...c,
+            level: 5,
+            exp: 0,
+            maxHp: c.maxHp + hpGain,
+            currentHp: c.maxHp + hpGain,
+            maxMana: c.maxMana + (levelDiff * 10),
+            currentMana: c.maxMana + (levelDiff * 10),
+            abilities: archInfo?.coreAbilities.filter(a => a.levelReq <= 5) || [],
+            spells: archInfo?.spells?.filter(s => s.levelReq <= 5) || []
           };
         }
-        return sourceMentor;
+        return c;
       });
 
-      alert(`The Ritual is complete. ${MENTORS.length} souls have been realigned with the latest manifest.`);
-      return { ...prev, mentors: updatedMentors };
-    });
-  };
+      const boostedMentors = prev.mentors.map(m => {
+        if (partyIds.includes(m.id)) {
+          return { ...m, level: 5 }; // Mentors in tutorial are already lvl 5 by default but ensure sync
+        }
+        return m;
+      });
 
-  const handleMigrateState = (signature: string): boolean => {
-    const migrated = parseSoulSignature(signature, DEFAULT_STATE);
-    if (migrated) {
-      const fullState = hydrateState(migrated, DEFAULT_STATE);
-      fullState.userAccount.isLoggedIn = true;
-      setState(fullState);
-      return true;
-    }
-    return false;
+      const newCampaign: Campaign = { 
+        id: campId, title, prompt, history: [], participants: partyIds, isRaid: false 
+      };
+
+      const primaryChar = boostedCharacters.find(c => c.isPrimarySoul) || boostedCharacters[0];
+
+      return {
+        ...prev,
+        characters: boostedCharacters,
+        mentors: boostedMentors,
+        campaigns: [...prev.campaigns, newCampaign],
+        activeCampaignId: campId,
+        party: partyIds,
+        userAccount: { ...prev.userAccount, activeCharacterId: primaryChar?.id || partyIds[0] }
+      };
+    });
+
+    setShowTutorial(false);
+    setActiveTab('Chronicles');
+    handleMessage({ role: 'model', content: prompt, timestamp: Date.now() }, campId);
   };
 
   const handleMessage = async (msg: Message, campaignId?: string, overrideParty?: Character[]) => {
@@ -176,7 +221,8 @@ const App: React.FC = () => {
 
     if (msg.role === 'model') {
       const activePartyObjects = overrideParty || [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-      
+      const targetCampaign = state.campaigns.find(c => c.id === targetCampaignId);
+
       setTimeout(async () => {
         try {
           const audit = await auditNarrativeEffect(msg.content, activePartyObjects);
@@ -202,7 +248,7 @@ const App: React.FC = () => {
                   const newTotalExp = target.exp + gained;
                   const expToLevel = target.level * 1000;
                   
-                  if (newTotalExp >= expToLevel) {
+                  if (newTotalExp >= expToLevel && target.level < 20) {
                     updates.level = target.level + 1;
                     updates.exp = newTotalExp - expToLevel;
                     const archInfo = ARCHETYPE_INFO[target.archetype as Archetype];
@@ -213,79 +259,21 @@ const App: React.FC = () => {
                       updates.currentHp = updates.maxHp;
                       updates.maxMana = target.maxMana + 10;
                       updates.currentMana = updates.maxMana;
-                      
-                      // Filter and merge custom abilities (levelReq 0) with class progression
                       const classAbilityNames = new Set([...archInfo.coreAbilities, ...(archInfo.spells || [])].map(a => a.name));
                       const customAbilities = target.abilities.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
                       const customSpells = target.spells.filter(a => !classAbilityNames.has(a.name) && a.levelReq === 0);
-
                       updates.abilities = [...archInfo.coreAbilities.filter(a => a.levelReq <= updates.level!), ...customAbilities];
                       updates.spells = [...(archInfo.spells || []).filter(s => s.levelReq <= updates.level!), ...customSpells];
                     }
-                    
                     logs.push({ role: 'system', content: `SCRIBE: ${target.name} ASCENDED TO LEVEL ${updates.level}!`, timestamp: Date.now() });
                   } else {
                     updates.exp = newTotalExp;
                   }
                 }
-
                 if (charIdx !== -1) newCharacters[charIdx] = { ...target, ...updates };
                 else if (mentorIdx !== -1) newMentors[mentorIdx] = { ...target, ...updates };
               });
             }
-
-            if (audit.newEntities && audit.newEntities.length > 0) {
-              for (const entity of audit.newEntities) {
-                if (entity.category === 'monster') {
-                  const exists = prev.bestiary.find(m => m.name.toLowerCase() === entity.name.toLowerCase());
-                  if (!exists) {
-                    generateMonsterDetails(entity.name, msg.content).then(m => {
-                      setState(p => ({ ...p, bestiary: [...p.bestiary, { ...m, id: safeId(), type: 'Hybrid', abilities: [], activeStatuses: [] } as Monster] }));
-                    });
-                  }
-                }
-                if (entity.category === 'item') {
-                  generateItemDetails(entity.name, msg.content).then(itemData => {
-                    const newItem: Item = { 
-                      id: safeId(), 
-                      name: itemData.name || entity.name, 
-                      description: itemData.description || "Found in the depths.", 
-                      type: (itemData.type as any) || 'Utility', 
-                      rarity: (itemData.rarity as any) || 'Common', 
-                      isUnique: itemData.isUnique || false, 
-                      stats: itemData.stats || {} 
-                    };
-                    
-                    setState(p => {
-                      const newArmory = [...p.armory, newItem];
-                      if (entity.target) {
-                        const targetName = entity.target.toLowerCase();
-                        const updateList = (chars: Character[]) => chars.map(c => c.name.toLowerCase().includes(targetName) ? { ...c, inventory: [...c.inventory, newItem] } : c);
-                        return { ...p, armory: newArmory, characters: updateList(p.characters), mentors: updateList(p.mentors) };
-                      }
-                      return { ...p, armory: newArmory };
-                    });
-                  });
-                }
-                if (entity.category === 'ability' && entity.target) {
-                  const targetName = entity.target.toLowerCase();
-                  const newAbility: Ability = {
-                    name: entity.name,
-                    description: entity.entityData?.description || "A gift from the Arbiter.",
-                    type: 'Feat',
-                    levelReq: 0, // 0 marks custom awarded abilities
-                    scaling: entity.entityData?.scaling,
-                    manaCost: entity.entityData?.manaCost,
-                    hpCost: entity.entityData?.hpCost
-                  };
-                  
-                  const updateList = (chars: Character[]) => chars.map(c => c.name.toLowerCase().includes(targetName) ? { ...c, abilities: [...c.abilities, newAbility] } : c);
-                  setState(p => ({ ...p, characters: updateList(p.characters), mentors: updateList(p.mentors) }));
-                  logs.push({ role: 'system', content: `SCRIBE: ${entity.target} Manifested unique power: ${entity.name}!`, timestamp: Date.now() });
-                }
-              }
-            }
-
             return {
               ...prev,
               characters: newCharacters,
@@ -293,42 +281,9 @@ const App: React.FC = () => {
               campaigns: prev.campaigns.map(c => c.id === targetCampaignId ? { ...c, history: [...c.history, ...logs] } : c)
             };
           });
-        } catch (e) {
-          console.error("Audit Fail", e);
-        }
+        } catch (e) { console.error("Audit Fail", e); }
       }, 300);
     }
-  };
-
-  const activePartyObjects = [...state.characters, ...state.mentors].filter(c => state.party.includes(c.id));
-  const isChronicles = activeTab === 'Chronicles';
-
-  const handleTutorialComplete = (partyIds: string[], title: string, prompt: string) => {
-    const campId = safeId();
-    const newCampaign: Campaign = { 
-      id: campId, 
-      title: title, 
-      prompt: prompt, 
-      history: [], 
-      participants: partyIds 
-    };
-
-    const primaryChar = state.characters.find(c => c.isPrimarySoul) || state.characters[0];
-
-    setState(prev => ({
-      ...prev,
-      campaigns: [...prev.campaigns, newCampaign],
-      activeCampaignId: campId,
-      party: partyIds,
-      userAccount: {
-        ...prev.userAccount,
-        activeCharacterId: primaryChar ? primaryChar.id : partyIds[0]
-      }
-    }));
-
-    setShowTutorial(false);
-    setActiveTab('Chronicles');
-    handleMessage({ role: 'model', content: prompt, timestamp: Date.now() }, campId);
   };
 
   return (
@@ -337,28 +292,31 @@ const App: React.FC = () => {
         <QuotaBanner usage={state.apiUsage} />
         <div className="flex flex-col flex-1 min-h-0 md:flex-row overflow-hidden">
           {!state.userAccount.isLoggedIn && (
-            <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={handleMigrateState} />
+            <AccountPortal onLogin={u => setState(p => ({ ...p, userAccount: { ...p.userAccount, username: u, isLoggedIn: true } }))} onMigrate={sig => {
+              const migrated = parseSoulSignature(sig, DEFAULT_STATE);
+              if (migrated) {
+                const fullState = hydrateState(migrated, DEFAULT_STATE);
+                fullState.userAccount.isLoggedIn = true;
+                setState(fullState);
+                return true;
+              }
+              return false;
+            }} />
           )}
           {showTutorial && <TutorialScreen characters={state.characters} mentors={state.mentors} onComplete={handleTutorialComplete} />}
           <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} userAccount={state.userAccount} multiplayer={state.multiplayer} />
-          <main className={`relative flex-1 bg-leather ${isChronicles ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
-            <div className={`mx-auto ${isChronicles ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
+          <main className={`relative flex-1 bg-leather ${activeTab === 'Chronicles' ? 'overflow-hidden h-full' : 'overflow-y-auto'}`}>
+            <div className={`mx-auto ${activeTab === 'Chronicles' ? 'h-full max-w-none p-0' : 'max-w-7xl p-4 md:p-8'}`}>
               {activeTab === 'Chronicles' && <DMWindow 
                 campaign={state.campaigns.find(c => c.id === state.activeCampaignId) || null} 
-                allCampaigns={state.campaigns} characters={activePartyObjects} bestiary={state.bestiary} 
-                activeCharacter={activePartyObjects.find(c => c.id === state.userAccount.activeCharacterId) || activePartyObjects[0] || null} 
+                allCampaigns={state.campaigns} characters={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))} bestiary={state.bestiary} 
+                activeCharacter={[...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || null} 
                 onSelectActiveCharacter={id => setState(p => ({ ...p, userAccount: { ...p.userAccount, activeCharacterId: id } }))} 
                 onMessage={handleMessage} 
-                onCreateCampaign={(t, p) => {
+                onCreateCampaign={(t, p, isRaid) => {
                   const campId = safeId();
-                  const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party };
-                  const primaryChar = state.characters.find(c => c.isPrimarySoul) || state.characters[0];
-                  setState(prev => ({ 
-                    ...prev, 
-                    campaigns: [...prev.campaigns, newCampaign], 
-                    activeCampaignId: campId,
-                    userAccount: { ...prev.userAccount, activeCharacterId: primaryChar?.id || state.party[0] }
-                  }));
+                  const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
+                  setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
                   handleMessage({ role: 'model', content: p, timestamp: Date.now() }, campId);
                 }} 
                 onSelectCampaign={id => setState(p => ({ ...p, activeCampaignId: id }))} 
@@ -369,52 +327,22 @@ const App: React.FC = () => {
               />}
               {activeTab === 'Fellowship' && <FellowshipScreen 
                 characters={state.characters} 
-                onAdd={(c: Character, items: Item[]) => setState(p => ({ ...p, characters: [...p.characters, { ...c, isPrimarySoul: p.characters.length === 0 }], armory: [...p.armory, ...items] }))} 
+                onAdd={(c, items) => setState(p => ({ ...p, characters: [...p.characters, { ...c, isPrimarySoul: p.characters.length === 0 }], armory: [...p.armory, ...items] }))} 
                 onDelete={id => setState(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))} 
-                onUpdate={updateCharacter} 
-                mentors={state.mentors} 
-                party={state.party} 
-                setParty={p => setState(s => ({ ...s, party: p }))} 
-                customArchetypes={state.customArchetypes} 
-                onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
-                username={state.userAccount.username} 
-                onStartTutorial={() => setShowTutorial(true)} 
-                hasCampaigns={state.campaigns.length > 0} 
-                onSummonMentors={handleSummonMentors}
+                onUpdate={updateCharacter} mentors={state.mentors} party={state.party} setParty={p => setState(s => ({ ...s, party: p }))} 
+                customArchetypes={state.customArchetypes} onAddCustomArchetype={a => setState(p => ({ ...p, customArchetypes: [...p.customArchetypes, a] }))} 
+                username={state.userAccount.username} onStartTutorial={() => setShowTutorial(true)} hasCampaigns={state.campaigns.length > 0} 
                 onRefreshCharacters={handleRefreshCharacters}
               />}
               {activeTab === 'Tavern' && <TavernScreen 
-                party={activePartyObjects} 
-                mentors={state.mentors} 
-                partyIds={state.party} 
+                party={[...state.characters, ...state.mentors].filter(c => state.party.includes(c.id))} mentors={state.mentors} partyIds={state.party} 
                 onToggleParty={id => setState(p => ({ ...p, party: p.party.includes(id) ? p.party.filter(x => x !== id) : [...p.party, id] }))} 
-                onLongRest={() => {}} 
-                isHost={true} 
-                activeRumors={state.activeRumors} 
-                onFetchRumors={() => {}} 
-                isRumorLoading={false} 
+                onLongRest={() => {}} isHost={true} activeRumors={state.activeRumors} onFetchRumors={() => {}} isRumorLoading={false} 
                 isBetweenCampaigns={!state.activeCampaignId}
-                onBuyItem={(item, buyerId, cost) => {
-                  const char = [...state.characters, ...state.mentors].find(c => c.id === buyerId);
-                  if (char) {
-                     updateCharacter(buyerId, { 
-                       inventory: [...char.inventory, item], 
-                       currency: { aurels: Math.max(0, char.currency.aurels - (cost?.aurels || 0)) } 
-                     });
-                     setState(p => ({ ...p, armory: [...p.armory, item] }));
-                  }
-                }}
               />}
-              {activeTab === 'Tactics' && <TacticalMap tokens={state.mapTokens} onUpdateTokens={t => setState(p => ({ ...p, mapTokens: t }))} characters={activePartyObjects} monsters={state.bestiary} />}
-              {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={() => {}} userId={state.userAccount.id} />}
-              {activeTab === 'Bestiary' && <BestiaryScreen monsters={state.bestiary} onClear={() => setState(p => ({ ...p, bestiary: [] }))} />}
-              {activeTab === 'Armory' && <ArmoryScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} />}
-              {activeTab === 'Alchemy' && <AlchemyScreen armory={state.armory} setArmory={a => setState(p => ({ ...p, armory: a }))} onShare={() => {}} userId={state.userAccount.id} party={activePartyObjects} />}
-              {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
               {activeTab === 'Rules' && <RulesScreen />}
-              {activeTab === 'Nexus' && <NexusScreen peerId="" connectedPeers={[]} isHost={true} onConnect={() => {}} username={state.userAccount.username} gameState={state} onClearFriends={() => {}} onDeleteAccount={() => {
-                if (confirm("Dissolve soul?")) { localStorage.removeItem(STORAGE_PREFIX + 'state'); window.location.reload(); }
-              }} />}
+              {activeTab === 'Spells' && <SpellsScreen playerCharacters={state.characters} customArchetypes={state.customArchetypes} mentors={state.mentors} />}
+              {activeTab === 'Archetypes' && <ArchetypesScreen customArchetypes={state.customArchetypes} onShare={() => {}} userId={state.userAccount.id} />}
             </div>
           </main>
         </div>

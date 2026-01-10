@@ -1,8 +1,10 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, Character, Monster, Item, GameState, Shop, Rumor, Ability } from './types';
 
-// THE CLOCKWORK ENGINE: Unified on Gemini 3 Flash for maximum narrative velocity
 const FLASH_MODEL = 'gemini-3-flash-preview';
+
+export const isOffline = () => (window as any).MYTHOS_OFFLINE_MODE === true;
 
 export const safeId = () => {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -14,10 +16,25 @@ export const safeId = () => {
 };
 
 const trackUsage = () => {
-  window.dispatchEvent(new CustomEvent('mythos_api_call'));
+  if (!isOffline()) window.dispatchEvent(new CustomEvent('mythos_api_call'));
 };
 
 const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const CLOCKWORK_RESPONSES = [
+  "The obsidian corridors shift as thou steppest forward. The darkness hungers. What is thy move?",
+  "A chill wind carries the scent of iron and ancient rot. Thine enemies circle in the gloom. Prepare thyself.",
+  "Thy soul resonates with the surrounding void. A heavy silence falls over the sanctuary. Fate awaits.",
+  "The mechanisms of the world grind with a metallic screech. Something ancient has been disturbed."
+];
+
+const CLOCKWORK_ITEMS = [
+  { name: "Obsidian Dagger", type: "Weapon", damage: "1d4", damageType: "Piercing" },
+  { name: "Iron Plate", type: "Armor", ac: 16 },
+  { name: "Steel Longsword", type: "Weapon", damage: "1d8", damageType: "Slashing" },
+  { name: "Leather Jerkin", type: "Armor", ac: 11 },
+  { name: "Minor Vitality Flask", type: "Utility" }
+];
 
 const prepareHistory = (history: Message[]) => {
   if (history.length === 0) return [{ role: 'user', parts: [{ text: 'Begin the chronicle.' }] }];
@@ -44,12 +61,36 @@ const prepareHistory = (history: Message[]) => {
   return contents;
 };
 
+/**
+ * THE SCRIBE: Audits narrative text for mechanical changes.
+ * Fallback: Simple RegEx scanning for "damage", "heal", and numbers.
+ */
 export const auditNarrativeEffect = async (narrative: string, party: Character[]): Promise<any> => {
   if (!narrative) return { changes: [], newEntities: [] };
+  
+  if (isOffline()) {
+    const changes: any[] = [];
+    const lowNar = narrative.toLowerCase();
+    
+    party.forEach(char => {
+      const name = char.name.toLowerCase();
+      if (lowNar.includes(name)) {
+        const damageMatch = lowNar.match(new RegExp(`${name}.*?takes.*?(\\d+)`));
+        if (damageMatch) changes.push({ type: 'damage', target: char.name, value: parseInt(damageMatch[1]) });
+        
+        const healMatch = lowNar.match(new RegExp(`${name}.*?heals.*?(\\d+)`));
+        if (healMatch) changes.push({ type: 'heal', target: char.name, value: parseInt(healMatch[1]) });
+
+        const expMatch = lowNar.match(new RegExp(`${name}.*?gains.*?(\\d+).*?exp`));
+        if (expMatch) changes.push({ type: 'exp', target: char.name, value: parseInt(expMatch[1]) });
+      }
+    });
+    return { changes, newEntities: [] };
+  }
+
   const ai = getAiClient();
   trackUsage();
-  const manifest = party.map(c => `${c.name} (${c.currentHp}/${c.maxHp} HP, ${c.currentMana}/${c.maxMana} Mana, Lvl ${c.level})`).join(', ');
-  const systemInstruction = `Thou art the "Mechanical Scribe". Audit narrative for stats. Return JSON ONLY.`;
+  const systemInstruction = `Thou art the "Mechanical Scribe" running on Flash architecture. Audit narrative for stats. Level cap is 20. Return JSON ONLY.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -94,10 +135,27 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   } catch (e) { return { changes: [], newEntities: [] }; }
 };
 
+/**
+ * THE ARBITER: The primary DM logic.
+ * Fallback: Static dark fantasy prompts.
+ */
 export const generateDMResponse = async (history: Message[], playerContext: any) => {
+  if (isOffline()) {
+    return CLOCKWORK_RESPONSES[Math.floor(Math.random() * CLOCKWORK_RESPONSES.length)] + "\n\n(Note: Thou art in Clockwork Mode. Narrative depth is limited.)";
+  }
+
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM. Rules: Use [🎲 d20(roll)+mod=result] for checks. Grant unique feats for Nat 20 legendary successes. High-velocity, evocative dark fantasy prose.`;
+  const isRaid = playerContext.isRaid;
+  const systemInstruction = `Thou art the "Arbiter of Mythos", a Dark Fantasy DM powered by Flash-resonance. 
+  RULES: 
+  - Level cap is 20.
+  - ${isRaid 
+      ? "RAID PROTOCOL ACTIVE: Balance all encounters for an ELITE SQUAD of 8 vessels (2 Tanks, 4 DPS, 2 Supports). Monsters must have massive HP pools, multi-attacks, and phase transitions. Environmental hazards are lethal." 
+      : "ALWAYS balance encounters for a party of 4-5 members. If the party has fewer, the world is brutal and they must use strategy or find allies. If they have more, the darkness scales up."}
+  - Use [🎲 d20(roll)+mod=result] for checks. 
+  - Grant legendary feats for Nat 20 successes. 
+  - High-velocity, evocative dark fantasy prose.`;
   const contents = prepareHistory(history);
   try {
     const response = await ai.models.generateContent({
@@ -109,18 +167,25 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
   } catch (error: any) { return "The Aetheric connection has been severed."; }
 };
 
+/**
+ * THE ARCHITECT: Forges unique gear.
+ * Fallback: Draws from a basic loot table.
+ */
 export const generateItemDetails = async (itemName: string, context: string): Promise<Partial<Item>> => {
+  if (isOffline()) {
+    const base = CLOCKWORK_ITEMS[Math.floor(Math.random() * CLOCKWORK_ITEMS.length)];
+    return {
+      name: `Clockwork ${itemName || base.name}`,
+      description: "A deterministic artifact forged without soul-resonance.",
+      type: (base.type as any) || "Utility",
+      rarity: "Common",
+      stats: { damage: base.damage, ac: base.ac, damageType: base.damageType } as any
+    };
+  }
+
   const ai = getAiClient();
   trackUsage();
-  const systemInstruction = `Thou art the "Architect's Forge". 
-  STRICT RULES:
-  - ARMOR (Plate, Robes, Leather, Shields) MUST use 'ac' property. It NEVER uses 'damage'.
-  - WEAPONS (Sword, Axe, Bow, Dagger) MUST use 'damage' and 'damageType'. 
-  - DAMAGE must be a die formula like '1d8' or '2d4'.
-  - DAMAGE TYPE must be descriptive like 'Slashing/Necrotic' or 'Piercing/Cold'.
-  - Items can have attribute bonuses (str, dex, con, int, wis, cha).
-  - Items can have 'resistances' (e.g. ["Fire", "Necrotic"]).`;
-
+  const systemInstruction = `Thou art the "Architect's Forge", a Flash-servant. Manifest Dark Fantasy items.`;
   try {
     const response = await ai.models.generateContent({ 
       model: FLASH_MODEL, 
@@ -146,8 +211,7 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
                 con: { type: Type.NUMBER },
                 int: { type: Type.NUMBER },
                 wis: { type: Type.NUMBER },
-                cha: { type: Type.NUMBER },
-                resistances: { type: Type.ARRAY, items: { type: Type.STRING } }
+                cha: { type: Type.NUMBER }
               } 
             }
           },
@@ -159,22 +223,71 @@ export const generateItemDetails = async (itemName: string, context: string): Pr
   } catch (e) { return { name: itemName }; }
 };
 
+/**
+ * THE LORE-WEAVER: Creates character biographies.
+ * Fallback: Static biography.
+ */
+export const manifestSoulLore = async (char: any): Promise<any> => {
+  if (isOffline()) return { biography: "A soul forged in the clockwork void, destined for deterministic trials.", description: "A vessel of standard design." };
+  
+  const ai = getAiClient();
+  trackUsage();
+  const response = await ai.models.generateContent({ 
+    model: FLASH_MODEL, 
+    contents: `Manifest Lore for ${char.name}, a level ${char.level} ${char.race} ${char.archetype}. Return JSON with "biography" and "description".`, 
+    config: { 
+      systemInstruction: "Thou art the Lore-Weaver. Dark fantasy tone.",
+      responseMimeType: "application/json" 
+    } 
+  });
+  return JSON.parse(response.text || '{}');
+};
+
+/**
+ * THE INNKEEPER: Barnaby's conversational logic.
+ */
+export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
+  if (isOffline()) return "Rest thy bones. The fire burns even without the Great Well's light.";
+  
+  const ai = getAiClient();
+  trackUsage();
+  const contents = prepareHistory(history);
+  const response = await ai.models.generateContent({ 
+    model: FLASH_MODEL, 
+    contents, 
+    config: { systemInstruction: "Thou art Barnaby, one-eyed innkeeper. Dark fantasy. Flash-velocity speech." } 
+  });
+  return response.text;
+};
+
+/**
+ * THE BESTIARY-CLERK: Forges new horrors.
+ */
+export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
+  if (isOffline()) {
+    return {
+      name: `Clockwork ${monsterName || "Scrap-Beast"}`,
+      type: "Beast",
+      hp: 20,
+      ac: 12,
+      cr: 1,
+      description: "A predictable horror of gears and iron."
+    };
+  }
+
+  const ai = getAiClient();
+  trackUsage();
+  const response = await ai.models.generateContent({ 
+    model: FLASH_MODEL, 
+    contents: `Manifest Monster: ${monsterName}. Context: ${context}. Return JSON.`, 
+    config: { 
+      systemInstruction: "Thou art the Bestiary-Clerk. Forge a horrific creature.",
+      responseMimeType: "application/json" 
+    } 
+  });
+  return JSON.parse(response.text || '{}');
+};
+
 export const hydrateState = (data: Partial<GameState>, defaultState: GameState): GameState => ({ ...defaultState, ...data });
 export const generateSoulSignature = (state: GameState): string => { try { return btoa(encodeURIComponent(JSON.stringify(state))); } catch (e) { return "ERROR"; } };
 export const parseSoulSignature = (sig: string, def: GameState): GameState | null => { try { return JSON.parse(decodeURIComponent(atob(sig))); } catch { return null; } };
-export const manifestSoulLore = async (char: any): Promise<any> => {
-  const ai = getAiClient();
-  const response = await ai.models.generateContent({ model: FLASH_MODEL, contents: `Lore for ${char.name}. JSON.`, config: { responseMimeType: "application/json" } });
-  return JSON.parse(response.text || '{}');
-};
-export const generateInnkeeperResponse = async (history: Message[], party: Character[]) => {
-  const ai = getAiClient();
-  const contents = prepareHistory(history);
-  const response = await ai.models.generateContent({ model: FLASH_MODEL, contents, config: { systemInstruction: "Thou art Barnaby, one-eyed innkeeper. Dark fantasy." } });
-  return response.text;
-};
-export const generateMonsterDetails = async (monsterName: string, context: string): Promise<Partial<Monster>> => {
-  const ai = getAiClient();
-  const response = await ai.models.generateContent({ model: FLASH_MODEL, contents: `Monster: ${monsterName}. JSON.`, config: { responseMimeType: "application/json" } });
-  return JSON.parse(response.text || '{}');
-};

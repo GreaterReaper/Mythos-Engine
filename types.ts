@@ -1,3 +1,4 @@
+
 export enum Race {
   Human = 'Human',
   Elf = 'Elf',
@@ -167,6 +168,7 @@ export interface Campaign {
   participants: string[];
   activeShop?: Shop | null;
   isCombatActive?: boolean;
+  isRaid?: boolean;
 }
 
 export interface Friend {

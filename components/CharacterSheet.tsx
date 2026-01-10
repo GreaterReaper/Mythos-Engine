@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Character, Stats, Ability, Item, Archetype, Race, Currency, StatusEffect, ArchetypeInfo } from '../types';
 import { ARCHETYPE_INFO, SPELL_LIBRARY } from '../constants';
@@ -38,12 +39,30 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const rollIdCounter = useRef(0);
 
   const getMod = (val: number) => Math.floor((val - 10) / 2);
-  const strMod = getMod(character.stats.str);
-  const dexMod = getMod(character.stats.dex);
-  const conMod = getMod(character.stats.con);
-  const intMod = getMod(character.stats.int);
-  const wisMod = getMod(character.stats.wis);
-  const chaMod = getMod(character.stats.cha);
+
+  // Derived Attributes (including gear bonuses)
+  const totalStats = useMemo(() => {
+    const stats = { ...character.stats };
+    const equipped = character.inventory.filter(i => character.equippedIds?.includes(i.id));
+    equipped.forEach(item => {
+      if (item.stats) {
+        Object.keys(character.stats).forEach(key => {
+          const sKey = key as keyof Stats;
+          if (typeof (item.stats as any)[sKey] === 'number') {
+            stats[sKey] += (item.stats as any)[sKey];
+          }
+        });
+      }
+    });
+    return stats;
+  }, [character.stats, character.inventory, character.equippedIds]);
+
+  const strMod = getMod(totalStats.str);
+  const dexMod = getMod(totalStats.dex);
+  const conMod = getMod(totalStats.con);
+  const intMod = getMod(totalStats.int);
+  const wisMod = getMod(totalStats.wis);
+  const chaMod = getMod(totalStats.cha);
 
   useEffect(() => {
     if (prevHpRef.current !== character.currentHp) {
@@ -75,10 +94,11 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
   const { classAbilities, customBoons } = useMemo(() => {
     const all = [...(character.abilities || []), ...(character.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
     return {
-      classAbilities: all.filter(a => a.levelReq > 0),
+      // ONLY SHOW UNLOCKED ON CHARACTER SHEET
+      classAbilities: all.filter(a => a.levelReq > 0 && a.levelReq <= character.level),
       customBoons: all.filter(a => a.levelReq === 0)
     };
-  }, [character.abilities, character.spells]);
+  }, [character.abilities, character.spells, character.level]);
 
   const equippedItems = useMemo(() => character.inventory.filter(i => character.equippedIds?.includes(i.id)), [character.inventory, character.equippedIds]);
   
@@ -199,6 +219,15 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
     setTimeout(() => setRollResults(prev => prev.filter(r => r.id !== newRoll.id)), 4000);
   };
 
+  const statNameMap: Record<string, string> = {
+    str: 'STRENGTH',
+    dex: 'DEXTERITY',
+    con: 'CONSTITUTION',
+    int: 'INTELLECT',
+    wis: 'WISDOM',
+    cha: 'CHARISMA'
+  };
+
   return (
     <div className="flex flex-col h-full bg-black/40 rune-border overflow-hidden relative">
       <div className="p-6 border-b border-emerald-900/30 flex justify-between items-center bg-black/60">
@@ -259,7 +288,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
 
             <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
               {(Object.keys(character.stats) as Array<keyof Stats>).map(s => {
-                const val = character.stats[s];
+                const val = totalStats[s];
                 const mod = getMod(val);
                 return (
                   <div key={s} className="bg-black/60 border border-emerald-900/20 p-3 text-center rounded hover:border-gold transition-colors">
@@ -270,6 +299,85 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                 );
               })}
             </div>
+
+            {/* BATTLE MANIFEST SECTION */}
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Battle Manifest</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {combatStats.length > 0 ? combatStats.map(cs => (
+                  <div key={cs.id} className="p-4 bg-emerald-900/5 border border-emerald-900/20 rounded group hover:border-gold transition-all cursor-pointer" onClick={() => handleRollWeapon(character.inventory.find(i => i.id === cs.id)!)}>
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm font-cinzel text-gold font-bold">{cs.name}</p>
+                      <p className="text-xs text-emerald-500 font-black">+{cs.attackBonus} ATK</p>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <div className="flex items-center gap-2">
+                         <span className="text-lg font-black text-white">{cs.damage}</span>
+                         <span className="text-[8px] text-red-500 uppercase font-black bg-red-950/30 px-1 rounded">{cs.damageType}</span>
+                      </div>
+                      <span className="text-[8px] text-gray-600 font-black uppercase">{cs.modName} Based</span>
+                    </div>
+                  </div>
+                )) : (
+                   <div className="col-span-2 py-6 text-center border border-dashed border-emerald-900/20 opacity-40">
+                      <p className="text-[10px] font-cinzel text-gray-500 uppercase italic">No offensive vessels equipped.</p>
+                   </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Soul Path' && (
+          <div className="space-y-8">
+             <div className="space-y-4">
+               <h3 className="text-[10px] font-cinzel text-gold uppercase font-black tracking-widest border-b border-gold/20 pb-1">Manifestations</h3>
+               <div className="grid grid-cols-1 gap-4">
+                 {classAbilities.length > 0 ? classAbilities.map((ab, idx) => (
+                   <div key={idx} className="p-4 bg-black/60 border border-emerald-900/20 rounded group hover:border-emerald-500 transition-all">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-sm font-cinzel text-gold font-bold group-hover:text-white">{ab.name}</p>
+                          <div className="flex gap-2 mt-1">
+                             <span className="text-[8px] bg-emerald-950/40 px-1.5 py-0.5 rounded text-emerald-400 font-black uppercase">{ab.type}</span>
+                             {ab.manaCost && <span className="text-[8px] text-blue-400 font-black uppercase tracking-tighter">{ab.manaCost} MANA</span>}
+                             {ab.hpCost && <span className="text-[8px] text-red-500 font-black uppercase tracking-tighter">{ab.hpCost} VITALITY</span>}
+                          </div>
+                        </div>
+                        <span className="text-[8px] border border-gold/20 px-1.5 py-0.5 rounded text-gold/60 font-black uppercase">Level {ab.levelReq}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 italic leading-relaxed">"{ab.description}"</p>
+                      {ab.damage && (
+                         <div className="mt-3 flex gap-4">
+                            <div className="text-[9px] font-black uppercase"><span className="text-gray-500 mr-1">Output:</span> <span className="text-gold">{ab.damage} {ab.damageType}</span></div>
+                            {ab.scaling && <div className="text-[9px] font-black uppercase"><span className="text-gray-500 mr-1">Scaling:</span> <span className="text-emerald-500">{ab.scaling}</span></div>}
+                         </div>
+                      )}
+                   </div>
+                 )) : (
+                   <div className="py-12 text-center border border-dashed border-emerald-900/20 opacity-40">
+                      <p className="text-sm font-cinzel text-gray-500 uppercase italic">No class powers unlocked.</p>
+                   </div>
+                 )}
+               </div>
+             </div>
+
+             {customBoons.length > 0 && (
+               <div className="space-y-4">
+                 <h3 className="text-[10px] font-cinzel text-emerald-500 uppercase font-black tracking-widest border-b border-emerald-500/20 pb-1">Legendary Boons</h3>
+                 <div className="grid grid-cols-1 gap-4">
+                   {customBoons.map((ab, idx) => (
+                     <div key={idx} className="p-4 bg-emerald-950/20 border border-gold/40 rounded shadow-[0_0_15px_rgba(212,175,55,0.1)]">
+                        <div className="flex justify-between items-start mb-2">
+                           <p className="text-sm font-cinzel text-gold font-bold">{ab.name}</p>
+                           <span className="text-[8px] bg-gold/20 px-1.5 py-0.5 rounded text-gold font-black uppercase">UNIQUE MANIFEST</span>
+                        </div>
+                        <p className="text-xs text-gray-200 leading-relaxed font-medium">"{ab.description}"</p>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
           </div>
         )}
 
@@ -281,7 +389,7 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredInventory.map(item => (
-                <div key={item.id} className={`p-4 border transition-all flex flex-col gap-3 ${character.equippedIds?.includes(item.id) ? 'bg-gold/10 border-gold' : 'bg-black/40 border-emerald-900/20'}`}>
+                <div key={item.id} className={`p-4 border transition-all flex flex-col gap-3 ${character.equippedIds?.includes(item.id) ? 'bg-gold/10 border-gold shadow-[0_0_15px_rgba(212,175,55,0.1)]' : 'bg-black/40 border-emerald-900/20'}`}>
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-cinzel text-gold font-bold">{item.name}</p>
@@ -336,6 +444,11 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
                   <p className="text-[10px] text-gray-500 italic leading-relaxed line-clamp-2">"{item.description}"</p>
                 </div>
               ))}
+              {filteredInventory.length === 0 && (
+                <div className="col-span-2 py-12 text-center opacity-30 border border-dashed border-emerald-900/20">
+                   <p className="text-[10px] font-cinzel text-gray-500 uppercase italic">Thy pockets are empty of {inventoryFilter.toLowerCase()}.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -347,6 +460,26 @@ const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onUpdate, is
           </div>
         )}
       </div>
+
+      {/* ROLL RESULTS OVERLAY */}
+      {rollResults.length > 0 && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col gap-2 z-50">
+          {rollResults.map(res => (
+            <div key={res.id} className="bg-[#0c0a09] border-2 border-gold p-4 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 min-w-[200px]">
+              <p className="text-[8px] font-cinzel text-gold uppercase font-black tracking-widest mb-1">{res.label}</p>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-2xl font-black text-white">{res.result}</p>
+                  <p className="text-[8px] font-mono text-gray-500">[{res.rolls.join(' + ')}] {res.formula.includes('+') ? `+ ${res.formula.split('+')[1]}` : ''}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] font-black text-emerald-500 uppercase">Resonance Impact</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Archetype, ArchetypeInfo, Role } from '../types';
+import { Archetype, ArchetypeInfo, Role, Ability } from '../types';
 import { ARCHETYPE_INFO } from '../constants';
 
 interface ArchetypesScreenProps {
@@ -43,7 +43,7 @@ const ArchetypesScreen: React.FC<ArchetypesScreenProps> = ({ customArchetypes, o
       <div className="border-b border-emerald-900 pb-4 flex flex-col md:flex-row justify-between items-end gap-4">
         <div>
           <h2 className="text-4xl font-cinzel text-gold">Sacred Archetypes</h2>
-          <p className="text-gray-500 italic">"Choose thy path wisely, for it shall be thy end."</p>
+          <p className="text-gray-500 italic">"Behold the full path of thy soul, from awakening to transcendence."</p>
         </div>
         <div className="flex gap-2">
           {(['All', 'Tank', 'DPS', 'Support'] as const).map(role => (
@@ -61,6 +61,8 @@ const ArchetypesScreen: React.FC<ArchetypesScreenProps> = ({ customArchetypes, o
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredArchetypes.map((arch, idx) => {
           const isCustom = !Object.keys(ARCHETYPE_INFO).includes(arch.name);
+          const fullPath = [...arch.coreAbilities, ...(arch.spells || [])].sort((a, b) => a.levelReq - b.levelReq);
+          
           return (
             <div key={`${arch.name}-${idx}`} className={`rune-border p-6 bg-black/60 backdrop-blur group hover:bg-emerald-900/5 transition-all flex flex-col ${isCustom ? 'border-gold/40 shadow-[0_0_20px_rgba(161,98,7,0.1)]' : 'border-emerald-900/30'}`}>
               <div className="flex justify-between items-start mb-2">
@@ -72,17 +74,20 @@ const ArchetypesScreen: React.FC<ArchetypesScreenProps> = ({ customArchetypes, o
                  <span>Primary: {getPrimaryStat(arch.name)}</span>
               </div>
               <p className="text-sm text-gray-400 mb-6 leading-relaxed flex-1 italic">"{arch.description}"</p>
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-cinzel text-gold border-b border-gold/20 pb-1 font-black uppercase tracking-widest">Core Manifest</h4>
-                {arch.coreAbilities.map((ab, i) => (
-                  <div key={i} className="relative">
-                    <div className="flex justify-between text-xs font-cinzel text-emerald-700 font-bold">
-                       <span>{ab.name}</span>
-                       <span className="text-[8px] opacity-60">{ab.type}</span>
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-cinzel text-gold border-b border-gold/20 pb-1 font-black uppercase tracking-widest">Aetheric Progression</h4>
+                <div className="space-y-3">
+                  {fullPath.map((ab, i) => (
+                    <div key={i} className="relative pl-6 border-l border-emerald-900/40 pb-2 last:pb-0">
+                      <div className="absolute left-[-5px] top-1 w-2.5 h-2.5 bg-emerald-900 border border-gold/40 rotate-45" />
+                      <div className="flex justify-between text-xs font-cinzel text-emerald-700 font-bold items-center">
+                         <span>{ab.name}</span>
+                         <span className="text-[8px] opacity-60 bg-black/40 px-1 rounded">LVL {ab.levelReq}</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-tight mt-1">{ab.description}</p>
                     </div>
-                    <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{ab.description}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           );

@@ -1,7 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Campaign, Message, Character, Item, Monster, Currency, Ability, ApiUsage } from '../types';
-import { generateDMResponse } from '../geminiService';
 import { RULES_MANIFEST, RAID_RECOMMENDATION } from '../constants';
 
 interface DMWindowProps {
@@ -162,8 +161,8 @@ const DMWindow: React.FC<DMWindowProps> = ({
 
   const effectivePOV = activeCharacter || characters[0];
   
-  // CRITICAL: Filter out technical genesis prompts from the visual history
-  const visibleHistory = campaign.history.filter(m => !m.content.startsWith('[NARRATIVE_START]'));
+  // Filter technical tokens from view
+  const visibleHistory = campaign.history.filter(m => !m.content.includes("[NARRATIVE_START]"));
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[#0c0a09]">

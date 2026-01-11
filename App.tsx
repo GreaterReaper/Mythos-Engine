@@ -146,10 +146,10 @@ const App: React.FC = () => {
       setIsLoading(true);
       try {
         const currentCampaign = state.campaigns.find(c => c.id === targetCampaignId);
-        // Ensure atomic history even if state hasn't flushed yet
-        const history = currentCampaign ? [...currentCampaign.history, msg] : [msg];
+        // Using a snapshot of the history to ensure Turn Sequence is correct
+        const historySnapshot = currentCampaign ? [...currentCampaign.history, msg] : [msg];
         
-        const responseText = await generateDMResponse(history, { 
+        const responseText = await generateDMResponse(historySnapshot, { 
           activeCharacter: [...state.characters, ...state.mentors].find(c => c.id === state.userAccount.activeCharacterId) || activePartyUnits[0], 
           party: activePartyUnits, 
           existingMonsters: state.bestiary, 
@@ -236,21 +236,27 @@ const App: React.FC = () => {
     }
   };
 
-  const handleTutorialComplete = (primaryId: string, title: string, prompt: string) => {
+  const handleTutorialComplete = async (primaryId: string, title: string, prompt: string) => {
     const campId = safeId();
     const newCampaign: Campaign = { id: campId, title, prompt, history: [], participants: [primaryId], isRaid: false };
-    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId, party: [primaryId] }));
+    
+    setState(prev => ({ 
+      ...prev, 
+      campaigns: [...prev.campaigns, newCampaign], 
+      activeCampaignId: campId, 
+      party: [primaryId] 
+    }));
     setShowTutorial(false);
     setActiveTab('Chronicles');
-    
-    // Silence immediate silent genesis
+
+    // Initiation via Technical Start Token
     setTimeout(() => {
       handleMessage({ 
         role: 'user', 
-        content: `[NARRATIVE_START]: Weave the opening scene. Atmosphere for ${title}. Premise: ${prompt}.`, 
+        content: `[NARRATIVE_START]: Initiate the chronicle. Title: ${title}. Premise: ${prompt}.`, 
         timestamp: Date.now() 
       }, campId);
-    }, 200);
+    }, 100);
   };
 
   const handleDeleteAccount = () => {
@@ -261,19 +267,21 @@ const App: React.FC = () => {
     }
   };
 
-  const onCreateCampaign = (t: string, p: string, isRaid?: boolean) => {
+  const onCreateCampaign = async (t: string, p: string, isRaid?: boolean) => {
     const campId = safeId();
     const newCampaign: Campaign = { id: campId, title: t, prompt: p, history: [], participants: state.party, isRaid: !!isRaid };
-    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
     
-    // Silence immediate silent genesis
+    setState(prev => ({ ...prev, campaigns: [...prev.campaigns, newCampaign], activeCampaignId: campId }));
+    setActiveTab('Chronicles');
+
+    // Initiation via Technical Start Token
     setTimeout(() => {
       handleMessage({ 
         role: 'user', 
-        content: `[NARRATIVE_START]: Weave the opening scene. Atmosphere for ${t}. Premise: ${p}.`, 
+        content: `[NARRATIVE_START]: Initiate the chronicle. Title: ${t}. Premise: ${p}.`, 
         timestamp: Date.now() 
       }, campId);
-    }, 200);
+    }, 100);
   };
 
   return (

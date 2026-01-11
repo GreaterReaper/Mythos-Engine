@@ -35,10 +35,8 @@ export const auditNarrativeEffect = async (narrative: string, party: Character[]
   const systemInstruction = `Thou art the "Mechanical Scribe". Audit the Arbiter's narrative for mechanical shifts.
   DETECTION PROTOCOLS:
   1. COMMAND SCAN: Prioritize "SCRIBE_COMMAND:", "ARCHITECT_COMMAND:", and "LEGENDARY_MANIFEST:".
-  2. PARTY UPDATE: Look for "SCRIBE_COMMAND: Summon [Name]". This adds a Mentor to the active party.
-  3. STAT SHIFTS: Look for damage, healing, exp, or mana changes. Format: [Name] takes [X] damage.
-  4. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
-  5. LEVEL LOCK: Reject any "SCRIBE_COMMAND" that attempts to grant an ability for which the target's level is insufficient.
+  2. STAT SHIFTS: Look for HP, EXP, or MANA changes. Format: [Name] takes [X] damage.
+  3. ENTITIES: Look for "Forge [Monster]" or "Manifest [Item]".
   
   Return valid JSON matching the provided schema.`;
 
@@ -102,32 +100,31 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
     `${p.name} (Lvl ${p.level} ${p.archetype})`
   ).join(", ");
 
-  const isGenesis = history.some(m => m.content.includes("[NARRATIVE_START]"));
-
   const systemInstruction = `Thou art the "Arbiter of Mythos", a world-class Dark Fantasy DM.
   - Context: Party is [${partyContext}].
   - Current Chronicle: ${playerContext.campaignTitle || "A New Path"}.
   - Style: Visceral, sensory, lethal.
-  ${isGenesis ? "- TASK: This is the GENESIS of the campaign. Ignore technical tokens and weave a grand opening description of the surroundings, sensory details (smell of rot, chill of stone), and the immediate atmosphere. Set the tone for a dark, lethal journey." : ""}
   - Mechanics: Use "SCRIBE_COMMAND: [Name] takes [X] damage" for HP changes.
-  - Archetypes: Respect core abilities.
-  - Gating: Players cannot use spells above their current level.`;
+  - Roleplay: Speak directly to the players. Describe the environment with grit and atmosphere.`;
 
-  // Filter out system logs and ensure first message is User
-  const validHistory = history.filter(m => m.role !== 'system');
+  // Filter out system logs and ensure turn sequence is valid (User -> Model)
   const contents = [];
-  let foundUser = false;
+  const validHistory = history.filter(m => m.role !== 'system');
+  
   for (const m of validHistory) {
-    if (m.role === 'user') foundUser = true;
-    if (foundUser) {
-      contents.push({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.content }]
-      });
-    }
+    contents.push({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }]
+    });
   }
 
-  if (contents.length === 0) return "The void consumes thy intent. (No user context)";
+  // If for some reason history is empty or starts with model, prepend a silent starter
+  if (contents.length === 0 || contents[0].role !== 'user') {
+    contents.unshift({
+      role: 'user',
+      parts: [{ text: "[NARRATIVE_START]: Initiate the chronicle with an opening scene." }]
+    });
+  }
 
   try {
     const response = await ai.models.generateContent({
@@ -135,7 +132,7 @@ export const generateDMResponse = async (history: Message[], playerContext: any)
       contents,
       config: { 
         systemInstruction, 
-        temperature: isGenesis ? 0.9 : 0.8 // Higher temperature for the opening prose
+        temperature: 0.8
       }
     });
     return response.text || "The engine hums in the dark.";
